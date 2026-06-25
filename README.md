@@ -6,37 +6,67 @@
 
 ## Overview
 
-Saṃgraha is a **Knowledge Engineering Platform** designed for AI-assisted software engineering.
+Saṃgraha is a **Knowledge Engineering Platform** that transforms engineering
+documentation into structured, verified, deterministic knowledge packages for
+AI coding agents.
 
-Traditional documentation is written for humans.
+Every engineering repository should become **self-describing** — a repository
+that communicates why it exists, what it does, how it's designed, and why
+decisions were made without requiring an AI to reverse-engineer source code.
 
-Saṃgraha transforms engineering documentation into structured, searchable, implementation-ready knowledge that can be consumed efficiently by AI coding agents.
+Documentation is governed by **standards** — contracts that define what each
+domain must contain. **Audits** verify compliance before knowledge is compiled.
+**MCP** serves only audit-passing documentation to AI agents.
 
-Instead of treating Markdown as static documentation, Saṃgraha treats it as **source code for knowledge**.
-
-Documentation remains the single source of truth.
-
-Everything else is generated.
+Documentation is the authoritative engineering specification. Everything else
+is generated.
 
 ---
 
 # Philosophy
 
-Documentation should drive implementation.
+### Documentation First
 
-Source documentation should be:
+Documentation defines the system. Implementation realizes it.
 
-* Human readable
-* Version controlled
-* Technology independent
-* Architecture focused
+### Standards Before Tools
 
-Generated artifacts should provide:
+Standards define quality. Tools enforce quality.
 
-* Fast retrieval
-* AI-friendly structure
-* Deterministic compilation
-* Offline operation
+### AI-Readable by Default
+
+Documentation should be understandable by both humans and AI systems. Clarity
+benefits both.
+
+### Audit-Gated Knowledge
+
+Only verified documentation enters the knowledge pipeline. Two-tier audit:
+deterministic checks (always run, offline) and semantic checks (optional
+AI-assisted). Audit failures are engineering quality feedback.
+
+### Deterministic Compilation
+
+The same documentation always produces the same knowledge package. No hidden
+state. No manual synchronization.
+
+### Knowledge Before Retrieval
+
+Knowledge should be organized before it is searched. Retrieval quality depends
+on knowledge quality.
+
+### Prototype Before Production
+
+Systems should be validated before they are implemented.
+
+### Offline First
+
+Compilation and knowledge delivery should not require cloud services or AI
+models. AI is optional enrichment, never a runtime dependency.
+
+### Technology Independent
+
+Documentation methodology remains independent of programming languages,
+frameworks, databases, infrastructure, and AI providers.
 
 ---
 
@@ -54,25 +84,100 @@ Generated artifacts should provide:
 
 ---
 
+# Documentation Domains
+
+Engineering knowledge is separated into ten explicit documentation domains,
+each governed by a Documentation Standard:
+
+Repository-wide knowledge:
+- **Vision** — product purpose, direction, and success criteria
+- **Design** — system design decisions and rationale
+- **Architecture** — system organization and communication paths
+- **Engineering** — engineering principles, build system, security, invariants
+- **External Context** — external systems, dependencies, and their ownership
+
+Feature-specific knowledge:
+- **Feature** — what a feature does and its behavior
+- **Feature Design** — how a feature is designed
+- **Feature Technical Design** — how a feature is implemented
+
+Validation:
+- **Prototype** — validation approach and results
+
+Repository navigation:
+- **README** — repository structure and getting started
+
+Every domain has one responsibility. Together they form a complete engineering
+specification.
+
+---
+
+# Quality-Gated Knowledge
+
+Saṃgraha's documentation pipeline has three layers that guarantee knowledge
+quality before it reaches AI agents:
+
+```text
+Standards (Contracts)
+    ↓
+Audit (Verification)
+    ↓
+MCP (Delivery)
+```
+
+**Standards** define exactly what each documentation domain must contain.
+Each standard is an independent contract specifying Purpose, Responsibilities,
+Scope, Inputs, Outputs, Relationships, Validation Rules, Audit Rules,
+Generation Rules, Enhancement Rules, and Success Criteria. Architecture docs
+describe organization, not code. Feature docs describe capabilities, not
+implementation.
+
+**Audits** verify compliance against those contracts before documentation
+enters the knowledge pipeline. Two tiers:
+
+- **Deterministic checks** — metadata completeness, link validity, file
+  existence, one-to-one mapping. Always run, offline, zero AI.
+- **Semantic checks** — technology independence, scope appropriateness,
+  implementation leakage. Optional AI-assisted enrichment.
+
+Each audit check traces directly to a specific Audit Rule in the corresponding
+standard. Every standard has a matching audit; every Audit Rule is covered.
+
+Audit results are deterministic metadata carried into the knowledge package
+(audit_pass, failed_rules, last_audit). Compilation respects audit status —
+domains that fail audit are excluded from the package.
+
+**MCP** serves only audit-passing documentation to AI agents. Audit status is
+exposed in search result metadata so agents understand the verification level
+of every retrieved document. The result: LLMs like Claude Code and OpenCode
+receive consistent, complete, traceable, verified knowledge — not ad-hoc docs
+with unpredictable quality.
+
+Without standards and audits, MCP serves whatever documentation exists,
+with whatever quality it happens to have. With them, MCP serves only
+contract-compliant knowledge — verified, structured, and reliable.
+
+---
+
 # Core Concepts
 
 ## Documentation
 
-Documentation is the authoritative source of knowledge.
+Documentation is the authoritative engineering specification.
 
-Examples include:
+Documentation is organized into ten explicit domains, each governed by a
+Documentation Standard:
 
 * Vision
-* Features
+* Design
 * Architecture
-* Engineering Decisions
+* Engineering
 * External Context
-* Ownership
-* Protocols
-* Invariants
-* Security
-* Runtime
-* APIs
+* Feature
+* Feature Design
+* Feature Technical Design
+* Prototype
+* README
 
 Documentation is never generated.
 
@@ -155,25 +260,35 @@ They are never manually edited.
 # Architecture
 
 ```text
-Markdown Documentation
+Documentation Standards
+          │
+          ▼
+ Markdown Documentation
+          │
+          ▼
+   Automated Audit (quality gate)
           │
           ▼
    Saṃgraha Compiler
           │
           ▼
-  Knowledge Registry
+   Knowledge Registry
           │
           ▼
- Knowledge Resolver
+  Knowledge Resolver
           │
           ▼
- Knowledge Package
+  Knowledge Package
           │
           ▼
-     MCP Runtime
-          │
-          ▼
- AI Coding Agents
+  Knowledge Delivery
+  ┌────┴────┐
+  ↓         ↓
+Audit    MCP Runtime
+Metadata    │ (quality gate)
+  ↓         ▼
+Audit   AI Coding Agents
+Report
 ```
 
 ---
@@ -262,6 +377,9 @@ If AI is unavailable, compilation still succeeds.
 Markdown
     │
     ▼
+Automated Audit (quality gate, deterministic checks)
+    │
+    ▼
 Parser
     │
     ▼
@@ -271,13 +389,16 @@ Metadata
 Chunking
     │
     ▼
+Semantic Audit (optional AI-assisted checks)
+    │
+    ▼
 Knowledge Enrichment (Optional)
     │
     ▼
 Knowledge Registry
     │
     ▼
-Knowledge Package
+Knowledge Package (includes audit metadata)
 ```
 
 ---
@@ -346,13 +467,13 @@ Repositories explicitly declare knowledge dependencies.
 Example:
 
 ```
-Prana
+my-project
 
 depends on
 
-- Astra
-- React
-- Electron
+- saṃgraha (compiler)
+- provider-api (AI integration)
+- vector-db (embeddings storage)
 ```
 
 The resolver automatically assembles the required Knowledge Package.
@@ -389,7 +510,10 @@ Deterministic builds eliminate synchronization issues.
 
 # MCP Integration
 
-Saṃgraha integrates with MCP-compatible coding agents.
+Saṃgraha integrates with MCP-compatible coding agents via deterministic
+knowledge packages. All documentation served through MCP has passed the
+audit pipeline — it is contract-compliant, traceable to Vision, and free
+of implementation leakage.
 
 Examples include:
 
@@ -409,6 +533,9 @@ The runtime exposes tools such as:
 * get_summary
 * get_section
 * get_document
+
+Each tool returns only audit-passing documentation, ensuring AI agents
+receive reliable, structured knowledge without noise.
 
 ---
 
@@ -436,22 +563,71 @@ samgraha/
     providers/
 ```
 
+# Documentation Structure
+
+Documentation lives in `docs/raw/` with three sub-systems:
+
+```
+docs/raw/
+
+    philosophy/             # Core documentation philosophy and lifecycle
+        documentation-philosophy.md
+
+    vision/                 # Product purpose and direction
+        vision.md
+
+    standards/              # Independent domain contracts (10 docs)
+        vision.md
+        design.md
+        architecture.md
+        feature.md
+        feature-design.md
+        feature-technical.md
+        prototype.md
+        engineering.md
+        external-context.md
+        readme.md
+
+    audit/                  # Compliance verification against standards
+        README.md
+        vision-audit.md
+        architecture-audit.md
+        design-audit.md
+        feature-audit.md
+        feature-design-validation.md
+        feature-technical-audit.md
+        prototype-audit.md
+        readme-audit.md
+        implementation-audit.md
+        statelessness-audit.md
+        build-audit.md
+        security-audit.md
+        ownership-audit.md
+        external-context-ownership-audit.md
+```
+
+Philosophy defines the lifecycle. Standards define the contracts. Audits verify
+compliance against Audit Rules defined in each standard. Every Audit Rule in
+every standard is covered by at least one check. Engineering standard rules
+are distributed across build-audit, security-audit, statelessness-audit, and
+implementation-audit due to their distinct domains.
+
 Example repository:
 
 ```
-Prana/
+repo/
 
     samgraha.toml
 
-    docs/
-
-    architecture/
-
     features/
 
-    engineering/
+    docs/
 
-    external-context/
+        architecture/
+
+        engineering/
+
+        external-context/
 
     .samgraha/
 
@@ -462,14 +638,17 @@ Prana/
 
 # Design Principles
 
-* Documentation is the source of truth.
+* Documentation is the authoritative engineering specification.
+* Standards define contracts. Audits verify compliance.
 * Documentation remains technology independent.
-* Engineering decisions explain implementation choices.
+* Audit failures are engineering quality feedback.
 * Knowledge is compiled, never handwritten.
 * Generated artifacts are disposable.
 * AI enhances compilation, not execution.
 * Metadata before vectors.
 * Progressive retrieval before full document loading.
+* Knowledge before retrieval.
+* Prototype before production.
 * Local-first.
 * Offline-first.
 * Deterministic builds.
@@ -551,6 +730,20 @@ No external database server is required.
 * Summaries
 * Keywords
 * Embeddings
+
+## Version 0.5
+
+* Automated Audit (deterministic checks)
+* Audit metadata in knowledge packages
+* MCP quality gate (serve only audit-passing docs)
+* Audit CLI command (single domain and full suite)
+
+## Version 0.6
+
+* Semantic Audit (optional AI-assisted checks)
+* Audit report generation
+* CI audit integration
+* Audit configuration (samgraha.toml)
 
 ## Version 1.0
 
