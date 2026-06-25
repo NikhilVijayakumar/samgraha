@@ -1,105 +1,345 @@
-# Feature Technical Audit
+# Feature Technical Design Audit
 
-## Context
+## Purpose
 
-Validates feature technical design docs in `docs/raw/feature-technical/` against
-the **feature-technical.md** standard. Feature Technical Design translates one
-Feature Specification into its architectural realization.
+Verifies that the Feature Technical Design Documentation completely translates Feature Specifications into architectural realization while consistently applying the shared Architecture and respecting the Feature Design.
 
-## Authority
+This audit evaluates the **Feature Technical Design collection as an integrated technical specification**, ensuring that every feature is mapped to one Feature Specification, applies shared Architecture, incorporates relevant External Context, respects Feature Design, and is sufficiently complete for implementation.
 
-`docs/raw/standards/feature-technical.md` — Audit Rules section.
+Feature Technical Design defines **how the architecture realizes a feature**.
 
-## Scope
+It does not define **how the feature is implemented in code**.
 
-All files under `docs/raw/feature-technical/`. Quality evaluated individually and
-across the feature technical design collection.
+---
 
-## Validation Checklist
+# Authority
 
-Each check maps to one item in the standard's Audit Rules.
+`docs/raw/standards/feature-technical.md` — **Audit Rules** section.
 
-### FT1. One-to-One Mapping
-Every Feature Technical Design corresponds to exactly one Feature Specification.
-No document describes multiple unrelated features.
+---
 
-**Audit Rule:** A one-to-one mapping exists between Feature and Feature Technical
-Design.
+# Scope
 
-### FT2. Architecture Documentation Applied
-Shared architectural principles from Architecture Documentation have been applied.
-Feature Technical Design references architecture rather than redefining it.
+Applies to every document under:
 
-**Audit Rule:** Shared Architecture Documentation has been applied.
+```text
+docs/raw/feature-technical/
+```
 
-### FT3. Relevant External Context Identified
-External systems, platforms, protocols, or APIs required to realize the feature
-are identified and referenced. Only context relevant to the feature is included.
+The audit evaluates:
 
-**Audit Rule:** Relevant External Context has been identified.
+* Individual Feature Technical Design quality
+* Collection-wide consistency
+* Architecture application
+* Technical completeness
+* Implementation readiness
 
-### FT4. Feature Design Considerations Respected
-UX-driven architectural needs from Feature Design have been incorporated where
-architectural decisions affect user experience. Feature Design is not redefined.
+The Feature Technical Design collection is evaluated as **one complete architectural realization of the product**.
 
-**Audit Rule:** Feature Design considerations have been respected.
+---
 
-### FT5. Component Responsibilities Clear
-All components participating in the feature have clearly defined responsibilities.
-Each component's role in realizing the feature is documented.
+# Validation Checklist
 
-**Audit Rule:** Component responsibilities are clearly defined.
+---
 
-### FT6. Communication Paths Understandable
-How components communicate — data flow, events, API calls, IPC — is documented
-and understandable. Communication paths respect architectural boundaries.
+# Feature Mapping
 
-**Audit Rule:** Communication paths are understandable.
+## FT1. One-to-One Mapping
 
-### FT7. Runtime Boundaries Respected
-Runtime boundaries, process boundaries, and lifecycle are respected. Feature
-technical design does not violate documented runtime architecture.
+Every Feature Technical Design document maps to exactly one Feature Specification.
 
-**Audit Rule:** Runtime boundaries are respected.
+Mappings should be explicit.
 
-### FT8. External Architectural Constraints Reflected
-Constraints introduced by external systems (API limits, platform capabilities,
-protocol requirements) are documented and accommodated.
+Missing or duplicate mappings are reported.
 
-**Audit Rule:** External architectural constraints are reflected.
+---
 
-### FT9. Technology References Remain Architectural
-Technology references appear only when architecturally significant (e.g., runtime
-platform, persistence engine, message bus). Implementation-level references
-(frameworks, libraries, syntax) are absent.
+## FT2. Feature Coverage Complete
 
-**Audit Rule:** Technology references remain architectural.
+Every Feature Specification has a corresponding Feature Technical Design document.
 
-### FT10. No Implementation Details
-No source code, algorithms, function implementations, TypeScript interfaces, Rust
-traits, SQL queries, or API implementation patterns appear.
+Missing technical specifications should be identified.
 
-**Audit Rule:** No implementation details appear.
+The collection should completely cover the product.
 
-### FT11. References Instead of Duplicates
-Architecture Documentation and External Context are referenced rather than
-rewritten. No duplication of shared architectural principles or external
-documentation.
+---
 
-**Audit Rule:** Architecture and External Context are referenced instead of
-duplicated.
+## FT3. Architecture Applied
 
-## Success Criteria
+Shared Architecture Documentation has been correctly applied.
 
-All checks FT1–FT11 pass. One-to-one mapping exists. Architecture applied.
-Component responsibilities clear. Communication paths understandable. Technology
-references remain architectural. No implementation details. Shared docs
-referenced not duplicated.
+Feature Technical Design should reference Architecture rather than redefine it.
 
-## Procedure
+Only feature-specific architectural realization belongs here.
 
-1. Rotate previous report per `docs/raw/audit/README.md#report-rotation`
-2. List all files under `docs/raw/feature-technical/`
-3. For each file, run checks FT1–FT11
-4. Collect failures — each must specify violated check and exact location
-5. Write report to `docs/raw/audit/reports/feature-technical/latest/` following Standard Report Format in `docs/raw/audit/README.md#standard-report-format`
+---
+
+## FT4. Feature Design Consulted Where Applicable
+
+Feature Design is not a required input to Feature Technical Design.
+
+Where user experience decisions directly influence architectural realization, Feature Design should be referenced.
+
+Examples where Feature Design is relevant:
+
+* navigation requiring routing architecture
+* accessibility requiring structural support
+* offline behavior requiring synchronization architecture
+
+Feature Design should not be duplicated.
+
+---
+
+## FT5. Relevant External Context Applied
+
+Relevant External Context is referenced.
+
+Only dependencies affecting the feature's realization should be included.
+
+External documentation should be referenced rather than duplicated.
+
+---
+
+# Technical Realization
+
+## FT6. Component Responsibilities Defined
+
+Every participating architectural component clearly defines:
+
+* responsibilities
+* ownership
+* interactions
+* boundaries
+
+Responsibilities should remain consistent with the Architecture.
+
+---
+
+## FT7. Communication Flow Complete
+
+Communication between participating components is documented.
+
+Examples include:
+
+* request flow
+* event flow
+* messaging
+* persistence interactions
+* dependency interactions
+
+Communication should remain understandable without implementation knowledge.
+
+---
+
+## FT8. Runtime and Architectural Boundaries Respected
+
+Feature realization respects:
+
+* runtime boundaries
+* process boundaries
+* persistence boundaries
+* communication boundaries
+* repository boundaries
+
+Feature Technical Design must not violate the documented Architecture.
+
+---
+
+## FT9. External Constraints Reflected
+
+Constraints originating from External Context are reflected.
+
+Examples include:
+
+* platform limitations
+* protocol requirements
+* API constraints
+* performance limitations
+* compatibility requirements
+
+Constraints should influence architectural realization.
+
+---
+
+# Documentation Quality
+
+## FT10. Technology References Remain Architectural
+
+Technology references are permitted only when architecturally significant.
+
+Examples include:
+
+* runtime platform
+* persistence engine
+* transport mechanism
+* operating environment
+
+Implementation technologies should not appear.
+
+---
+
+## FT11. No Implementation Leakage
+
+Feature Technical Design should not contain:
+
+* source code
+* algorithms
+* framework APIs
+* programming language constructs
+* interfaces
+* database schemas
+* SQL
+* implementation patterns
+
+Implementation belongs to Engineering.
+
+---
+
+## FT12. References Rather Than Duplication
+
+Architecture Documentation, Feature Design, and External Context should be referenced rather than rewritten.
+
+Duplicated documentation should be reported.
+
+---
+
+## FT13. Architectural Consistency
+
+Component names, responsibilities, boundaries, communication, and terminology remain consistent throughout the Feature Technical Design collection.
+
+Contradictory architectural guidance is not permitted.
+
+---
+
+# Implementation Readiness
+
+## FT14. Implementation Readiness
+
+Feature Technical Design provides sufficient architectural information for implementation.
+
+Engineers should not need to invent:
+
+* component responsibilities
+* architectural interactions
+* runtime behavior
+* dependency usage
+
+Implementation decisions should remain within Engineering.
+
+---
+
+## FT15. Future Maintainability
+
+Feature Technical Design remains modular.
+
+Changes to one feature should not require unrelated Feature Technical Design documents to change.
+
+The collection should scale without duplication.
+
+---
+
+# Scoring Model
+
+Each validation is scored.
+
+| Score | Meaning           |
+| ----- | ----------------- |
+| 10    | Excellent         |
+| 8–9   | Very Good         |
+| 6–7   | Good              |
+| 4–5   | Needs Improvement |
+| 1–3   | Poor              |
+| 0     | Missing           |
+
+Scores evaluate technical specification quality rather than pass/fail compliance.
+
+---
+
+# Category Weights
+
+| Category                 | Weight |
+| ------------------------ | -----: |
+| Feature Mapping          |    20% |
+| Technical Realization    |    40% |
+| Documentation Quality    |    20% |
+| Implementation Readiness |    20% |
+
+Weighted scores produce an overall **Feature Technical Design Score (0–100)**.
+
+---
+
+# Success Criteria
+
+The Feature Technical Design Documentation should:
+
+* provide a one-to-one mapping with Feature Specifications
+* correctly apply the shared Architecture
+* respect Feature Design
+* incorporate relevant External Context
+* define complete component responsibilities
+* document communication and runtime behavior
+* remain architecture-focused
+* contain no implementation details
+* provide a complete foundation for Engineering and implementation
+
+---
+
+# Audit Report Requirements
+
+The report must follow the Standard Audit Report format and include:
+
+1. Executive Summary
+2. Overall Score
+3. Category Scores
+4. Document Scores
+5. Validation Scores (FT1–FT15)
+6. Trend Analysis
+7. Findings (Critical / Major / Minor / Observations)
+8. Prioritized Recommendations
+9. Readiness Assessment
+10. Audit Metadata
+
+---
+
+# Readiness Assessment
+
+Assess:
+
+| Area                           | Status              |
+| ------------------------------ | ------------------- |
+| Documentation Quality          | PASS / FAIL         |
+| Architecture Application       | PASS / FAIL         |
+| Technical Specification        | PASS / FAIL         |
+| Engineering Readiness          | READY / NOT READY   |
+| Implementation Readiness       | READY / NOT READY   |
+| Implementation Assumption Risk | LOW / MEDIUM / HIGH |
+
+Provide justification for every assessment.
+
+---
+
+# Procedure
+
+1. Rotate the previous report according to `docs/raw/audit/README.md#report-rotation`.
+2. Inventory all Feature Technical Design documents.
+3. Verify every Feature Specification has a corresponding Feature Technical Design document.
+4. Execute validation checks FT1–FT15.
+5. Score every validation.
+6. Score every Feature Technical Design document.
+7. Calculate weighted category scores.
+8. Calculate the overall Feature Technical Design Score.
+9. Compare against the previous report when available.
+10. Identify findings and prioritized recommendations.
+11. Assess Engineering and Implementation Readiness.
+12. Generate the audit report using the Standard Audit Report format.
+13. Write the report to:
+
+```text
+docs/raw/reports/feature-technical/latest/
+```
+
+following:
+
+```text
+docs/raw/audit/README.md#standard-report-format
+```

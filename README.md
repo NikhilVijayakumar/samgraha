@@ -165,19 +165,8 @@ contract-compliant knowledge — verified, structured, and reliable.
 
 Documentation is the authoritative engineering specification.
 
-Documentation is organized into ten explicit domains, each governed by a
-Documentation Standard:
-
-* Vision
-* Design
-* Architecture
-* Engineering
-* External Context
-* Feature
-* Feature Design
-* Feature Technical Design
-* Prototype
-* README
+Documentation is organized into ten explicit domains — see
+[Documentation Domains](#documentation-domains) above.
 
 Documentation is never generated.
 
@@ -279,16 +268,13 @@ Documentation Standards
           │
           ▼
   Knowledge Package
+  (audit metadata embedded)
           │
           ▼
-  Knowledge Delivery
-  ┌────┴────┐
-  ↓         ↓
-Audit    MCP Runtime
-Metadata    │ (quality gate)
-  ↓         ▼
-Audit   AI Coding Agents
-Report
+    MCP Runtime (quality gate)
+          │
+          ▼
+    AI Coding Agents
 ```
 
 ---

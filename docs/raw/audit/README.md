@@ -11,22 +11,22 @@ compliance against those contracts.
 Every audit validates against specific Audit Rules in one or more standards.
 Each audit check traces to its source Audit Rule.
 
-| Audit | Source Standard(s) | Audit Rules Used |
+| Audit | Source Standard(s) | Checks |
 |---|---|---|
-| vision-audit | standards/vision.md | All 7 Audit Rules |
-| architecture-audit | standards/architecture.md | All 9 Audit Rules |
-| design-audit | standards/design.md | All 9 Audit Rules |
-| feature-audit | standards/feature.md | All 8 Audit Rules |
-| feature-design-validation | standards/feature-design.md | All 11 Audit Rules |
-| feature-technical-audit | standards/feature-technical.md | All 11 Audit Rules |
-| prototype-audit | standards/prototype.md | All 8 Audit Rules |
-| ownership-audit | standards/external-context.md | All 7 Audit Rules |
-| external-context-ownership-audit | standards/external-context.md | All 7 Audit Rules (cross-ref focus) |
-| build-audit | standards/engineering.md | All 9 Audit Rules (build focus) |
-| security-audit | standards/engineering.md | All 9 Audit Rules (security focus) |
-| statelessness-audit | standards/architecture.md + standards/engineering.md | Communication paths; Principles; Rationale |
-| implementation-audit | standards/architecture.md + standards/feature-technical.md + standards/engineering.md | Arch aligns w/ Features; Component responsibilities; Eng aligns w/ Arch; No impl detail; No source code |
-| readme-audit | standards/readme.md | All 9 Audit Rules |
+| vision-audit | standards/vision.md | V1–V12 (12 checks) |
+| architecture-audit | standards/architecture.md | A1–A13 (13 checks) |
+| design-audit | standards/design.md | D1–D12 (12 checks) |
+| feature-audit | standards/feature.md | F1–F14 (14 checks) |
+| feature-design-validation | standards/feature-design.md | FD1–FD15 (15 checks) |
+| feature-technical-audit | standards/feature-technical.md | FT1–FT15 (15 checks) |
+| prototype-audit | standards/prototype.md | P1–P15 (15 checks) |
+| external-context-audit | standards/external-context.md | EC1–EC12 (12 checks) — validates External Context docs in isolation (inside-out) |
+| external-context-ownership-audit | standards/external-context.md | EC1–EC7 (7 checks) — validates cross-doc consistency (outside-in) |
+| build-audit | standards/engineering.md | B1–B12 (12 checks, build focus) |
+| security-audit | standards/engineering.md | SEC1–SEC12 (12 checks, security focus) |
+| deterministic-runtime-audit | standards/architecture.md + standards/engineering.md | S1–S12 (12 checks) — pipeline determinism, stateless stages, artifact lifecycle |
+| implementation-audit | standards/architecture.md + standards/feature-technical.md + standards/engineering.md | I1–I15 (15 checks) |
+| readme-audit | standards/readme.md | R1–R12 (12 checks) |
 
 ## Scope
 
@@ -38,18 +38,18 @@ reads `src/`.
 Audits follow a dependency order: foundation before specifics, independent before
 cross-cutting, documentation before verification.
 
-1. vision-audit — product purpose and direction
-2. architecture-audit — system organization
+1. vision-audit — product purpose and direction (foundation)
+2. architecture-audit — system organization and structural foundation
 3. design-audit — product-wide design principles
-4. feature-audit — capabilities
+4. feature-audit — product capabilities
 5. feature-design-validation — user experience per feature
 6. feature-technical-audit — architectural realization per feature
 7. prototype-audit — executable validation
-8. ownership-audit — external dependency documentation
-9. external-context-ownership-audit — cross-reference verification
+8. external-context-audit — External Context docs in isolation (inside-out quality)
+9. external-context-ownership-audit — cross-doc external dependency consistency (outside-in)
 10. build-audit — build and packaging standards
 11. security-audit — security engineering standards
-12. statelessness-audit — cross-cutting pipeline purity
+12. deterministic-runtime-audit — pipeline determinism and stateless execution model
 13. implementation-audit — documentation vs source verification
 14. readme-audit — public entry point
 
@@ -61,7 +61,7 @@ not satisfied or if the document under audit references a non-existent source.
 
 ## Audit Reports
 
-Reports go in `docs/raw/audit/reports/<domain>/latest/`. Previous reports rotate to `archive/`.
+Reports go in `docs/raw/reports/<domain>/latest/`. Previous reports rotate to `archive/`.
 
 ## Standard Report Format
 
@@ -102,7 +102,7 @@ Before writing a new report, rotate the previous report:
 
 ```powershell
 $domain = "<domain>"
-$reportDir = "docs/raw/audit/reports/$domain"
+$reportDir = "docs/raw/reports/$domain"
 if (Test-Path "$reportDir/latest") {
     Move-Item -Path "$reportDir/latest/*" -Destination "$reportDir/archive/" -ErrorAction SilentlyContinue
 }
