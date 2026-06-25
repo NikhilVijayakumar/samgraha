@@ -1,0 +1,19 @@
+[package]
+name = "tests"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+schemas.workspace = true
+standards.workspace = true
+services.workspace = true
+compiler.workspace = true
+registry.workspace = true
+runtime.workspace = true
+audit.workspace = true
+providers.workspace = true
+anyhow.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
