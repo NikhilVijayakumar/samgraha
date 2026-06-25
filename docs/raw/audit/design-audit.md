@@ -1,89 +1,303 @@
 # Design Audit
 
-## Context
+## Purpose
 
-Validates design docs in `docs/raw/design/` against the **design.md** standard.
-Design Documentation establishes shared design language, principles, and UX
-standards for the entire product. It is reusable and not feature-specific.
+Verifies that the Design Documentation defines a complete, reusable, technology-independent design system for the product.
 
-## Authority
+This audit evaluates the **design documentation as an integrated collection**, ensuring that design philosophy, interaction principles, visual language, accessibility, localization, and usability standards establish a consistent foundation for Feature Design.
 
-`docs/raw/standards/design.md` — Audit Rules section.
+Design Documentation describes **shared design principles**, not feature implementations or UI specifications.
 
-## Scope
+---
 
-All files under `docs/raw/design/`. Quality evaluated across the complete design
-collection.
+# Authority
 
-## Validation Checklist
+`docs/raw/standards/design.md` — **Audit Rules** section.
 
-Each check maps to one item in the standard's Audit Rules.
+---
 
-### D1. Design Principles Are Reusable
-Design principles apply across multiple features. They are not written for a
-single feature or workflow. Reusability is the primary quality criterion.
+# Scope
 
-**Audit Rule:** Design principles are reusable.
+Applies to every document under:
 
-### D2. Technology Independent
-Design describes interaction philosophy, presentation principles, and
-communication principles — not UI frameworks, CSS libraries, frontend frameworks,
-component implementations, or rendering technologies.
+```text
+docs/raw/design/
+```
 
-**Audit Rule:** Design remains technology independent.
+The audit evaluates:
 
-### D3. No Feature-Specific Behavior
-No individual feature workflows, application screens, or feature-specific mockups
-appear in Design Documentation. Feature-specific content belongs in Feature Design.
+* Individual document quality
+* Cross-document consistency
+* Design system completeness
+* Responsibility separation
+* Collection-wide coherence
+* Feature Design readiness
 
-**Audit Rule:** Feature-specific behavior has not been introduced.
+The Design collection is evaluated as **one reusable design system**.
 
-### D4. Design Philosophy Defined
-Product design philosophy is clearly documented. The design philosophy explains
-the guiding principles behind the product's user experience.
+---
 
-**Audit Rule:** Design philosophy is clearly defined.
+# Validation Checklist
 
-### D5. Accessibility Guidance Exists
-Accessibility guidance is documented where appropriate for the product domain.
-Principles for inclusive design are established.
+---
 
-**Audit Rule:** Accessibility guidance exists where appropriate.
+# Design System
 
-### D6. Localization Guidance Exists
-Localization guidance is documented where applicable. Principles for adapting
-the product across languages and regions are established.
+## D1. Reusable Design Principles
 
-**Audit Rule:** Localization guidance exists where appropriate.
+Design principles are reusable across multiple applications, workflows, and features.
 
-### D7. Documents Remain Modular
-Design documentation is decomposed into focused documents. Each document describes
-one design concern. Large documents are split rather than expanded.
+Principles should define long-lived design guidance rather than individual solutions.
 
-**Audit Rule:** Documents remain modular.
+---
 
-### D8. Responsibilities Do Not Overlap
-No two design documents describe the same principle or concern. Design document
-scope is distinct and non-overlapping.
+## D2. Design Philosophy Defined
 
-**Audit Rule:** Responsibilities do not overlap.
+The overall design philosophy is clearly documented.
 
-### D9. Cross-Repository Reuse Encouraged
-Shared design documentation is referenced across repositories rather than
-duplicated. Design principles are written for reuse.
+The philosophy explains:
 
-**Audit Rule:** Cross-repository reuse is encouraged.
+* design goals
+* user experience principles
+* communication principles
+* interaction philosophy
+* visual philosophy
 
-## Success Criteria
+Design decisions should derive from the documented philosophy.
 
-All checks D1–D9 pass. Principles are reusable. Technology independent. No
-feature-specific content. Design philosophy defined. Documents modular,
-non-overlapping. Cross-repo reuse encouraged.
+---
 
-## Procedure
+## D3. Design System Completeness
 
-1. Rotate previous report per `docs/raw/audit/README.md#report-rotation`
-2. List all files under `docs/raw/design/`
-3. For each file, run checks D1–D9
-4. Collect failures — each must specify violated check and exact location
-5. Write report to `docs/raw/audit/reports/design/latest/` following Standard Report Format in `docs/raw/audit/README.md#standard-report-format`
+The Design collection completely describes the shared design language.
+
+Examples include:
+
+* visual language
+* interaction principles
+* navigation principles
+* accessibility
+* localization
+* responsiveness
+* information hierarchy
+* feedback principles
+
+Missing design concerns should be reported.
+
+---
+
+## D4. Technology Independence
+
+Design remains independent of implementation technologies.
+
+Design documentation should not describe:
+
+* UI frameworks
+* CSS
+* HTML
+* JavaScript
+* rendering technologies
+* component libraries
+* implementation patterns
+
+Implementation belongs to Engineering.
+
+---
+
+# Documentation Quality
+
+## D5. Modular Documentation
+
+Design documentation is organized into focused documents.
+
+Each document owns one design concern.
+
+Large concerns should be decomposed.
+
+---
+
+## D6. Responsibility Separation
+
+Design documents should not overlap.
+
+Each principle is defined once.
+
+Related concerns should be referenced rather than duplicated.
+
+---
+
+## D7. Feature Independence
+
+Design Documentation should not describe:
+
+* feature workflows
+* application screens
+* feature behavior
+* business rules
+* user stories
+
+Feature-specific design belongs exclusively to Feature Design.
+
+---
+
+## D8. Cross-Repository Reuse
+
+Shared design principles should be reusable across repositories.
+
+External design systems should be referenced rather than duplicated.
+
+---
+
+# Design Quality
+
+## D9. Accessibility Guidance
+
+Accessibility principles are documented where applicable.
+
+Examples include:
+
+* inclusive interaction
+* keyboard accessibility
+* readability
+* visual hierarchy
+* assistive technology support
+
+Accessibility guidance should define principles rather than implementation.
+
+---
+
+## D10. Localization Guidance
+
+Localization principles are documented where appropriate.
+
+Examples include:
+
+* language independence
+* text expansion
+* RTL support
+* cultural neutrality
+* formatting considerations
+
+Localization guidance should remain reusable.
+
+---
+
+## D11. Consistency
+
+Terminology, principles, visual language, and design philosophy remain consistent throughout the Design collection.
+
+Conflicting design guidance is not permitted.
+
+---
+
+## D12. Future Maintainability
+
+The Design Documentation should remain maintainable.
+
+New features should inherit the Design system without requiring changes to the Design Documentation.
+
+The Design collection should evolve slowly compared to Feature Design.
+
+---
+
+# Scoring Model
+
+Each validation is scored.
+
+| Score | Meaning           |
+| ----- | ----------------- |
+| 10    | Excellent         |
+| 8–9   | Very Good         |
+| 6–7   | Good              |
+| 4–5   | Needs Improvement |
+| 1–3   | Poor              |
+| 0     | Missing           |
+
+Scores evaluate design quality rather than pass/fail compliance.
+
+---
+
+# Category Weights
+
+| Category              | Weight |
+| --------------------- | -----: |
+| Design System         |    35% |
+| Documentation Quality |    30% |
+| Design Quality        |    35% |
+
+Weighted scores produce an overall **Design Score (0–100)**.
+
+---
+
+# Success Criteria
+
+The Design Documentation should:
+
+* define a reusable design system
+* document a clear design philosophy
+* remain technology independent
+* contain no feature-specific behavior
+* provide accessibility and localization guidance
+* maintain modular responsibilities
+* remain internally consistent
+* support Feature Design without modification
+
+---
+
+# Audit Report Requirements
+
+The report must follow the Standard Audit Report format and include:
+
+1. Executive Summary
+2. Overall Score
+3. Category Scores
+4. Document Scores
+5. Validation Scores (D1–D12)
+6. Trend Analysis
+7. Findings (Critical / Major / Minor / Observations)
+8. Prioritized Recommendations
+9. Feature Design Readiness Assessment
+10. Audit Metadata
+
+---
+
+# Readiness Assessment
+
+Assess:
+
+| Area                       | Status            |
+| -------------------------- | ----------------- |
+| Documentation Quality      | PASS / FAIL       |
+| Design Quality             | PASS / FAIL       |
+| Feature Design Readiness   | READY / NOT READY |
+| Engineering Design Support | READY / NOT READY |
+
+Provide justification for every assessment.
+
+---
+
+# Procedure
+
+1. Rotate the previous report according to `docs/raw/audit/README.md#report-rotation`.
+2. Inventory all Design documents.
+3. Verify required design concerns are present.
+4. Execute validation checks D1–D12.
+5. Score every validation.
+6. Score every Design document.
+7. Calculate weighted category scores.
+8. Calculate the overall Design Score.
+9. Compare against the previous report when available.
+10. Identify findings and prioritized recommendations.
+11. Assess Feature Design Readiness.
+12. Generate the audit report using the Standard Audit Report format.
+13. Write the report to:
+
+```text
+docs/raw/reports/design/latest/
+```
+
+following:
+
+```text
+docs/raw/audit/README.md#standard-report-format
+```

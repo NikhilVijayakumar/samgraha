@@ -180,10 +180,11 @@ Feature Technical Design should realize Feature Design without redefining user e
 Feature Technical Design derives from:
 
 * Feature Specification
-* Feature Design
 * Architecture Documentation
-* Relevant External Context
+* Relevant External Context (optional)
 * Engineering Constraints
+
+Feature Design is not a required input. It is considered only where user experience decisions directly influence architectural realization — see Feature Design Considerations.
 
 Feature Technical Design should not derive from source code.
 
@@ -210,23 +211,23 @@ Feature Technical Design remains traceable.
 
 ```text
 Vision
-    ↓
-Feature
-    ↓
-Design
-    ↓
-Relevant External Context
-    ↓
-Feature Design
-    ↓
-Architecture
-    ↓
-Feature Technical Design
-    ↓
-Engineering
-    ↓
-Implementation
+    │
+    ├─────────────────────────────────┐
+    ↓                                 ↓
+Feature                         Architecture
+    ↓                           (technology decisions,
+Design (optional)               platform constraints)
+    ↓                                 │
+Feature Design (optional)             │
+    │                                 │
+    └──────────────────────────────→ Feature Technical Design
+                                      ↓
+                                  Engineering
+                                      ↓
+                                  Implementation
 ```
+
+Feature Specification and Architecture Documentation are required inputs. Feature Design is an optional input considered only where UX decisions influence architectural realization.
 
 Every Feature Technical Design should trace directly to exactly one Feature Specification.
 

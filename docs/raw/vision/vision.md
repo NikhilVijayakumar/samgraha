@@ -273,6 +273,8 @@ Vision
       ↓
 Feature
       ↓
+Design
+      ↓
 Feature Design
       ↓
 Architecture

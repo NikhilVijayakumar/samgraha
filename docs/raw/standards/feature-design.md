@@ -185,22 +185,23 @@ Feature Design remains traceable.
 
 ```text
 Vision
-    ↓
-Feature
-    ↓
-Design
-    ↓
-Relevant External Context
-    ↓
-Feature Design
-    ↓
-Architecture
-    ↓
-Feature Technical Design
-    ↓
-Engineering
-    ↓
-Implementation
+    │
+    ├──────────────────────┐
+    ↓                      ↓
+Feature                  Design
+    │                      │
+    │              External Context (optional)
+    │                      │
+    └──────────────────────┘
+               ↓
+          Feature Design
+               ↓
+      Feature Technical Design
+      (converges with Architecture)
+               ↓
+           Engineering
+               ↓
+         Implementation
 ```
 
 Every Feature Design should trace directly to exactly one Feature Specification.

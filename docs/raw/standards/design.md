@@ -204,18 +204,23 @@ Design Documentation remains traceable.
 
 ```text
 Vision
-    ↓
-Design Documentation
-    ↓
-Feature Design
-    ↓
-Architecture
-    ↓
-Feature Technical Design
-    ↓
-Engineering
-    ↓
-Implementation
+    │
+    ├────────────────────────┐
+    ↓                        ↓
+Feature                Design Documentation
+    │                        │
+    │                External Context (optional)
+    │                        │
+    └────────────────────────┘
+              ↓
+         Feature Design
+              ↓
+    Feature Technical Design
+    (converges with Architecture)
+              ↓
+          Engineering
+              ↓
+        Implementation
 ```
 
 Design principles influence every downstream design decision.

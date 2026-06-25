@@ -132,10 +132,11 @@ Large architecture documents should be decomposed into smaller focused documents
 Architecture Documentation derives from:
 
 * Vision
-* Feature Documentation
-* Feature Design
-* Product Constraints
+* Technology Decisions
+* Platform Constraints
 * Engineering Principles
+
+Architecture is independent of Feature Documentation and Feature Design.
 
 Architecture should not derive from implementation.
 
@@ -162,33 +163,24 @@ Architecture should remain traceable.
 
 ```text
 Vision
-
-↓
-
-Features
-
-↓
-
-Feature Design
-
-↓
-
-Architecture Documentation
-
-↓
-
-Feature Technical Design
-
-↓
-
-Engineering
-
-↓
-
-Implementation
+    │
+    ├──────────────────────────┐
+    ↓                          ↓
+Feature chain            Architecture Documentation
+(Feature → Feature Design)    (technology decisions,
+    │                          platform constraints,
+    │                          engineering principles)
+    └──────────────────────────┘
+                ↓
+      Feature Technical Design
+      (Feature + Architecture + optional External Context)
+                ↓
+          Engineering
+                ↓
+          Implementation
 ```
 
-Every architectural decision should support one or more documented features.
+Architecture provides the structural foundation that Feature Technical Design applies to specific features.
 
 ---
 
@@ -370,7 +362,7 @@ An audit should verify:
 * Boundaries are documented.
 * Communication paths are understandable.
 * Documents do not duplicate one another.
-* Architecture aligns with Features.
+* Architecture supports Feature Technical Design without depending on Feature Documentation.
 * Architecture avoids implementation detail.
 * Cross-repository references are used instead of duplication.
 
