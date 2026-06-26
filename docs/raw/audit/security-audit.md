@@ -14,7 +14,7 @@ It does not define **feature-specific security implementations**.
 
 # Authority
 
-`docs/raw/standards/engineering.md` — **Audit Rules** section.
+Audit rules are defined by the validation checks in this document (SEC1–SEC12).
 
 ---
 

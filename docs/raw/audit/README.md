@@ -2,9 +2,9 @@
 
 ## Context
 
-Saṃgraha is a Knowledge Engineering Platform for AI-assisted coding. Documentation standards
-(`docs/raw/standards/`) define contracts each doc domain must satisfy. Audits verify
-compliance against those contracts.
+Documentation standards (`docs/raw/standards/`) define contracts each documentation domain must satisfy. Audits verify compliance against those contracts.
+
+Documentation lives under `docs/raw/`. Each standard declares its documentation folder. The implementation folder is declared in Engineering Documentation.
 
 ## Authority Chain
 
@@ -22,6 +22,7 @@ Each audit check traces to its source Audit Rule.
 | prototype-audit | standards/prototype.md | P1–P15 (15 checks) |
 | external-context-audit | standards/external-context.md | EC1–EC12 (12 checks) — validates External Context docs in isolation (inside-out) |
 | external-context-ownership-audit | standards/external-context.md | EC1–EC7 (7 checks) — validates cross-doc consistency (outside-in) |
+| engineering-audit | standards/engineering.md | E1–E12 (12 checks) — overall engineering collection, repository structure declaration, domain coverage |
 | build-audit | standards/engineering.md | B1–B12 (12 checks, build focus) |
 | security-audit | standards/engineering.md | SEC1–SEC12 (12 checks, security focus) |
 | deterministic-runtime-audit | standards/architecture.md + standards/engineering.md | S1–S12 (12 checks) — pipeline determinism, stateless stages, artifact lifecycle |
@@ -30,8 +31,7 @@ Each audit check traces to its source Audit Rule.
 
 ## Scope
 
-All audits operate within `docs/raw/`. Source validation (implementation-audit) also
-reads `src/`.
+All audits operate within `docs/raw/`. Each standard's `# Documentation Folder` section declares which subfolder applies. Source validation (implementation-audit) reads the implementation folder declared in Engineering Documentation.
 
 ## Execution Order
 
@@ -47,11 +47,12 @@ cross-cutting, documentation before verification.
 7. prototype-audit — executable validation
 8. external-context-audit — External Context docs in isolation (inside-out quality)
 9. external-context-ownership-audit — cross-doc external dependency consistency (outside-in)
-10. build-audit — build and packaging standards
-11. security-audit — security engineering standards
-12. deterministic-runtime-audit — pipeline determinism and stateless execution model
-13. implementation-audit — documentation vs source verification
-14. readme-audit — public entry point
+10. engineering-audit — overall engineering documentation collection, repository structure declaration, domain coverage for dependent audits
+11. build-audit — build and packaging standards
+12. security-audit — security engineering standards
+13. deterministic-runtime-audit — pipeline determinism and stateless execution model
+14. implementation-audit — documentation vs source verification
+15. readme-audit — public entry point
 
 ## Exit Criteria
 

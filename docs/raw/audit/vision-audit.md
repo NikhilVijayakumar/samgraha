@@ -14,7 +14,7 @@ It does not define how it is designed, built, or deployed.
 
 # Authority
 
-`docs/raw/standards/vision.md` — **Audit Rules** section.
+Audit rules are defined by the validation checks in this document (V1–V12).
 
 ---
 
@@ -74,15 +74,9 @@ Product philosophy is explicitly documented.
 
 The philosophy communicates values that guide product decisions.
 
-Examples include:
-
-* Documentation First
-* Local First
-* Offline First
-* AI-Readable by Default
-* Deterministic Engineering
-
 Philosophy should describe values rather than implementation.
+
+Examples of philosophy statements include quality attributes, first principles, and product positioning (e.g. offline-first, reliability-first, simplicity-first, accessibility-first).
 
 **Audit Rule:** Product philosophy is present.
 

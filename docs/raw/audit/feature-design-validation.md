@@ -14,7 +14,7 @@ It does not define **how the feature is implemented**.
 
 # Authority
 
-`docs/raw/standards/feature-design.md` — **Audit Rules** section.
+Audit rules are defined by the validation checks in this document (FD1–FD15).
 
 ---
 

@@ -14,10 +14,12 @@ Identical inputs must produce identical outputs.
 
 # Authority
 
-Implementation is validated against:
+Audit rules are defined by the validation checks in this document (S1–S12).
 
-* `docs/raw/standards/architecture.md`
-* `docs/raw/standards/engineering.md`
+Runtime documentation is validated across:
+
+* Architecture Documentation (`docs/raw/architecture/`)
+* Engineering Documentation (`docs/raw/engineering/`)
 
 ---
 

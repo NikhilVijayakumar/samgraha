@@ -14,7 +14,7 @@ It does not document repository architecture, implementation, or feature behavio
 
 # Authority
 
-`docs/raw/standards/external-context.md` — **Audit Rules** section.
+Audit rules are defined by the validation checks in this document (EC1–EC12).
 
 ---
 

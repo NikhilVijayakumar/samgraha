@@ -12,7 +12,7 @@ Design Documentation describes **shared design principles**, not feature impleme
 
 # Authority
 
-`docs/raw/standards/design.md` — **Audit Rules** section.
+Audit rules are defined by the validation checks in this document (D1–D12).
 
 ---
 

@@ -12,7 +12,7 @@ Architecture documents describe **system organization, responsibilities, ownersh
 
 # Authority
 
-`docs/raw/standards/architecture.md` — **Audit Rules** section.
+Audit rules are defined by the validation checks in this document (A1–A13).
 
 ---
 

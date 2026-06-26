@@ -12,13 +12,15 @@ The Prototype Runtime exists to **validate documentation**, not to become produc
 
 # Authority
 
-Implementation is validated against:
+Audit rules are defined by the validation checks in this document (P1–P15).
 
-* `docs/raw/standards/prototype.md`
-* `docs/raw/standards/feature.md`
-* `docs/raw/standards/feature-design.md`
-* `docs/raw/standards/feature-technical.md`
-* `docs/raw/standards/engineering.md`
+Prototype coverage is validated against the repository's own documentation:
+
+* Feature Documentation (`docs/raw/feature/`)
+* Feature Design Documentation (`docs/raw/feature-design/`)
+* Feature Technical Design Documentation (`docs/raw/feature-technical/`)
+* Engineering Documentation (`docs/raw/engineering/`)
+* External Context Documentation (`docs/raw/external-context/`)
 
 ---
 

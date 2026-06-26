@@ -14,7 +14,7 @@ It does not define **how the feature is implemented in code**.
 
 # Authority
 
-`docs/raw/standards/feature-technical.md` — **Audit Rules** section.
+Audit rules are defined by the validation checks in this document (FT1–FT15).
 
 ---
 
