@@ -86,9 +86,9 @@ fn readme_standard() -> StandardDefinition {
         prohibited_content: vec!["Detailed API reference".into()],
         relationships: vec![relationship("readme", "vision", "references")],
         audit_rules: vec![
-            rule("readme-001", "README exists", "Repository must have a README.md", "error"),
-            rule("readme-002", "Has title", "README must have a top-level title", "error"),
-            rule("readme-003", "Has getting started", "README must have getting started section", "warning"),
+            rule("readme-001", "README exists", "Repository must have a README.md", "error", "corpus_exists", ""),
+            rule("readme-002", "Has title", "README must have a top-level title", "error", "has_title", ""),
+            rule("readme-003", "Has getting started", "README must have getting started section", "warning", "has_section", "Getting Started"),
         ],
     }
 }
@@ -118,9 +118,9 @@ fn vision_standard() -> StandardDefinition {
             relationship("vision", "philosophy", "inspires"),
         ],
         audit_rules: vec![
-            rule("vision-001", "Has purpose", "Vision must include product purpose", "error"),
-            rule("vision-002", "Has audience", "Vision must define target audience", "warning"),
-            rule("vision-003", "No implementation", "Vision must not contain implementation details", "warning"),
+            rule("vision-001", "Has purpose", "Vision must include product purpose", "error", "has_section", "Purpose"),
+            rule("vision-002", "Has audience", "Vision must define target audience", "warning", "has_section", "Target Audience"),
+            rule("vision-003", "No implementation", "Vision must not contain implementation details", "warning", "no_implementation", ""),
         ],
     }
 }
@@ -144,9 +144,9 @@ fn philosophy_standard() -> StandardDefinition {
             relationship("philosophy", "design", "guides"),
         ],
         audit_rules: vec![
-            rule("phil-001", "Has principles", "Philosophy must document principles", "error"),
-            rule("phil-002", "Has values", "Philosophy must document values", "warning"),
-            rule("phil-003", "Has trade-offs", "Philosophy should document trade-offs", "suggestion"),
+            rule("phil-001", "Has principles", "Philosophy must document principles", "error", "has_section", "Principles"),
+            rule("phil-002", "Has values", "Philosophy must document values", "warning", "has_section", "Values"),
+            rule("phil-003", "Has trade-offs", "Philosophy should document trade-offs", "suggestion", "has_section", "Trade-offs"),
         ],
     }
 }
@@ -175,10 +175,10 @@ fn architecture_standard() -> StandardDefinition {
             relationship("architecture", "engineering", "guides"),
         ],
         audit_rules: vec![
-            rule("arch-001", "Has overview", "Architecture must include system overview", "error"),
-            rule("arch-002", "Has component model", "Architecture must define component responsibilities", "error"),
-            rule("arch-003", "No implementation details", "Architecture must avoid implementation specifics", "warning"),
-            rule("arch-004", "Has security", "Architecture must address security", "warning"),
+            rule("arch-001", "Has overview", "Architecture must include system overview", "error", "has_section", "System Overview"),
+            rule("arch-002", "Has component model", "Architecture must define component responsibilities", "error", "has_section", "Component Model"),
+            rule("arch-003", "No implementation details", "Architecture must avoid implementation specifics", "warning", "no_implementation", ""),
+            rule("arch-004", "Has security", "Architecture must address security", "warning", "has_section", "Security"),
         ],
     }
 }
@@ -215,10 +215,10 @@ fn feature_standard() -> StandardDefinition {
             relationship("vision", "feature", "derives-from"),
         ],
         audit_rules: vec![
-            rule("feat-001", "Has purpose", "Feature must document its purpose", "error"),
-            rule("feat-002", "Has requirements", "Feature must list functional requirements", "error"),
-            rule("feat-003", "Has acceptance criteria", "Feature must define acceptance criteria", "error"),
-            rule("feat-004", "Technology independent", "Feature must not specify technology", "warning"),
+            rule("feat-001", "Has purpose", "Feature must document its purpose", "error", "has_section", "Purpose"),
+            rule("feat-002", "Has requirements", "Feature must list functional requirements", "error", "has_section", "Functional Requirements"),
+            rule("feat-003", "Has acceptance criteria", "Feature must define acceptance criteria", "error", "has_section", "Acceptance Criteria"),
+            rule("feat-004", "Technology independent", "Feature must not specify technology", "warning", "no_implementation", ""),
         ],
     }
 }
@@ -245,10 +245,10 @@ fn feature_design_standard() -> StandardDefinition {
             relationship("design", "feature-design", "applies-to"),
         ],
         audit_rules: vec![
-            rule("fd-001", "Has UX description", "Feature Design must describe UX", "error"),
-            rule("fd-002", "Has workflow", "Feature Design must document workflow", "error"),
-            rule("fd-003", "Has states", "Feature Design must cover all UI states", "warning"),
-            rule("fd-004", "No implementation", "Feature Design must not include implementation", "warning"),
+            rule("fd-001", "Has UX description", "Feature Design must describe UX", "error", "has_section", "User Experience"),
+            rule("fd-002", "Has workflow", "Feature Design must document workflow", "error", "has_section", "Workflow"),
+            rule("fd-003", "Has states", "Feature Design must cover all UI states", "warning", "has_section", "States"),
+            rule("fd-004", "No implementation", "Feature Design must not include implementation", "warning", "no_implementation", ""),
         ],
     }
 }
@@ -285,10 +285,10 @@ fn feature_technical_standard() -> StandardDefinition {
             relationship("architecture", "feature-technical", "constrains"),
         ],
         audit_rules: vec![
-            rule("ft-001", "Has components", "Feature Technical must list participating components", "error"),
-            rule("ft-002", "Has interactions", "Feature Technical must describe component interactions", "error"),
-            rule("ft-003", "Has data ownership", "Feature Technical must define data ownership", "error"),
-            rule("ft-004", "Has security", "Feature Technical must address security", "warning"),
+            rule("ft-001", "Has components", "Feature Technical must list participating components", "error", "has_section", "Participating Components"),
+            rule("ft-002", "Has interactions", "Feature Technical must describe component interactions", "error", "has_section", "Component Interactions"),
+            rule("ft-003", "Has data ownership", "Feature Technical must define data ownership", "error", "has_section", "Data Ownership"),
+            rule("ft-004", "Has security", "Feature Technical must address security", "warning", "has_section", "Security Considerations"),
         ],
     }
 }
@@ -314,9 +314,9 @@ fn design_standard() -> StandardDefinition {
             relationship("philosophy", "design", "guides"),
         ],
         audit_rules: vec![
-            rule("dsg-001", "Has design principles", "Design must document principles", "error"),
-            rule("dsg-002", "Has UX principles", "Design must document UX guidelines", "warning"),
-            rule("dsg-003", "Has accessibility", "Design must address accessibility", "warning"),
+            rule("dsg-001", "Has design principles", "Design must document principles", "error", "has_section", "Design Principles"),
+            rule("dsg-002", "Has UX principles", "Design must document UX guidelines", "warning", "has_section", "UX Principles"),
+            rule("dsg-003", "Has accessibility", "Design must address accessibility", "warning", "has_section", "Accessibility"),
         ],
     }
 }
@@ -344,10 +344,10 @@ fn engineering_standard() -> StandardDefinition {
             relationship("engineering", "feature-technical", "guides"),
         ],
         audit_rules: vec![
-            rule("eng-001", "Has principles", "Engineering must document principles", "error"),
-            rule("eng-002", "Has technology rationale", "Engineering must explain technology choices", "error"),
-            rule("eng-003", "Has build standards", "Engineering must define build standards", "warning"),
-            rule("eng-004", "Has testing standards", "Engineering must define testing approach", "warning"),
+            rule("eng-001", "Has principles", "Engineering must document principles", "error", "has_section", "Engineering Principles"),
+            rule("eng-002", "Has technology rationale", "Engineering must explain technology choices", "error", "has_section", "Technology Selection"),
+            rule("eng-003", "Has build standards", "Engineering must define build standards", "warning", "has_section", "Build Standards"),
+            rule("eng-004", "Has testing standards", "Engineering must define testing approach", "warning", "has_section", "Testing Standards"),
         ],
     }
 }
@@ -372,9 +372,9 @@ fn external_context_standard() -> StandardDefinition {
             relationship("external-context", "engineering", "informs"),
         ],
         audit_rules: vec![
-            rule("ec-001", "Has purpose", "External Context must explain why dependency exists", "error"),
-            rule("ec-002", "Has constraints", "External Context must document constraints", "warning"),
-            rule("ec-003", "References external docs", "External Context should reference authoritative docs", "suggestion"),
+            rule("ec-001", "Has purpose", "External Context must explain why dependency exists", "error", "has_section", "Purpose"),
+            rule("ec-002", "Has constraints", "External Context must document constraints", "warning", "has_section", "Constraints"),
+            rule("ec-003", "References external docs", "External Context should reference authoritative docs", "suggestion", "has_section", "References"),
         ],
     }
 }
@@ -400,20 +400,21 @@ fn prototype_standard() -> StandardDefinition {
             relationship("prototype", "feature-technical", "validates"),
         ],
         audit_rules: vec![
-            rule("proto-001", "Has scope", "Prototype must define scope", "error"),
-            rule("proto-002", "Has mock APIs", "Prototype must document mock APIs", "warning"),
-            rule("proto-003", "Disposable", "Prototype must be disposable (not production code)", "warning"),
+            rule("proto-001", "Has scope", "Prototype must define scope", "error", "has_section", "Scope"),
+            rule("proto-002", "Has mock APIs", "Prototype must document mock APIs", "warning", "has_section", "Mock APIs"),
+            rule("proto-003", "Disposable", "Prototype must be disposable (not production code)", "warning", "no_implementation", ""),
         ],
     }
 }
 
-fn rule(id: &str, name: &str, description: &str, severity: &str) -> AuditRuleDef {
+fn rule(id: &str, name: &str, description: &str, severity: &str, check_type: &str, scope: &str) -> AuditRuleDef {
     AuditRuleDef {
         id: id.into(),
         name: name.into(),
         description: description.into(),
         severity: severity.into(),
-        scope: "document".into(),
+        check_type: check_type.into(),
+        scope: scope.into(),
     }
 }
 
