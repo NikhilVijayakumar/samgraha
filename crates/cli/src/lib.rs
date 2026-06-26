@@ -1,7 +1,7 @@
 pub mod commands;
-pub mod output;
 pub mod config;
+pub mod output;
 
 pub use commands::*;
-pub use output::*;
 pub use config::*;
+pub use output::*;

@@ -22,3 +22,4 @@ target
 /docs/raw/reports/*/archive/
 /docs/raw/reports/*/latest/*
 !/docs/raw/reports/*/latest/report.md
+/docs/test.md

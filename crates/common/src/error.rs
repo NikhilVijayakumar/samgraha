@@ -1,8 +1,7 @@
-use std::path::PathBuf;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum SchemaError {
+pub enum CoreError {
     #[error("Validation error: {0}")]
     Validation(String),
 
@@ -11,9 +10,6 @@ pub enum SchemaError {
 
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
-
-    #[error("Path `{0}` is outside repository root `{1}`")]
-    PathOutsideRoot(PathBuf, PathBuf),
 
     #[error("Invalid hash: {0}")]
     InvalidHash(String),

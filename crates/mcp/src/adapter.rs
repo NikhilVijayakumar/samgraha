@@ -1,11 +1,9 @@
-use std::sync::Arc;
+use crate::protocol::{McpCapabilities, McpError, McpMessage, McpRequest, McpResponse};
 use anyhow::Result;
-use runtime::KnowledgeRuntime;
 use schemas::compilation::{CompilationRequest, CompilationScope};
-use schemas::search::{SearchQuery, RetrievalLevel};
-use crate::protocol::{
-    McpMessage, McpRequest, McpResponse, McpError, McpCapabilities,
-};
+use schemas::search::{RetrievalLevel, SearchQuery};
+use services::KnowledgeRuntime;
+use std::sync::Arc;
 
 pub struct McpAdapter {
     runtime: Arc<KnowledgeRuntime>,
@@ -45,9 +43,7 @@ impl McpAdapter {
     fn handle_request(&self, req: McpRequest) -> McpMessage {
         let result: Result<serde_json::Value> = match req.method.as_str() {
             "ping" => Ok(serde_json::json!({"pong": "pong"})),
-            "capabilities" => {
-                Ok(serde_json::to_value(&self.capabilities).unwrap_or_default())
-            }
+            "capabilities" => Ok(serde_json::to_value(&self.capabilities).unwrap_or_default()),
             "compile" => self.handle_compile(&req),
             "search" => self.handle_search(&req),
             "audit" => self.handle_audit(&req),
@@ -71,8 +67,14 @@ impl McpAdapter {
     }
 
     fn handle_compile(&self, req: &McpRequest) -> Result<serde_json::Value> {
-        let force = req.params.get("force").and_then(|v| v.as_bool()).unwrap_or(false);
-        let domains = req.params.get("domains")
+        let force = req
+            .params
+            .get("force")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        let domains = req
+            .params
+            .get("domains")
             .and_then(|v| v.as_array())
             .map(|arr| {
                 arr.iter()
@@ -98,20 +100,21 @@ impl McpAdapter {
     }
 
     fn handle_search(&self, req: &McpRequest) -> Result<serde_json::Value> {
-        let query = req.params.get("query")
+        let query = req
+            .params
+            .get("query")
             .and_then(|v| v.as_str())
             .ok_or_else(|| anyhow::anyhow!("Missing 'query' parameter"))?;
 
-        let level = req.params.get("level")
+        let level = req
+            .params
+            .get("level")
             .and_then(|v| v.as_str())
             .unwrap_or("metadata");
 
-        let domain = req.params.get("domain")
-            .and_then(|v| v.as_str());
+        let domain = req.params.get("domain").and_then(|v| v.as_str());
 
-        let max = req.params.get("max")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(20) as usize;
+        let max = req.params.get("max").and_then(|v| v.as_u64()).unwrap_or(20) as usize;
 
         let search_level = match level {
             "summary" => RetrievalLevel::Summary,
@@ -133,9 +136,10 @@ impl McpAdapter {
     }
 
     fn handle_audit(&self, req: &McpRequest) -> Result<serde_json::Value> {
-        let domain = req.params.get("domain")
-            .and_then(|v| v.as_str());
-        let providers = req.params.get("providers")
+        let domain = req.params.get("domain").and_then(|v| v.as_str());
+        let providers = req
+            .params
+            .get("providers")
             .and_then(|v| v.as_array())
             .map(|arr| {
                 arr.iter()
@@ -154,18 +158,25 @@ impl McpAdapter {
     }
 
     fn handle_get_document(&self, req: &McpRequest) -> Result<serde_json::Value> {
-        let doc_id = req.params.get("id")
+        let doc_id = req
+            .params
+            .get("id")
             .and_then(|v| v.as_i64())
             .ok_or_else(|| anyhow::anyhow!("Missing 'id' parameter"))?;
 
-        let doc = self.runtime.get_document(doc_id)?
+        let doc = self
+            .runtime
+            .get_document(doc_id)?
             .ok_or_else(|| anyhow::anyhow!("Document not found: {}", doc_id))?;
 
         Ok(serde_json::to_value(&doc)?)
     }
 
     fn handle_list_domains(&self) -> Result<serde_json::Value> {
-        let domains: Vec<String> = self.runtime.standard_registry.domains()
+        let domains: Vec<String> = self
+            .runtime
+            .standard_registry
+            .domains()
             .into_iter()
             .map(|s| s.to_string())
             .collect();

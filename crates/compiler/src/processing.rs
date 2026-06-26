@@ -1,6 +1,6 @@
+use anyhow::{Context, Result};
+use schemas::document::{ContentHash, Document, DocumentMetadata, DocumentSection};
 use std::path::Path;
-use anyhow::{Result, Context};
-use schemas::document::{Document, DocumentMetadata, DocumentSection, ContentHash};
 
 pub struct DocumentProcessor;
 
@@ -12,8 +12,8 @@ impl DocumentProcessor {
         id: i64,
     ) -> Result<Document> {
         let path = path.as_ref();
-        let content = std::fs::read_to_string(path)
-            .context(format!("Failed to read {}", path.display()))?;
+        let content =
+            std::fs::read_to_string(path).context(format!("Failed to read {}", path.display()))?;
 
         let hash = compute_hash(&content);
         let sections = parse_sections(&content);
@@ -35,11 +35,15 @@ impl DocumentProcessor {
     }
 }
 
-fn compute_hash(content: &str) -> ContentHash {
-    use sha2::{Sha256, Digest};
+pub fn compute_content_hash(content: &str) -> String {
+    use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(content.as_bytes());
     format!("{:x}", hasher.finalize())
+}
+
+fn compute_hash(content: &str) -> ContentHash {
+    compute_content_hash(content)
 }
 
 fn extract_title(content: &str, path: &Path) -> String {
@@ -121,7 +125,9 @@ fn extract_metadata(content: &str, title: &str, standard: &str) -> DocumentMetad
         ..Default::default()
     };
 
-    metadata.extra.insert("standard".to_string(), standard.to_string());
+    metadata
+        .extra
+        .insert("standard".to_string(), standard.to_string());
 
     for line in content.lines() {
         let lower = line.trim().to_lowercase();
@@ -130,12 +136,18 @@ fn extract_metadata(content: &str, title: &str, standard: &str) -> DocumentMetad
         }
         if lower.contains("status:") {
             metadata.status = Some(
-                line.split(':').nth(1).map(|s| s.trim().to_string()).unwrap_or_default(),
+                line.split(':')
+                    .nth(1)
+                    .map(|s| s.trim().to_string())
+                    .unwrap_or_default(),
             );
         }
         if lower.contains("owner:") || lower.contains("ownership:") {
             metadata.ownership = Some(
-                line.split(':').nth(1).map(|s| s.trim().to_string()).unwrap_or_default(),
+                line.split(':')
+                    .nth(1)
+                    .map(|s| s.trim().to_string())
+                    .unwrap_or_default(),
             );
         }
     }
@@ -154,7 +166,6 @@ fn chrono_now() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write;
 
     #[test]
     fn test_parse_sections() {

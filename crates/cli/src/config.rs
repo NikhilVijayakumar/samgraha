@@ -1,6 +1,6 @@
+use anyhow::{Context, Result};
+use common::config::SamgrahaConfig;
 use std::path::{Path, PathBuf};
-use anyhow::{Result, Context};
-use schemas::config::SamgrahaConfig;
 
 pub fn load_config(config_path: Option<&PathBuf>) -> Result<SamgrahaConfig> {
     if let Some(path) = config_path {

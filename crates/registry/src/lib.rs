@@ -1,7 +1,6 @@
-pub mod store;
-pub mod migration;
 pub mod integrity;
+pub mod migration;
+pub mod store;
 
-pub use store::*;
 pub use migration::*;
-pub use integrity::*;
+pub use store::*;

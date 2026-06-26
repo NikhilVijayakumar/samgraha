@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use schemas::document::{Document, DocumentMetadata};
 use schemas::registry::Relationship;
+use std::collections::HashMap;
 
 pub struct MetadataExtractor;
 
@@ -11,7 +11,9 @@ impl MetadataExtractor {
         for line in doc.body.lines() {
             let lower = line.trim().to_lowercase();
             if lower.starts_with("## purpose") || lower.starts_with("## overview") {
-                metadata.extra.insert("has_purpose".to_string(), "true".to_string());
+                metadata
+                    .extra
+                    .insert("has_purpose".to_string(), "true".to_string());
             }
             if lower.starts_with("## ") {
                 let section = line.trim_start_matches("## ").to_string();

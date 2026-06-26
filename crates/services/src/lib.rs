@@ -1,11 +1,22 @@
-pub mod registry;
-pub mod compilation;
-pub mod search;
-pub mod audit;
-pub mod enrichment;
+extern crate audit as audit_crate;
 
-pub use registry::*;
-pub use compilation::*;
-pub use search::*;
+pub mod audit;
+pub mod compilation;
+pub mod enrichment;
+pub mod package;
+pub mod registry;
+pub mod resolution;
+pub mod runtime;
+pub mod search;
+pub mod workspace;
+
 pub use audit::*;
+pub use audit_crate::{AuditFramework, DeterministicAuditProvider};
+pub use compilation::*;
 pub use enrichment::*;
+pub use package::*;
+pub use registry::*;
+pub use resolution::*;
+pub use runtime::*;
+pub use search::*;
+pub use workspace::*;

@@ -1,7 +1,9 @@
-pub mod traits;
-pub mod rule_based;
 pub mod config;
+pub mod rule_based;
+pub mod semantic;
+pub mod traits;
 
-pub use traits::*;
-pub use rule_based::*;
 pub use config::*;
+pub use rule_based::*;
+pub use semantic::*;
+pub use traits::*;

@@ -1,8 +1,8 @@
 use anyhow::Result;
+use audit_crate::AuditFramework;
 use schemas::audit::{AuditReport, QualityGate};
 use schemas::document::Document;
 use schemas::standard::StandardDefinition;
-use audit::AuditFramework;
 
 pub struct AuditService;
 

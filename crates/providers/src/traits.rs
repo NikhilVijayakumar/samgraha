@@ -1,6 +1,6 @@
 use anyhow::Result;
-use schemas::enrichment::{EnrichmentArtifact, EnrichmentType};
 use schemas::document::Document;
+use schemas::enrichment::{EnrichmentArtifact, EnrichmentType};
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
@@ -38,7 +38,11 @@ pub trait EnrichmentProvider: Send + Sync {
 
     fn glossary(&self, documents: &[Document]) -> Result<Vec<GlossaryOutput>>;
 
-    fn enrich(&self, document: &Document, enrichment_type: &EnrichmentType) -> Result<EnrichmentArtifact> {
+    fn enrich(
+        &self,
+        document: &Document,
+        enrichment_type: &EnrichmentType,
+    ) -> Result<EnrichmentArtifact> {
         match enrichment_type {
             EnrichmentType::Summary => {
                 let out = self.summarize(document)?;

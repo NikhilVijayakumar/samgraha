@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use schemas::audit::QualityGate;
 use serde::Serialize;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct RuntimePolicy {

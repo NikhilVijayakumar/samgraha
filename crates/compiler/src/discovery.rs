@@ -1,5 +1,5 @@
-use std::path::{Path, PathBuf};
 use anyhow::Result;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
 pub struct DiscoveredDocument {
@@ -23,7 +23,13 @@ impl DiscoveryEngine {
             return Ok(documents);
         }
 
-        collect_markdown_files(root, root, include_patterns, exclude_patterns, &mut documents)?;
+        collect_markdown_files(
+            root,
+            root,
+            include_patterns,
+            exclude_patterns,
+            &mut documents,
+        )?;
 
         Ok(documents)
     }
@@ -98,10 +104,7 @@ fn collect_markdown_files(
                 collect_markdown_files(root, &path, _include, exclude, documents)?;
             }
         } else if path.extension().map_or(false, |e| e == "md") {
-            let relative = path
-                .strip_prefix(root)
-                .unwrap_or(&path)
-                .to_path_buf();
+            let relative = path.strip_prefix(root).unwrap_or(&path).to_path_buf();
             let standard = DiscoveryEngine::infer_standard(&relative);
             documents.push(DiscoveredDocument {
                 path,

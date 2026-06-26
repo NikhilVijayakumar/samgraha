@@ -1,7 +1,7 @@
-pub mod registry;
-pub mod loader;
 pub mod builtin;
+pub mod loader;
+pub mod registry;
 
-pub use registry::*;
-pub use loader::*;
 pub use builtin::*;
+pub use loader::*;
+pub use registry::*;
