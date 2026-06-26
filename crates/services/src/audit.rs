@@ -2,7 +2,6 @@ use anyhow::Result;
 use audit_crate::AuditFramework;
 use schemas::audit::{AuditReport, QualityGate};
 use schemas::document::Document;
-use schemas::standard::StandardDefinition;
 
 pub struct AuditService;
 
@@ -11,10 +10,9 @@ impl AuditService {
         framework: &AuditFramework,
         domain: Option<&str>,
         documents: &[Document],
-        standards: &[StandardDefinition],
         providers: &[String],
     ) -> Result<AuditReport> {
-        framework.execute(domain, documents, standards, providers)
+        framework.execute(domain, documents, providers)
     }
 
     pub fn check_gate(report: &AuditReport, gate: &QualityGate) -> Result<bool> {
