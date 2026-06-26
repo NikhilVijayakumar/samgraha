@@ -1,7 +1,7 @@
 use serde::Serialize;
 use schemas::audit::AuditReport;
 use schemas::compilation::CompilationResult;
-use schemas::search::SearchResponse;
+use schemas::search::{SearchResponse, SectionQueryResponse};
 use services::runtime::runtime::RuntimeInfo;
 use services::WorkspaceBuildResult;
 
@@ -205,6 +205,29 @@ pub fn render_workspace_compile(result: &WorkspaceBuildResult, format: &OutputFo
             "  {:4} {}  ({} docs, {} failed)\n",
             r_status, name, r.documents_processed, r.documents_failed
         ));
+    }
+    out
+}
+
+pub fn render_sections(resp: &SectionQueryResponse, format: &OutputFormat) -> String {
+    if matches!(format, OutputFormat::Json) {
+        return serde_json::to_string_pretty(resp).unwrap_or_default();
+    }
+    if resp.sections.is_empty() {
+        return format!("No sections found for type \"{}\"\n", resp.semantic_type);
+    }
+    let mut out = format!(
+        "{} section(s) of type \"{}\" ({}ms)\n\n",
+        resp.total_count, resp.semantic_type, resp.duration_ms
+    );
+    for s in &resp.sections {
+        out.push_str(&format!("--- {} [{}]\n", s.document_title, s.standard));
+        out.push_str(&format!("    heading: {}\n", s.canonical_name));
+        if !s.content.is_empty() {
+            let preview: String = s.content.lines().take(3).collect::<Vec<_>>().join(" ").chars().take(120).collect();
+            out.push_str(&format!("    {}\n", preview));
+        }
+        out.push('\n');
     }
     out
 }
