@@ -2,13 +2,15 @@ use crate::migration::MIGRATIONS;
 use anyhow::{Context, Result};
 use rusqlite::{params, Connection};
 use schemas::audit::AuditFinding;
-use schemas::document::Document;
+use schemas::document::{Document, DocumentSection};
 use schemas::enrichment::EnrichmentArtifact;
 use schemas::registry::{
     BuildMetadata, GlossaryEntry, RegistryMetadata, RegistryStatus, Relationship,
 };
+use schemas::search::{SemanticSection, SectionQuery, SectionQueryResponse};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 use tracing::info;
 
 pub struct RegistryStore {
@@ -208,6 +210,92 @@ impl RegistryStore {
             .conn
             .execute("DELETE FROM documents WHERE id = ?1", params![id])?;
         Ok(affected > 0)
+    }
+
+    // --- Section operations ---
+
+    pub fn insert_document_sections(&self, doc_id: i64, sections: &[DocumentSection]) -> Result<()> {
+        self.conn.execute(
+            "DELETE FROM document_sections WHERE document_id = ?1",
+            params![doc_id],
+        )?;
+        self.insert_sections_recursive(doc_id, sections, 0)?;
+        Ok(())
+    }
+
+    fn insert_sections_recursive(
+        &self,
+        doc_id: i64,
+        sections: &[DocumentSection],
+        order_offset: usize,
+    ) -> Result<usize> {
+        let mut order = order_offset;
+        for section in sections {
+            self.conn.execute(
+                "INSERT INTO document_sections (document_id, semantic_type, canonical_name, content, required, section_order)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![
+                    doc_id,
+                    section.semantic_type,
+                    section.heading,
+                    section.body,
+                    section.required as i64,
+                    order as i64,
+                ],
+            )?;
+            order += 1;
+            order = self.insert_sections_recursive(doc_id, &section.subsections, order)?;
+        }
+        Ok(order)
+    }
+
+    pub fn get_sections_by_type(&self, query: &SectionQuery) -> Result<SectionQueryResponse> {
+        let start = Instant::now();
+        let mut stmt = self.conn.prepare(
+            "SELECT ds.id, ds.document_id, d.title, d.path, d.standard,
+                    ds.semantic_type, ds.canonical_name, ds.content, ds.required, ds.section_order
+             FROM document_sections ds
+             JOIN documents d ON ds.document_id = d.id
+             WHERE ds.semantic_type = ?1
+               AND (?2 IS NULL OR d.standard = ?2)
+             ORDER BY ds.section_order
+             LIMIT ?3",
+        )?;
+
+        let rows = stmt.query_map(
+            params![
+                query.semantic_type,
+                query.domain,
+                query.max_results as i64,
+            ],
+            |row| {
+                Ok(SemanticSection {
+                    id: row.get(0)?,
+                    document_id: row.get(1)?,
+                    document_title: row.get(2)?,
+                    document_path: row.get(3)?,
+                    standard: row.get(4)?,
+                    semantic_type: row.get(5)?,
+                    canonical_name: row.get(6)?,
+                    content: row.get(7)?,
+                    required: row.get::<_, i64>(8)? != 0,
+                    section_order: row.get(9)?,
+                })
+            },
+        )?;
+
+        let mut sections = Vec::new();
+        for row in rows {
+            sections.push(row?);
+        }
+        let total_count = sections.len();
+
+        Ok(SectionQueryResponse {
+            sections,
+            total_count,
+            semantic_type: query.semantic_type.clone(),
+            duration_ms: start.elapsed().as_millis() as u64,
+        })
     }
 
     // --- Relationship operations ---

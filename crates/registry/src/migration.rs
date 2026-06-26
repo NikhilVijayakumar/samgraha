@@ -1,4 +1,4 @@
-pub const MIGRATIONS: &[&str] = &[V1, V2, V3];
+pub const MIGRATIONS: &[&str] = &[V1, V2, V3, V4];
 
 const V1: &str = "
 CREATE TABLE IF NOT EXISTS _schema_version (
@@ -90,4 +90,20 @@ CREATE TABLE IF NOT EXISTS knowledge_packages (
     manifest TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+";
+
+const V4: &str = "
+CREATE TABLE IF NOT EXISTS document_sections (
+    id INTEGER PRIMARY KEY,
+    document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    semantic_type TEXT NOT NULL,
+    canonical_name TEXT NOT NULL,
+    content TEXT NOT NULL,
+    required INTEGER NOT NULL DEFAULT 0,
+    section_order INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_sections_semantic_type ON document_sections(semantic_type);
+CREATE INDEX IF NOT EXISTS idx_sections_document_id ON document_sections(document_id);
+CREATE INDEX IF NOT EXISTS idx_sections_type_doc ON document_sections(semantic_type, document_id);
 ";
