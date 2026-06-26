@@ -77,3 +77,43 @@ pub struct SearchResponse {
     pub query: String,
     pub duration_ms: u64,
 }
+
+/// A semantic section retrieved from the registry by type.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SemanticSection {
+    pub id: i64,
+    pub document_id: i64,
+    pub document_title: String,
+    pub document_path: String,
+    pub standard: String,
+    pub semantic_type: String,
+    pub canonical_name: String,
+    pub content: String,
+    pub required: bool,
+    pub section_order: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SectionQuery {
+    pub semantic_type: String,
+    pub domain: Option<String>,
+    pub max_results: usize,
+}
+
+impl Default for SectionQuery {
+    fn default() -> Self {
+        Self {
+            semantic_type: String::new(),
+            domain: None,
+            max_results: 50,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SectionQueryResponse {
+    pub sections: Vec<SemanticSection>,
+    pub total_count: usize,
+    pub semantic_type: String,
+    pub duration_ms: u64,
+}

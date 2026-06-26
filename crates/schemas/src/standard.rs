@@ -10,19 +10,27 @@ pub struct StandardDefinition {
     pub version: StandardVersion,
     pub domain: String,
     pub description: String,
-    pub required_sections: Vec<RequiredSection>,
+    pub required_sections: Vec<SectionDefinition>,
     pub prohibited_content: Vec<String>,
     pub relationships: Vec<StandardRelationship>,
     pub audit_rules: Vec<AuditRuleDef>,
 }
 
+/// A semantic section definition within a Documentation Standard.
+/// `canonical_name` is the heading as it appears in well-formed documents.
+/// `aliases` are alternate heading spellings matched case-insensitively.
+/// `semantic_type` is a stable snake_case identifier used for storage and querying.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct RequiredSection {
-    pub name: String,
-    pub description: String,
+pub struct SectionDefinition {
+    pub canonical_name: String,
+    pub semantic_type: String,
+    pub aliases: Vec<String>,
     pub required: bool,
-    pub allows_children: bool,
+    pub description: String,
 }
+
+/// Retained for backward compatibility — alias for SectionDefinition.
+pub type RequiredSection = SectionDefinition;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct StandardRelationship {
@@ -51,7 +59,31 @@ impl StandardDefinition {
     pub fn section_is_required(&self, name: &str) -> bool {
         self.required_sections
             .iter()
-            .any(|s| s.name == name && s.required)
+            .any(|s| s.canonical_name == name && s.required)
+    }
+
+    /// Case-insensitive alias match. Returns the first matching SectionDefinition.
+    pub fn find_section_type(&self, heading: &str) -> Option<&SectionDefinition> {
+        let h = heading.trim().to_lowercase();
+        self.required_sections.iter().find(|s| {
+            s.canonical_name.to_lowercase() == h
+                || s.aliases.iter().any(|a| a.to_lowercase() == h)
+        })
+    }
+
+    /// Returns section definitions where required=true that are missing from the given headings.
+    pub fn missing_required(&self, headings: &[String]) -> Vec<&SectionDefinition> {
+        let lower: Vec<String> = headings.iter().map(|h| h.to_lowercase()).collect();
+        self.required_sections
+            .iter()
+            .filter(|s| s.required)
+            .filter(|s| {
+                let cn = s.canonical_name.to_lowercase();
+                let matched = lower.contains(&cn)
+                    || s.aliases.iter().any(|a| lower.contains(&a.to_lowercase()));
+                !matched
+            })
+            .collect()
     }
 }
 

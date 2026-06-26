@@ -57,8 +57,10 @@ impl Default for DocumentMetadata {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DocumentSection {
     pub heading: String,
+    pub semantic_type: String,
     pub level: u32,
     pub body: String,
+    pub required: bool,
     pub subsections: Vec<DocumentSection>,
 }
 
