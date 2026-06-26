@@ -1,7 +1,7 @@
-use std::path::Path;
-use anyhow::{Result, Context};
-use schemas::standard::{StandardDefinition, StandardDeclaration};
 use crate::StandardRegistry;
+use anyhow::{Context, Result};
+use schemas::standard::{StandardDeclaration, StandardDefinition};
+use std::path::Path;
 
 pub struct StandardLoader;
 
@@ -25,12 +25,14 @@ impl StandardLoader {
             return Ok(Vec::new());
         }
         let mut standards = Vec::new();
-        let entries = std::fs::read_dir(path)
-            .context("Failed to read standards directory")?;
+        let entries = std::fs::read_dir(path).context("Failed to read standards directory")?;
         for entry in entries {
             let entry = entry?;
             let file_path = entry.path();
-            if file_path.extension().map_or(false, |e| e == "json" || e == "toml") {
+            if file_path
+                .extension()
+                .map_or(false, |e| e == "json" || e == "toml")
+            {
                 let content = std::fs::read_to_string(&file_path)
                     .context(format!("Failed to read {}", file_path.display()))?;
                 if let Ok(std) = serde_json::from_str::<StandardDefinition>(&content) {

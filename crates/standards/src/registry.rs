@@ -1,6 +1,6 @@
-use std::collections::HashMap;
-use schemas::standard::{StandardDeclaration, StandardDefinition, AuditRuleDef};
 use crate::builtin;
+use schemas::standard::{AuditRuleDef, StandardDeclaration, StandardDefinition};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct StandardRegistry {
@@ -57,10 +57,7 @@ impl StandardRegistry {
     }
 
     pub fn domains(&self) -> Vec<&str> {
-        self.standards
-            .values()
-            .map(|s| s.domain.as_str())
-            .collect()
+        self.standards.values().map(|s| s.domain.as_str()).collect()
     }
 
     pub fn merge(&mut self, other: StandardRegistry) {

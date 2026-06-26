@@ -1,5 +1,5 @@
+use common::config::SamgrahaConfig;
 use std::path::PathBuf;
-use schemas::config::SamgrahaConfig;
 
 #[derive(Debug, Clone)]
 pub struct RuntimeContext {
@@ -10,11 +10,7 @@ pub struct RuntimeContext {
 }
 
 impl RuntimeContext {
-    pub fn new(
-        repository_root: PathBuf,
-        registry_path: PathBuf,
-        config: SamgrahaConfig,
-    ) -> Self {
+    pub fn new(repository_root: PathBuf, registry_path: PathBuf, config: SamgrahaConfig) -> Self {
         Self {
             repository_root,
             registry_path,

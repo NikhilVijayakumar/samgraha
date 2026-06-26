@@ -1,14 +1,11 @@
 use anyhow::Result;
 use schemas::document::Document;
-use schemas::search::{SearchQuery, SearchResult, SearchResponse, RetrievalLevel};
+use schemas::search::{RetrievalLevel, SearchQuery, SearchResponse, SearchResult};
 
 pub struct SearchService;
 
 impl SearchService {
-    pub fn search(
-        documents: &[Document],
-        query: &SearchQuery,
-    ) -> Result<SearchResponse> {
+    pub fn search(documents: &[Document], query: &SearchQuery) -> Result<SearchResponse> {
         let start = std::time::Instant::now();
         let query_lower = query.query.to_lowercase();
         let query_terms: Vec<&str> = query_lower.split_whitespace().collect();
@@ -45,7 +42,8 @@ impl SearchService {
                     let snippet = match query.level {
                         RetrievalLevel::Metadata => None,
                         RetrievalLevel::Summary => Some(
-                            doc.body.lines()
+                            doc.body
+                                .lines()
                                 .find(|l| !l.trim().is_empty())
                                 .unwrap_or("")
                                 .to_string(),
@@ -70,7 +68,11 @@ impl SearchService {
             })
             .collect();
 
-        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        results.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         results.truncate(query.max_results);
 
         let duration = start.elapsed();

@@ -6,12 +6,12 @@ license.workspace = true
 publish = false
 
 [dependencies]
+common.workspace = true
 schemas.workspace = true
 standards.workspace = true
 services.workspace = true
 compiler.workspace = true
 registry.workspace = true
-runtime.workspace = true
 audit.workspace = true
 providers.workspace = true
 anyhow.workspace = true

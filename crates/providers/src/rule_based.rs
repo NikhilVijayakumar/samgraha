@@ -1,6 +1,8 @@
+use crate::traits::{
+    EmbeddingOutput, EnrichmentProvider, GlossaryOutput, KeywordsOutput, SummaryOutput,
+};
 use anyhow::Result;
 use schemas::document::Document;
-use crate::traits::{EnrichmentProvider, SummaryOutput, KeywordsOutput, EmbeddingOutput, GlossaryOutput};
 
 pub struct RuleBasedProvider;
 
@@ -34,7 +36,10 @@ impl EnrichmentProvider for RuleBasedProvider {
             .body
             .split_whitespace()
             .filter(|w| w.len() > 4)
-            .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_lowercase())
+            .map(|w| {
+                w.trim_matches(|c: char| !c.is_alphanumeric())
+                    .to_lowercase()
+            })
             .filter(|w| !STOP_WORDS.contains(&w.as_str()))
             .collect();
         words.sort();
@@ -79,7 +84,11 @@ fn extract_key_points(body: &str) -> Vec<String> {
     body.lines()
         .filter(|l| l.starts_with("- ") || l.starts_with("* "))
         .take(5)
-        .map(|l| l.trim_start_matches("- ").trim_start_matches("* ").to_string())
+        .map(|l| {
+            l.trim_start_matches("- ")
+                .trim_start_matches("* ")
+                .to_string()
+        })
         .collect()
 }
 
@@ -92,7 +101,7 @@ fn truncate(s: &str, max: usize) -> String {
 }
 
 const STOP_WORDS: &[&str] = &[
-    "this", "that", "with", "from", "have", "been", "will", "would", "should",
-    "their", "there", "which", "about", "into", "could", "other", "after",
-    "first", "second", "third", "shall", "must", "each", "than", "then",
+    "this", "that", "with", "from", "have", "been", "will", "would", "should", "their", "there",
+    "which", "about", "into", "could", "other", "after", "first", "second", "third", "shall",
+    "must", "each", "than", "then",
 ];

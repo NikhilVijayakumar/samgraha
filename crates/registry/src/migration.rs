@@ -1,8 +1,4 @@
-pub const MIGRATIONS: &[&str] = &[
-    V1,
-    V2,
-    V3,
-];
+pub const MIGRATIONS: &[&str] = &[V1, V2, V3];
 
 const V1: &str = "
 CREATE TABLE IF NOT EXISTS _schema_version (

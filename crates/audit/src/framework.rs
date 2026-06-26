@@ -1,28 +1,26 @@
-use std::collections::HashMap;
-use std::sync::Arc;
 use anyhow::Result;
 use schemas::audit::{
-    AuditFinding, AuditReport, AuditScore, QualityGate,
-    ReadinessAssessment, Severity,
+    AuditFinding, AuditReport, AuditScore, QualityGate, ReadinessAssessment, Severity,
 };
 use schemas::document::Document;
 use schemas::standard::{AuditRuleDef, StandardDefinition};
+use std::collections::HashMap;
+use std::sync::Arc;
 use tracing::info;
 
-pub type AuditProviderFn = Arc<
-    dyn Fn(&[Document], &[AuditRuleDef]) -> Vec<AuditFinding> + Send + Sync,
->;
+pub type AuditProviderFn =
+    Arc<dyn Fn(&[Document], &[AuditRuleDef]) -> Vec<AuditFinding> + Send + Sync>;
 
 pub struct AuditFramework {
     providers: HashMap<String, AuditProviderFn>,
-    rules_cache: HashMap<String, Vec<AuditRuleDef>>,
+    _rules_cache: HashMap<String, Vec<AuditRuleDef>>,
 }
 
 impl AuditFramework {
     pub fn new() -> Self {
         Self {
             providers: HashMap::new(),
-            rules_cache: HashMap::new(),
+            _rules_cache: HashMap::new(),
         }
     }
 
@@ -84,9 +82,7 @@ impl AuditFramework {
                 .iter()
                 .filter(|f| {
                     f.document_id
-                        .and_then(|id| {
-                            domain_docs.iter().find(|d| d.id == id)
-                        })
+                        .and_then(|id| domain_docs.iter().find(|d| d.id == id))
                         .map_or(false, |d| d.standard == std.domain)
                 })
                 .collect();
@@ -160,10 +156,7 @@ impl AuditFramework {
         Ok(report)
     }
 
-    pub fn check_quality_gate(
-        report: &AuditReport,
-        gate: &QualityGate,
-    ) -> Result<bool> {
+    pub fn check_quality_gate(report: &AuditReport, gate: &QualityGate) -> Result<bool> {
         if !gate.enabled {
             return Ok(true);
         }

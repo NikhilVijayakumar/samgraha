@@ -44,9 +44,7 @@ impl DeterministicAuditProvider {
                             "arch-003" | "feat-004" | "fd-004" | "ft-004" => {
                                 !has_implementation_details(&doc.body)
                             }
-                            _ => {
-                                has_section(&doc.body, &rule.name)
-                            }
+                            _ => has_section(&doc.body, &rule.name),
                         };
                         if !pass {
                             findings.push(AuditFinding {
@@ -70,8 +68,7 @@ impl DeterministicAuditProvider {
 fn has_section(body: &str, name: &str) -> bool {
     let lower = body.to_lowercase();
     let keywords = name.to_lowercase();
-    lower.contains(&format!("## {}", keywords))
-        || lower.contains(&format!("# {}", keywords))
+    lower.contains(&format!("## {}", keywords)) || lower.contains(&format!("# {}", keywords))
 }
 
 fn has_implementation_details(body: &str) -> bool {

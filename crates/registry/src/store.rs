@@ -1,22 +1,26 @@
-use std::path::{Path, PathBuf};
-use anyhow::{Result, Context};
-use rusqlite::{Connection, params};
-use schemas::document::Document;
-use schemas::registry::{
-    RegistryMetadata, RegistryStatus, Relationship, BuildMetadata, GlossaryEntry,
-};
-use schemas::audit::AuditFinding;
-use schemas::enrichment::EnrichmentArtifact;
-use std::collections::HashMap;
-use tracing::info;
 use crate::migration::MIGRATIONS;
+use anyhow::{Context, Result};
+use rusqlite::{params, Connection};
+use schemas::audit::AuditFinding;
+use schemas::document::Document;
+use schemas::enrichment::EnrichmentArtifact;
+use schemas::registry::{
+    BuildMetadata, GlossaryEntry, RegistryMetadata, RegistryStatus, Relationship,
+};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use tracing::info;
 
 pub struct RegistryStore {
     pub conn: Connection,
-    path: PathBuf,
+    _path: PathBuf,
 }
 
 impl RegistryStore {
+    pub fn path_str(&self) -> Option<&str> {
+        self._path.to_str().filter(|s| *s != ":memory:")
+    }
+
     pub fn open<P: AsRef<Path>>(path: P) -> Result<Self> {
         let path = path.as_ref().to_path_buf();
         let conn = Connection::open(&path)
@@ -24,7 +28,7 @@ impl RegistryStore {
 
         conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")?;
 
-        let mut store = Self { conn, path };
+        let mut store = Self { conn, _path: path };
         store.run_migrations()?;
         store.update_build_metadata()?;
         Ok(store)
@@ -36,7 +40,7 @@ impl RegistryStore {
 
         let mut store = Self {
             conn,
-            path: PathBuf::from(":memory:"),
+            _path: PathBuf::from(":memory:"),
         };
         store.run_migrations()?;
         Ok(store)

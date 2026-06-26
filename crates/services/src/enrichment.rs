@@ -1,7 +1,7 @@
 use anyhow::Result;
+use providers::traits::EnrichmentProvider;
 use schemas::document::Document;
 use schemas::enrichment::{EnrichmentArtifact, EnrichmentProfile};
-use providers::traits::EnrichmentProvider;
 
 pub struct EnrichmentService;
 

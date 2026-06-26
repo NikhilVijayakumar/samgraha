@@ -1,30 +1,42 @@
-use std::path::Path;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use anyhow::Result;
-use schemas::compilation::{CompilationResult, CompilationError, CompilationErrorType};
-use schemas::document::Document;
-use schemas::standard::StandardDefinition;
-use tracing::info;
-use crate::discovery::{DiscoveryEngine, DiscoveredDocument};
+use crate::discovery::{DiscoveredDocument, DiscoveryEngine};
 use crate::processing::DocumentProcessor;
 use crate::resolution::RelationshipResolver;
+use anyhow::Result;
+use schemas::compilation::{CompilationError, CompilationErrorType, CompilationResult};
+use schemas::document::Document;
+use schemas::standard::StandardDefinition;
+use std::path::Path;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use tracing::info;
 
 pub struct CompilationPipeline;
 
+pub struct CompilationOutput {
+    pub result: CompilationResult,
+    pub documents: Vec<Document>,
+}
+
 impl CompilationPipeline {
+    /// `known_hashes`: path → stored hash. Documents whose hash matches are skipped (incremental).
+    /// Pass empty map for a full/clean build.
     pub fn compile<P: AsRef<Path>>(
         root: P,
         standards: &[StandardDefinition],
         scope: Option<&[String]>,
-    ) -> Result<CompilationResult> {
+        known_hashes: &std::collections::HashMap<String, String>,
+    ) -> Result<CompilationOutput> {
         let root = root.as_ref();
         let start = std::time::Instant::now();
 
-        let discovered = DiscoveryEngine::discover(root, &[], &[
-            "node_modules".to_string(),
-            "target".to_string(),
-            ".git".to_string(),
-        ])?;
+        let discovered = DiscoveryEngine::discover(
+            root,
+            &[],
+            &[
+                "node_modules".to_string(),
+                "target".to_string(),
+                ".git".to_string(),
+            ],
+        )?;
 
         let filtered: Vec<DiscoveredDocument> = match scope {
             Some(domains) => discovered
@@ -38,10 +50,24 @@ impl CompilationPipeline {
 
         let doc_count = AtomicUsize::new(0);
         let fail_count = AtomicUsize::new(0);
+        let skip_count = AtomicUsize::new(0);
         let mut documents: Vec<Document> = Vec::new();
         let mut errors = Vec::new();
 
         for discovered in &filtered {
+            let rel_key = discovered.relative_path.to_string_lossy().to_string();
+
+            // Incremental: read file hash first and compare before full processing.
+            if !known_hashes.is_empty() {
+                if let Ok(content) = std::fs::read_to_string(&discovered.path) {
+                    let hash = crate::processing::compute_content_hash(&content);
+                    if known_hashes.get(&rel_key).map(|s| s.as_str()) == Some(&hash) {
+                        skip_count.fetch_add(1, Ordering::SeqCst);
+                        continue;
+                    }
+                }
+            }
+
             let id = doc_count.fetch_add(1, Ordering::SeqCst) as i64 + 1;
             match DocumentProcessor::process(
                 &discovered.path,
@@ -71,17 +97,22 @@ impl CompilationPipeline {
         );
 
         let duration = start.elapsed();
+        let skipped = skip_count.load(Ordering::SeqCst);
+        let failed = fail_count.load(Ordering::SeqCst);
 
-        Ok(CompilationResult {
-            success: fail_count.load(Ordering::SeqCst) == 0,
-            documents_found: filtered.len(),
-            documents_processed: documents.len(),
-            documents_failed: fail_count.load(Ordering::SeqCst),
-            documents_skipped: filtered.len() - documents.len() - fail_count.load(Ordering::SeqCst),
-            errors,
-            warnings: Vec::new(),
-            duration_ms: duration.as_millis() as u64,
-            registry_path: None,
+        Ok(CompilationOutput {
+            result: CompilationResult {
+                success: failed == 0,
+                documents_found: filtered.len(),
+                documents_processed: documents.len(),
+                documents_failed: failed,
+                documents_skipped: skipped,
+                errors,
+                warnings: Vec::new(),
+                duration_ms: duration.as_millis() as u64,
+                registry_path: None,
+            },
+            documents,
         })
     }
 }

@@ -1,7 +1,7 @@
-use std::collections::HashMap;
+use schemas::document::Document;
 use schemas::registry::Relationship;
 use schemas::standard::StandardDefinition;
-use schemas::document::Document;
+use std::collections::HashMap;
 
 pub struct RelationshipResolver;
 

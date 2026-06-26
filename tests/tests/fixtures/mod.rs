@@ -17,7 +17,7 @@ pub fn sample_document(id: i64, standard: &str, title: &str, body: &str) -> Docu
 }
 
 fn compute_hash(content: &str) -> String {
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(content.as_bytes());
     format!("{:x}", hasher.finalize())
