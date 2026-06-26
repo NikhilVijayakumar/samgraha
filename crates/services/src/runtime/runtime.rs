@@ -16,7 +16,6 @@ use schemas::compilation::{CompilationRequest, CompilationResult};
 use schemas::document::Document;
 use schemas::package::PackageProfile;
 use schemas::search::{SearchQuery, SearchResponse, SectionQuery, SectionQueryResponse};
-use schemas::standard::StandardDefinition;
 use serde::Serialize;
 use standards::StandardRegistry;
 use std::path::Path;
@@ -26,7 +25,7 @@ pub struct KnowledgeRuntime {
     pub context: RuntimeContext,
     pub registry: Arc<RegistryStore>,
     pub services: ServiceRegistry,
-    pub standard_registry: StandardRegistry,
+    pub standard_registry: Arc<StandardRegistry>,
     pub audit_framework: AuditFramework,
     pub policy: RuntimePolicy,
 }
@@ -44,8 +43,8 @@ impl KnowledgeRuntime {
             RegistryStore::open(&registry_path).context("Failed to open knowledge registry")?,
         );
 
-        let standard_registry = StandardRegistry::with_builtins();
-        let audit_framework = AuditFramework::new();
+        let standard_registry = Arc::new(StandardRegistry::with_builtins());
+        let audit_framework = AuditFramework::new(Arc::clone(&standard_registry));
         let services = ServiceRegistry::new();
         let policy = RuntimePolicy::default();
 
@@ -134,11 +133,7 @@ impl KnowledgeRuntime {
             None => self.registry.get_all_documents()?,
         };
 
-        let standards: Vec<StandardDefinition> =
-            self.standard_registry.all().into_iter().cloned().collect();
-
-        let result =
-            AuditService::execute(&self.audit_framework, domain, &docs, &standards, providers)?;
+        let result = AuditService::execute(&self.audit_framework, domain, &docs, providers)?;
 
         self.registry.clear_audit_results()?;
         self.registry.insert_audit_findings(&result.findings)?;
