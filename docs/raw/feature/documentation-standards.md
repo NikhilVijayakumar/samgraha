@@ -150,6 +150,46 @@ Extensions shall integrate without modifying platform standards.
 
 ---
 
+## FR9. Section Definitions
+
+Documentation Standards shall define semantic section definitions.
+
+Each section definition shall specify:
+
+* canonical section name
+* semantic type identifier
+* recognition aliases and patterns
+* required flag
+* description of expected content
+* permitted content constraints
+
+Examples:
+
+```
+Section Definition: Functional Requirements
+  semantic_type:  functional_requirements
+  aliases:        ["FRs", "Requirements", "Functional Reqs", "Functional Requirements"]
+  required:       true
+
+Section Definition: Business Rules
+  semantic_type:  business_rules
+  aliases:        ["Business Rules", "Rules", "Constraints and Rules"]
+  required:       false
+
+Section Definition: Constraints
+  semantic_type:  constraints
+  aliases:        ["Constraints", "Limitations", "Non-Functional Requirements"]
+  required:       false
+```
+
+Section definitions enable the compiler to recognize semantic sections regardless of minor heading variations in authored documentation.
+
+Unrecognized sections shall be preserved as generic sections with semantic type `generic`.
+
+Section definitions are the foundation for semantic compilation, section-level search, section-aware packaging, and section-type runtime delivery.
+
+---
+
 # Business Rules
 
 * Documentation Standards are authoritative.
@@ -158,6 +198,9 @@ Extensions shall integrate without modifying platform standards.
 * Standards are reusable across repositories.
 * Standards define expectations rather than implementations.
 * Documentation Standards remain technology independent.
+* Section definitions use aliases to tolerate natural heading variation.
+* Unrecognized sections are preserved, never discarded.
+* Semantic types are stable identifiers independent of heading text.
 
 ---
 
@@ -283,6 +326,9 @@ The feature is successful when:
 * standards remain reusable across projects
 * organizations can extend standards without modifying the platform
 * standards provide the foundation for deterministic engineering documentation
+* section definitions enable deterministic heading-to-semantic-type mapping
+* section aliases tolerate natural variation in authored headings
+* semantic types are stable and queryable across the platform
 
 ---
 

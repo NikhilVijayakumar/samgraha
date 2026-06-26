@@ -71,19 +71,21 @@ Incremental Build ◄───────┤ (read lifecycle metadata)
 
 ### Registry Write Flow (Compilation)
 
-1. Knowledge Compiler completes document processing.
+1. Knowledge Compiler completes document processing including semantic section mapping.
 2. Compiler requests registry write for each compiled artifact.
 3. Registry validates artifact structure and metadata completeness.
-4. Registry records artifact with content hash and compilation metadata.
-5. Registry updates integrity metadata.
-6. Registry notifies Incremental Build of new artifacts.
+4. Registry records document with content hash and compilation metadata.
+5. Registry records each semantic section: type, canonical name, content, required flag, section order, parent document reference.
+6. Registry updates integrity metadata.
+7. Registry notifies Incremental Build of new artifacts.
 
 ### Registry Read Flow (Runtime)
 
 1. Knowledge Runtime receives a consumer request.
-2. Runtime queries registry for relevant compiled documents.
-3. Registry returns results with metadata and content.
-4. Runtime composes the response for the transport adapter.
+2. Runtime queries registry for relevant compiled documents or specific section types.
+3. For document queries: registry returns document with metadata and content.
+4. For section-type queries: registry returns matching sections across documents, with parent document metadata attached.
+5. Runtime composes the response for the transport adapter.
 
 ---
 
@@ -138,7 +140,10 @@ Enrichment writes derived metadata. Enrichment artifacts are stored separately f
 | Data | Owner | Registry Role |
 |---|---|---|
 | Compiled Documents | Knowledge Registry | Persistent Storage |
+| Semantic Sections | Knowledge Registry | Persistent Storage |
+| Section Semantic Types | Knowledge Registry | Persistent Storage |
 | Search Indexes | Knowledge Registry | Generated, Managed |
+| Section Type Indexes | Knowledge Registry | Generated, Managed |
 | Metadata | Knowledge Registry | Persistent Storage |
 | Dependency Graphs | Knowledge Registry | Generated, Managed |
 | Audit Metadata | Knowledge Registry | Persistent Storage |
@@ -210,10 +215,12 @@ Optional: Future distributed registry support may introduce remote synchronizati
 ## Performance Considerations
 
 - Document retrieval must complete within 10ms for known identifiers.
+- Section-type retrieval must complete within 50ms for any single semantic type across a repository.
 - Search queries across large registries must return within 500ms.
 - Registry initialization must complete within 1 second.
 - Concurrent readers must not experience degradation from write operations.
 - Registry storage must scale linearly with document count.
+- Section indexes must not require full document scans for type-based queries.
 
 ---
 
@@ -236,6 +243,10 @@ The registry guarantees that a failed write never corrupts previously committed 
 ### Artifact Types
 
 New artifact types may be registered without changing the registry core. Each type defines its own storage schema and retrieval interface.
+
+### Section Type Index
+
+The registry maintains a dedicated index over semantic section types. This index supports efficient cross-document section-type queries without full table scans. The index is built during compilation and updated incrementally.
 
 ### Index Providers
 

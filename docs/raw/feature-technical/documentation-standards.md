@@ -49,12 +49,32 @@ Repository Configuration identifies which Documentation Standards versions and e
 
 | Component | Responsibility |
 |---|---|
-| Documentation Standards | Define, version, and distribute engineering contracts for each documentation domain |
+| Documentation Standards | Define, version, and distribute engineering contracts, section definitions, and audit rules for each documentation domain |
 | Knowledge Services | Read and apply standards during engineering operations |
 | Audit Framework | Read audit rules from standards for compliance verification |
-| Knowledge Compiler | Read structure and validation rules from standards for compilation |
+| Knowledge Compiler | Read structure, section definitions, and validation rules from standards for compilation and semantic section mapping |
 | Knowledge Enrichment | Read enhancement rules from standards for enrichment generation |
 | Repository Configuration | Declare which standard versions apply to the repository |
+
+---
+
+## Section Definition Model
+
+Each Documentation Standard defines one or more `SectionDefinition` entries.
+
+```
+SectionDefinition {
+    canonical_name:  string           // e.g. "Functional Requirements"
+    semantic_type:   string           // stable identifier, e.g. "functional_requirements"
+    aliases:         Vec<string>      // recognition patterns, e.g. ["FRs", "Requirements"]
+    required:        bool             // missing required section → compilation warning
+    description:     string           // expected content guidance
+}
+```
+
+Semantic types are stable, lowercase, underscore-separated identifiers. They do not change when canonical names are revised. Aliases cover common heading variations authors write in practice.
+
+Sections not matching any definition are preserved as `SemanticType::Generic`. No content is discarded.
 
 ---
 
@@ -76,9 +96,14 @@ Repository Configuration (declare applicable versions)
 
 1. Repository Configuration declares the Documentation Standards versions for the repository.
 2. Knowledge Services read the applicable standards during initialization.
-3. Services cache standard definitions for the duration of execution.
-4. Services apply standard contracts during compilation, audit, and enrichment.
-5. Standards are read-only during execution — never modified.
+3. Services cache standard definitions, including section definitions, for the duration of execution.
+4. Knowledge Compiler loads section definitions for each domain to drive semantic section mapping during compilation.
+5. Services apply standard contracts during compilation, audit, and enrichment.
+6. Standards are read-only during execution — never modified.
+
+### Section Definition Lookup
+
+During compilation, the compiler identifies a document's domain, loads the corresponding standard's section definitions, then performs alias matching against document headings. Matching is case-insensitive and trims whitespace. The first alias match wins. Unmatched headings receive `semantic_type: generic`.
 
 ---
 
@@ -132,6 +157,9 @@ Repository configuration references standard versions. Configuration determines 
 | Data | Owner | Standards Access |
 |---|---|---|
 | Standard Definitions | Documentation Standards | Authoritative |
+| Section Definitions | Documentation Standards | Authoritative |
+| Semantic Type Identifiers | Documentation Standards | Authoritative |
+| Section Aliases | Documentation Standards | Authoritative |
 | Audit Rules | Documentation Standards | Authoritative |
 | Contract Definitions | Documentation Standards | Authoritative |
 | Version Metadata | Documentation Standards | Authoritative |
@@ -214,6 +242,9 @@ Optional: Future standard libraries and organization templates may introduce net
 | Invalid standard definition | Report validation error, reject registration |
 | Extension registration failure | Report error, continue with core standards |
 | Cross-standard inconsistency | Report warning, continue with available definitions |
+| Section alias collision | Report warning, first registered alias wins |
+| No alias match for heading | Preserve section as `generic` — never discard content |
+| Missing required section | Report as compilation warning, not error — document remains valid |
 
 ---
 
@@ -225,7 +256,11 @@ New documentation domains may be defined by creating new Documentation Standards
 
 ### Organization Extensions
 
-Organizations may extend standards with domain-specific contracts, additional audit rules, and custom validation criteria. Extensions integrate without modifying platform standards.
+Organizations may extend standards with domain-specific contracts, additional audit rules, custom validation criteria, and additional section definitions with organization-specific aliases. Extensions integrate without modifying platform standards.
+
+### Section Type Extensions
+
+Organizations may register additional semantic types for domain-specific sections not present in platform standards. Custom semantic types follow the same lowercase underscore-separated identifier convention and remain stable once registered.
 
 ### Standard Libraries
 

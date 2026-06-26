@@ -86,10 +86,16 @@ Consumer
 2. Adapter translates the request into a runtime operation.
 3. Knowledge Runtime resolves the active repository or workspace context.
 4. Runtime invokes the Knowledge Search service with the query and context.
-5. Search service queries the Knowledge Registry indexes.
-6. Search service applies structured filters (domain, status, repository, audit status).
+5. Search service determines the query mode:
+   - **Document search**: queries full-text and metadata indexes across compiled documents.
+   - **Section-type search**: queries the section type index for a specified `semantic_type`, returning matching sections rather than full documents.
+6. Search service applies structured filters (domain, status, repository, audit status, semantic type).
 7. Search service ranks results by relevance.
-8. Search service retrieves progressive content (metadata, summary, sections, full document) based on requested level.
+8. Search service retrieves progressive content based on requested level:
+   - `metadata`: document identity and attributes only.
+   - `summary`: enriched summary if available.
+   - `section`: specific semantic section content.
+   - `full`: complete document content.
 9. Runtime composes the response with results and navigation metadata.
 10. Transport adapter formats and returns the response.
 
@@ -106,16 +112,24 @@ Receive Search Request
 Resolve Repository Context
         │
         ▼
-Query Indexes
+Determine Query Mode
+        │
+        ├── Document Search → Query full-text + metadata indexes
+        └── Section-Type Search → Query section type index
         │
         ▼
-Apply Filters
+Apply Filters (domain, status, repository, semantic type)
         │
         ▼
 Rank Results
         │
         ▼
 Retrieve Progressive Content
+        │
+        ├── metadata    → document identity only
+        ├── summary     → enriched summary
+        ├── section     → specific semantic section content
+        └── full        → complete document
         │
         ▼
 Return Results
@@ -252,6 +266,10 @@ Custom ranking algorithms may be registered without modifying the search pipelin
 ### Filter Providers
 
 Repository-specific or organization-specific filter implementations extend the default filter set.
+
+### Section-Type Query Interface
+
+Section-type queries are a first-class query mode distinct from full-text search. They accept a `semantic_type` parameter and return `SemanticSection` results rather than `Document` results. Section results include: type, canonical name, content, required flag, parent document identity, and domain. Section-type queries are deterministic and require no AI providers.
 
 ---
 

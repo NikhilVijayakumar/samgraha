@@ -87,13 +87,22 @@ Consumer
 2. Adapter translates protocol-specific format into a runtime operation.
 3. Runtime validates the request against runtime policy.
 4. Runtime resolves the active repository or workspace context.
-5. Runtime invokes the appropriate Knowledge Service.
-6. Service reads compiled knowledge from the Knowledge Registry.
-7. Service applies audit metadata for quality filtering.
-8. Service returns structured results to the runtime.
-9. Runtime applies cross-cutting policies (repository isolation, audit enforcement).
-10. Runtime returns the response to the transport adapter.
-11. Adapter translates the response into protocol-specific format.
+5. Runtime determines the operation type:
+   - **Document operations**: search, retrieve, navigate.
+   - **Section-type operations**: retrieve all sections of a given semantic type across documents or workspace.
+   - **Progressive operations**: retrieve metadata → summary → section → full document on demand.
+6. Runtime invokes the appropriate Knowledge Service.
+7. Service reads compiled knowledge or semantic sections from the Knowledge Registry.
+8. Service applies audit metadata for quality filtering.
+9. Service returns structured results to the runtime (documents or sections depending on operation).
+10. Runtime applies cross-cutting policies (repository isolation, audit enforcement).
+11. Runtime returns the response to the transport adapter.
+12. Adapter translates the response into protocol-specific format.
+
+Section-type operations examples:
+- `get_sections(type: "functional_requirements", domain: "compilation")` → returns FR sections for compilation domain only.
+- `get_sections(type: "business_rules")` → returns all Business Rules sections across repository.
+- `get_sections(type: "constraints", workspace: true)` → returns all Constraints sections across workspace.
 
 ---
 
@@ -257,6 +266,10 @@ New transport protocols (REST, GraphQL, IDE integration) register as adapters wi
 ### Knowledge Services
 
 New Knowledge Services register through the service interface. Services are discovered at runtime initialization.
+
+### Section-Type Operations
+
+Section-type operations are a first-class runtime capability. They accept `semantic_type`, optional `domain`, and optional `workspace` scope parameters. They return `SemanticSection` results rather than `Document` results. The runtime routes section-type operations to the Knowledge Registry section index directly, bypassing full-text search.
 
 ### Runtime Policies
 

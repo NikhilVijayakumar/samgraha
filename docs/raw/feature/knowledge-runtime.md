@@ -74,11 +74,24 @@ Delivery levels may include:
 
 * metadata
 * summaries
+* semantic sections by type
 * sections
 * documents
 * related knowledge
 
 Consumers determine the required delivery level.
+
+The runtime shall support semantic section delivery as a first-class retrieval level. Consumers may request specific section types rather than full documents.
+
+Examples:
+
+* `get_functional_requirements(domain: "compilation")` — returns FR sections for the compilation domain only
+* `get_business_rules(document: "incremental-compilation")` — returns Business Rules section only
+* `get_constraints(workspace: true)` — returns all Constraints sections across the workspace
+* `get_purpose(domain: "feature")` — returns Purpose sections for all feature documents
+* `get_dependencies(document: "knowledge-search")` — returns Dependencies section only
+
+Section-type delivery dramatically reduces context consumption for AI consumers. Consumers ask for exactly the engineering knowledge they need rather than loading full documents.
 
 ---
 
@@ -181,6 +194,7 @@ The Knowledge Runtime produces:
 * knowledge responses
 * metadata
 * summaries
+* semantic sections by type
 * document content
 * relationship metadata
 * audit metadata
