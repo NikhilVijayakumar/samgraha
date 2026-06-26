@@ -490,3 +490,13 @@ Prototype Documentation is the executable validation specification of the produc
 It defines a lightweight runtime capable of simulating the complete application—including user interface, navigation, mock persistence, mock APIs, localization, themes, authentication, and workflows—without relying on production infrastructure.
 
 Its purpose is to validate product behavior, user experience, architectural assumptions, and API contracts before engineering and implementation begin, reducing ambiguity, accelerating development, and providing both humans and AI systems with a deterministic foundation for production implementation.
+
+---
+
+# Documentation Folder
+
+Prototype documents live under:
+
+```text
+docs/raw/prototype/
+```

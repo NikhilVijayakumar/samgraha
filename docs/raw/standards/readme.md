@@ -369,3 +369,15 @@ The README is the front door of the repository.
 Its responsibility is to provide orientation, onboarding, and navigation rather than comprehensive technical documentation.
 
 A well-designed README enables both humans and AI systems to quickly understand the repository, locate detailed documentation, and begin contributing without overwhelming them with implementation details.
+
+---
+
+# Documentation Folder
+
+The README lives at the repository root:
+
+```text
+README.md
+```
+
+There is exactly one README per repository. It is not placed under `docs/raw/`.

@@ -449,3 +449,13 @@ These responsibilities belong to other documentation standards or to the externa
 External Context Documentation is a collection of atomic knowledge documents that describe external dependencies required to understand and implement a repository.
 
 Its purpose is not to replace external documentation, but to explain **why a dependency exists, how it influences the repository, and where the authoritative knowledge resides**, allowing project documentation to remain concise, maintainable, and free of unnecessary duplication.
+
+---
+
+# Documentation Folder
+
+External Context documents live under:
+
+```text
+docs/raw/external-context/
+```

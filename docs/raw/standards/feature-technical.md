@@ -439,3 +439,13 @@ Feature Technical Design Documentation is the architectural realization of a sin
 Each document maintains a strict one-to-one relationship with its corresponding Feature, applying the shared principles defined by the Architecture Documentation together with any relevant External Context and considering Feature Design where architectural decisions affect user experience.
 
 Its purpose is to bridge feature requirements and implementation by defining responsibilities, interactions, boundaries, integrations, and architectural constraints while preserving consistency across the product ecosystem and avoiding implementation-specific details.
+
+---
+
+# Documentation Folder
+
+Feature Technical Design documents live under:
+
+```text
+docs/raw/feature-technical/
+```

@@ -336,3 +336,13 @@ The Vision is the highest-level engineering artifact within the documentation ec
 Its responsibility is to communicate **why** the product exists and the long-term direction it should follow.
 
 Every downstream document should refine the Vision without redefining it, ensuring that engineering decisions remain aligned with enduring product intent rather than temporary implementation choices.
+
+---
+
+# Documentation Folder
+
+Vision documents live under:
+
+```text
+docs/raw/vision/
+```

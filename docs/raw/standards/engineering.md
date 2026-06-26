@@ -425,3 +425,43 @@ Engineering Documentation is the repository-wide engineering specification.
 It is a modular collection of documents that explains the engineering principles, implementation standards, technology selection rationale, development conventions, and operational practices required to realize the documented architecture.
 
 Its purpose is to provide a reusable engineering foundation that guides implementation consistently across the repository while remaining independent of feature-specific implementations and source code.
+
+---
+
+# Documentation Folder
+
+Engineering documents live under:
+
+```text
+docs/raw/engineering/
+```
+
+---
+
+# Implementation Folder
+
+Engineering Documentation must declare the repository's implementation folder.
+
+One engineering document must include a section titled **Repository Structure** that:
+
+* names the top-level folder containing all implementation source code
+* explains the rationale for that folder name and layout
+* describes the high-level module or crate organization within it
+
+This declaration is the authoritative source for the `implementation-audit`. The audit reads this section to locate source code before auditing. If the declaration is absent, the implementation audit cannot proceed.
+
+Example structure for the declaration:
+
+```
+## Repository Structure
+
+Implementation lives under `<folder>/`.
+
+Rationale: <reason for folder name and layout>.
+
+Top-level modules:
+- `<folder>/module-a/` — <responsibility>
+- `<folder>/module-b/` — <responsibility>
+```
+
+The implementation folder name and rationale must be kept current whenever the source layout changes.

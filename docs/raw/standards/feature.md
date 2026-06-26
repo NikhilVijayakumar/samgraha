@@ -392,3 +392,13 @@ Feature Documentation is a collection of **atomic functional specifications**.
 Each feature document defines exactly one product capability, remains technology independent, and provides the foundation for downstream design, architecture, engineering, and implementation.
 
 The objective is to maximize cohesion, minimize coupling, and ensure every feature can be independently understood, reviewed, implemented, tested, and maintained.
+
+---
+
+# Documentation Folder
+
+Feature documents live under:
+
+```text
+docs/raw/feature/
+```
