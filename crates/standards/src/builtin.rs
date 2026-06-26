@@ -1,5 +1,4 @@
-use schemas::standard::StandardDefinition;
-use schemas::standard::{AuditRuleDef, RequiredSection, StandardRelationship};
+use schemas::standard::{AuditRuleDef, SectionDefinition, StandardDefinition, StandardRelationship};
 
 pub fn all_builtin_standards() -> Vec<StandardDefinition> {
     vec![
@@ -17,6 +16,61 @@ pub fn all_builtin_standards() -> Vec<StandardDefinition> {
     ]
 }
 
+// ── Common semantic types shared across standards ──────────────────────────────
+
+fn sec(
+    canonical: &str,
+    semantic_type: &str,
+    aliases: &[&str],
+    required: bool,
+    desc: &str,
+) -> SectionDefinition {
+    SectionDefinition {
+        canonical_name: canonical.into(),
+        semantic_type: semantic_type.into(),
+        aliases: aliases.iter().map(|s| s.to_string()).collect(),
+        required,
+        description: desc.into(),
+    }
+}
+
+// Reusable section defs present in multiple standards.
+fn purpose(required: bool) -> SectionDefinition {
+    sec("Purpose", "purpose", &["Purpose", "Overview", "Summary"], required, "Why this document exists")
+}
+fn constraints() -> SectionDefinition {
+    sec("Constraints", "constraints", &["Constraints", "Limitations", "Non-Functional Requirements"], false, "Constraints and limitations")
+}
+fn dependencies() -> SectionDefinition {
+    sec("Dependencies", "dependencies", &["Dependencies", "Dependency", "Depends On"], false, "Dependencies")
+}
+fn traceability() -> SectionDefinition {
+    sec("Traceability", "traceability", &["Traceability", "Traces To", "Derived From"], false, "Traceability links")
+}
+fn non_goals() -> SectionDefinition {
+    sec("Non-Goals", "non_goals", &["Non-Goals", "Non Goals", "Out of Scope", "Not In Scope"], false, "Explicit non-goals")
+}
+fn future_extensions() -> SectionDefinition {
+    sec("Future Extensions", "future_extensions", &["Future Extensions", "Future", "Roadmap", "Future Work"], false, "Future capabilities")
+}
+fn success_criteria() -> SectionDefinition {
+    sec("Success Criteria", "success_criteria", &["Success Criteria", "Acceptance Criteria", "Definition of Done"], false, "How success is measured")
+}
+fn security_considerations() -> SectionDefinition {
+    sec("Security Considerations", "security_considerations", &["Security Considerations", "Security"], false, "Security implications")
+}
+fn performance_considerations() -> SectionDefinition {
+    sec("Performance Considerations", "performance_considerations", &["Performance Considerations", "Performance"], false, "Performance requirements and constraints")
+}
+fn failure_handling() -> SectionDefinition {
+    sec("Failure Handling", "failure_handling", &["Failure Handling", "Error Handling", "Failures", "Fault Handling"], false, "How failures are handled")
+}
+fn extension_points() -> SectionDefinition {
+    sec("Extension Points", "extension_points", &["Extension Points", "Extensions", "Extension", "Extensibility"], false, "How the component can be extended")
+}
+
+// ── Standards ──────────────────────────────────────────────────────────────────
+
 fn readme_standard() -> StandardDefinition {
     StandardDefinition {
         id: "readme".into(),
@@ -25,41 +79,16 @@ fn readme_standard() -> StandardDefinition {
         domain: "readme".into(),
         description: "Primary repository entry point and documentation navigation.".into(),
         required_sections: vec![
-            section(
-                "Title",
-                "Repository name and brief description",
-                true,
-                false,
-            ),
-            section(
-                "Getting Started",
-                "Installation and basic usage",
-                true,
-                false,
-            ),
-            section("Documentation", "Links to key documentation", true, false),
+            sec("Title", "title", &["Title"], true, "Repository name and brief description"),
+            sec("Getting Started", "getting_started", &["Getting Started", "Quick Start", "Installation"], true, "Installation and basic usage"),
+            sec("Documentation", "documentation", &["Documentation", "Docs", "Further Reading"], true, "Links to key documentation"),
         ],
         prohibited_content: vec!["Detailed API reference".into()],
         relationships: vec![relationship("readme", "vision", "references")],
         audit_rules: vec![
-            rule(
-                "readme-001",
-                "README exists",
-                "Repository must have a README.md",
-                "error",
-            ),
-            rule(
-                "readme-002",
-                "Has title",
-                "README must have a top-level title",
-                "error",
-            ),
-            rule(
-                "readme-003",
-                "Has getting started",
-                "README must have getting started section",
-                "warning",
-            ),
+            rule("readme-001", "README exists", "Repository must have a README.md", "error"),
+            rule("readme-002", "Has title", "README must have a top-level title", "error"),
+            rule("readme-003", "Has getting started", "README must have getting started section", "warning"),
         ],
     }
 }
@@ -72,37 +101,26 @@ fn vision_standard() -> StandardDefinition {
         domain: "vision".into(),
         description: "Product vision and long-term direction.".into(),
         required_sections: vec![
-            section("Purpose", "Why the product exists", true, false),
-            section("Target Audience", "Who the product serves", true, false),
-            section("Core Values", "Guiding principles", true, false),
+            purpose(true),
+            sec("Vision", "vision_statement", &["Vision", "Long-Term Vision", "The Vision"], true, "The long-term vision statement"),
+            sec("Problem", "problem", &["Problem", "Problem Statement", "The Problem"], true, "The problem being solved"),
+            sec("Solution", "solution", &["Solution", "The Solution", "Our Solution"], true, "How the problem is solved"),
+            sec("Platform Pillars", "pillars", &["Platform Pillars", "Pillars", "Foundations", "Core Pillars"], false, "Foundational capabilities"),
+            sec("Philosophy", "philosophy", &["Philosophy", "Product Philosophy", "Design Philosophy"], false, "Design and product philosophy"),
+            sec("Guiding Principles", "guiding_principles", &["Guiding Principles", "Principles", "Core Principles"], false, "Guiding principles"),
+            sec("Target Audience", "target_audience", &["Target Audience", "Audience", "Who Is This For"], true, "Who the product serves"),
+            success_criteria(),
+            traceability(),
         ],
-        prohibited_content: vec![
-            "Implementation details".into(),
-            "Architecture decisions".into(),
-        ],
+        prohibited_content: vec!["Implementation details".into(), "Architecture decisions".into()],
         relationships: vec![
             relationship("vision", "feature", "derives"),
             relationship("vision", "philosophy", "inspires"),
         ],
         audit_rules: vec![
-            rule(
-                "vision-001",
-                "Has purpose",
-                "Vision must include product purpose",
-                "error",
-            ),
-            rule(
-                "vision-002",
-                "Has audience",
-                "Vision must define target audience",
-                "warning",
-            ),
-            rule(
-                "vision-003",
-                "No implementation",
-                "Vision must not contain implementation details",
-                "warning",
-            ),
+            rule("vision-001", "Has purpose", "Vision must include product purpose", "error"),
+            rule("vision-002", "Has audience", "Vision must define target audience", "warning"),
+            rule("vision-003", "No implementation", "Vision must not contain implementation details", "warning"),
         ],
     }
 }
@@ -115,14 +133,10 @@ fn philosophy_standard() -> StandardDefinition {
         domain: "philosophy".into(),
         description: "Product philosophy and design principles.".into(),
         required_sections: vec![
-            section(
-                "Principles",
-                "Core design and engineering principles",
-                true,
-                false,
-            ),
-            section("Values", "What the product values", true, false),
-            section("Trade-offs", "Deliberate trade-offs made", true, false),
+            purpose(false),
+            sec("Principles", "guiding_principles", &["Principles", "Core Principles", "Design Principles"], true, "Core design and engineering principles"),
+            sec("Values", "values", &["Values", "Core Values", "What We Value"], true, "What the product values"),
+            sec("Trade-offs", "tradeoffs", &["Trade-offs", "Trade offs", "Tradeoffs", "Deliberate Trade-offs"], true, "Deliberate trade-offs made"),
         ],
         prohibited_content: vec!["Specific technology choices".into()],
         relationships: vec![
@@ -130,24 +144,9 @@ fn philosophy_standard() -> StandardDefinition {
             relationship("philosophy", "design", "guides"),
         ],
         audit_rules: vec![
-            rule(
-                "phil-001",
-                "Has principles",
-                "Philosophy must document principles",
-                "error",
-            ),
-            rule(
-                "phil-002",
-                "Has values",
-                "Philosophy must document values",
-                "warning",
-            ),
-            rule(
-                "phil-003",
-                "Has trade-offs",
-                "Philosophy should document trade-offs",
-                "suggestion",
-            ),
+            rule("phil-001", "Has principles", "Philosophy must document principles", "error"),
+            rule("phil-002", "Has values", "Philosophy must document values", "warning"),
+            rule("phil-003", "Has trade-offs", "Philosophy should document trade-offs", "suggestion"),
         ],
     }
 }
@@ -160,60 +159,26 @@ fn architecture_standard() -> StandardDefinition {
         domain: "architecture".into(),
         description: "Structural organization of the system.".into(),
         required_sections: vec![
-            section(
-                "System Overview",
-                "High-level system description",
-                true,
-                false,
-            ),
-            section(
-                "Component Model",
-                "Components and responsibilities",
-                true,
-                false,
-            ),
-            section("Communication", "How components communicate", true, false),
-            section(
-                "Data Flow",
-                "How data moves through the system",
-                true,
-                false,
-            ),
-            section("Security", "Security architecture", true, false),
+            purpose(false),
+            sec("System Overview", "system_overview", &["System Overview", "Overview", "Architecture Overview"], true, "High-level system description"),
+            sec("Component Model", "component_model", &["Component Model", "Components", "Component Architecture"], true, "Components and responsibilities"),
+            sec("Communication", "communication_paths", &["Communication", "Communication Paths", "Component Communication"], true, "How components communicate"),
+            sec("Data Flow", "data_flow", &["Data Flow", "Data Movement", "Information Flow"], true, "How data moves through the system"),
+            sec("Security", "security_considerations", &["Security", "Security Architecture", "Security Model"], true, "Security architecture"),
+            sec("Rationale", "rationale", &["Rationale", "Decision Rationale", "Architectural Decisions", "Why"], false, "Why this architecture was chosen"),
+            constraints(),
+            traceability(),
         ],
-        prohibited_content: vec![
-            "Implementation details".into(),
-            "Technology frameworks".into(),
-        ],
+        prohibited_content: vec!["Implementation details".into(), "Technology frameworks".into()],
         relationships: vec![
             relationship("architecture", "feature-technical", "constrains"),
             relationship("architecture", "engineering", "guides"),
         ],
         audit_rules: vec![
-            rule(
-                "arch-001",
-                "Has overview",
-                "Architecture must include system overview",
-                "error",
-            ),
-            rule(
-                "arch-002",
-                "Has component model",
-                "Architecture must define component responsibilities",
-                "error",
-            ),
-            rule(
-                "arch-003",
-                "No implementation details",
-                "Architecture must avoid implementation specifics",
-                "warning",
-            ),
-            rule(
-                "arch-004",
-                "Has security",
-                "Architecture must address security",
-                "warning",
-            ),
+            rule("arch-001", "Has overview", "Architecture must include system overview", "error"),
+            rule("arch-002", "Has component model", "Architecture must define component responsibilities", "error"),
+            rule("arch-003", "No implementation details", "Architecture must avoid implementation specifics", "warning"),
+            rule("arch-004", "Has security", "Architecture must address security", "warning"),
         ],
     }
 }
@@ -226,14 +191,22 @@ fn feature_standard() -> StandardDefinition {
         domain: "feature".into(),
         description: "Atomic functional capability specifications.".into(),
         required_sections: vec![
-            section("Purpose", "Feature objective and user value", true, false),
-            section("Requirements", "Functional requirements", true, false),
-            section(
-                "Acceptance Criteria",
-                "How to verify completion",
-                true,
-                false,
-            ),
+            purpose(true),
+            sec("Functional Requirements", "functional_requirements", &[
+                "Functional Requirements", "Requirements", "FRs",
+                "Functional Reqs", "Feature Requirements",
+            ], true, "Functional requirements"),
+            sec("Business Rules", "business_rules", &["Business Rules", "Rules", "Business Logic"], false, "Business rules governing this feature"),
+            sec("Inputs", "inputs", &["Inputs", "Input", "Input Data"], false, "Inputs the feature consumes"),
+            sec("Outputs", "outputs", &["Outputs", "Output", "Output Data"], false, "Outputs the feature produces"),
+            constraints(),
+            dependencies(),
+            sec("Acceptance Criteria", "acceptance_criteria", &[
+                "Acceptance Criteria", "Success Criteria", "Definition of Done", "Criteria",
+            ], true, "How to verify the feature is complete"),
+            non_goals(),
+            future_extensions(),
+            traceability(),
         ],
         prohibited_content: vec!["Implementation details".into(), "Architecture".into()],
         relationships: vec![
@@ -242,30 +215,10 @@ fn feature_standard() -> StandardDefinition {
             relationship("vision", "feature", "derives-from"),
         ],
         audit_rules: vec![
-            rule(
-                "feat-001",
-                "Has purpose",
-                "Feature must document its purpose",
-                "error",
-            ),
-            rule(
-                "feat-002",
-                "Has requirements",
-                "Feature must list functional requirements",
-                "error",
-            ),
-            rule(
-                "feat-003",
-                "Has acceptance criteria",
-                "Feature must define acceptance criteria",
-                "error",
-            ),
-            rule(
-                "feat-004",
-                "Technology independent",
-                "Feature must not specify technology",
-                "warning",
-            ),
+            rule("feat-001", "Has purpose", "Feature must document its purpose", "error"),
+            rule("feat-002", "Has requirements", "Feature must list functional requirements", "error"),
+            rule("feat-003", "Has acceptance criteria", "Feature must define acceptance criteria", "error"),
+            rule("feat-004", "Technology independent", "Feature must not specify technology", "warning"),
         ],
     }
 }
@@ -278,19 +231,13 @@ fn feature_design_standard() -> StandardDefinition {
         domain: "feature-design".into(),
         description: "User-centered design for a single feature.".into(),
         required_sections: vec![
-            section(
-                "User Experience",
-                "How users interact with the feature",
-                true,
-                false,
-            ),
-            section("Workflow", "Step-by-step user workflow", true, false),
-            section(
-                "States",
-                "Empty, loading, success, error states",
-                true,
-                false,
-            ),
+            purpose(false),
+            sec("User Experience", "user_experience", &["User Experience", "UX", "User Flow"], true, "How users interact with the feature"),
+            sec("Workflow", "workflow", &["Workflow", "User Workflow", "Flow"], true, "Step-by-step user workflow"),
+            sec("States", "states", &["States", "UI States", "Application States", "State Transitions"], true, "Empty, loading, success, error states"),
+            non_goals(),
+            constraints(),
+            traceability(),
         ],
         prohibited_content: vec!["Implementation details".into(), "API design".into()],
         relationships: vec![
@@ -298,30 +245,10 @@ fn feature_design_standard() -> StandardDefinition {
             relationship("design", "feature-design", "applies-to"),
         ],
         audit_rules: vec![
-            rule(
-                "fd-001",
-                "Has UX description",
-                "Feature Design must describe UX",
-                "error",
-            ),
-            rule(
-                "fd-002",
-                "Has workflow",
-                "Feature Design must document workflow",
-                "error",
-            ),
-            rule(
-                "fd-003",
-                "Has states",
-                "Feature Design must cover all UI states",
-                "warning",
-            ),
-            rule(
-                "fd-004",
-                "No implementation",
-                "Feature Design must not include implementation",
-                "warning",
-            ),
+            rule("fd-001", "Has UX description", "Feature Design must describe UX", "error"),
+            rule("fd-002", "Has workflow", "Feature Design must document workflow", "error"),
+            rule("fd-003", "Has states", "Feature Design must cover all UI states", "warning"),
+            rule("fd-004", "No implementation", "Feature Design must not include implementation", "warning"),
         ],
     }
 }
@@ -334,25 +261,23 @@ fn feature_technical_standard() -> StandardDefinition {
         domain: "feature-technical".into(),
         description: "Architectural realization of a single feature.".into(),
         required_sections: vec![
-            section(
-                "Participating Components",
-                "Which components are involved",
-                true,
-                false,
-            ),
-            section(
-                "Component Interactions",
-                "How components interact",
-                true,
-                false,
-            ),
-            section("Data Ownership", "Who owns what data", true, false),
-            section(
-                "Security Considerations",
-                "Security implications",
-                true,
-                false,
-            ),
+            purpose(true),
+            sec("Feature Specification", "feature_specification", &["Feature Specification", "Feature Spec", "Specification"], false, "Link to feature spec"),
+            sec("Participating Components", "participating_components", &["Participating Components", "Components", "Involved Components"], true, "Which components are involved"),
+            sec("Component Responsibilities", "component_responsibilities", &["Component Responsibilities", "Responsibilities", "Component Roles"], false, "What each component is responsible for"),
+            sec("Component Interactions", "component_interactions", &["Component Interactions", "Interactions", "Communication Flows"], true, "How components interact"),
+            sec("Runtime Behavior", "runtime_behavior", &["Runtime Behavior", "Behavior", "Execution Model"], false, "Runtime and execution behavior"),
+            sec("Communication Paths", "communication_paths", &["Communication Paths", "Communication", "Message Flows"], false, "How components communicate"),
+            sec("Data Ownership", "data_ownership", &["Data Ownership", "Ownership", "Data Responsibilities"], true, "Who owns what data"),
+            sec("Integration Points", "integration_points", &["Integration Points", "Integration", "External Integration"], false, "How this integrates with other components"),
+            sec("External Dependency Integration", "external_dependencies", &["External Dependency Integration", "External Dependencies", "External Systems"], false, "External dependency details"),
+            sec("Runtime Constraints", "runtime_constraints", &["Runtime Constraints", "Constraints", "Operational Constraints"], false, "Constraints on runtime behavior"),
+            sec("Architectural Constraints", "architectural_constraints", &["Architectural Constraints", "Architecture Constraints"], false, "Architectural constraints"),
+            security_considerations(),
+            performance_considerations(),
+            failure_handling(),
+            extension_points(),
+            traceability(),
         ],
         prohibited_content: vec!["Source code".into(), "Algorithm details".into()],
         relationships: vec![
@@ -360,30 +285,10 @@ fn feature_technical_standard() -> StandardDefinition {
             relationship("architecture", "feature-technical", "constrains"),
         ],
         audit_rules: vec![
-            rule(
-                "ft-001",
-                "Has components",
-                "Feature Technical must list participating components",
-                "error",
-            ),
-            rule(
-                "ft-002",
-                "Has interactions",
-                "Feature Technical must describe component interactions",
-                "error",
-            ),
-            rule(
-                "ft-003",
-                "Has data ownership",
-                "Feature Technical must define data ownership",
-                "error",
-            ),
-            rule(
-                "ft-004",
-                "Has security",
-                "Feature Technical must address security",
-                "warning",
-            ),
+            rule("ft-001", "Has components", "Feature Technical must list participating components", "error"),
+            rule("ft-002", "Has interactions", "Feature Technical must describe component interactions", "error"),
+            rule("ft-003", "Has data ownership", "Feature Technical must define data ownership", "error"),
+            rule("ft-004", "Has security", "Feature Technical must address security", "warning"),
         ],
     }
 }
@@ -396,9 +301,12 @@ fn design_standard() -> StandardDefinition {
         domain: "design".into(),
         description: "Reusable design language, principles, and UX standards.".into(),
         required_sections: vec![
-            section("Design Principles", "Core design philosophy", true, false),
-            section("UX Principles", "User experience guidelines", true, false),
-            section("Accessibility", "Accessibility standards", true, false),
+            purpose(false),
+            sec("Design Principles", "design_principles", &["Design Principles", "Principles", "Core Design"], true, "Core design philosophy"),
+            sec("UX Principles", "ux_principles", &["UX Principles", "User Experience Principles", "UX Guidelines"], true, "User experience guidelines"),
+            sec("Accessibility", "accessibility", &["Accessibility", "A11y", "Accessibility Standards"], true, "Accessibility standards"),
+            constraints(),
+            traceability(),
         ],
         prohibited_content: vec!["Feature-specific workflows".into()],
         relationships: vec![
@@ -406,24 +314,9 @@ fn design_standard() -> StandardDefinition {
             relationship("philosophy", "design", "guides"),
         ],
         audit_rules: vec![
-            rule(
-                "dsg-001",
-                "Has design principles",
-                "Design must document principles",
-                "error",
-            ),
-            rule(
-                "dsg-002",
-                "Has UX principles",
-                "Design must document UX guidelines",
-                "warning",
-            ),
-            rule(
-                "dsg-003",
-                "Has accessibility",
-                "Design must address accessibility",
-                "warning",
-            ),
+            rule("dsg-001", "Has design principles", "Design must document principles", "error"),
+            rule("dsg-002", "Has UX principles", "Design must document UX guidelines", "warning"),
+            rule("dsg-003", "Has accessibility", "Design must address accessibility", "warning"),
         ],
     }
 }
@@ -436,25 +329,14 @@ fn engineering_standard() -> StandardDefinition {
         domain: "engineering".into(),
         description: "Repository-wide engineering decisions and standards.".into(),
         required_sections: vec![
-            section(
-                "Engineering Principles",
-                "Core engineering principles",
-                true,
-                false,
-            ),
-            section(
-                "Technology Selection",
-                "Why technologies were chosen",
-                true,
-                false,
-            ),
-            section("Build Standards", "How the project is built", true, false),
-            section(
-                "Testing Standards",
-                "How the project is tested",
-                true,
-                false,
-            ),
+            purpose(false),
+            sec("Engineering Principles", "guiding_principles", &["Engineering Principles", "Principles", "Core Principles"], true, "Core engineering principles"),
+            sec("Technology Selection", "rationale", &["Technology Selection", "Technology Choices", "Technology Rationale", "Why"], true, "Why technologies were chosen"),
+            sec("Build Standards", "build_standards", &["Build Standards", "Build", "Build Process", "CI/CD"], true, "How the project is built"),
+            sec("Testing Standards", "testing_standards", &["Testing Standards", "Testing", "Test Strategy"], true, "How the project is tested"),
+            sec("Code Standards", "code_standards", &["Code Standards", "Coding Standards", "Code Style"], false, "Code quality and style standards"),
+            constraints(),
+            traceability(),
         ],
         prohibited_content: vec!["Feature-specific decisions".into()],
         relationships: vec![
@@ -462,30 +344,10 @@ fn engineering_standard() -> StandardDefinition {
             relationship("engineering", "feature-technical", "guides"),
         ],
         audit_rules: vec![
-            rule(
-                "eng-001",
-                "Has principles",
-                "Engineering must document principles",
-                "error",
-            ),
-            rule(
-                "eng-002",
-                "Has technology rationale",
-                "Engineering must explain technology choices",
-                "error",
-            ),
-            rule(
-                "eng-003",
-                "Has build standards",
-                "Engineering must define build standards",
-                "warning",
-            ),
-            rule(
-                "eng-004",
-                "Has testing standards",
-                "Engineering must define testing approach",
-                "warning",
-            ),
+            rule("eng-001", "Has principles", "Engineering must document principles", "error"),
+            rule("eng-002", "Has technology rationale", "Engineering must explain technology choices", "error"),
+            rule("eng-003", "Has build standards", "Engineering must define build standards", "warning"),
+            rule("eng-004", "Has testing standards", "Engineering must define testing approach", "warning"),
         ],
     }
 }
@@ -498,14 +360,11 @@ fn external_context_standard() -> StandardDefinition {
         domain: "external-context".into(),
         description: "Knowledge dependencies on external systems.".into(),
         required_sections: vec![
-            section("Purpose", "Why this dependency exists", true, false),
-            section("Integration Contract", "How integration works", true, false),
-            section(
-                "Constraints",
-                "Constraints imposed by dependency",
-                true,
-                false,
-            ),
+            purpose(true),
+            sec("Integration Contract", "integration_contract", &["Integration Contract", "Contract", "API Contract", "Interface"], true, "How integration works"),
+            constraints(),
+            dependencies(),
+            traceability(),
         ],
         prohibited_content: vec!["Complete external documentation".into()],
         relationships: vec![
@@ -513,24 +372,9 @@ fn external_context_standard() -> StandardDefinition {
             relationship("external-context", "engineering", "informs"),
         ],
         audit_rules: vec![
-            rule(
-                "ec-001",
-                "Has purpose",
-                "External Context must explain why dependency exists",
-                "error",
-            ),
-            rule(
-                "ec-002",
-                "Has constraints",
-                "External Context must document constraints",
-                "warning",
-            ),
-            rule(
-                "ec-003",
-                "References external docs",
-                "External Context should reference authoritative docs",
-                "suggestion",
-            ),
+            rule("ec-001", "Has purpose", "External Context must explain why dependency exists", "error"),
+            rule("ec-002", "Has constraints", "External Context must document constraints", "warning"),
+            rule("ec-003", "References external docs", "External Context should reference authoritative docs", "suggestion"),
         ],
     }
 }
@@ -543,9 +387,12 @@ fn prototype_standard() -> StandardDefinition {
         domain: "prototype".into(),
         description: "Executable simulation of the application.".into(),
         required_sections: vec![
-            section("Scope", "What the prototype covers", true, false),
-            section("Mock APIs", "API contracts being simulated", true, false),
-            section("Data Model", "Data structures used", true, false),
+            purpose(false),
+            sec("Scope", "scope", &["Scope", "Coverage", "What Is Covered"], true, "What the prototype covers"),
+            sec("Mock APIs", "mock_apis", &["Mock APIs", "Mocked APIs", "API Contracts", "Simulated APIs"], true, "API contracts being simulated"),
+            sec("Data Model", "data_model", &["Data Model", "Data Structures", "Schema"], true, "Data structures used"),
+            constraints(),
+            traceability(),
         ],
         prohibited_content: vec!["Production implementation".into()],
         relationships: vec![
@@ -553,34 +400,10 @@ fn prototype_standard() -> StandardDefinition {
             relationship("prototype", "feature-technical", "validates"),
         ],
         audit_rules: vec![
-            rule(
-                "proto-001",
-                "Has scope",
-                "Prototype must define scope",
-                "error",
-            ),
-            rule(
-                "proto-002",
-                "Has mock APIs",
-                "Prototype must document mock APIs",
-                "warning",
-            ),
-            rule(
-                "proto-003",
-                "Disposable",
-                "Prototype must be disposable (not production code)",
-                "warning",
-            ),
+            rule("proto-001", "Has scope", "Prototype must define scope", "error"),
+            rule("proto-002", "Has mock APIs", "Prototype must document mock APIs", "warning"),
+            rule("proto-003", "Disposable", "Prototype must be disposable (not production code)", "warning"),
         ],
-    }
-}
-
-fn section(name: &str, desc: &str, required: bool, allows_children: bool) -> RequiredSection {
-    RequiredSection {
-        name: name.into(),
-        description: desc.into(),
-        required,
-        allows_children,
     }
 }
 
