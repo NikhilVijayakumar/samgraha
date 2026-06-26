@@ -1,3 +1,4 @@
+use rayon::prelude::*;
 use schemas::audit::{AuditFinding, Severity};
 use schemas::document::Document;
 use schemas::standard::AuditRuleDef;
@@ -6,69 +7,77 @@ pub struct DeterministicAuditProvider;
 
 impl DeterministicAuditProvider {
     pub fn execute(documents: &[Document], rules: &[AuditRuleDef]) -> Vec<AuditFinding> {
-        let mut findings = Vec::new();
+        rules
+            .par_iter()
+            .flat_map(|rule| Self::check_rule(documents, rule))
+            .collect()
+    }
 
-        for rule in rules {
-            match rule.id.as_str() {
-                id if id.ends_with("-001") => {
-                    let has_required = !documents.is_empty();
-                    if !has_required {
-                        findings.push(AuditFinding {
-                            check_id: rule.id.clone(),
-                            severity: Severity::from_str(&rule.severity),
-                            message: rule.description.clone(),
-                            location: None,
-                            document_id: None,
-                            provider: "deterministic".into(),
-                        });
-                    }
-                }
-                id if id.ends_with("-002") || id.ends_with("-003") => {
-                    for doc in documents {
-                        let has_title = !doc.title.is_empty();
-                        if !has_title && id.ends_with("-002") {
-                            findings.push(AuditFinding {
-                                check_id: rule.id.clone(),
-                                severity: Severity::from_str(&rule.severity),
-                                message: format!("{}: '{}'", rule.description, doc.path.as_str()),
-                                location: Some(doc.path.as_str().to_string()),
-                                document_id: Some(doc.id),
-                                provider: "deterministic".into(),
-                            });
-                        }
-                    }
-                }
-                _ => {
-                    for doc in documents {
-                        let pass = match rule.id.as_str() {
-                            "arch-003" | "feat-004" | "fd-004" | "ft-004" => {
-                                !has_implementation_details(&doc.body)
-                            }
-                            _ => has_section(&doc.body, &rule.name),
-                        };
-                        if !pass {
-                            findings.push(AuditFinding {
-                                check_id: rule.id.clone(),
-                                severity: Severity::from_str(&rule.severity),
-                                message: format!("{}: '{}'", rule.description, doc.path.as_str()),
-                                location: Some(doc.path.as_str().to_string()),
-                                document_id: Some(doc.id),
-                                provider: "deterministic".into(),
-                            });
-                        }
-                    }
+    fn check_rule(documents: &[Document], rule: &AuditRuleDef) -> Vec<AuditFinding> {
+        match rule.check_type.as_str() {
+            "corpus_exists" => {
+                if documents.is_empty() {
+                    vec![AuditFinding {
+                        check_id: rule.id.clone(),
+                        severity: Severity::from_str(&rule.severity),
+                        message: rule.description.clone(),
+                        location: None,
+                        document_id: None,
+                        provider: "deterministic".into(),
+                    }]
+                } else {
+                    vec![]
                 }
             }
+            "has_title" => documents
+                .par_iter()
+                .filter(|doc| doc.title.trim().is_empty())
+                .map(|doc| AuditFinding {
+                    check_id: rule.id.clone(),
+                    severity: Severity::from_str(&rule.severity),
+                    message: format!("{}: '{}'", rule.description, doc.path.as_str()),
+                    location: Some(doc.path.as_str().to_string()),
+                    document_id: Some(doc.id),
+                    provider: "deterministic".into(),
+                })
+                .collect(),
+            "has_section" => documents
+                .par_iter()
+                .filter(|doc| !has_section(&doc.body, &rule.scope))
+                .map(|doc| AuditFinding {
+                    check_id: rule.id.clone(),
+                    severity: Severity::from_str(&rule.severity),
+                    message: format!("{}: '{}'", rule.description, doc.path.as_str()),
+                    location: Some(doc.path.as_str().to_string()),
+                    document_id: Some(doc.id),
+                    provider: "deterministic".into(),
+                })
+                .collect(),
+            "no_implementation" => documents
+                .par_iter()
+                .filter(|doc| has_implementation_details(&doc.body))
+                .map(|doc| AuditFinding {
+                    check_id: rule.id.clone(),
+                    severity: Severity::from_str(&rule.severity),
+                    message: format!("{}: '{}'", rule.description, doc.path.as_str()),
+                    location: Some(doc.path.as_str().to_string()),
+                    document_id: Some(doc.id),
+                    provider: "deterministic".into(),
+                })
+                .collect(),
+            _ => vec![],
         }
-
-        findings
     }
 }
 
-fn has_section(body: &str, name: &str) -> bool {
-    let lower = body.to_lowercase();
-    let keywords = name.to_lowercase();
-    lower.contains(&format!("## {}", keywords)) || lower.contains(&format!("# {}", keywords))
+fn has_section(body: &str, heading: &str) -> bool {
+    if heading.is_empty() {
+        return true;
+    }
+    let lower_body = body.to_lowercase();
+    let lower_heading = heading.to_lowercase();
+    lower_body.contains(&format!("## {}", lower_heading))
+        || lower_body.contains(&format!("# {}", lower_heading))
 }
 
 fn has_implementation_details(body: &str) -> bool {
