@@ -48,6 +48,11 @@ impl CompilationPipeline {
 
         info!("Discovered {} documents", filtered.len());
 
+        let standard_map: std::collections::HashMap<&str, &StandardDefinition> = standards
+            .iter()
+            .map(|s| (s.id.as_str(), s))
+            .collect();
+
         let doc_count = AtomicUsize::new(0);
         let fail_count = AtomicUsize::new(0);
         let skip_count = AtomicUsize::new(0);
@@ -68,12 +73,14 @@ impl CompilationPipeline {
                 }
             }
 
+            let standard_def = standard_map.get(discovered.standard.as_str()).copied();
             let id = doc_count.fetch_add(1, Ordering::SeqCst) as i64 + 1;
             match DocumentProcessor::process(
                 &discovered.path,
                 &discovered.relative_path,
                 &discovered.standard,
                 id,
+                standard_def,
             ) {
                 Ok(doc) => {
                     documents.push(doc);
