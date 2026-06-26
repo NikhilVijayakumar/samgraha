@@ -45,6 +45,11 @@ pub struct AuditRuleDef {
     pub name: String,
     pub description: String,
     pub severity: String,
+    /// Check category — drives generic dispatch in DeterministicAuditProvider.
+    /// Values: "corpus_exists" | "has_title" | "has_section" | "no_implementation"
+    pub check_type: String,
+    /// Target for has_section checks: the heading text to look for (e.g. "Purpose").
+    /// Empty for other check types.
     pub scope: String,
 }
 
