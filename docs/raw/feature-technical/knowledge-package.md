@@ -78,12 +78,16 @@ Knowledge Runtime (load and serve)
 1. Knowledge Resolution determines the knowledge scope for the package.
 2. Resolution reads compiled knowledge from the Knowledge Registry.
 3. Resolution passes resolved content to Knowledge Package.
-4. Knowledge Package composes the package artifacts from resolved content.
-5. Package generates the package manifest describing contents, version, and metadata.
-6. Package computes integrity metadata (hashes, dependency consistency, audit status).
-7. Package validates completeness — manifest, artifacts, dependencies, integrity.
-8. Package writes the final Knowledge Package to the output location.
-9. Knowledge Runtime loads the validated package for serving.
+4. Knowledge Package applies the consumer profile to filter artifacts:
+   - Document scope filter: which domains and documents to include.
+   - Section type filter: which semantic types to include from each document.
+   - Profile examples: AI Assistant includes `purpose`, `functional_requirements`, `business_rules`, `constraints`; excludes `future_extensions`, `traceability`.
+5. Package composes the filtered artifacts — sections rather than full documents where the profile specifies section types.
+6. Package generates the package manifest describing contents, included section types, version, and metadata.
+7. Package computes integrity metadata (hashes, dependency consistency, audit status).
+8. Package validates completeness — manifest, artifacts, dependencies, integrity.
+9. Package writes the final Knowledge Package to the output location.
+10. Knowledge Runtime loads the validated package for serving.
 
 ---
 
@@ -95,15 +99,21 @@ Knowledge Runtime (load and serve)
 Receive Resolved Content
         │
         ▼
+Apply Consumer Profile
+        │
+        ├── Filter by domain / document scope
+        └── Filter by semantic section types
+        │
+        ▼
 Compose Package Artifacts
         │
-        ├── Compiled Documents
-        ├── Metadata
+        ├── Semantic Sections (filtered by profile)
+        ├── Document Metadata
         ├── Indexes
         └── Enrichment Artifacts
         │
         ▼
-Generate Manifest
+Generate Manifest (includes included_section_types)
         │
         ▼
 Compute Integrity Metadata
@@ -245,7 +255,7 @@ Alternative package serialization formats may be registered (compressed, encrypt
 
 ### Package Profiles
 
-Consumer-specific package profiles define which artifacts are included. Profiles are configurable through repository configuration.
+Consumer-specific package profiles define which artifacts and semantic section types are included. Profiles specify both document scope and section type filters. This enables section-granularity packaging: an AI Assistant profile can deliver only `purpose`, `functional_requirements`, `business_rules`, and `constraints` sections without packaging full documents. Profiles are configurable through repository configuration.
 
 ### Distribution Channels
 

@@ -138,6 +138,7 @@ Every documentation domain specifies:
 * Purpose
 * Responsibilities
 * Scope
+* Section Definitions (semantic types, aliases, required flags)
 * Relationships
 * Validation Rules
 * Audit Rules
@@ -146,6 +147,8 @@ Every documentation domain specifies:
 * Success Criteria
 
 Standards define engineering quality independently of implementation.
+
+Section Definitions specify the semantic meaning of each section in a documentation domain. They provide stable semantic type identifiers (`functional_requirements`, `business_rules`, `constraints`) and recognition aliases that tolerate natural heading variation in authored documentation. This transforms generic Markdown headings into typed engineering knowledge.
 
 ---
 
@@ -179,11 +182,13 @@ Compilation produces:
 
 * searchable indexes
 * structured metadata
+* semantic section artifacts
 * traceability graphs
 * repository relationships
 * audit metadata
 * retrieval artifacts
-* optional semantic representations
+
+Semantic compilation is a core step. Every document is interpreted through its Documentation Standard. Headings are matched to defined section types — Purpose, Functional Requirements, Business Rules, Constraints, Dependencies, and so on — using canonical names and recognition aliases. The result is a Semantic Document: not a Markdown file, but a structured collection of typed engineering knowledge sections. Unrecognized sections are preserved as generic sections; content is never discarded.
 
 Generated artifacts are disposable.
 
@@ -434,6 +439,16 @@ Clear engineering specifications improve both.
 
 ---
 
+### Semantics Before Text
+
+Documentation headings are mapped to engineering semantic types before storage.
+
+A heading is not a string. It is an engineering artifact: a Functional Requirement, a Business Rule, a Constraint, a Dependency.
+
+Semantic compilation precedes retrieval. Retrieval quality depends on semantic quality.
+
+---
+
 ### Offline First
 
 Compilation and Knowledge Services should operate without requiring cloud infrastructure or AI models.
@@ -467,12 +482,15 @@ Engineering knowledge should outlive implementation technologies.
 * Documentation is a first-class engineering artifact.
 * Documentation is the authoritative engineering specification.
 * Documentation Standards define engineering contracts.
+* Documentation Standards define semantic section types.
 * Knowledge Services execute engineering contracts.
 * Documentation forms a traceable engineering knowledge graph.
 * Every document has one responsibility.
 * Every document should remain atomic.
 * Shared knowledge should not be duplicated.
 * Knowledge is compiled rather than manually constructed.
+* Headings are mapped to semantic types before storage.
+* Sections are the unit of retrieval, not documents.
 * Generated artifacts remain disposable.
 * Metadata precedes semantic enrichment.
 * Progressive retrieval precedes full document loading.
@@ -540,6 +558,8 @@ Saṃgraha is a Knowledge Engineering Platform.
 
 It combines Documentation Standards, Knowledge Services, Knowledge Compilation, and a Knowledge Runtime to transform engineering documentation into verified, deterministic engineering knowledge.
 
-Rather than asking engineers or AI systems to infer architecture, design, engineering decisions, and implementation intent from source code, Saṃgraha makes repositories self-describing through explicit documentation contracts, deterministic knowledge compilation, and reusable engineering services.
+Rather than asking engineers or AI systems to infer architecture, design, engineering decisions, and implementation intent from source code, Saṃgraha makes repositories self-describing through explicit documentation contracts, semantic compilation, and reusable engineering services.
+
+The compiler does not produce a collection of Markdown files. It produces Semantic Documents: engineering knowledge structured by type — Purpose, Functional Requirements, Business Rules, Constraints, Dependencies. These typed sections are the unit of storage, retrieval, packaging, and delivery. Consumers ask for exactly what they need rather than loading whole documents.
 
 The result is engineering knowledge that is understandable by humans, consumable by AI, reproducible across environments, continuously verifiable, and capable of guiding implementation with the same precision as the engineers who created it.

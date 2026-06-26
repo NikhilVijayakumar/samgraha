@@ -141,6 +141,26 @@ Consumers should always observe a consistent view of the Knowledge Registry.
 
 ---
 
+## FR9. Semantic Section Search
+
+Knowledge Search shall support filtering and retrieval by semantic section type.
+
+Examples include:
+
+* search within `functional_requirements` sections only
+* retrieve all `business_rules` sections across the workspace
+* find every `constraints` section mentioning a specific technology
+* retrieve the `purpose` section of all Feature documents
+* find all `dependencies` sections referencing a given component
+
+Section-type search shall return matching sections rather than whole documents, reducing context for consumers.
+
+Section-type search requires no AI providers and shall be deterministic.
+
+Section-type queries shall be expressible from both the Engineering CLI and the MCP Runtime.
+
+---
+
 # Business Rules
 
 * Search operates on compiled knowledge.
@@ -200,6 +220,7 @@ Knowledge Search produces:
 * ranked knowledge results
 * metadata
 * summaries
+* semantic sections by type
 * document sections
 * complete documents
 * related knowledge
@@ -286,6 +307,9 @@ The feature is successful when:
 * deterministic retrieval is preserved
 * consumers receive only the knowledge required for their task
 * search remains independent of implementation technologies
+* semantic section type filtering returns sections rather than whole documents
+* consumers can retrieve all Functional Requirements across a workspace without loading full documents
+* section-type queries are deterministic and require no AI providers
 
 ---
 

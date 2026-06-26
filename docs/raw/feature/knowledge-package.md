@@ -21,6 +21,8 @@ The platform shall compose Knowledge Packages from resolved engineering knowledg
 A Knowledge Package may contain:
 
 * compiled documentation
+* semantic sections
+* section semantic types
 * documentation metadata
 * repository metadata
 * workspace metadata
@@ -31,6 +33,8 @@ A Knowledge Package may contain:
 * package manifest
 
 Only required knowledge shall be included.
+
+Packages may be composed at section granularity. A package may include selected semantic section types from each document rather than complete documents, reducing package size while preserving the specific engineering knowledge the consumer requires.
 
 ---
 
@@ -115,6 +119,25 @@ Examples include:
 * Full Knowledge
 
 Profiles determine the scope of packaged knowledge.
+
+Profiles may specify included semantic section types in addition to document scope. This allows fine-grained control over package contents without packaging full documents.
+
+Examples of section-aware profile composition:
+
+```
+AI Assistant profile:
+  include section types: [purpose, functional_requirements, business_rules, constraints]
+  exclude section types: [future_extensions, traceability]
+
+Minimal profile:
+  include section types: [purpose]
+
+Engineering profile:
+  include section types: [purpose, functional_requirements, business_rules, constraints, dependencies]
+  include section types: [architecture_decisions, rationale]
+```
+
+Section-aware profiles reduce AI context consumption while preserving the engineering knowledge most relevant to each consumer type.
 
 ---
 

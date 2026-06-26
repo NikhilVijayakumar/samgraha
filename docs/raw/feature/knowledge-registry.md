@@ -36,6 +36,8 @@ The Knowledge Registry shall store generated knowledge artifacts.
 Examples include:
 
 * compiled documents
+* semantic sections
+* section semantic types
 * compiled chunks
 * search indexes
 * cross-reference indexes
@@ -46,6 +48,15 @@ Examples include:
 * future generated artifacts
 
 The registry stores compiled knowledge rather than source documentation.
+
+Semantic sections shall be stored as first-class artifacts alongside their parent document. Each section record shall preserve:
+
+* semantic type (e.g. `functional_requirements`, `business_rules`, `constraints`)
+* canonical section name
+* content
+* required flag
+* source document reference
+* section order within document
 
 ---
 
@@ -63,6 +74,15 @@ Knowledge may be retrieved by:
 * artifact
 * metadata
 * search query
+* semantic section type
+* section type across documents
+
+Examples of section-type retrieval:
+
+* all `functional_requirements` sections across the repository
+* all `constraints` sections for a given domain
+* the `purpose` section of a specific document
+* all `dependencies` sections across the workspace
 
 Retrieval shall operate independently of source documentation.
 

@@ -70,7 +70,8 @@ The compiler shall transform documentation into structured knowledge artifacts.
 Examples include:
 
 * compiled documents
-* knowledge sections
+* semantic sections
+* section metadata
 * metadata
 * references
 * indexes
@@ -78,6 +79,27 @@ Examples include:
 * future knowledge artifacts
 
 Knowledge extraction preserves engineering intent.
+
+Each compiled document shall contain semantic sections resolved from the applicable Documentation Standard. Sections shall carry their semantic type, canonical name, required flag, and content. Sections not matching any standard definition shall be preserved with semantic type `generic`.
+
+---
+
+## FR4a. Standard Resolution
+
+The compiler shall resolve the applicable Documentation Standard for each document.
+
+Standard Resolution shall:
+
+* identify the document's documentation domain
+* load the corresponding Standard definition
+* match document headings against section definitions using canonical names and aliases
+* assign semantic types to matched sections
+* preserve unmatched sections as generic sections
+* report missing required sections as compilation warnings
+
+Standard Resolution executes after Source Processing and before Knowledge Extraction.
+
+Standard Resolution is deterministic and requires no AI providers.
 
 ---
 
@@ -162,17 +184,25 @@ Documentation Discovery
 Source Processing
         │
         ▼
+Standard Resolution          ← Documentation Standard + Section Definitions
+        │
+        ▼
+Semantic Section Mapping     ← Headings → Semantic Types via aliases
+        │
+        ▼
 Metadata Extraction
         │
         ▼
-Knowledge Extraction
+Knowledge Extraction         ← Produces Semantic Documents
         │
         ▼
 Relationship Resolution
         │
         ▼
-Knowledge Registry
+Knowledge Registry           ← Stores Documents + Semantic Sections
 ```
+
+A Semantic Document is a document interpreted through its Documentation Standard. Rather than storing headings and text, a Semantic Document stores engineering semantics: Purpose, Functional Requirements, Business Rules, Constraints, Dependencies, and so on. This richer representation makes every downstream capability (audit, search, packaging, runtime) significantly more powerful without relying on AI.
 
 ---
 
@@ -193,6 +223,9 @@ Knowledge Compilation produces:
 
 * Knowledge Registry
 * compiled knowledge
+* semantic documents
+* semantic sections with assigned types
+* missing required section warnings
 * metadata
 * indexes
 * dependency metadata
@@ -279,6 +312,10 @@ The feature is successful when:
 * incremental builds remain correct
 * compilation remains extensible
 * documentation continues to be the authoritative engineering source
+* document headings are resolved to semantic types via standard section definitions
+* missing required sections are reported as warnings
+* unrecognized sections are preserved as generic sections rather than discarded
+* semantic sections are stored in the registry and available to all downstream services
 
 ---
 

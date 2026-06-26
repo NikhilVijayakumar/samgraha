@@ -83,11 +83,20 @@ Knowledge Services (report completion)
 1. Knowledge Services receive a compilation request from CLI, Incremental Build, or programmatic API.
 2. Services validate the request against Workspace and Repository Configuration.
 3. Services invoke the Knowledge Compiler with the validated scope.
-4. Compiler reads Documentation Standards to determine processing rules.
+4. Compiler reads Documentation Standards to determine processing rules and section definitions.
 5. Compiler discovers documentation sources within the configured scope.
-6. Compiler processes each source document: validates structure, extracts metadata, extracts knowledge content, resolves relationships.
-7. Compiler writes compiled artifacts to the Knowledge Registry.
-8. Compiler returns compilation metadata (documents processed, errors, warnings).
+6. Compiler processes each source document:
+   a. Validates structure.
+   b. Identifies document domain from frontmatter or path convention.
+   c. Loads section definitions for the document's standard.
+   d. Parses document headings and performs alias matching against section definitions.
+   e. Assigns semantic types to matched sections; unmatched headings receive `generic`.
+   f. Reports missing required sections as warnings (not errors).
+   g. Extracts metadata.
+   h. Extracts knowledge content within each semantic section.
+   i. Resolves relationships.
+7. Compiler writes compiled documents with embedded semantic sections to the Knowledge Registry.
+8. Compiler returns compilation metadata (documents processed, sections resolved, missing required sections, errors, warnings).
 9. Knowledge Services report results to the caller.
 
 ---
@@ -106,18 +115,25 @@ Load Configuration
 Discover Documentation
         │
         ▼
-Apply Documentation Standards
+Load Documentation Standards + Section Definitions
         │
         ▼
-Process Documents
+Process Documents (per document)
         │
         ├── Validate Structure
+        ├── Identify Domain
+        ├── Standard Resolution          ← load section defs for domain
+        ├── Semantic Section Mapping     ← alias match headings → semantic types
+        ├── Report Missing Required Sections (warnings)
         ├── Extract Metadata
-        ├── Extract Knowledge
+        ├── Extract Knowledge (per semantic section)
         └── Resolve Relationships
         │
         ▼
 Generate Registry Artifacts
+        │
+        ├── Compiled Documents
+        └── Semantic Sections (with types, content, required flags)
         │
         ▼
 Report Completion
@@ -159,7 +175,10 @@ The compiler returns compilation metadata including processed document count, er
 |---|---|---|
 | Repository Documentation | Repository | Read |
 | Documentation Standards | Standards | Read |
+| Section Definitions | Standards | Read |
 | Compiled Knowledge | Knowledge Registry | Write |
+| Semantic Sections | Knowledge Registry | Write |
+| Missing Section Warnings | Knowledge Services | Write |
 | Compilation Metadata | Knowledge Services | Write |
 | Build Configuration | Repository | Read |
 
@@ -242,12 +261,17 @@ Optional integration points include:
 |---|---|
 | Invalid documentation structure | Report error, skip document, continue compilation |
 | Missing Documentation Standards | Report error, abort compilation |
+| Section definition not found for domain | Compile document; all sections become `generic` |
+| Heading matches no alias | Preserve as `generic` section, never discard content |
+| Required section missing from document | Report warning, continue — document remains valid |
 | Registry write failure | Report error, abort compilation, preserve prior registry |
 | Configuration error | Report error, abort compilation |
 | Resource exhaustion | Report error, abort compilation |
 | Unsupported document type | Report warning, skip document, continue |
 
 The compiler guarantees that a failed compilation never corrupts an existing valid registry.
+
+Section matching failures are never fatal. Content is always preserved.
 
 ---
 
@@ -264,6 +288,10 @@ Custom metadata extraction logic may be registered for specific documentation do
 ### Relationship Resolvers
 
 Custom relationship resolution strategies may extend the default reference resolution.
+
+### Section Alias Providers
+
+Organizations may register additional alias sets for existing semantic types without modifying standard definitions. Alias providers are resolved before compilation starts and cached for the compilation run.
 
 ---
 
