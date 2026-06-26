@@ -2,10 +2,10 @@ use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use schemas::compilation::{CompilationRequest, CompilationScope};
 use schemas::package::PackageProfile;
-use schemas::search::{RetrievalLevel, SearchQuery};
+use schemas::search::{RetrievalLevel, SearchQuery, SectionQuery};
 use std::path::PathBuf;
 
-use crate::output::{format_output, render_audit, render_compile, render_info, render_search, render_workspace_compile, OutputFormat};
+use crate::output::{format_output, render_audit, render_compile, render_info, render_search, render_sections, render_workspace_compile, OutputFormat};
 use common::config::SamgrahaConfig;
 use services::{KnowledgeRuntime, WorkspaceService};
 
@@ -64,6 +64,18 @@ pub enum Commands {
         level: String,
 
         #[arg(long = "max", help = "Maximum results", default_value = "20")]
+        max: usize,
+    },
+
+    #[command(about = "Query sections by semantic type")]
+    Sections {
+        #[arg(help = "Semantic type to query (e.g. functional_requirements, business_rules)")]
+        semantic_type: String,
+
+        #[arg(long = "domain", help = "Filter by domain (standard)")]
+        domain: Option<String>,
+
+        #[arg(long = "max", help = "Maximum results", default_value = "50")]
         max: usize,
     },
 
@@ -174,6 +186,11 @@ impl Cli {
                 level,
                 max,
             } => self.execute_search(query, domain.as_deref(), level, *max, &format),
+            Commands::Sections {
+                semantic_type,
+                domain,
+                max,
+            } => self.execute_sections(semantic_type, domain.as_deref(), *max, &format),
             Commands::Audit {
                 domain,
                 provider,
@@ -340,6 +357,33 @@ impl Cli {
         println!("{}", render_search(&results, format));
 
         if results.results.is_empty() {
+            return Ok(ExitCode::InputError);
+        }
+
+        Ok(ExitCode::Success)
+    }
+
+    fn execute_sections(
+        &self,
+        semantic_type: &str,
+        domain: Option<&str>,
+        max: usize,
+        format: &OutputFormat,
+    ) -> Result<ExitCode> {
+        let root = crate::config::discover_repository_root()?;
+        let config = crate::config::load_config(self.config.as_ref())?;
+        let runtime = KnowledgeRuntime::new(&root, config)?;
+
+        let query = SectionQuery {
+            semantic_type: semantic_type.to_string(),
+            domain: domain.map(|d| d.to_string()),
+            max_results: max,
+        };
+
+        let response = runtime.get_sections(&query)?;
+        println!("{}", render_sections(&response, format));
+
+        if response.sections.is_empty() {
             return Ok(ExitCode::InputError);
         }
 
