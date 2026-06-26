@@ -407,3 +407,13 @@ Architecture Documentation is the structural specification of the system.
 It is a modular collection of focused documents that collectively describe system organization, responsibilities, ownership, boundaries, and communication.
 
 The objective is not to document every implementation detail, but to provide a clear, maintainable, and traceable architectural model that guides engineering and implementation throughout the lifecycle of the project.
+
+---
+
+# Documentation Folder
+
+Architecture documents live under:
+
+```text
+docs/raw/architecture/
+```

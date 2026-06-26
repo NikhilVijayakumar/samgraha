@@ -406,3 +406,13 @@ Feature Design Documentation is the design realization of a single Feature Speci
 Each document maintains a strict one-to-one relationship with its corresponding Feature, applying the shared principles defined by the Design Documentation together with any relevant External Context to describe how users should experience that feature.
 
 Its purpose is to bridge functional requirements and system architecture while preserving consistency, usability, accessibility, localization, platform conventions, and technology independence across the product ecosystem.
+
+---
+
+# Documentation Folder
+
+Feature Design documents live under:
+
+```text
+docs/raw/feature-design/
+```

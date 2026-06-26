@@ -438,3 +438,13 @@ Design Documentation is the reusable design knowledge of the product or product 
 It is a modular collection of documents that defines design philosophy, interaction principles, accessibility, localization, navigation, visual language, and other shared design standards.
 
 Its purpose is to establish a consistent design language that guides every feature, architecture, and implementation while remaining independent of both feature-specific behavior and implementation technologies.
+
+---
+
+# Documentation Folder
+
+Design documents live under:
+
+```text
+docs/raw/design/
+```
