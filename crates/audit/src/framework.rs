@@ -1,9 +1,11 @@
 use anyhow::Result;
+use rayon::prelude::*;
 use schemas::audit::{
     AuditFinding, AuditReport, AuditScore, QualityGate, ReadinessAssessment, Severity,
 };
 use schemas::document::Document;
-use schemas::standard::{AuditRuleDef, StandardDefinition};
+use schemas::standard::AuditRuleDef;
+use standards::StandardRegistry;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::info;
@@ -13,14 +15,14 @@ pub type AuditProviderFn =
 
 pub struct AuditFramework {
     providers: HashMap<String, AuditProviderFn>,
-    _rules_cache: HashMap<String, Vec<AuditRuleDef>>,
+    standard_registry: Arc<StandardRegistry>,
 }
 
 impl AuditFramework {
-    pub fn new() -> Self {
+    pub fn new(standard_registry: Arc<StandardRegistry>) -> Self {
         Self {
             providers: HashMap::new(),
-            _rules_cache: HashMap::new(),
+            standard_registry,
         }
     }
 
@@ -36,7 +38,6 @@ impl AuditFramework {
         &self,
         domain: Option<&str>,
         documents: &[Document],
-        standards: &[StandardDefinition],
         providers: &[String],
     ) -> Result<AuditReport> {
         let domain_docs: Vec<Document> = match domain {
@@ -48,35 +49,52 @@ impl AuditFramework {
             None => documents.to_vec(),
         };
 
-        let standards: Vec<&StandardDefinition> = match domain {
-            Some(d) => standards.iter().filter(|s| s.domain == d).collect(),
-            None => standards.iter().collect(),
+        let standards: Vec<_> = match domain {
+            Some(d) => self
+                .standard_registry
+                .all()
+                .into_iter()
+                .filter(|s| s.domain == d)
+                .cloned()
+                .collect(),
+            None => self
+                .standard_registry
+                .all()
+                .into_iter()
+                .cloned()
+                .collect(),
         };
 
-        let mut all_findings = Vec::new();
-        let mut provider_used = String::new();
+        let rules: Vec<AuditRuleDef> = standards
+            .iter()
+            .flat_map(|s| s.audit_rules.iter().cloned())
+            .collect();
 
-        for provider_name in providers {
-            if let Some(provider_fn) = self.providers.get(provider_name) {
-                let rules: Vec<AuditRuleDef> = standards
-                    .iter()
-                    .flat_map(|s| s.audit_rules.clone())
-                    .collect();
-                let findings = provider_fn(&domain_docs, &rules);
-                all_findings.extend(findings);
-                provider_used = provider_name.clone();
-            }
-        }
+        let all_findings: Vec<AuditFinding> = providers
+            .par_iter()
+            .flat_map(|provider_name| {
+                self.providers
+                    .get(provider_name.as_str())
+                    .map(|provider_fn| provider_fn(&domain_docs, &rules))
+                    .unwrap_or_default()
+            })
+            .collect();
+
+        let provider_used = providers
+            .iter()
+            .filter(|name| self.providers.contains_key(name.as_str()))
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(",");
 
         let total = domain_docs.len();
-        let passed = total.saturating_sub(
-            all_findings
-                .iter()
-                .filter(|f| f.severity == Severity::Error)
-                .count(),
-        );
+        let error_count = all_findings
+            .iter()
+            .filter(|f| f.severity == Severity::Error)
+            .count();
+        let passed = total.saturating_sub(error_count);
 
-        let mut cat_scores = HashMap::new();
+        let mut cat_scores: HashMap<String, f64> = HashMap::new();
         for std in &standards {
             let domain_findings: Vec<&AuditFinding> = all_findings
                 .iter()
@@ -102,17 +120,13 @@ impl AuditFramework {
             cat_scores.insert(std.domain.clone(), score);
         }
 
-        let total_errors = all_findings
-            .iter()
-            .filter(|f| f.severity == Severity::Error)
-            .count();
         let overall = if total == 0 {
             100.0
         } else {
-            ((total - total_errors) as f64 / total as f64) * 100.0
+            ((total - error_count) as f64 / total as f64) * 100.0
         };
 
-        let readiness = if overall >= 90.0 && total_errors == 0 {
+        let readiness = if overall >= 90.0 && error_count == 0 {
             ReadinessAssessment::Production
         } else if overall >= 80.0 {
             ReadinessAssessment::Implementation
@@ -135,9 +149,9 @@ impl AuditFramework {
         };
 
         let report = AuditReport {
-            id: format!("audit-{}", chrono_now()),
+            id: format!("audit-{}", unix_now()),
             domain: domain.map(|d| d.to_string()),
-            timestamp: chrono_now(),
+            timestamp: unix_now(),
             provider: provider_used,
             score,
             findings: all_findings,
@@ -170,8 +184,7 @@ impl AuditFramework {
             }
         }
         if let Some(ref min_readiness) = gate.min_readiness {
-            let meets = readiness_meets(&report.readiness, min_readiness);
-            if !meets {
+            if !readiness_meets(&report.readiness, min_readiness) {
                 anyhow::bail!(
                     "Quality gate failed: readiness {} < minimum {}",
                     report.readiness,
@@ -183,14 +196,8 @@ impl AuditFramework {
     }
 }
 
-impl Default for AuditFramework {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 fn readiness_meets(current: &ReadinessAssessment, required: &ReadinessAssessment) -> bool {
-    let order = vec![
+    let order = [
         ReadinessAssessment::None,
         ReadinessAssessment::Product,
         ReadinessAssessment::Architecture,
@@ -204,7 +211,7 @@ fn readiness_meets(current: &ReadinessAssessment, required: &ReadinessAssessment
     current_idx >= required_idx
 }
 
-fn chrono_now() -> String {
+fn unix_now() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     let dur = SystemTime::now()
         .duration_since(UNIX_EPOCH)
