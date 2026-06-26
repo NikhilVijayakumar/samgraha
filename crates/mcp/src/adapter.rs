@@ -1,7 +1,7 @@
 use crate::protocol::{McpCapabilities, McpError, McpMessage, McpRequest, McpResponse};
 use anyhow::Result;
 use schemas::compilation::{CompilationRequest, CompilationScope};
-use schemas::search::{RetrievalLevel, SearchQuery};
+use schemas::search::{RetrievalLevel, SearchQuery, SectionQuery};
 use services::KnowledgeRuntime;
 use std::sync::Arc;
 
@@ -46,6 +46,7 @@ impl McpAdapter {
             "capabilities" => Ok(serde_json::to_value(&self.capabilities).unwrap_or_default()),
             "compile" => self.handle_compile(&req),
             "search" => self.handle_search(&req),
+            "get_sections" => self.handle_get_sections(&req),
             "audit" => self.handle_audit(&req),
             "info" => self.handle_info(&req),
             "get_document" => self.handle_get_document(&req),
@@ -133,6 +134,26 @@ impl McpAdapter {
 
         let results = self.runtime.search(&search_query)?;
         Ok(serde_json::to_value(&results)?)
+    }
+
+    fn handle_get_sections(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let semantic_type = req
+            .params
+            .get("semantic_type")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'semantic_type' parameter"))?;
+
+        let domain = req.params.get("domain").and_then(|v| v.as_str());
+        let max = req.params.get("max").and_then(|v| v.as_u64()).unwrap_or(50) as usize;
+
+        let query = SectionQuery {
+            semantic_type: semantic_type.to_string(),
+            domain: domain.map(|d| d.to_string()),
+            max_results: max,
+        };
+
+        let response = self.runtime.get_sections(&query)?;
+        Ok(serde_json::to_value(&response)?)
     }
 
     fn handle_audit(&self, req: &McpRequest) -> Result<serde_json::Value> {
