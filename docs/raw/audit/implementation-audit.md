@@ -16,24 +16,24 @@ Source code must conform to that contract.
 
 # Authority
 
-Implementation is validated against:
+Audit rules are defined by the validation checks in this document (I1–I15).
 
-* `docs/raw/standards/architecture.md`
-* `docs/raw/standards/feature-technical.md`
-* `docs/raw/standards/engineering.md`
-* `docs/raw/standards/external-context.md`
+Implementation is validated against the repository's own documentation:
+
+* Architecture Documentation (`docs/raw/architecture/`)
+* Feature Technical Design Documentation (`docs/raw/feature-technical/`)
+* Engineering Documentation (`docs/raw/engineering/`)
+* External Context Documentation (`docs/raw/external-context/`)
 
 ---
 
 # Scope
 
-Applies to:
+Applies to the implementation folder declared in Engineering Documentation.
 
-```text
-src/
-```
+Read the repository structure document under `docs/raw/engineering/` to determine the declared implementation folder before auditing. The implementation folder and the rationale for its structure must be documented there.
 
-and compares implementation against:
+Compares implementation against:
 
 ```text
 docs/raw/architecture/
@@ -334,18 +334,19 @@ Provide justification for every assessment.
 # Procedure
 
 1. Rotate the previous report according to `docs/raw/audit/README.md#report-rotation`.
-2. Inventory implementation modules under `src/`.
-3. Load Architecture, Feature Technical Design, Engineering, and External Context documentation.
-4. Execute validation checks I1–I15.
-5. Score every validation.
-6. Score every implementation module.
-7. Calculate weighted category scores.
-8. Calculate the overall Implementation Conformance Score.
-9. Compare against the previous report when available.
-10. Identify undocumented implementation, architectural drift, and documentation inconsistencies.
-11. Assess Production Readiness and Documentation Drift Risk.
-12. Generate the audit report using the Standard Audit Report format.
-13. Write the report to:
+2. Read the repository structure document under `docs/raw/engineering/` to determine the declared implementation folder and understand the rationale for its structure.
+3. Inventory implementation modules under the declared implementation folder.
+4. Load Architecture, Feature Technical Design, Engineering, and External Context documentation.
+5. Execute validation checks I1–I15.
+6. Score every validation.
+7. Score every implementation module.
+8. Calculate weighted category scores.
+9. Calculate the overall Implementation Conformance Score.
+10. Compare against the previous report when available.
+11. Identify undocumented implementation, architectural drift, and documentation inconsistencies.
+12. Assess Production Readiness and Documentation Drift Risk.
+13. Generate the audit report using the Standard Audit Report format.
+14. Write the report to:
 
 ```text
 docs/raw/reports/implementation/latest/

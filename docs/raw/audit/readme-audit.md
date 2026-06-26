@@ -14,7 +14,7 @@ Its responsibility is to guide readers to it.
 
 # Authority
 
-`docs/raw/standards/readme.md` — **Audit Rules** section.
+Audit rules are defined by the validation checks in this document (R1–R12).
 
 ---
 

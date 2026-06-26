@@ -12,7 +12,7 @@ Build documentation describes **engineering strategy**, not implementation scrip
 
 # Authority
 
-`docs/raw/standards/engineering.md` — **Audit Rules** section.
+Audit rules are defined by the validation checks in this document (B1–B12).
 
 ---
 
