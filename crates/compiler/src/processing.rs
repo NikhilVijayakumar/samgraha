@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use schemas::document::{ContentHash, Document, DocumentMetadata, DocumentSection};
+use schemas::standard::StandardDefinition;
 use std::path::Path;
 
 pub struct DocumentProcessor;
@@ -10,13 +11,14 @@ impl DocumentProcessor {
         relative_path: P,
         standard: &str,
         id: i64,
+        standard_def: Option<&StandardDefinition>,
     ) -> Result<Document> {
         let path = path.as_ref();
         let content =
             std::fs::read_to_string(path).context(format!("Failed to read {}", path.display()))?;
 
         let hash = compute_hash(&content);
-        let sections = parse_sections(&content);
+        let sections = parse_sections(&content, standard_def);
         let title = extract_title(&content, path);
         let metadata = extract_metadata(&content, &title, standard);
 
@@ -64,7 +66,14 @@ fn extract_title(content: &str, path: &Path) -> String {
         .replace('_', " ")
 }
 
-fn parse_sections(content: &str) -> Vec<DocumentSection> {
+fn resolve_section_info(heading: &str, standard_def: Option<&StandardDefinition>) -> (String, bool) {
+    match standard_def.and_then(|s| s.find_section_type(heading)) {
+        Some(def) => (def.semantic_type.clone(), def.required),
+        None => ("generic".to_string(), false),
+    }
+}
+
+fn parse_sections(content: &str, standard_def: Option<&StandardDefinition>) -> Vec<DocumentSection> {
     let mut sections = Vec::new();
     let mut current_section: Option<DocumentSection> = None;
     let mut current_body = String::new();
@@ -77,36 +86,44 @@ fn parse_sections(content: &str) -> Vec<DocumentSection> {
                 sections.push(sec);
                 current_body = String::new();
             }
+            let heading = line.trim_start_matches("## ").to_string();
+            let (semantic_type, required) = resolve_section_info(&heading, standard_def);
             current_section = Some(DocumentSection {
-                heading: line.trim_start_matches("## ").to_string(),
+                heading,
+                semantic_type,
                 level: 2,
                 body: String::new(),
+                required,
                 subsections: Vec::new(),
             });
         } else if line.starts_with("### ") {
             if current_section.is_none() {
                 current_section = Some(DocumentSection {
                     heading: String::new(),
+                    semantic_type: "generic".to_string(),
                     level: 2,
                     body: String::new(),
+                    required: false,
                     subsections: Vec::new(),
                 });
             }
             if let Some(ref mut section) = current_section {
+                let heading = line.trim_start_matches("### ").to_string();
+                let (semantic_type, required) = resolve_section_info(&heading, standard_def);
                 section.subsections.push(DocumentSection {
-                    heading: line.trim_start_matches("### ").to_string(),
+                    heading,
+                    semantic_type,
                     level: 3,
                     body: String::new(),
+                    required,
                     subsections: Vec::new(),
                 });
             }
-        } else {
-            if !current_body.is_empty() || !line.trim().is_empty() {
-                if !current_body.is_empty() {
-                    current_body.push('\n');
-                }
-                current_body.push_str(line);
+        } else if !current_body.is_empty() || !line.trim().is_empty() {
+            if !current_body.is_empty() {
+                current_body.push('\n');
             }
+            current_body.push_str(line);
         }
     }
 
@@ -170,7 +187,7 @@ mod tests {
     #[test]
     fn test_parse_sections() {
         let content = "# Title\n\n## Section One\n\nBody text\n\n## Section Two\n\nMore text";
-        let sections = parse_sections(content);
+        let sections = parse_sections(content, None);
         assert_eq!(sections.len(), 2);
         assert_eq!(sections[0].heading, "Section One");
         assert_eq!(sections[1].heading, "Section Two");
