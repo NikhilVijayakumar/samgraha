@@ -15,7 +15,7 @@ use schemas::audit::AuditReport;
 use schemas::compilation::{CompilationRequest, CompilationResult};
 use schemas::document::Document;
 use schemas::package::PackageProfile;
-use schemas::search::{SearchQuery, SearchResponse};
+use schemas::search::{SearchQuery, SearchResponse, SectionQuery, SectionQueryResponse};
 use schemas::standard::StandardDefinition;
 use serde::Serialize;
 use standards::StandardRegistry;
@@ -117,6 +117,10 @@ impl KnowledgeRuntime {
     pub fn search(&self, query: &SearchQuery) -> Result<SearchResponse> {
         let docs = self.registry.get_all_documents()?;
         SearchService::search(&docs, query)
+    }
+
+    pub fn get_sections(&self, query: &SectionQuery) -> Result<SectionQueryResponse> {
+        self.registry.get_sections_by_type(query)
     }
 
     pub fn audit(

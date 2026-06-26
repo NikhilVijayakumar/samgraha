@@ -49,9 +49,10 @@ impl CompilationService {
         let output =
             CompilationPipeline::compile(root, &standards, scope.as_deref(), &known_hashes)?;
 
-        // Persist newly compiled documents to registry.
+        // Persist newly compiled documents and their semantic sections to registry.
         for doc in &output.documents {
             registry.insert_document(doc)?;
+            registry.insert_document_sections(doc.id, &doc.sections)?;
         }
 
         // Remove registry entries for files that no longer exist on disk.
