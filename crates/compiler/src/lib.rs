@@ -1,11 +1,19 @@
 pub mod discovery;
 pub mod extraction;
+pub mod graph;
+pub mod items;
 pub mod pipeline;
 pub mod processing;
+pub mod quality;
 pub mod resolution;
+pub mod validation;
 
 pub use discovery::*;
 pub use extraction::*;
+pub use graph::*;
+pub use items::*;
 pub use pipeline::*;
 pub use processing::*;
+pub use quality::*;
 pub use resolution::*;
+pub use validation::*;
