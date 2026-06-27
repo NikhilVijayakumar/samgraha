@@ -22,6 +22,8 @@ Source documentation participates only during compilation.
 
 Once compilation completes, runtime components interact solely with the compiled Knowledge Registry.
 
+The Repository Registry is a compile-time and synchronization component. It is never contacted during runtime query resolution. Runtime resolution uses only the local metadata cache.
+
 This separation ensures:
 
 * deterministic execution
@@ -29,6 +31,7 @@ This separation ensures:
 * repository isolation
 * offline operation
 * predictable runtime behavior
+* no Registry dependency at query time
 
 ---
 
@@ -46,12 +49,18 @@ Transport Adapters
 Knowledge Runtime
         │
         ▼
-Knowledge Registry
+Metadata Cache     Knowledge Registry
+ (resolver-only)   (compiled knowledge)
+ 
+  Repository Registry is outside runtime.
+  Contacted only during sync, never during queries.
 ```
 
 Compilation occurs before runtime begins.
 
 Documentation never participates directly in runtime execution.
+
+The Repository Registry is never in the runtime layer stack.
 
 ---
 
@@ -246,6 +255,16 @@ All engineering behavior belongs to the Knowledge Runtime.
 
 ---
 
+## Registry Boundary
+
+The Repository Registry is outside the runtime boundary.
+
+Runtime components never contact the Registry directly.
+
+Registry operations are limited to compile-time and explicit user commands.
+
+---
+
 # Resource Ownership
 
 | Resource                | Owner              | Runtime Access |
@@ -253,7 +272,8 @@ All engineering behavior belongs to the Knowledge Runtime.
 | Documentation           | Repository         | No             |
 | Documentation Standards | Standards          | Read Only      |
 | Knowledge Registry      | Compiler           | Read Only      |
-| Repository Metadata     | Knowledge Registry | Read Only      |
+| Repository Metadata     | Repository Registry| Sync only      |
+| Metadata Cache          | Knowledge Resolver | Read / Write   |
 | Runtime State           | Knowledge Runtime  | Read / Write   |
 | Request Context         | Knowledge Runtime  | Read / Write   |
 
@@ -306,6 +326,16 @@ The same runtime request against identical compiled knowledge produces identical
 The runtime operates entirely from local compiled knowledge.
 
 External services remain optional.
+
+---
+
+## No Registry Contact
+
+The runtime never contacts the Repository Registry during query resolution.
+
+Resolution uses only the local metadata cache.
+
+Cache miss degrades gracefully — reports missing dependency, never blocks on Registry.
 
 ---
 

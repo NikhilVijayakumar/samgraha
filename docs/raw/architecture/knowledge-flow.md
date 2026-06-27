@@ -46,22 +46,34 @@ Knowledge Services
           ▼
 Knowledge Compiler
           │
-          ▼
-Knowledge Registry
-          │
-          ▼
-Knowledge Runtime
-          │
-          ▼
+     ┌────┴────┐
+     ▼         ▼
+Knowledge  Repository
+ Registry   Registry
+(Knowledge (Metadata
+  Track)    Track)
+(Stage 5a) (Stage 5b)
+     │         │
+     │         ▼
+     │   Registry Sync
+     │         │
+     ▼         │
+Knowledge      │
+ Runtime       │
+     │         │
+     └──┬──────┘
+        ▼
 Transport Adapters
-          │
-          ▼
+        │
+        ▼
 Development Tools
 ```
 
 Each stage has one responsibility.
 
 Knowledge flows in one direction.
+
+The knowledge track and metadata track never intersect at runtime.
 
 ---
 
@@ -129,6 +141,13 @@ They derive all behavior from Documentation Standards.
 
 The Knowledge Compiler transforms documentation into structured engineering knowledge.
 
+Every successful compilation produces two explicit outputs:
+
+| Output | Destination |
+|---|---|
+| Compiled knowledge database | Knowledge Registry |
+| Repository manifest | Repository Registry |
+
 Compilation includes:
 
 * structural analysis
@@ -144,7 +163,7 @@ Generated artifacts remain disposable.
 
 ---
 
-# Stage 5 — Knowledge Registry
+# Stage 5a — Knowledge Registry
 
 The Knowledge Registry becomes the persistent representation of engineering knowledge.
 
@@ -160,6 +179,27 @@ The registry stores:
 The registry never becomes the authoritative source.
 
 Documentation remains authoritative.
+
+---
+
+# Stage 5b — Repository Registry
+
+The Repository Registry stores repository metadata produced by compilation.
+
+The registry stores:
+
+* repository identity (UUID, ID, name)
+* repository revision
+* compiler version
+* audit status
+* exported documentation domains
+* repository capabilities
+* dependency declarations
+* synchronization history
+
+The Repository Registry reads only Repository Manifests. It never opens or reads compiled knowledge databases.
+
+The Registry is a compile-time and synchronization artifact. It is never consulted during runtime query resolution.
 
 ---
 
@@ -252,6 +292,7 @@ Ownership changes as knowledge progresses.
 | Project Documentation   | Repository              |
 | Knowledge Services      | Runtime Execution       |
 | Compiled Knowledge      | Knowledge Registry      |
+| Repository Manifest     | Repository Registry     |
 | Runtime Context         | Knowledge Runtime       |
 | Client Response         | Transport Adapter       |
 
@@ -319,6 +360,16 @@ Persistent engineering knowledge becomes executable engineering context.
 ## Delivery Boundary
 
 Engineering context becomes consumable by development tools.
+
+---
+
+## Registry Boundary
+
+Repository metadata from compilation becomes available to the Repository Registry.
+
+The Registry never reads compiled knowledge.
+
+The runtime never contacts the Registry.
 
 ---
 
@@ -397,6 +448,7 @@ This document provides architectural context for:
 * Engineering Compilation Strategy
 * Engineering Runtime Strategy
 * Engineering Persistence Strategy
+* Repository Registry Architecture
 
 Supporting features include:
 
@@ -404,6 +456,7 @@ Supporting features include:
 * Knowledge Services
 * Markdown Compilation
 * Knowledge Registry
+* Repository Registry
 * Knowledge Runtime
 * Knowledge Search
 * Workspace Support
@@ -421,7 +474,9 @@ System Overview
     ↓
 Knowledge Flow
     ↓
-Architecture
+Architecture — Repository Registry Architecture
+    ↓
+Feature — Repository Registry
     ↓
 Engineering
     ↓

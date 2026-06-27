@@ -68,25 +68,52 @@ Repository knowledge may be consumed by other repositories only through explicit
 
 # Knowledge Registry
 
-The Workspace owns the Knowledge Registry.
+Each repository owns its own Knowledge Registry.
+
+```text
+Workspace
+      │
+      ├── Repository A → .samgraha/knowledge.db
+      ├── Repository B → .samgraha/knowledge.db
+      ├── Repository C → .samgraha/knowledge.db
+      └── Repository N → .samgraha/knowledge.db
+```
+
+Repositories do not share a single centralized Knowledge Registry. Each repository compiles and owns its compiled knowledge independently.
+
+Cross-repository knowledge is assembled at runtime by the Knowledge Resolver from individual `knowledge.db` files according to declared dependencies.
+
+Each registry remains a generated artifact. Documentation remains the authoritative source.
+
+---
+
+# Repository Registry
+
+The Repository Registry operates alongside the Knowledge Registry at the workspace level.
 
 ```text
 Workspace
       │
       ▼
-Knowledge Registry
+Repository Registry
       │
-      ├── Repository A
-      ├── Repository B
-      ├── Repository C
-      └── Repository N
+      ├── Repository A (manifest, status)
+      ├── Repository B (manifest, status)
+      ├── Repository C (manifest, status)
+      └── Repository N (manifest, status)
 ```
 
-The Knowledge Registry stores compiled engineering knowledge for every repository within the Workspace.
+The Repository Registry tracks:
 
-The registry remains a generated artifact.
+* workspace membership
+* repository identity (UUID, ID, name)
+* repository revision and status
+* dependency topology
+* synchronization history
 
-Documentation remains the authoritative source.
+Default location: `.samgraha/registry.db` within the workspace root.
+
+The Repository Registry reads only Repository Manifests. It never opens compiled knowledge databases.
 
 ---
 
@@ -139,12 +166,17 @@ Repository Documentation
           ▼
 Knowledge Compilation
           │
-          ▼
-Repository Knowledge
-          │
-          ▼
-Knowledge Registry
+     ┌────┴────┐
+     ▼         ▼
+Repository  Repository
+ Knowledge   Manifest
+     │         │
+     ▼         ▼
+Knowledge  Repository
+ Registry   Registry
 ```
+
+Compilation produces two outputs: compiled knowledge for the Knowledge Registry and a repository manifest for the Repository Registry.
 
 Compilation should preserve repository ownership.
 
@@ -194,20 +226,28 @@ Repository
       ▼
 Compilation
       │
-      ▼
-Knowledge Registry
-      │
-      ▼
-Knowledge Package
-      │
-      ▼
-Knowledge Runtime
-      │
-      ▼
-Development Tools
+     ┌────┴────┐
+     ▼         ▼
+Knowledge  Repository
+ Registry   Registry
+     │         │
+     ▼         ▼
+Knowledge  Registry
+ Package     Sync
+     │         │
+     ▼         │
+Knowledge      │
+ Runtime       │
+     │         │
+     └────┬────┘
+          ▼
+ Development
+   Tools
 ```
 
 Every repository follows the same lifecycle.
+
+The knowledge track serves runtime delivery. The metadata track serves synchronization and discovery.
 
 ---
 
@@ -257,11 +297,21 @@ Repository context should expand only through declared dependencies.
 
 ---
 
-## Disposable Registry
+## Disposable Knowledge Registry
 
 The Knowledge Registry remains a generated artifact.
 
 It may be regenerated from repository documentation at any time.
+
+---
+
+## Registry Separation
+
+The Repository Registry and Knowledge Registry are distinct components with different responsibilities.
+
+The Repository Registry tracks repository metadata. The Knowledge Registry stores compiled engineering knowledge.
+
+The two registries never intersect. The Repository Registry never reads knowledge databases. The Knowledge Registry never manages repository identity.
 
 ---
 
@@ -311,6 +361,7 @@ Supporting features include:
 
 - Workspace Support
 - Knowledge Registry
+- Repository Registry
 - Knowledge Runtime
 - Repository Resolution
 - Knowledge Packages
@@ -326,6 +377,8 @@ Documentation Philosophy
 System Overview
     ↓
 Workspace Architecture
+    ↓
+Architecture — Repository Registry Architecture
     ↓
 Engineering
     ↓

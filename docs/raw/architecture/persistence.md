@@ -78,26 +78,47 @@ Runtime state should never become persistent engineering knowledge.
 
 # Persistence Boundaries
 
-Saṃgraha defines explicit persistence boundaries.
+Saṃgraha defines explicit persistence boundaries across two tracks.
 
 ```text
+KNOWLEDGE TRACK
+
 Repository Documentation
           │
           ▼
 Knowledge Compiler
           │
           ▼
-Knowledge Registry
+Knowledge Registry (.samgraha/knowledge.db)
           │
           ▼
 Knowledge Runtime
+
+
+METADATA TRACK
+
+Repository Documentation
+          │
+          ▼
+Knowledge Compiler
+          │
+          ▼
+Repository Manifest (.samgraha/manifest.json)
+          │
+          ▼
+Repository Registry (.samgraha/registry.db)
+          │
+          ▼
+Metadata Cache (.samgraha/dependencies/*.meta.json)
 ```
 
-Only the Knowledge Compiler may create or update persistent engineering knowledge.
+The two tracks never intersect.
 
-The Knowledge Runtime consumes persistent knowledge.
+Only the Knowledge Compiler may create or update persistent engineering knowledge or repository manifests.
 
-The runtime never modifies compiled knowledge.
+The Knowledge Runtime consumes compiled knowledge. It never modifies it.
+
+The Metadata Cache is written by the Knowledge Resolver as a disposable performance optimization. Cache files may be deleted and regenerated from the Repository Registry at any time.
 
 ---
 
@@ -165,25 +186,47 @@ Derived knowledge remains non-authoritative.
 
 # Knowledge Registry
 
-The Knowledge Registry is the persistent storage boundary.
+The Knowledge Registry is the persistent storage boundary for compiled engineering knowledge.
 
 Its responsibilities include:
 
 * storing compiled knowledge
-* storing repository metadata
+* storing document metadata
 * storing traceability
 * storing verification metadata
 * supporting deterministic retrieval
+
+The Knowledge Registry never stores repository metadata, manifests, or dependency information. Those belong to the Repository Registry.
 
 The registry should never store undocumented engineering intent.
 
 ---
 
+# Repository Registry
+
+The Repository Registry is the persistent storage boundary for repository metadata.
+
+Its responsibilities include:
+
+* storing repository identity (UUID, ID, name)
+* storing repository manifests
+* storing dependency topology
+* storing synchronization history
+* storing workspace membership
+
+The Repository Registry never stores compiled engineering knowledge. It reads only Repository Manifests.
+
+Repository Registry storage is disposable. It can be fully rebuilt from manifests at any time.
+
+---
+
 # Persistence Lifecycle
 
-Engineering knowledge follows a deterministic lifecycle.
+Engineering knowledge follows a deterministic lifecycle across two tracks.
 
 ```text
+KNOWLEDGE TRACK
+
 Documentation
         │
         ▼
@@ -197,6 +240,26 @@ Knowledge Runtime
         │
         ▼
 Development Tools
+
+
+METADATA TRACK
+
+Documentation
+        │
+        ▼
+Compilation
+        │
+        ▼
+Repository Manifest
+        │
+        ▼
+Repository Registry
+        │
+        ▼
+Metadata Cache
+        │
+        ▼
+Knowledge Resolver
 ```
 
 Compilation is the only stage that modifies persistent knowledge.

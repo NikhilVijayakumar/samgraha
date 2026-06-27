@@ -26,14 +26,23 @@ Knowledge Services
           │
           ▼
 Knowledge Compilation
-          │
-          ▼
-Knowledge Runtime
+          │         │
+          ▼         ▼
+Knowledge      Repository
+ Registry       Registry
+(Knowledge    (Metadata
+  Track)        Track)
+          │         │
+          └────┬────┘
+               ▼
+     Knowledge Runtime
 ```
 
 Each layer has a single responsibility.
 
 Together they transform engineering documentation into deterministic engineering knowledge.
+
+Compilation produces two distinct outputs that follow separate, non-intersecting tracks. The knowledge track serves runtime queries. The metadata track serves synchronization and discovery.
 
 ---
 
@@ -86,7 +95,14 @@ Every service derives its behavior from Documentation Standards.
 
 Knowledge Compilation transforms documentation into optimized engineering knowledge.
 
-Compilation produces:
+Every successful compilation produces two distinct outputs:
+
+| Output | Purpose |
+|---|---|
+| Compiled knowledge database | Engineering knowledge for search, retrieval, runtime |
+| Repository manifest | Repository metadata for synchronization, discovery |
+
+The compiled knowledge contains:
 
 * Structured metadata
 * Search indexes
@@ -94,6 +110,8 @@ Compilation produces:
 * Traceability information
 * Knowledge packages
 * Optional semantic enrichments
+
+The repository manifest contains only repository metadata — identity, revision, capabilities, exports, dependencies.
 
 Compilation is deterministic.
 
@@ -136,9 +154,15 @@ Knowledge      Knowledge
 Compiler       Enrichment
      │             │
      └──────┬──────┘
-            ▼
-   Knowledge Registry
             │
+     ┌──────┴──────┐
+     ▼             ▼
+Knowledge     Repository
+ Registry      Registry
+(Knownledge   (Metadata
+  Track)        Track)
+     │             │
+     └──────┬──────┘
             ▼
    Knowledge Runtime
             │
@@ -177,14 +201,23 @@ Knowledge Services
             ▼
 Knowledge Compiler
             │
-            ▼
-Knowledge Registry
-            │
-            ▼
-Knowledge Runtime
-            │
-            ▼
-Development Tools
+     ┌──────┴──────┐
+     ▼             ▼
+Knowledge     Repository
+ Registry      Registry
+(Knowledge   (Metadata
+  Track)       Track)
+     │             │
+     │             ▼
+     │     Registry Sync
+     │             │
+     ▼             │
+Knowledge          │
+ Runtime           │
+     │             │
+     └─────┬───────┘
+           ▼
+   Development Tools
 ```
 
 Documentation is never modified during runtime.
@@ -202,6 +235,7 @@ Runtime services consume compiled knowledge only.
 | Knowledge Compiler      | Transform documentation into deterministic knowledge                    |
 | Knowledge Enrichment    | Generate optional summaries, keywords, embeddings, and derived metadata |
 | Knowledge Registry      | Persist and query compiled knowledge                                    |
+| Repository Registry     | Repository registration, discovery, manifest storage, sync history      |
 | Knowledge Runtime       | Expose compiled knowledge and orchestrate Knowledge Services            |
 | CLI Adapter             | Command-line access to the runtime                                      |
 | MCP Adapter             | Model Context Protocol interface for AI engineering tools               |
@@ -276,18 +310,21 @@ The current reference implementation is organized as a Rust workspace.
 
 ```text
 samgraha/
-
-standards/
-services/
-compiler/
-registry/
-runtime/
-audit/
-providers/
-schemas/
-cli/
-mcp/
+crates/
+    common/        # shared configuration, utilities
+    schemas/       # shared domain types
+    standards/     # Documentation Standards
+    services/      # Knowledge Services + Knowledge Runtime
+    compiler/      # Knowledge Compiler
+    registry/      # Knowledge Registry + Repository Registry
+    audit/         # Audit Framework
+    providers/     # Provider Integrations
+    cli/           # CLI Adapter
+    mcp/           # MCP Adapter
+tests/
 ```
+
+Note: `KnowledgeRuntime` is implemented within `crates/services/src/runtime/`. There is no standalone `runtime/` crate.
 
 This organization is an implementation detail of the current platform.
 
@@ -310,6 +347,7 @@ This document provides architectural context for:
 * Extension Model
 * Persistence
 * Security Architecture
+* Repository Registry Architecture
 
 Supporting features include:
 
@@ -317,6 +355,7 @@ Supporting features include:
 * Knowledge Services
 * Markdown Compilation
 * Knowledge Registry
+* Repository Registry
 * Knowledge Runtime
 * Workspace Support
 * Knowledge Search
@@ -332,7 +371,9 @@ Documentation Philosophy
     ↓
 System Overview
     ↓
-Architecture
+Architecture — Repository Registry Architecture
+    ↓
+Feature — Repository Registry
     ↓
 Engineering
     ↓
