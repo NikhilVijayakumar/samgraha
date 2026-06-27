@@ -12,7 +12,7 @@ The CLI is a single, self-contained executable with no external runtime dependen
 
 ## Functional Requirements
 
-## FR1: Compile Command
+## FR1. Compile Command
 
 `samgraha compile [path]` shall:
 
@@ -24,7 +24,7 @@ The CLI is a single, self-contained executable with no external runtime dependen
 
 If no path is specified, the current directory shall be used.
 
-## FR2: Search Command
+## FR2. Search Command
 
 `samgraha search <query> [options]` shall:
 
@@ -34,7 +34,7 @@ If no path is specified, the current directory shall be used.
 - display results in a formatted table (title, domain, score, snippet)
 - exit with non-zero code if no index exists
 
-## FR3: Audit Command
+## FR3. Audit Command
 
 `samgraha audit [domain] [options]` shall:
 
@@ -44,7 +44,7 @@ If no path is specified, the current directory shall be used.
 - produce structured audit output (pass/fail per rule, summary)
 - exit with non-zero code on any audit failure
 
-## FR4: Info Command
+## FR4. Info Command
 
 `samgraha info [path]` shall:
 
@@ -53,7 +53,7 @@ If no path is specified, the current directory shall be used.
 - show compilation status and last audit date
 - display dependency declarations
 
-## FR5: Init Command
+## FR5. Init Command
 
 `samgraha init [path]` shall:
 
@@ -61,7 +61,7 @@ If no path is specified, the current directory shall be used.
 - create the expected documentation directory structure
 - provide a starting template for new repositories
 
-## FR6: Progress Reporting
+## FR6. Progress Reporting
 
 All commands shall report progress information:
 
@@ -70,7 +70,7 @@ All commands shall report progress information:
 - error locations with file path and line number
 - warnings without interrupting execution
 
-## FR7: Exit Codes
+## FR7. Exit Codes
 
 | Condition | Exit Code |
 |-----------|-----------|
@@ -110,7 +110,7 @@ All commands shall report progress information:
 
 ---
 
-## Success Criteria
+## Acceptance Criteria
 
 - Every platform capability is exposed through the CLI.
 - Commands are discoverable through `--help`.
@@ -137,6 +137,33 @@ All commands shall report progress information:
 - **Knowledge Search** — search command depends on search capability.
 - **Automated Audit** — audit command depends on audit capability.
 - **Knowledge Registry** — info command depends on registry queries.
+
+---
+
+## Non-Goals
+
+The CLI does not:
+
+* compile documentation in the background
+* monitor files for changes
+* provide a graphical interface
+* expose every platform capability through every command
+
+Those responsibilities belong to other platform components.
+
+---
+
+## Future Extensions
+
+The CLI may support future capabilities, including:
+
+* watch mode for automatic recompilation
+* tab completion installation command
+* output format plugins
+* shell integration scripts
+* interactive configuration wizard
+
+Future CLI capabilities should integrate without changing the command structure.
 
 ---
 

@@ -12,7 +12,7 @@ Configuration is declarative and deterministic.
 
 ---
 
-# Functional Requirements
+## Functional Requirements
 
 ## FR1. Repository Identity
 
@@ -142,7 +142,7 @@ Invalid configuration shall be reported.
 
 ---
 
-# Business Rules
+## Business Rules
 
 * Configuration is declarative.
 * Configuration is deterministic.
@@ -154,7 +154,7 @@ Invalid configuration shall be reported.
 
 ---
 
-# Configuration Lifecycle
+## Configuration Lifecycle
 
 ```text
 Repository Configuration
@@ -180,7 +180,7 @@ Platform Services
 
 ---
 
-# Inputs
+## Inputs
 
 Repository Configuration consumes:
 
@@ -191,7 +191,7 @@ Repository Configuration consumes:
 
 ---
 
-# Outputs
+## Outputs
 
 Repository Configuration provides:
 
@@ -206,7 +206,7 @@ Outputs configure platform behavior.
 
 ---
 
-# Constraints
+## Constraints
 
 Repository Configuration shall:
 
@@ -221,7 +221,7 @@ Configuration storage formats are implementation concerns.
 
 ---
 
-# Dependencies
+## Dependencies
 
 Repository Configuration depends upon:
 
@@ -242,7 +242,7 @@ Repository Configuration provides configuration to:
 
 ---
 
-# Non-Goals
+## Non-Goals
 
 Repository Configuration does not:
 
@@ -256,7 +256,7 @@ Those responsibilities belong to their respective platform capabilities.
 
 ---
 
-# Future Extensions
+## Future Extensions
 
 The Repository Configuration framework should support future capabilities, including:
 
@@ -274,7 +274,7 @@ Future capabilities should integrate without changing the logical configuration 
 
 ---
 
-# Success Criteria
+## Acceptance Criteria
 
 The feature is successful when:
 
@@ -288,7 +288,7 @@ The feature is successful when:
 
 ---
 
-# Traceability
+## Traceability
 
 This feature derives from the following Vision commitments:
 

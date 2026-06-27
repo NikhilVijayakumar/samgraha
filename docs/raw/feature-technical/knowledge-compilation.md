@@ -13,7 +13,7 @@ This document applies the architectural principles defined in Component Model, K
 ## Feature Specification
 
 - **Feature:** docs/raw/feature/knowledge-compilation.md
-- **Architecture:** docs/raw/architecture/component-model.md, docs/raw/architecture/knowledge-flow.md, docs/raw/architecture/persistence.md
+- **Architecture:** docs/raw/architecture/component-model.md, docs/raw/architecture/knowledge-flow.md, docs/raw/architecture/persistence.md, docs/raw/architecture/runtime-boundary.md, docs/raw/architecture/communication.md
 
 ---
 
@@ -118,22 +118,21 @@ Discover Documentation
 Load Documentation Standards + Section Definitions
         │
         ▼
-Process Documents (per document)
+Parse Documents (per document)
         │
-        ├── Validate Structure
-        ├── Identify Domain
-        ├── Standard Resolution          ← load section defs for domain
-        ├── Semantic Section Mapping     ← alias match headings → semantic types
-        ├── Report Missing Required Sections (warnings)
-        ├── Extract Metadata
-        ├── Extract Knowledge (per semantic section)
-        └── Resolve Relationships
+        ├── pulldown-cmark AST           ← structured parse, handles code blocks + HTML
+        ├── Document Standard Parser     ← maps AST → typed sections
+        ├── Standard Validator           ← emits diagnostics, never blocks
+        ├── Knowledge Object Builder     ← typed KnowledgeObjects + URNs + SourceSpan
+        ├── Relationship Builder         ← EdgeType graph edges (inferred + explicit)
+        └── Quality Analyzer             ← ObjectStatistics per document
         │
         ▼
 Generate Registry Artifacts
         │
-        ├── Compiled Documents
-        └── Semantic Sections (with types, content, required flags)
+        ├── Typed KnowledgeObjects (URN-keyed, with SourceSpan)
+        ├── Graph Edges (EdgeType enum, not strings)
+        └── ObjectStatistics (coverage, per_type counts)
         │
         ▼
 Report Completion

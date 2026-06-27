@@ -12,7 +12,7 @@ The resulting Knowledge Package becomes the foundation for MCP delivery, enginee
 
 ---
 
-# Functional Requirements
+## Functional Requirements
 
 ## FR1. Repository Discovery
 
@@ -135,7 +135,7 @@ When repository knowledge changes, only affected Knowledge Packages shall be rec
 
 ---
 
-# Business Rules
+## Business Rules
 
 * Documentation remains the authoritative source of knowledge.
 * The Knowledge Registry provides compiled knowledge.
@@ -147,7 +147,7 @@ When repository knowledge changes, only affected Knowledge Packages shall be rec
 
 ---
 
-# Resolution Lifecycle
+## Resolution Lifecycle
 
 ```text
 Knowledge Registry
@@ -178,7 +178,7 @@ Knowledge Consumers
 
 ---
 
-# Inputs
+## Inputs
 
 Knowledge Resolution consumes:
 
@@ -192,7 +192,7 @@ Knowledge Resolution consumes:
 
 ---
 
-# Outputs
+## Outputs
 
 Knowledge Resolution produces:
 
@@ -205,7 +205,7 @@ Knowledge Resolution produces:
 
 ---
 
-# Constraints
+## Constraints
 
 Knowledge Resolution shall:
 
@@ -219,7 +219,7 @@ Knowledge Resolution shall:
 
 ---
 
-# Dependencies
+## Dependencies
 
 Knowledge Resolution depends upon:
 
@@ -238,7 +238,7 @@ Knowledge Resolution provides Knowledge Packages to:
 
 ---
 
-# Non-Goals
+## Non-Goals
 
 Knowledge Resolution does not:
 
@@ -252,7 +252,7 @@ Those responsibilities belong to their respective platform components.
 
 ---
 
-# Future Extensions
+## Future Extensions
 
 The Knowledge Resolution framework should support future capabilities, including:
 
@@ -269,7 +269,7 @@ Future capabilities should integrate without changing the core resolution model.
 
 ---
 
-# Success Criteria
+## Acceptance Criteria
 
 The feature is successful when:
 
@@ -282,7 +282,7 @@ The feature is successful when:
 
 ---
 
-# Traceability
+## Traceability
 
 This feature derives from the following Vision commitments:
 

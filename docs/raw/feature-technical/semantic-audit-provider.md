@@ -12,7 +12,7 @@ This document applies the architectural principles defined in Extensibility Arch
 
 ## Feature Specification
 
-- **Feature:** docs/raw/feature/semantic-audit.md
+- **Feature:** docs/raw/feature/semantic-audit-provider.md
 - **Architecture:** docs/raw/architecture/extensibility.md, docs/raw/architecture/security-architecture.md, docs/raw/architecture/component-model.md
 
 ---

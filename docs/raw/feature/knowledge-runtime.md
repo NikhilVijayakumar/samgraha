@@ -14,7 +14,7 @@ The Model Context Protocol (MCP) is the first supported runtime interface.
 
 ---
 
-# Functional Requirements
+## Functional Requirements
 
 ## FR1. Runtime Hosting
 
@@ -93,6 +93,8 @@ Examples:
 
 Section-type delivery dramatically reduces context consumption for AI consumers. Consumers ask for exactly the engineering knowledge they need rather than loading full documents.
 
+Each returned object is a typed KnowledgeObject with a stable URN (e.g., `feature/knowledge-search/FR1`), enabling precise citations, incremental updates, and jump-to-source via SourceSpan.
+
 ---
 
 ## FR5. Multi-Repository Delivery
@@ -138,7 +140,7 @@ Interfaces share the same runtime services.
 
 ---
 
-# Business Rules
+## Business Rules
 
 * The runtime delivers compiled knowledge only.
 * Documentation is never accessed directly.
@@ -150,7 +152,7 @@ Interfaces share the same runtime services.
 
 ---
 
-# Runtime Lifecycle
+## Runtime Lifecycle
 
 ```text
 Knowledge Package
@@ -175,7 +177,7 @@ Knowledge Delivery
 
 ---
 
-# Inputs
+## Inputs
 
 The Knowledge Runtime consumes:
 
@@ -187,7 +189,7 @@ The Knowledge Runtime consumes:
 
 ---
 
-# Outputs
+## Outputs
 
 The Knowledge Runtime produces:
 
@@ -203,7 +205,7 @@ Outputs are delivered through runtime interfaces.
 
 ---
 
-# Constraints
+## Constraints
 
 The Knowledge Runtime shall:
 
@@ -219,7 +221,7 @@ Interface protocols are implementation concerns.
 
 ---
 
-# Dependencies
+## Dependencies
 
 The Knowledge Runtime depends upon:
 
@@ -238,7 +240,7 @@ The runtime provides engineering knowledge to:
 
 ---
 
-# Non-Goals
+## Non-Goals
 
 The Knowledge Runtime does not:
 
@@ -252,7 +254,7 @@ Those responsibilities belong to other platform components.
 
 ---
 
-# Future Extensions
+## Future Extensions
 
 The runtime framework should support future capabilities, including:
 
@@ -270,7 +272,7 @@ Future interfaces should integrate without changing the runtime architecture.
 
 ---
 
-# Success Criteria
+## Acceptance Criteria
 
 The feature is successful when:
 
@@ -284,7 +286,7 @@ The feature is successful when:
 
 ---
 
-# Traceability
+## Traceability
 
 This feature derives from the following Vision commitments:
 

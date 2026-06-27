@@ -12,7 +12,7 @@ This document applies the architectural principles defined in Workspace Architec
 
 ## Feature Specification
 
-- **Feature:** docs/raw/feature/workspace-support.md
+- **Feature:** docs/raw/feature/workspace-management.md
 - **Architecture:** docs/raw/architecture/workspace.md, docs/raw/architecture/component-model.md, docs/raw/architecture/persistence.md, docs/raw/architecture/knowledge-flow.md
 
 ---

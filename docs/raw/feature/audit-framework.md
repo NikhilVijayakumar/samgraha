@@ -12,7 +12,7 @@ Audit determines whether engineering knowledge is trusted before it enters the K
 
 ---
 
-# Functional Requirements
+## Functional Requirements
 
 ## FR1. Audit Provider Abstraction
 
@@ -205,7 +205,7 @@ New audit types should integrate without modifying the audit framework.
 
 ---
 
-# Business Rules
+## Business Rules
 
 * Audit is documentation-driven.
 * Standards define the audit contract.
@@ -216,10 +216,11 @@ New audit types should integrate without modifying the audit framework.
 * Audit findings are advisory unless enforced through quality gates.
 * Every audit should trace to one or more documented standards.
 * Audit results are reproducible whenever deterministic providers are used.
+* Audit reads quality metadata (ObjectStatistics) from the Knowledge Registry rather than recomputing from documentation.
 
 ---
 
-# Audit Lifecycle
+## Audit Lifecycle
 
 ```text
 Documentation
@@ -250,7 +251,7 @@ MCP Runtime
 
 ---
 
-# Inputs
+## Inputs
 
 The Audit Framework consumes:
 
@@ -267,7 +268,7 @@ Optional providers may additionally consume:
 
 ---
 
-# Outputs
+## Outputs
 
 The framework produces:
 
@@ -283,7 +284,7 @@ Outputs are stored alongside compiled knowledge.
 
 ---
 
-# Constraints
+## Constraints
 
 The Audit Framework shall:
 
@@ -297,7 +298,7 @@ The Audit Framework shall:
 
 ---
 
-# Dependencies
+## Dependencies
 
 The Audit Framework depends upon:
 
@@ -314,7 +315,7 @@ Optional dependencies include:
 
 ---
 
-# Non-Goals
+## Non-Goals
 
 The Audit Framework does not:
 
@@ -327,7 +328,7 @@ The Audit Framework does not:
 
 ---
 
-# Future Extensions
+## Future Extensions
 
 The framework should support:
 
@@ -344,7 +345,7 @@ The framework should support:
 
 ---
 
-# Success Criteria
+## Acceptance Criteria
 
 The feature is successful when:
 
@@ -358,7 +359,7 @@ The feature is successful when:
 
 ---
 
-# Traceability
+## Traceability
 
 This feature derives from the following Vision commitments:
 

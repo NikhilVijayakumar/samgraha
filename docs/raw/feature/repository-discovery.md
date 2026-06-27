@@ -10,7 +10,7 @@ Repository Discovery discovers repositories. It does not compile, audit, or modi
 
 ---
 
-# Functional Requirements
+## Functional Requirements
 
 ## FR1. Local Repository Discovery
 
@@ -133,7 +133,7 @@ Refresh shall not modify repository contents.
 
 ---
 
-# Business Rules
+## Business Rules
 
 * Repository Discovery is read-only.
 * Discovery never modifies repositories.
@@ -144,7 +144,7 @@ Refresh shall not modify repository contents.
 
 ---
 
-# Discovery Lifecycle
+## Discovery Lifecycle
 
 ```text
 Discovery Sources
@@ -167,7 +167,7 @@ Repository Configuration
 
 ---
 
-# Inputs
+## Inputs
 
 Repository Discovery consumes:
 
@@ -178,7 +178,7 @@ Repository Discovery consumes:
 
 ---
 
-# Outputs
+## Outputs
 
 Repository Discovery produces:
 
@@ -191,7 +191,7 @@ Outputs are consumed by Workspace Management.
 
 ---
 
-# Constraints
+## Constraints
 
 Repository Discovery shall:
 
@@ -206,7 +206,7 @@ Repository discovery mechanisms are implementation concerns.
 
 ---
 
-# Dependencies
+## Dependencies
 
 Repository Discovery depends upon:
 
@@ -222,7 +222,7 @@ Repository Discovery provides repository information to:
 
 ---
 
-# Non-Goals
+## Non-Goals
 
 Repository Discovery does not:
 
@@ -237,7 +237,7 @@ Those responsibilities belong to their respective platform capabilities.
 
 ---
 
-# Future Extensions
+## Future Extensions
 
 The Repository Discovery framework should support future capabilities, including:
 
@@ -255,7 +255,7 @@ Future capabilities should integrate without changing the logical discovery mode
 
 ---
 
-# Success Criteria
+## Acceptance Criteria
 
 The feature is successful when:
 
@@ -268,7 +268,7 @@ The feature is successful when:
 
 ---
 
-# Traceability
+## Traceability
 
 This feature derives from the following Vision commitments:
 

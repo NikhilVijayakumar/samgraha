@@ -60,7 +60,7 @@ One P2 remains: qualitative Success Criteria without measurable thresholds — r
 | ----------------------------------------------- | ------ | ---------- |
 | `docs/raw/feature/documentation-standards.md`  | 96/100 | Excellent  |
 | `docs/raw/feature/audit-framework.md`          | 96/100 | Excellent  |
-| `docs/raw/feature/semantic-audit.md`           | 96/100 | Excellent  |
+| `docs/raw/feature/semantic-audit-provider.md`           | 96/100 | Excellent  |
 | `docs/raw/feature/knowledge-compilation.md`    | 96/100 | Excellent  |
 | `docs/raw/feature/incremental-compilation.md`  | 96/100 | Excellent  |
 | `docs/raw/feature/knowledge-registry.md`       | 96/100 | Excellent  |
@@ -69,7 +69,7 @@ One P2 remains: qualitative Success Criteria without measurable thresholds — r
 | `docs/raw/feature/knowledge-package.md`        | 96/100 | Excellent  |
 | `docs/raw/feature/knowledge-runtime.md`        | 96/100 | Excellent  |
 | `docs/raw/feature/knowledge-enrichment.md`     | 96/100 | Excellent  |
-| `docs/raw/feature/workspace-support.md`        | 96/100 | Excellent  |
+| `docs/raw/feature/workspace-management.md`        | 96/100 | Excellent  |
 | `docs/raw/feature/repository-discovery.md`     | 96/100 | Excellent  |
 | `docs/raw/feature/repository-configuration.md` | 96/100 | Excellent  |
 | `docs/raw/feature/cli-interface.md`            | 96/100 | Excellent  |
@@ -120,7 +120,7 @@ No content regression. Feature quality and completeness are unchanged. The core 
 | ai-enrichment.md provider names | P3-02 | Unresolved |
 | cli-interface.md heading levels | P3-03 | Unresolved |
 
-**Most stable documents:** knowledge-registry.md, knowledge-search.md, knowledge-resolution.md, knowledge-package.md, workspace-support.md, repository-discovery.md, repository-configuration.md, documentation-standards.md, semantic-audit.md, incremental-compilation.md (all 96/100).
+**Most stable documents:** knowledge-registry.md, knowledge-search.md, knowledge-resolution.md, knowledge-package.md, workspace-management.md, repository-discovery.md, repository-configuration.md, documentation-standards.md, semantic-audit-provider.md, incremental-compilation.md (all 96/100).
 
 **Documents needing attention:** cli-interface.md (85/100), ai-enrichment.md (88/100).
 

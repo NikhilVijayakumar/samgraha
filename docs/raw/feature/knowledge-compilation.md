@@ -12,7 +12,7 @@ Compilation converts documentation into reusable engineering knowledge without c
 
 ---
 
-# Functional Requirements
+## Functional Requirements
 
 ## FR1. Documentation Discovery
 
@@ -82,9 +82,9 @@ Knowledge extraction preserves engineering intent.
 
 Each compiled document shall contain semantic sections resolved from the applicable Documentation Standard. Sections shall carry their semantic type, canonical name, required flag, and content. Sections not matching any standard definition shall be preserved with semantic type `generic`.
 
----
 
-## FR4a. Standard Resolution
+
+### Standard Resolution
 
 The compiler shall resolve the applicable Documentation Standard for each document.
 
@@ -159,7 +159,7 @@ Future source formats should integrate through compiler extensions without chang
 
 ---
 
-# Business Rules
+## Business Rules
 
 * Documentation is the authoritative source of knowledge.
 * Compilation never modifies documentation.
@@ -168,11 +168,11 @@ Future source formats should integrate through compiler extensions without chang
 * Compilation operates offline.
 * Compilation is reproducible.
 * Unsupported documentation shall be reported.
-* Compilation may fail without affecting repository documentation.
+* Compilation never blocks. Every document produces knowledge artifacts and diagnostics regardless of validation failures.
 
 ---
 
-# Compilation Lifecycle
+## Compilation Lifecycle
 
 ```text
 Repository Documentation
@@ -181,32 +181,32 @@ Repository Documentation
 Documentation Discovery
         │
         ▼
-Source Processing
+pulldown-cmark AST           ← structured Markdown parse, handles code blocks + HTML
         │
         ▼
-Standard Resolution          ← Documentation Standard + Section Definitions
+Document Standard Parser     ← maps AST nodes to typed sections per standard
         │
         ▼
-Semantic Section Mapping     ← Headings → Semantic Types via aliases
+Standard Validator           ← emits diagnostics (warnings), never blocks
         │
         ▼
-Metadata Extraction
+Knowledge Object Builder     ← typed KnowledgeObjects with stable URNs + SourceSpan
         │
         ▼
-Knowledge Extraction         ← Produces Semantic Documents
+Relationship Builder         ← infers typed graph edges (EdgeType enum)
         │
         ▼
-Relationship Resolution
+Quality Analyzer             ← computes ObjectStatistics per document
         │
         ▼
-Knowledge Registry           ← Stores Documents + Semantic Sections
+Registry Writer              ← stores URN-keyed objects + graph in Knowledge Registry
 ```
 
 A Semantic Document is a document interpreted through its Documentation Standard. Rather than storing headings and text, a Semantic Document stores engineering semantics: Purpose, Functional Requirements, Business Rules, Constraints, Dependencies, and so on. This richer representation makes every downstream capability (audit, search, packaging, runtime) significantly more powerful without relying on AI.
 
 ---
 
-# Inputs
+## Inputs
 
 Knowledge Compilation consumes:
 
@@ -217,7 +217,7 @@ Knowledge Compilation consumes:
 
 ---
 
-# Outputs
+## Outputs
 
 Knowledge Compilation produces:
 
@@ -235,7 +235,7 @@ Outputs become the foundation for downstream platform capabilities.
 
 ---
 
-# Constraints
+## Constraints
 
 Knowledge Compilation shall:
 
@@ -252,7 +252,7 @@ Compilation technologies are implementation concerns.
 
 ---
 
-# Dependencies
+## Dependencies
 
 Knowledge Compilation depends upon:
 
@@ -270,7 +270,7 @@ Knowledge Compilation provides compiled knowledge to:
 
 ---
 
-# Non-Goals
+## Non-Goals
 
 Knowledge Compilation does not:
 
@@ -284,7 +284,7 @@ Those responsibilities belong to their respective platform components.
 
 ---
 
-# Future Extensions
+## Future Extensions
 
 The compilation framework should support future capabilities, including:
 
@@ -301,7 +301,7 @@ Future capabilities should integrate without changing the logical compilation mo
 
 ---
 
-# Success Criteria
+## Acceptance Criteria
 
 The feature is successful when:
 
@@ -319,7 +319,7 @@ The feature is successful when:
 
 ---
 
-# Traceability
+## Traceability
 
 This feature derives from the following Vision commitments:
 
