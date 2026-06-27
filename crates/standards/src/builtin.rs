@@ -90,6 +90,7 @@ fn readme_standard() -> StandardDefinition {
             rule("readme-002", "Has title", "README must have a top-level title", "error", "has_title", ""),
             rule("readme-003", "Has getting started", "README must have getting started section", "warning", "has_section", "Getting Started"),
         ],
+        profiles: vec![],
     }
 }
 
@@ -122,6 +123,18 @@ fn vision_standard() -> StandardDefinition {
             rule("vision-002", "Has audience", "Vision must define target audience", "warning", "has_section", "Target Audience"),
             rule("vision-003", "No implementation", "Vision must not contain implementation details", "warning", "no_implementation", ""),
         ],
+        profiles: vec![
+            schemas::standard::profile_def(
+                "summary",
+                "Core vision for AI context and stakeholder briefs",
+                &["purpose", "vision_statement", "problem", "solution"],
+            ),
+            schemas::standard::profile_def(
+                "review",
+                "Sections needed to evaluate vision completeness",
+                &["purpose", "target_audience", "success_criteria", "traceability"],
+            ),
+        ],
     }
 }
 
@@ -148,6 +161,7 @@ fn philosophy_standard() -> StandardDefinition {
             rule("phil-002", "Has values", "Philosophy must document values", "warning", "has_section", "Values"),
             rule("phil-003", "Has trade-offs", "Philosophy should document trade-offs", "suggestion", "has_section", "Trade-offs"),
         ],
+        profiles: vec![],
     }
 }
 
@@ -180,6 +194,18 @@ fn architecture_standard() -> StandardDefinition {
             rule("arch-003", "No implementation details", "Architecture must avoid implementation specifics", "warning", "no_implementation", ""),
             rule("arch-004", "Has security", "Architecture must address security", "warning", "has_section", "Security"),
         ],
+        profiles: vec![
+            schemas::standard::profile_def(
+                "implementation",
+                "Sections needed to implement against this architecture",
+                &["component_model", "communication_paths", "data_flow", "constraints"],
+            ),
+            schemas::standard::profile_def(
+                "review",
+                "Sections needed to evaluate architectural decisions",
+                &["purpose", "system_overview", "rationale", "traceability"],
+            ),
+        ],
     }
 }
 
@@ -208,7 +234,19 @@ fn feature_standard() -> StandardDefinition {
             future_extensions(),
             traceability(),
         ],
-        prohibited_content: vec!["Implementation details".into(), "Architecture".into()],
+        prohibited_content: vec![
+            "Implementation details".into(),
+            "Architecture".into(),
+            "Programming languages".into(),
+            "Frameworks".into(),
+            "Libraries".into(),
+            "APIs".into(),
+            "Databases".into(),
+            "Source code".into(),
+            "UI implementation".into(),
+            "System components".into(),
+            "Communication protocols".into(),
+        ],
         relationships: vec![
             relationship("feature", "feature-design", "designs"),
             relationship("feature", "feature-technical", "implements"),
@@ -219,6 +257,23 @@ fn feature_standard() -> StandardDefinition {
             rule("feat-002", "Has requirements", "Feature must list functional requirements", "error", "has_section", "Functional Requirements"),
             rule("feat-003", "Has acceptance criteria", "Feature must define acceptance criteria", "error", "has_section", "Acceptance Criteria"),
             rule("feat-004", "Technology independent", "Feature must not specify technology", "warning", "no_implementation", ""),
+        ],
+        profiles: vec![
+            schemas::standard::profile_def(
+                "implementation",
+                "Sections needed by implementation teams",
+                &["functional_requirements", "business_rules", "constraints", "dependencies"],
+            ),
+            schemas::standard::profile_def(
+                "review",
+                "Sections needed by reviewers",
+                &["purpose", "acceptance_criteria", "traceability"],
+            ),
+            schemas::standard::profile_def(
+                "architecture",
+                "Sections needed by architects",
+                &["constraints", "dependencies"],
+            ),
         ],
     }
 }
@@ -249,6 +304,13 @@ fn feature_design_standard() -> StandardDefinition {
             rule("fd-002", "Has workflow", "Feature Design must document workflow", "error", "has_section", "Workflow"),
             rule("fd-003", "Has states", "Feature Design must cover all UI states", "warning", "has_section", "States"),
             rule("fd-004", "No implementation", "Feature Design must not include implementation", "warning", "no_implementation", ""),
+        ],
+        profiles: vec![
+            schemas::standard::profile_def(
+                "ux",
+                "Sections needed for UX review and implementation",
+                &["user_experience", "workflow", "states"],
+            ),
         ],
     }
 }
@@ -290,6 +352,18 @@ fn feature_technical_standard() -> StandardDefinition {
             rule("ft-003", "Has data ownership", "Feature Technical must define data ownership", "error", "has_section", "Data Ownership"),
             rule("ft-004", "Has security", "Feature Technical must address security", "warning", "has_section", "Security Considerations"),
         ],
+        profiles: vec![
+            schemas::standard::profile_def(
+                "implementation",
+                "Sections needed to implement this feature",
+                &["participating_components", "component_interactions", "data_ownership", "runtime_constraints", "architectural_constraints"],
+            ),
+            schemas::standard::profile_def(
+                "review",
+                "Sections needed to review technical design",
+                &["purpose", "security_considerations", "failure_handling", "traceability"],
+            ),
+        ],
     }
 }
 
@@ -318,6 +392,7 @@ fn design_standard() -> StandardDefinition {
             rule("dsg-002", "Has UX principles", "Design must document UX guidelines", "warning", "has_section", "UX Principles"),
             rule("dsg-003", "Has accessibility", "Design must address accessibility", "warning", "has_section", "Accessibility"),
         ],
+        profiles: vec![],
     }
 }
 
@@ -349,6 +424,18 @@ fn engineering_standard() -> StandardDefinition {
             rule("eng-003", "Has build standards", "Engineering must define build standards", "warning", "has_section", "Build Standards"),
             rule("eng-004", "Has testing standards", "Engineering must define testing approach", "warning", "has_section", "Testing Standards"),
         ],
+        profiles: vec![
+            schemas::standard::profile_def(
+                "onboarding",
+                "Sections needed to onboard a new contributor",
+                &["guiding_principles", "build_standards", "testing_standards", "code_standards"],
+            ),
+            schemas::standard::profile_def(
+                "review",
+                "Sections needed to evaluate engineering decisions",
+                &["purpose", "rationale", "constraints", "traceability"],
+            ),
+        ],
     }
 }
 
@@ -375,6 +462,13 @@ fn external_context_standard() -> StandardDefinition {
             rule("ec-001", "Has purpose", "External Context must explain why dependency exists", "error", "has_section", "Purpose"),
             rule("ec-002", "Has constraints", "External Context must document constraints", "warning", "has_section", "Constraints"),
             rule("ec-003", "References external docs", "External Context should reference authoritative docs", "suggestion", "has_section", "References"),
+        ],
+        profiles: vec![
+            schemas::standard::profile_def(
+                "integration",
+                "Sections needed to integrate against this external system",
+                &["integration_contract", "constraints", "dependencies"],
+            ),
         ],
     }
 }
@@ -404,6 +498,7 @@ fn prototype_standard() -> StandardDefinition {
             rule("proto-002", "Has mock APIs", "Prototype must document mock APIs", "warning", "has_section", "Mock APIs"),
             rule("proto-003", "Disposable", "Prototype must be disposable (not production code)", "warning", "no_implementation", ""),
         ],
+        profiles: vec![],
     }
 }
 
