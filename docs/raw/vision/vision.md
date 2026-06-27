@@ -105,12 +105,20 @@ Knowledge Services
  └──────────────┬──────────────┘
                 ▼
        Knowledge Compiler
-                ▼
-        Knowledge Registry
-                ▼
-        Knowledge Runtime
-                ▼
-      AI Engineering Tools
+          │         │
+          ▼         ▼
+   Knowledge    Repository
+    Registry     Registry
+   (Knowledge   (Metadata
+     Track)      Track)
+          │         │
+          ▼         │
+   Knowledge        │
+    Runtime         │
+          │         │
+          └────┬────┘
+               ▼
+     AI Engineering Tools
 ```
 
 Every layer has one responsibility.
@@ -119,9 +127,13 @@ Standards define engineering quality.
 
 Knowledge Services apply those standards.
 
-Compilation transforms documentation into optimized engineering knowledge.
+Compilation transforms documentation into optimized engineering knowledge. Every compilation produces two distinct outputs that follow separate, non-intersecting tracks.
 
-The Knowledge Runtime exposes deterministic engineering knowledge through multiple interfaces.
+The **knowledge track** produces compiled engineering knowledge consumed by the Knowledge Runtime.
+
+The **metadata track** produces repository metadata consumed by the Repository Registry.
+
+The two tracks never intersect. The Registry never opens knowledge databases. The Runtime never contacts the Registry during query resolution.
 
 ---
 
@@ -178,7 +190,14 @@ New services can be added without changing existing repositories.
 
 Knowledge Compilation transforms documentation into optimized engineering knowledge.
 
-Compilation produces:
+Every successful compilation produces two explicit outputs:
+
+| Output | Purpose |
+|---|---|
+| Compiled knowledge database | Engineering knowledge for search, retrieval, runtime delivery |
+| Repository manifest | Repository metadata for synchronization, discovery, resolution |
+
+The compiled knowledge database contains:
 
 * searchable indexes
 * structured metadata
@@ -187,6 +206,8 @@ Compilation produces:
 * repository relationships
 * audit metadata
 * retrieval artifacts
+
+The repository manifest contains only repository metadata — identity, revision, capabilities, exports, dependencies. It never contains engineering knowledge, documents, or search indexes.
 
 Semantic compilation is a core step. Every document is interpreted through its Documentation Standard. Headings are matched to defined section types — Purpose, Functional Requirements, Business Rules, Constraints, Dependencies, and so on — using canonical names and recognition aliases. The result is a Semantic Document: not a Markdown file, but a structured collection of typed engineering knowledge sections. Unrecognized sections are preserved as generic sections; content is never discarded.
 
@@ -298,6 +319,30 @@ Each stage increases engineering precision.
 No stage replaces another.
 
 Implementation should realize documented intent rather than invent it.
+
+### Execution Tracks
+
+After implementation, compiled documentation feeds two parallel tracks:
+
+```text
+Compiled Documentation
+          │
+    ┌─────┴─────┐
+    ▼           ▼
+Knowledge    Repository
+ Track       Metadata
+    │           Track
+    ▼           ▼
+ Knowledge   Repository
+  Runtime     Registry
+ (Search,    (Sync,
+  Retrieval,  Discovery,
+  Delivery)   Resolution)
+```
+
+The knowledge track serves runtime queries. The metadata track serves synchronization and dependency resolution.
+
+The two tracks never intersect at runtime.
 
 ---
 
@@ -469,6 +514,16 @@ No manual synchronization.
 
 ---
 
+### Metadata Before Knowledge
+
+Repository metadata is distinct from engineering knowledge.
+
+Metadata enables discovery, synchronization, and dependency resolution. Engineering knowledge enables search, retrieval, and runtime delivery.
+
+The two never mix. Metadata is disposable and refreshable. Knowledge is repository-owned and compiled.
+
+---
+
 ### Technology Independent
 
 Documentation methodology should remain independent of programming languages, frameworks, infrastructure, databases, and AI providers.
@@ -498,6 +553,12 @@ Engineering knowledge should outlive implementation technologies.
 * Local First.
 * Offline First.
 * Deterministic by Design.
+* Repository Registry owns repository metadata, never engineering knowledge.
+* Compiled knowledge is never duplicated.
+* Resolution is local-first and cache-driven.
+* Synchronization transfers metadata, not documentation.
+* Repository metadata is disposable and refreshable.
+* Runtime query paths never contact the Repository Registry.
 
 ---
 
@@ -556,7 +617,9 @@ Saṃgraha succeeds when:
 
 Saṃgraha is a Knowledge Engineering Platform.
 
-It combines Documentation Standards, Knowledge Services, Knowledge Compilation, and a Knowledge Runtime to transform engineering documentation into verified, deterministic engineering knowledge.
+It combines Documentation Standards, Knowledge Services, Knowledge Compilation, a Knowledge Registry, a Knowledge Runtime, and a Repository Registry to transform engineering documentation into verified, deterministic engineering knowledge.
+
+Compilation produces two distinct outputs that follow separate tracks: compiled knowledge for runtime delivery and repository metadata for synchronization and discovery. The two tracks never intersect.
 
 Rather than asking engineers or AI systems to infer architecture, design, engineering decisions, and implementation intent from source code, Saṃgraha makes repositories self-describing through explicit documentation contracts, semantic compilation, and reusable engineering services.
 
