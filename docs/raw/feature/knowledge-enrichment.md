@@ -10,7 +10,7 @@ The platform functions completely without enrichment. Enrichment improves the kn
 
 ---
 
-# Functional Requirements
+## Functional Requirements
 
 ## FR1. Enrichment Provider Abstraction
 
@@ -143,7 +143,7 @@ Compilation and all deterministic platform capabilities shall continue normally.
 
 ---
 
-# Business Rules
+## Business Rules
 
 * Knowledge enrichment is optional.
 * Documentation remains the authoritative source of knowledge.
@@ -157,7 +157,7 @@ Compilation and all deterministic platform capabilities shall continue normally.
 
 ---
 
-# Enrichment Lifecycle
+## Enrichment Lifecycle
 
 Knowledge enrichment occurs after successful compilation.
 
@@ -194,7 +194,7 @@ It is never performed during:
 
 ---
 
-# Inputs
+## Inputs
 
 Knowledge Enrichment consumes:
 
@@ -206,7 +206,7 @@ Knowledge Enrichment consumes:
 
 ---
 
-# Outputs
+## Outputs
 
 Knowledge Enrichment produces optional metadata including:
 
@@ -221,7 +221,7 @@ These artifacts are stored alongside compiled knowledge.
 
 ---
 
-# Metadata
+## Metadata
 
 Every generated enrichment artifact should record:
 
@@ -237,7 +237,7 @@ This metadata supports reproducibility and cache invalidation.
 
 ---
 
-# Constraints
+## Constraints
 
 Knowledge Enrichment shall:
 
@@ -252,7 +252,7 @@ Knowledge Enrichment shall:
 
 ---
 
-# Dependencies
+## Dependencies
 
 Knowledge Enrichment depends upon:
 
@@ -265,7 +265,7 @@ Knowledge Enrichment does not depend upon the MCP Runtime.
 
 ---
 
-# Non-Goals
+## Non-Goals
 
 Knowledge Enrichment does not:
 
@@ -279,7 +279,7 @@ Knowledge Enrichment does not:
 
 ---
 
-# Future Extensions
+## Future Extensions
 
 The enrichment framework should support additional artifact types, including:
 
@@ -299,7 +299,7 @@ These capabilities should integrate through the existing enrichment provider abs
 
 ---
 
-# Success Criteria
+## Acceptance Criteria
 
 The feature is successful when:
 
@@ -313,7 +313,7 @@ The feature is successful when:
 
 ---
 
-# Traceability
+## Traceability
 
 This feature derives from the following Vision commitments:
 

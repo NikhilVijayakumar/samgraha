@@ -12,7 +12,7 @@ The search system emphasizes relevance, determinism, and progressive knowledge r
 
 ---
 
-# Functional Requirements
+## Functional Requirements
 
 ## FR1. Knowledge Discovery
 
@@ -161,7 +161,7 @@ Section-type queries shall be expressible from both the Engineering CLI and the 
 
 ---
 
-# Business Rules
+## Business Rules
 
 * Search operates on compiled knowledge.
 * Documentation remains the authoritative source.
@@ -173,7 +173,7 @@ Section-type queries shall be expressible from both the Engineering CLI and the 
 
 ---
 
-# Search Lifecycle
+## Search Lifecycle
 
 ```text
 Knowledge Registry
@@ -201,7 +201,7 @@ Knowledge Consumer
 
 ---
 
-# Inputs
+## Inputs
 
 Knowledge Search consumes:
 
@@ -213,7 +213,7 @@ Knowledge Search consumes:
 
 ---
 
-# Outputs
+## Outputs
 
 Knowledge Search produces:
 
@@ -228,7 +228,7 @@ Knowledge Search produces:
 
 ---
 
-# Constraints
+## Constraints
 
 Knowledge Search shall:
 
@@ -244,7 +244,7 @@ Search implementation technologies are architectural concerns.
 
 ---
 
-# Dependencies
+## Dependencies
 
 Knowledge Search depends upon:
 
@@ -263,7 +263,7 @@ Knowledge Search provides retrieval services to:
 
 ---
 
-# Non-Goals
+## Non-Goals
 
 Knowledge Search does not:
 
@@ -277,7 +277,7 @@ Those responsibilities belong to their respective platform components.
 
 ---
 
-# Future Extensions
+## Future Extensions
 
 The Knowledge Search framework should support future capabilities, including:
 
@@ -296,7 +296,7 @@ Future search capabilities should integrate without changing the logical search 
 
 ---
 
-# Success Criteria
+## Acceptance Criteria
 
 The feature is successful when:
 
@@ -313,7 +313,7 @@ The feature is successful when:
 
 ---
 
-# Traceability
+## Traceability
 
 This feature derives from the following Vision commitments:
 

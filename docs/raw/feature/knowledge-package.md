@@ -12,7 +12,7 @@ Knowledge Packages are generated artifacts and can always be regenerated from so
 
 ---
 
-# Functional Requirements
+## Functional Requirements
 
 ## FR1. Package Composition
 
@@ -175,7 +175,7 @@ Knowledge Packages remain reproducible throughout their lifecycle.
 
 ---
 
-# Business Rules
+## Business Rules
 
 * Knowledge Packages are generated artifacts.
 * Documentation remains the authoritative source.
@@ -187,7 +187,7 @@ Knowledge Packages remain reproducible throughout their lifecycle.
 
 ---
 
-# Package Lifecycle
+## Package Lifecycle
 
 ```text
 Knowledge Registry
@@ -213,7 +213,7 @@ Knowledge Consumers
 
 ---
 
-# Inputs
+## Inputs
 
 Knowledge Package generation consumes:
 
@@ -227,7 +227,7 @@ Knowledge Package generation consumes:
 
 ---
 
-# Outputs
+## Outputs
 
 Knowledge Package generation produces:
 
@@ -241,7 +241,7 @@ Outputs are consumed by runtime services.
 
 ---
 
-# Constraints
+## Constraints
 
 Knowledge Packages shall:
 
@@ -257,7 +257,7 @@ Physical package formats are implementation concerns.
 
 ---
 
-# Dependencies
+## Dependencies
 
 Knowledge Package depends upon:
 
@@ -276,7 +276,7 @@ Knowledge Package provides deployable engineering knowledge to:
 
 ---
 
-# Non-Goals
+## Non-Goals
 
 Knowledge Package does not:
 
@@ -290,7 +290,7 @@ Those responsibilities belong to their respective platform capabilities.
 
 ---
 
-# Future Extensions
+## Future Extensions
 
 The Knowledge Package framework should support future capabilities, including:
 
@@ -308,7 +308,7 @@ Future capabilities should integrate without changing the logical package model.
 
 ---
 
-# Success Criteria
+## Acceptance Criteria
 
 The feature is successful when:
 
@@ -322,7 +322,7 @@ The feature is successful when:
 
 ---
 
-# Traceability
+## Traceability
 
 This feature derives from the following Vision commitments:
 

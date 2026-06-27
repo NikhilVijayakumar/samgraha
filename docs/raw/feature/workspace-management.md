@@ -12,7 +12,7 @@ Single-repository projects are treated as workspaces containing one repository.
 
 ---
 
-# Functional Requirements
+## Functional Requirements
 
 ## FR1. Workspace Definition
 
@@ -139,7 +139,7 @@ Lifecycle operations preserve workspace integrity.
 
 ---
 
-# Business Rules
+## Business Rules
 
 * A single repository is a valid workspace.
 * Repository ownership is preserved.
@@ -151,7 +151,7 @@ Lifecycle operations preserve workspace integrity.
 
 ---
 
-# Workspace Lifecycle
+## Workspace Lifecycle
 
 ```text
 Workspace
@@ -180,7 +180,7 @@ Knowledge Runtime
 
 ---
 
-# Inputs
+## Inputs
 
 Workspace Management consumes:
 
@@ -192,7 +192,7 @@ Workspace Management consumes:
 
 ---
 
-# Outputs
+## Outputs
 
 Workspace Management provides:
 
@@ -207,7 +207,7 @@ Outputs support platform-wide knowledge services.
 
 ---
 
-# Constraints
+## Constraints
 
 Workspace Management shall:
 
@@ -223,7 +223,7 @@ Workspace implementation details are architectural concerns.
 
 ---
 
-# Dependencies
+## Dependencies
 
 Workspace Management depends upon:
 
@@ -240,7 +240,7 @@ Workspace Management coordinates:
 
 ---
 
-# Non-Goals
+## Non-Goals
 
 Workspace Management does not:
 
@@ -254,7 +254,7 @@ Those responsibilities belong to their respective platform capabilities.
 
 ---
 
-# Future Extensions
+## Future Extensions
 
 The Workspace Management framework should support future capabilities, including:
 
@@ -271,7 +271,7 @@ Future capabilities should integrate without changing the logical workspace mode
 
 ---
 
-# Success Criteria
+## Acceptance Criteria
 
 The feature is successful when:
 
@@ -285,7 +285,7 @@ The feature is successful when:
 
 ---
 
-# Traceability
+## Traceability
 
 This feature derives from the following Vision commitments:
 

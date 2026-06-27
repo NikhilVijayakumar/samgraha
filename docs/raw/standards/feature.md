@@ -18,6 +18,33 @@ It does not describe implementation, architecture, or engineering decisions.
 
 ---
 
+# Required Sections
+
+Every Feature document must contain the following sections.
+Sections are identified by heading text; the compiler maps each to a semantic type.
+
+Section headings use level-2 markdown (`## Section Name`).
+
+| Section | semantic_type | Required | Aliases |
+|---------|--------------|----------|---------|
+| Purpose | `purpose` | ✓ | Overview, Summary |
+| Functional Requirements | `functional_requirements` | ✓ | Requirements, FRs, Functional Reqs, Feature Requirements |
+| Business Rules | `business_rules` | | Rules, Business Logic |
+| Inputs | `inputs` | | Input, Input Data |
+| Outputs | `outputs` | | Output, Output Data |
+| Constraints | `constraints` | | Limitations, Non-Functional Requirements |
+| Dependencies | `dependencies` | | Dependency, Depends On |
+| Acceptance Criteria | `acceptance_criteria` | ✓ | Success Criteria, Definition of Done, Criteria |
+| Non-Goals | `non_goals` | | Non Goals, Out of Scope |
+| Future Extensions | `future_extensions` | | Future Work, Roadmap |
+| Traceability | `traceability` | | Traces To, Derived From |
+
+Section headings are case-insensitive. Sections not listed here are stored as `generic` type — preserved but not queryable by type.
+
+Sections marked required that are absent produce a compile diagnostic (knowledge is still generated).
+
+---
+
 # Responsibilities
 
 Feature Documentation is responsible for defining:
@@ -57,23 +84,25 @@ Each feature should remain focused on one capability.
 
 ---
 
-# Out of Scope
+# Prohibited Content
 
 Feature Documentation must not describe:
 
-* Architecture
-* Technical implementation
-* Programming languages
-* Frameworks
-* Libraries
-* APIs
-* Databases
-* Source code
-* UI implementation
-* System components
-* Communication protocols
+| Prohibited | Rationale |
+|------------|-----------|
+| Architecture | Belongs to Architecture Documentation |
+| Technical implementation | Belongs to Feature Technical Design |
+| Programming languages | Belongs to Engineering Documentation |
+| Frameworks | Belongs to Engineering Documentation |
+| Libraries | Belongs to Engineering Documentation |
+| APIs | Belongs to Feature Technical Design |
+| Databases | Belongs to Engineering Documentation |
+| Source code | Belongs to Implementation |
+| UI implementation | Belongs to Feature Design |
+| System components | Belongs to Architecture Documentation |
+| Communication protocols | Belongs to Architecture Documentation |
 
-These belong to downstream documentation.
+Prohibited content detected during compilation produces a diagnostic.
 
 ---
 
@@ -382,6 +411,36 @@ Feature Documentation does not define:
 * APIs
 
 These responsibilities belong to other documentation standards.
+
+---
+
+# Profiles
+
+Feature Documentation defines the following package profiles.
+Each profile specifies which sections to include when packaging for a specific consumer.
+
+```yaml
+profiles:
+  implementation:
+    include:
+      - functional_requirements
+      - business_rules
+      - constraints
+      - dependencies
+
+  review:
+    include:
+      - purpose
+      - acceptance_criteria
+      - traceability
+
+  architecture:
+    include:
+      - constraints
+      - dependencies
+```
+
+Profiles are consumed by the Knowledge Package service. New profiles may be added as consumer needs emerge.
 
 ---
 

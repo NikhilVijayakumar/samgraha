@@ -13,7 +13,7 @@ This document applies the architectural principles defined in Persistence Archit
 ## Feature Specification
 
 - **Feature:** docs/raw/feature/knowledge-registry.md
-- **Architecture:** docs/raw/architecture/persistence.md, docs/raw/architecture/component-model.md, docs/raw/architecture/runtime-boundary.md, docs/raw/architecture/workspace.md
+- **Architecture:** docs/raw/architecture/persistence.md, docs/raw/architecture/component-model.md, docs/raw/architecture/runtime-boundary.md, docs/raw/architecture/workspace.md, docs/raw/architecture/communication.md
 
 ---
 

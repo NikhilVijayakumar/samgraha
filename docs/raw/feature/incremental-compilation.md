@@ -1,4 +1,4 @@
-# Incremental Build
+# Incremental Compilation
 
 ## Purpose
 
@@ -10,7 +10,7 @@ Incremental Build guarantees that incremental execution produces the same Knowle
 
 ---
 
-# Functional Requirements
+## Functional Requirements
 
 ## FR1. Change Detection
 
@@ -125,7 +125,7 @@ Invalid dependency graphs or corrupted build state shall automatically trigger a
 
 ---
 
-# Business Rules
+## Business Rules
 
 * Incremental Build shall produce identical output to a clean build.
 * Generated artifacts are disposable.
@@ -136,7 +136,7 @@ Invalid dependency graphs or corrupted build state shall automatically trigger a
 
 ---
 
-# Build Lifecycle
+## Build Lifecycle
 
 ```text id="w4e2nk"
 Repository Changes
@@ -165,7 +165,7 @@ Knowledge Registry
 
 ---
 
-# Inputs
+## Inputs
 
 Incremental Build consumes:
 
@@ -178,7 +178,7 @@ Incremental Build consumes:
 
 ---
 
-# Outputs
+## Outputs
 
 Incremental Build produces:
 
@@ -191,7 +191,7 @@ Incremental Build produces:
 
 ---
 
-# Constraints
+## Constraints
 
 Incremental Build shall:
 
@@ -205,7 +205,7 @@ Incremental Build shall:
 
 ---
 
-# Dependencies
+## Dependencies
 
 Incremental Build depends upon:
 
@@ -217,7 +217,7 @@ Incremental Build depends upon:
 
 ---
 
-# Non-Goals
+## Non-Goals
 
 Incremental Build does not:
 
@@ -229,7 +229,7 @@ Incremental Build does not:
 
 ---
 
-# Future Extensions
+## Future Extensions
 
 The Incremental Build system should support:
 
@@ -243,7 +243,7 @@ The Incremental Build system should support:
 
 ---
 
-# Success Criteria
+## Acceptance Criteria
 
 The feature is successful when:
 
@@ -257,7 +257,7 @@ The feature is successful when:
 
 ---
 
-# Traceability
+## Traceability
 
 This feature derives from the following Vision commitments:
 

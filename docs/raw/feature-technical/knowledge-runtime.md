@@ -13,7 +13,7 @@ This document applies the architectural principles defined in Component Model, R
 ## Feature Specification
 
 - **Feature:** docs/raw/feature/knowledge-runtime.md
-- **Architecture:** docs/raw/architecture/runtime-boundary.md, docs/raw/architecture/component-model.md, docs/raw/architecture/communication.md, docs/raw/architecture/deployment.md
+- **Architecture:** docs/raw/architecture/runtime-boundary.md, docs/raw/architecture/component-model.md, docs/raw/architecture/communication.md, docs/raw/architecture/deployment.md, docs/raw/architecture/security-architecture.md
 
 ---
 

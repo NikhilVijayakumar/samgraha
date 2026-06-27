@@ -12,7 +12,7 @@ Documentation Standards are authoritative engineering assets.
 
 ---
 
-# Functional Requirements
+## Functional Requirements
 
 ## FR1. Standard Discovery
 
@@ -190,7 +190,7 @@ Section definitions are the foundation for semantic compilation, section-level s
 
 ---
 
-# Business Rules
+## Business Rules
 
 * Documentation Standards are authoritative.
 * Documentation contracts remain deterministic.
@@ -204,7 +204,7 @@ Section definitions are the foundation for semantic compilation, section-level s
 
 ---
 
-# Standards Lifecycle
+## Standards Lifecycle
 
 ```text
 Documentation Standards
@@ -225,7 +225,7 @@ Knowledge Runtime
 
 ---
 
-# Inputs
+## Inputs
 
 Documentation Standards consume:
 
@@ -236,7 +236,7 @@ Documentation Standards consume:
 
 ---
 
-# Outputs
+## Outputs
 
 Documentation Standards provide:
 
@@ -251,7 +251,7 @@ Outputs are consumed throughout the platform.
 
 ---
 
-# Constraints
+## Constraints
 
 Documentation Standards shall:
 
@@ -267,7 +267,7 @@ Physical storage and document formats are implementation concerns.
 
 ---
 
-# Dependencies
+## Dependencies
 
 Documentation Standards depend upon:
 
@@ -285,7 +285,7 @@ Documentation Standards provide contracts to:
 
 ---
 
-# Non-Goals
+## Non-Goals
 
 Documentation Standards do not:
 
@@ -299,7 +299,7 @@ Those responsibilities belong to other platform capabilities.
 
 ---
 
-# Future Extensions
+## Future Extensions
 
 The Documentation Standards framework should support future capabilities, including:
 
@@ -316,7 +316,7 @@ Future capabilities should integrate without changing the core standards model.
 
 ---
 
-# Success Criteria
+## Acceptance Criteria
 
 The feature is successful when:
 
@@ -332,7 +332,7 @@ The feature is successful when:
 
 ---
 
-# Traceability
+## Traceability
 
 This feature derives from the following Vision commitments:
 

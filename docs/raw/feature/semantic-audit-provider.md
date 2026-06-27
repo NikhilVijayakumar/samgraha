@@ -12,7 +12,7 @@ The Audit Framework remains fully functional without it.
 
 ---
 
-# Functional Requirements
+## Functional Requirements
 
 ## FR1. Semantic Evaluation
 
@@ -130,7 +130,7 @@ Platform functionality shall remain unaffected.
 
 ---
 
-# Business Rules
+## Business Rules
 
 * Semantic evaluation is optional.
 * Deterministic audits remain authoritative.
@@ -141,7 +141,7 @@ Platform functionality shall remain unaffected.
 
 ---
 
-# Audit Lifecycle
+## Semantic Audit Lifecycle
 
 ```text id="c5kn0x"
 Documentation
@@ -161,7 +161,7 @@ Combined Audit Report
 
 ---
 
-# Inputs
+## Inputs
 
 The Semantic Audit Provider consumes:
 
@@ -173,7 +173,7 @@ The Semantic Audit Provider consumes:
 
 ---
 
-# Outputs
+## Outputs
 
 The provider produces:
 
@@ -187,7 +187,7 @@ Outputs integrate into the Audit Framework.
 
 ---
 
-# Constraints
+## Constraints
 
 The provider shall:
 
@@ -202,7 +202,7 @@ AI provider implementation is an architectural concern.
 
 ---
 
-# Dependencies
+## Dependencies
 
 The Semantic Audit Provider depends upon:
 
@@ -219,7 +219,7 @@ The provider contributes results to:
 
 ---
 
-# Non-Goals
+## Non-Goals
 
 The Semantic Audit Provider does not:
 
@@ -233,7 +233,7 @@ Those responsibilities belong to the Audit Framework.
 
 ---
 
-# Future Extensions
+## Future Extensions
 
 The Semantic Audit Provider framework should support future capabilities, including:
 
@@ -250,7 +250,7 @@ Future providers should integrate without changing the Audit Framework.
 
 ---
 
-# Success Criteria
+## Acceptance Criteria
 
 The feature is successful when:
 
@@ -263,7 +263,7 @@ The feature is successful when:
 
 ---
 
-# Traceability
+## Traceability
 
 This feature derives from the following Vision commitments:
 

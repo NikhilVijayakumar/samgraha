@@ -12,7 +12,7 @@ It is never manually edited and can always be regenerated from repository docume
 
 ---
 
-# Functional Requirements
+## Functional Requirements
 
 ## FR1. Repository Registration
 
@@ -161,7 +161,7 @@ Consumers shall never observe partially committed registry updates.
 
 ---
 
-# Business Rules
+## Business Rules
 
 * Documentation is the authoritative source of knowledge.
 * The Knowledge Registry is a generated artifact.
@@ -173,7 +173,7 @@ Consumers shall never observe partially committed registry updates.
 
 ---
 
-# Registry Lifecycle
+## Registry Lifecycle
 
 ```text
 Documentation
@@ -203,7 +203,7 @@ Knowledge Consumers
 
 ---
 
-# Inputs
+## Inputs
 
 The Knowledge Registry consumes:
 
@@ -217,7 +217,7 @@ The Knowledge Registry consumes:
 
 ---
 
-# Outputs
+## Outputs
 
 The Knowledge Registry provides:
 
@@ -233,7 +233,7 @@ Outputs are consumed by platform services.
 
 ---
 
-# Constraints
+## Constraints
 
 The Knowledge Registry shall:
 
@@ -250,7 +250,7 @@ Physical persistence mechanisms are implementation concerns.
 
 ---
 
-# Dependencies
+## Dependencies
 
 The Knowledge Registry depends upon:
 
@@ -268,7 +268,7 @@ The Registry provides knowledge to:
 
 ---
 
-# Non-Goals
+## Non-Goals
 
 The Knowledge Registry does not:
 
@@ -283,7 +283,7 @@ Those responsibilities belong to their respective platform components.
 
 ---
 
-# Future Extensions
+## Future Extensions
 
 The Knowledge Registry should support future capabilities, including:
 
@@ -301,7 +301,7 @@ Future extensions should integrate without changing the logical registry model.
 
 ---
 
-# Success Criteria
+## Acceptance Criteria
 
 The feature is successful when:
 
@@ -315,7 +315,7 @@ The feature is successful when:
 
 ---
 
-# Traceability
+## Traceability
 
 This feature derives from the following Vision commitments:
 
