@@ -44,7 +44,7 @@ The Knowledge Registry may store discovered repository metadata for workspace re
 | Repository Discovery | Locate eligible repositories, validate configuration, collect metadata, report results |
 | Workspace Management | Determine workspace membership from discovered repositories |
 | Repository Configuration | Provide identity and structure definitions for validation |
-| Knowledge Registry | Store repository metadata for workspace resolution |
+| Repository Registry | Store repository metadata for workspace resolution and discovery (not Knowledge Registry) |
 
 ---
 

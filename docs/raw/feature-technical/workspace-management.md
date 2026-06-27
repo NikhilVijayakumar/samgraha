@@ -33,7 +33,7 @@ Workspace Management coordinates compilation across repository members. It deter
 
 ### Knowledge Registry
 
-The Knowledge Registry stores compiled knowledge for all workspace members. Repository isolation is preserved within the shared registry.
+Each repository within the workspace maintains its own Knowledge Registry (`knowledge.db`). The workspace does not own a single centralized registry. Cross-repository knowledge is assembled at runtime by the Knowledge Resolver from individual knowledge databases according to declared dependencies.
 
 ### Knowledge Runtime
 

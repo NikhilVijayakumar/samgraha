@@ -66,11 +66,19 @@ Terminal
     ▼
 CLI Adapter
     │
-    ├── samgraha compile  →  Knowledge Services → Knowledge Compiler
-    ├── samgraha search   →  Knowledge Services → Knowledge Registry
-    ├── samgraha audit    →  Knowledge Services → Audit Framework
-    ├── samgraha info     →  Knowledge Services → Knowledge Registry
-    └── samgraha init     →  Workspace Management
+    ├── samgraha compile        →  Knowledge Services → Knowledge Compiler
+    ├── samgraha search         →  Knowledge Services → Knowledge Registry
+    ├── samgraha audit          →  Knowledge Services → Audit Framework
+    ├── samgraha info           →  Knowledge Services → Knowledge Registry
+    ├── samgraha init           →  Workspace Management
+    └── samgraha registry *     →  Repository Registry (via RegistryClient)
+            ├── register        →  RegistryClient::register
+            ├── unregister      →  RegistryClient::unregister
+            ├── sync            →  RegistryClient::sync
+            ├── refresh         →  RegistryClient::sync (re-read manifest.json)
+            ├── status          →  RegistryClient::get_metadata + RepositoryStatus::compute
+            ├── list            →  RegistryClient::list
+            └── resolve runtime →  Metadata Cache inspection
     │
     ▼
 Formatted Output

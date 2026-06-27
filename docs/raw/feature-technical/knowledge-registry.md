@@ -43,6 +43,10 @@ Incremental Build manages artifact lifecycle — creation, invalidation, regener
 
 Knowledge Resolution reads registry content to compose Knowledge Packages.
 
+### Repository Registry
+
+The Repository Registry operates on the metadata track alongside the Knowledge Registry. It manages repository identity, lifecycle, and synchronization. The two registries never intersect — the Knowledge Registry stores compiled knowledge, the Repository Registry stores repository metadata.
+
 ---
 
 ## Component Responsibilities
@@ -55,6 +59,7 @@ Knowledge Resolution reads registry content to compose Knowledge Packages.
 | Knowledge Enrichment | Write optional derived metadata to registry |
 | Incremental Build | Coordinate artifact lifecycle — which entries are valid, stale, or missing |
 | Knowledge Resolution | Read registry content for package composition |
+| Repository Registry | Manage repository lifecycle and metadata on separate track |
 
 ---
 
@@ -171,6 +176,10 @@ Incremental Build reads artifact metadata to determine validity and coordinates 
 
 Resolution reads registry content to compose Knowledge Packages. It consumes documents, metadata, and dependency information.
 
+### Repository Registry
+
+The Knowledge Registry and Repository Registry coexist as separate tracks from compilation. The compiler produces two outputs: `knowledge.db` (Knowledge Registry) and `manifest.json` (Repository Registry). The two registries never intersect.
+
 ---
 
 ## External Dependency Integration
@@ -268,6 +277,7 @@ This document derives from:
 - Architecture: Runtime Boundary
 - Architecture: Workspace Architecture
 - Architecture: Communication Architecture
+- Architecture: Knowledge Flow
 
 This document provides technical context for:
 
@@ -275,6 +285,7 @@ This document provides technical context for:
 - Knowledge Runtime Technical Design
 - Incremental Build Technical Design
 - Knowledge Search Technical Design
+- Repository Registry Technical Design
 
 Traceability:
 
