@@ -52,8 +52,13 @@ impl CompilationService {
         // Persist newly compiled documents and their semantic sections to registry.
         for doc in &output.documents {
             registry.insert_document(doc)?;
-            registry.insert_document_sections(doc.id, &doc.sections)?;
+            let doc_sections: Vec<schemas::document::DocumentSection> = doc.body.sections().into_iter().cloned().collect();
+            registry.insert_document_sections(doc.id, &doc_sections)?;
         }
+
+        // Persist compiled knowledge graph
+        registry.clear_graph()?;
+        registry.insert_graph(&output.graph)?;
 
         // Remove registry entries for files that no longer exist on disk.
         let all_docs = registry.get_all_documents()?;

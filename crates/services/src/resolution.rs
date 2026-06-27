@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use crate::package::{PackageRequest, PackageService};
+use crate::package::{PackageFormat, PackageRequest, PackageService};
 
 /// Resolved view of the repository graph available for composition.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -46,8 +46,10 @@ impl KnowledgeResolver {
         root: &Path,
         config: &SamgrahaConfig,
         registry: Arc<RegistryStore>,
+        registry_path: &Path,
         profile: PackageProfile,
         output_path: PathBuf,
+        format: PackageFormat,
     ) -> Result<ResolutionResult> {
         // FR1: Discover primary repository.
         let docs = registry.get_all_documents()?;
@@ -94,8 +96,10 @@ impl KnowledgeResolver {
             output_path: output_path.clone(),
             profile,
             repository_name: repo_name,
+            format,
         };
-        let pkg_result = PackageService::generate(Arc::clone(&registry), &pkg_request)?;
+        let pkg_result =
+            PackageService::generate(Arc::clone(&registry), Some(registry_path), &pkg_request)?;
 
         Ok(ResolutionResult {
             context,
