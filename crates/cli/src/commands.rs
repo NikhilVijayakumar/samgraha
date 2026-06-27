@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use schemas::compilation::{CompilationRequest, CompilationScope};
 use schemas::package::PackageProfile;
+use services::package::PackageFormat;
 use schemas::search::{RetrievalLevel, SearchQuery, SectionQuery};
 use std::path::PathBuf;
 
@@ -123,6 +124,9 @@ pub enum Commands {
             help = "Package profile (minimal, development, documentation, engineering, ai-assistant, full)"
         )]
         profile: Option<String>,
+
+        #[arg(long = "json", help = "Output as single JSON file (legacy) instead of directory")]
+        json: bool,
     },
 
     #[command(about = "Workspace multi-repository operations")]
@@ -199,8 +203,8 @@ impl Cli {
             } => self.execute_audit(domain.as_deref(), provider, *all, *gate, &format),
             Commands::Info { path } => self.execute_info(path.as_ref(), &format),
             Commands::Init { path, force } => self.execute_init(path.as_ref(), *force, &format),
-            Commands::Package { output, profile } => {
-                self.execute_package(output.as_ref(), profile.as_deref(), &format)
+            Commands::Package { output, profile, json } => {
+                self.execute_package(output.as_ref(), profile.as_deref(), *json, &format)
             }
             Commands::Workspace { action } => self.execute_workspace(action, &format),
             Commands::Version => self.execute_version(&format),
@@ -482,6 +486,7 @@ impl Cli {
         &self,
         output: Option<&PathBuf>,
         profile: Option<&str>,
+        json_mode: bool,
         format: &OutputFormat,
     ) -> Result<ExitCode> {
         let root = crate::config::discover_repository_root()?;
@@ -497,12 +502,23 @@ impl Cli {
             _ => PackageProfile::Full,
         };
 
-        let output_path = output
-            .cloned()
-            .unwrap_or_else(|| root.join("knowledge-package.json"));
+        let pkg_format = if json_mode {
+            PackageFormat::Json
+        } else {
+            PackageFormat::Directory
+        };
 
-        let result = runtime.package(output_path.clone(), pkg_profile)?;
+        let output_path = output.cloned().unwrap_or_else(|| {
+            if json_mode {
+                root.join("knowledge-package.json")
+            } else {
+                root.join("knowledge-package")
+            }
+        });
 
+        let result = runtime.package(output_path.clone(), pkg_profile, pkg_format)?;
+
+        let format_label = if json_mode { "json" } else { "directory" };
         println!(
             "{}",
             format_output(
@@ -513,6 +529,7 @@ impl Cli {
                     "documents_packaged": result.documents_packaged,
                     "domains": result.package.manifest.included_domains,
                     "package_hash": result.package.integrity.package_hash,
+                    "format": format_label,
                 }),
                 format,
             )
