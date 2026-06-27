@@ -21,7 +21,7 @@ This document applies the architectural principles defined in Component Model, W
 
 ### Knowledge Package
 
-Knowledge Package owns package composition, manifest generation, integrity metadata, and lifecycle management. It transforms resolved knowledge into deployable artifacts.
+Knowledge Package owns package composition, manifest generation, integrity metadata, and lifecycle management. It transforms resolved knowledge into deployable artifacts. It supports two layout modes: Physical (portable) and Virtual (workspace-local).
 
 ### Knowledge Resolution
 
@@ -33,7 +33,7 @@ The Knowledge Registry provides the compiled knowledge and metadata that the pac
 
 ### Knowledge Runtime
 
-The Knowledge Runtime loads and serves Knowledge Packages. The runtime consumes packages as the authoritative compiled knowledge source during operation.
+The Knowledge Runtime loads and serves Knowledge Packages. The runtime consumes packages as the authoritative compiled knowledge source during operation. Virtual packages must be loaded in the same workspace where they were generated.
 
 ### Incremental Build
 
@@ -45,7 +45,7 @@ Incremental Build ensures package contents reflect current documentation. Stale 
 
 | Component | Responsibility |
 |---|---|
-| Knowledge Package | Compose package artifacts, generate manifests, compute integrity metadata, manage lifecycle |
+| Knowledge Package | Compose package artifacts, generate manifests, compute integrity metadata, manage lifecycle, select layout mode |
 | Knowledge Resolution | Provide composed knowledge scope and content |
 | Knowledge Registry | Provide compiled knowledge for packaging |
 | Knowledge Runtime | Load and serve packages during operation |
@@ -64,7 +64,11 @@ Knowledge Registry (read compiled knowledge)
         ▼
 Knowledge Package
         │
+        ├── Apply Consumer Profile (filter scope + section types)
         ├── Compose Artifacts
+        ├── Select Package Layout
+        │   ├── Physical → Copy knowledge.db + docs/ → portable
+        │   └── Virtual  → Write JSON manifest with absolute paths → local-only
         ├── Generate Manifest
         ├── Compute Integrity
         └── Validate Package
@@ -83,11 +87,14 @@ Knowledge Runtime (load and serve)
    - Section type filter: which semantic types to include from each document.
    - Profile examples: AI Assistant includes `purpose`, `functional_requirements`, `business_rules`, `constraints`; excludes `future_extensions`, `traceability`.
 5. Package composes the filtered artifacts — sections rather than full documents where the profile specifies section types.
-6. Package generates the package manifest describing contents, included section types, version, and metadata.
-7. Package computes integrity metadata (hashes, dependency consistency, audit status).
-8. Package validates completeness — manifest, artifacts, dependencies, integrity.
-9. Package writes the final Knowledge Package to the output location.
-10. Knowledge Runtime loads the validated package for serving.
+6. Package selects the output layout:
+   - **Physical** (default): Copies `knowledge.db` and `docs/` into the output directory. Portable across environments. Can be shared between machines or archived independently.
+   - **Virtual**: Writes a `VirtualPackageManifest` JSON file with absolute paths to source `knowledge.db` files. Workspace-local only. Requires all source repositories to remain at declared paths. Not portable.
+7. Package generates the package manifest describing contents, included section types, version, and metadata.
+8. Package computes integrity metadata (hashes, dependency consistency, audit status).
+9. Package validates completeness — manifest, artifacts, dependencies, integrity.
+10. Package writes the final Knowledge Package to the output location.
+11. Knowledge Runtime loads the validated package for serving.
 
 ---
 
@@ -113,7 +120,20 @@ Compose Package Artifacts
         └── Enrichment Artifacts
         │
         ▼
-Generate Manifest (includes included_section_types)
+Select Package Layout
+        │
+        ├── Physical (default):
+        │     ├── Copy knowledge.db → output/
+        │     ├── Copy docs/ → output/
+        │     └── Write manifest → output/samgraha-package.json
+        │
+        └── Virtual (--layout virtual):
+              ├── Resolve absolute paths to source knowledge.db files
+              ├── Write VirtualPackageManifest → output/samgraha-package.json
+              └── No file copies (references only)
+        │
+        ▼
+Generate Manifest (includes layout, included_section_types)
         │
         ▼
 Compute Integrity Metadata
@@ -130,11 +150,34 @@ Notify Consumers
 
 ### Determinism
 
-Identical resolution input produces identical packages. Package generation depends only on resolved knowledge and packaging configuration.
+Identical resolution input produces identical packages within the same layout mode. Package generation depends only on resolved knowledge and packaging configuration.
 
 ### Repository Isolation
 
 Packages preserve repository boundaries. Every artifact within a package remains traceable to its originating repository. Package composition never obscures repository ownership.
+
+### Layout Selection
+
+Layout is selected at package generation time:
+
+- **Default:** Physical. No CLI flag required.
+- **Virtual:** Explicit `--layout virtual` CLI flag.
+
+`PackageProfile` (what knowledge to include) and `PackageLayout` (how to package it) are orthogonal axes. Profile filtering runs first. Then the layout branch decides whether to copy files (Physical) or write a manifest with references (Virtual).
+
+```rust
+pub struct PackageRequest {
+    pub output_path: PathBuf,
+    pub profile: PackageProfile,   // what knowledge to include
+    pub layout: PackageLayout,     // how to package it
+    pub repository_name: String,
+}
+
+pub enum PackageLayout {
+    Physical,  // copies knowledge.db + docs/ → portable
+    Virtual,   // JSON manifest with absolute paths → workspace-local only
+}
+```
 
 ---
 
@@ -175,7 +218,7 @@ Resolution determines what goes into the package. The packaging component receiv
 
 ### Knowledge Registry
 
-The registry provides the compiled knowledge store. Packages are snapshots of registry content at a point in time.
+The registry provides the compiled knowledge store. Packages are snapshots of registry content at a point in time. Virtual packages reference registry files by absolute path rather than copying them.
 
 ### Knowledge Runtime
 
@@ -273,12 +316,14 @@ This document derives from:
 - Architecture: Persistence Architecture
 - Architecture: Deployment Architecture
 - Architecture: Knowledge Flow
+- Architecture: Repository Registry Architecture
 
 This document provides technical context for:
 
 - Engineering Packaging Strategy
 - Knowledge Runtime Technical Design
 - Knowledge Resolution Technical Design
+- Repository Registry Technical Design
 
 Traceability:
 

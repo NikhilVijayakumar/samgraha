@@ -13,7 +13,7 @@ This document applies the architectural principles defined in Component Model, W
 ## Feature Specification
 
 - **Feature:** docs/raw/feature/knowledge-resolution.md
-- **Architecture:** docs/raw/architecture/component-model.md, docs/raw/architecture/workspace.md, docs/raw/architecture/knowledge-flow.md, docs/raw/architecture/communication.md
+- **Architecture:** docs/raw/architecture/component-model.md, docs/raw/architecture/workspace.md, docs/raw/architecture/knowledge-flow.md, docs/raw/architecture/runtime-boundary.md, docs/raw/architecture/communication.md
 
 ---
 
@@ -27,6 +27,10 @@ The Knowledge Runtime owns resolution execution. Resolution is a Knowledge Servi
 
 The Knowledge Registry provides compiled knowledge for resolution. The resolver reads documents, metadata, and dependency information from the registry.
 
+### Metadata Cache
+
+Metadata Cache provides per-dependency repository metadata during resolution. The resolver reads `.meta.json` files from `.samgraha/dependencies/` to locate `knowledge.db` files and validate freshness. The cache is written during sync operations, never at runtime.
+
 ### Workspace Management
 
 Workspace Management provides the workspace context — which repositories participate, their relationships, and shared configuration.
@@ -39,6 +43,10 @@ The Knowledge Package component receives the resolved content and produces the d
 
 Incremental Build ensures the Knowledge Registry reflects current documentation. Resolution operates on up-to-date compiled knowledge.
 
+### Repository Registry
+
+The Repository Registry manages repository lifecycle and synchronization. It is never contacted during resolution — the Metadata Cache bridges the gap between compile-time registry updates and runtime resolution.
+
 ---
 
 ## Component Responsibilities
@@ -47,9 +55,11 @@ Incremental Build ensures the Knowledge Registry reflects current documentation.
 |---|---|
 | Knowledge Runtime | Coordinate resolution, invoke resolver, enforce repository boundaries |
 | Knowledge Registry | Provide compiled knowledge, metadata, and dependency information |
+| Metadata Cache | Provide per-dependency repository metadata, enforce TTL |
 | Workspace Management | Define workspace scope, repository membership, dependency declarations |
 | Knowledge Resolution Service | Identify relevant knowledge, resolve dependencies, compose package contents |
 | Knowledge Package | Package resolved content into deployable format |
+| Repository Registry | Synchronize repository metadata (compile-time only, never at runtime) |
 
 ---
 
@@ -65,13 +75,16 @@ Knowledge Runtime
 Workspace Management (resolve workspace context)
         │
         ▼
-Knowledge Registry (read compiled knowledge)
+Metadata Cache (lookup dependency metadata, enforce TTL)
+        │
+        ├── hit  → Knowledge Registry (read compiled knowledge)
+        └── miss → Degrade gracefully, report missing dependency
         │
         ▼
 Knowledge Resolution Service
         │
-        ├── Repository Discovery
-        ├── Dependency Resolution
+        ├── Dependency Resolution (with cycle detection via DFS)
+        ├── Repository Location (path resolution from cached metadata)
         ├── Knowledge Composition
         └── Context Reduction
         │
@@ -87,15 +100,23 @@ Knowledge Runtime (return result)
 1. Consumer initiates resolution through the Knowledge Runtime.
 2. Runtime identifies the active workspace and target repository.
 3. Runtime invokes the Knowledge Resolution service.
-4. Resolver reads workspace configuration to determine participating repositories.
-5. Resolver reads repository dependency declarations.
-6. Resolver queries the Knowledge Registry for compiled knowledge within scope.
-7. Resolver identifies required documentation domains and artifacts.
-8. Resolver excludes unrelated repositories and unnecessary artifacts (context reduction).
-9. Resolver composes the resolved knowledge set.
-10. Resolver validates package completeness and dependency consistency.
-11. Resolver passes the composed content to Knowledge Package for packaging.
-12. Resolver returns package metadata to the Knowledge Runtime.
+4. Resolver reads workspace configuration to determine participating repositories and their dependencies.
+5. Resolver queries the Metadata Cache for each declared dependency by ID:
+   - Cache hit with valid TTL: read `knowledge_db` path, revision, exports.
+   - Cache hit with expired TTL: use cached metadata (graceful degradation), report stale status.
+   - Cache miss: report missing dependency, continue with available repositories.
+6. Resolver runs dependency resolution with DFS cycle detection:
+   - Track visited set and recursion stack per dependency.
+   - If cycle detected, abort immediately with full cycle path error.
+   - No partial package produced on cycle detection.
+7. Resolver opens each resolved dependency's `knowledge.db` at the path from cached metadata.
+8. Resolver reads compiled knowledge from the Knowledge Registry for each available repository.
+9. Resolver identifies required documentation domains and artifacts.
+10. Resolver excludes unrelated repositories and unnecessary artifacts (context reduction).
+11. Resolver composes the resolved knowledge set.
+12. Resolver validates package completeness and dependency consistency.
+13. Resolver passes the composed content to Knowledge Package for packaging.
+14. Resolver returns package metadata to the Knowledge Runtime.
 
 ---
 
@@ -107,16 +128,26 @@ Knowledge Runtime (return result)
 Initialize Resolution
         │
         ▼
-Resolve Workspace
+Resolve Workspace Context
         │
         ▼
-Discover Repositories
+Read Declared Dependencies
         │
         ▼
-Resolve Dependencies
+Query Metadata Cache
+        │
+        ├── Hit (valid TTL) → Extract knowledge_db paths
+        ├── Hit (expired)   → Use stale, report STALE_METADATA status
+        └── Miss            → Report missing, continue with available
         │
         ▼
-Compose Knowledge
+Resolve Dependencies (DFS, detect cycles)
+        │
+        ▼
+Open knowledge.db Files (read-only)
+        │
+        ▼
+Read Compiled Knowledge
         │
         ▼
 Reduce Context
@@ -130,7 +161,33 @@ Return Resolved Content
 
 ### Determinism
 
-Identical workspace configuration and registry content produce identical resolution output. Resolution depends only on declared configuration and compiled knowledge.
+Identical workspace configuration, registry content, and metadata cache state produce identical resolution output. Resolution depends only on declared configuration, compiled knowledge, and cached metadata.
+
+### Cycle Detection
+
+The resolver detects dependency cycles using depth-first search:
+
+```
+initialize visited: Set<String>
+initialize stack: Vec<String>
+
+for each dependency:
+    if not visited:
+        dfs(dependency)
+
+fn dfs(node):
+    if node in stack:
+        extract cycle from stack → abort with full cycle path
+    if node in visited:
+        return
+    add node to visited
+    push node to stack
+    for each neighbor of node:
+        dfs(neighbor)
+    pop node from stack
+```
+
+On cycle detection, resolution aborts immediately. No partial package is produced.
 
 ---
 
@@ -143,6 +200,14 @@ The runtime queries workspace membership, repository configuration, and dependen
 ### Knowledge Runtime → Knowledge Registry
 
 The runtime queries compiled knowledge within the resolved scope. Registry queries are filtered by repository and domain.
+
+### Knowledge Runtime → Metadata Cache
+
+The runtime queries the Metadata Cache for each declared dependency. Cache reads are file-based — read `.meta.json` from `.samgraha/dependencies/{id}.meta.json`. No database queries at resolution time.
+
+### Knowledge Runtime → Repository Registry
+
+The Knowledge Resolver never contacts the Repository Registry at runtime. All required metadata is served from the Metadata Cache.
 
 ### Knowledge Resolution → Knowledge Package
 
@@ -158,6 +223,8 @@ The resolver passes composed knowledge to the packaging service. The package ser
 | Repository Configuration | Repository | Read |
 | Compiled Knowledge | Knowledge Registry | Read |
 | Dependency Declarations | Repository | Read |
+| Dependency Metadata (cached) | Metadata Cache | Read |
+| Repository Manifest | Knowledge Compiler | Read during cache refresh |
 | Resolution Context | Knowledge Runtime | Transient |
 | Composed Knowledge | Knowledge Package | Transient |
 
@@ -172,6 +239,14 @@ Resolution depends on workspace configuration to determine repository scope and 
 ### Knowledge Registry
 
 Resolution reads all compiled knowledge from the registry. Registry integrity directly affects resolution correctness.
+
+### Metadata Cache
+
+Resolution reads dependency metadata from the cache. Cache freshness is enforced by TTL comparison during resolution. Cache writes happen during compilation sync (auto_refresh) or explicit `samgraha registry sync`.
+
+### Repository Registry
+
+The Repository Registry is not integrated at runtime. It is a compile-time and synchronization integration only. Resolution integration with the Registry is indirect — through the Metadata Cache.
 
 ### Knowledge Package
 
@@ -233,11 +308,12 @@ Optional: Remote repository registries may be supported in the future for distri
 
 | Failure | Behavior |
 |---|---|
-| Missing dependency | Report unresolved dependency, abort resolution |
-| Dependency cycle | Report cycle with participating repositories, abort resolution |
-| Registry unavailable | Report error, retry after registry initialization |
+| Metadata cache miss | Report missing dependency, degrade gracefully — resolution continues with available repositories |
+| Metadata cache expired | Report `STALE_METADATA`, use stale metadata if auto_refresh fails — resolution continues |
+| Dependency cycle | Report cycle with full path, abort resolution — no partial package produced |
 | Configuration error | Report error with configuration path, abort resolution |
 | Workspace not found | Report error, suggest initialization |
+| `knowledge.db` inaccessible | Report error for that repository, degrade gracefully — continue with remaining repositories |
 
 ---
 
@@ -265,6 +341,7 @@ This document derives from:
 - Architecture: Component Model
 - Architecture: Workspace Architecture
 - Architecture: Knowledge Flow
+- Architecture: Runtime Boundary
 - Architecture: Communication Architecture
 
 This document provides technical context for:
@@ -272,6 +349,7 @@ This document provides technical context for:
 - Engineering Resolution Strategy
 - Knowledge Package Technical Design
 - MCP Runtime Technical Design
+- Repository Registry Technical Design
 
 Traceability:
 

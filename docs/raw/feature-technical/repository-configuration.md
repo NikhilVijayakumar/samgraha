@@ -13,7 +13,7 @@ This document applies the architectural principles defined in Component Model, W
 ## Feature Specification
 
 - **Feature:** docs/raw/feature/repository-configuration.md
-- **Architecture:** docs/raw/architecture/component-model.md, docs/raw/architecture/workspace.md, docs/raw/architecture/persistence.md, docs/raw/architecture/communication.md
+- **Architecture:** docs/raw/architecture/component-model.md, docs/raw/architecture/workspace.md, docs/raw/architecture/persistence.md, docs/raw/architecture/runtime-boundary.md, docs/raw/architecture/communication.md
 
 ---
 
@@ -47,19 +47,29 @@ Knowledge Enrichment reads repository configuration to determine enrichment prof
 
 The Knowledge Registry reads repository configuration to determine output locations and registry layout.
 
+### Knowledge Resolver
+
+The Knowledge Resolver reads the `[resolver]` section of repository configuration to configure metadata caching behavior, TTL, and registry type.
+
+### Repository Registry
+
+The Repository Registry reads repository identity configuration (UUID, id, name) during registration and synchronization.
+
 ---
 
 ## Component Responsibilities
 
 | Component | Responsibility |
 |---|---|
-| Repository Configuration | Define identity, documentation sources, standards, build settings, workspace membership, platform policies |
+| Repository Configuration | Define identity, documentation sources, standards, build settings, workspace membership, resolver settings, platform policies |
 | Workspace Management | Read configuration for workspace membership and shared settings |
 | Knowledge Compiler | Read configuration for compilation scope and behavior |
 | Documentation Standards | Declare applicable standard versions |
 | Audit Framework | Read audit policies and quality gate configuration |
 | Knowledge Enrichment | Read enrichment profiles and provider configuration |
 | Knowledge Registry | Read output locations and registry settings |
+| Knowledge Resolver | Read resolver configuration — metadata cache, TTL, auto-refresh, registry type |
+| Repository Registry | Read identity configuration — UUID, id, name |
 
 ---
 
@@ -73,7 +83,9 @@ Repository Configuration
         ├── Documentation Standards (read version declarations)
         ├── Audit Framework (read audit policies)
         ├── Knowledge Enrichment (read enrichment profiles)
-        └── Knowledge Registry (read output locations)
+        ├── Knowledge Registry (read output locations)
+        ├── Knowledge Resolver (read [resolver] section — cache TTL, auto_refresh, registry_type)
+        └── Repository Registry (read identity — uuid, id, name)
 ```
 
 ### Configuration Load Flow
@@ -258,6 +270,7 @@ This document derives from:
 - Architecture: Component Model
 - Architecture: Workspace Architecture
 - Architecture: Persistence Architecture
+- Architecture: Runtime Boundary
 - Architecture: Communication Architecture
 
 This document provides technical context for:
@@ -265,6 +278,8 @@ This document provides technical context for:
 - Engineering Configuration Strategy
 - Workspace Management Technical Design
 - Repository Discovery Technical Design
+- Repository Registry Technical Design
+- Knowledge Resolution Technical Design
 
 Traceability:
 
