@@ -41,21 +41,35 @@ impl DeterministicAuditProvider {
                     provider: "deterministic".into(),
                 })
                 .collect(),
-            "has_section" => documents
-                .par_iter()
-                .filter(|doc| !has_section(&doc.body, &rule.scope))
-                .map(|doc| AuditFinding {
-                    check_id: rule.id.clone(),
-                    severity: Severity::from_str(&rule.severity),
-                    message: format!("{}: '{}'", rule.description, doc.path.as_str()),
-                    location: Some(doc.path.as_str().to_string()),
-                    document_id: Some(doc.id),
-                    provider: "deterministic".into(),
-                })
-                .collect(),
+            "has_section" => {
+                let section_key = rule
+                    .scope
+                    .to_lowercase()
+                    .replace(' ', "_")
+                    .replace('-', "_");
+                documents
+                    .par_iter()
+                    .filter(|doc| {
+                        doc.quality
+                            .per_type
+                            .get(&section_key)
+                            .copied()
+                            .unwrap_or(0)
+                            == 0
+                    })
+                    .map(|doc| AuditFinding {
+                        check_id: rule.id.clone(),
+                        severity: Severity::from_str(&rule.severity),
+                        message: format!("{}: '{}'", rule.description, doc.path.as_str()),
+                        location: Some(doc.path.as_str().to_string()),
+                        document_id: Some(doc.id),
+                        provider: "deterministic".into(),
+                    })
+                    .collect()
+            }
             "no_implementation" => documents
                 .par_iter()
-                .filter(|doc| has_implementation_details(&doc.body))
+                .filter(|doc| has_implementation_details(doc.body.raw()))
                 .map(|doc| AuditFinding {
                     check_id: rule.id.clone(),
                     severity: Severity::from_str(&rule.severity),
@@ -68,16 +82,6 @@ impl DeterministicAuditProvider {
             _ => vec![],
         }
     }
-}
-
-fn has_section(body: &str, heading: &str) -> bool {
-    if heading.is_empty() {
-        return true;
-    }
-    let lower_body = body.to_lowercase();
-    let lower_heading = heading.to_lowercase();
-    lower_body.contains(&format!("## {}", lower_heading))
-        || lower_body.contains(&format!("# {}", lower_heading))
 }
 
 fn has_implementation_details(body: &str) -> bool {
