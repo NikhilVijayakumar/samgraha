@@ -1,4 +1,6 @@
 use serde::{Deserialize, Serialize};
+use crate::diagnostics::CompilationDiagnostic;
+use crate::quality::ObjectStatistics;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CompilationRequest {
@@ -24,6 +26,8 @@ pub struct CompilationResult {
     pub documents_skipped: usize,
     pub errors: Vec<CompilationError>,
     pub warnings: Vec<String>,
+    pub diagnostics: Vec<CompilationDiagnostic>,
+    pub quality: Option<ObjectStatistics>,
     pub duration_ms: u64,
     pub registry_path: Option<String>,
 }

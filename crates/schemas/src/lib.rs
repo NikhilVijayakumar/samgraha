@@ -1,17 +1,27 @@
 pub mod audit;
 pub mod compilation;
+pub mod diagnostics;
 pub mod document;
 pub mod enrichment;
+pub mod graph;
+pub mod objects;
 pub mod package;
+pub mod quality;
 pub mod registry;
 pub mod search;
 pub mod standard;
+pub mod urn;
 
 pub use audit::*;
 pub use compilation::*;
+pub use diagnostics::*;
 pub use document::*;
 pub use enrichment::*;
+pub use graph::*;
+pub use objects::*;
 pub use package::*;
+pub use quality::*;
 pub use registry::*;
 pub use search::*;
 pub use standard::*;
+pub use urn::*;
