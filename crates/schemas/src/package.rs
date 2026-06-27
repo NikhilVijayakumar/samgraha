@@ -55,6 +55,27 @@ pub enum PackageProfile {
     Full,
 }
 
+/// Package layout strategy.
+///
+/// `Physical` copies knowledge databases and documentation into the output directory.
+/// `Virtual` creates a reference-only manifest with absolute paths — workspace-local only.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum PackageLayout {
+    #[serde(rename = "physical")]
+    Physical,
+    #[serde(rename = "virtual")]
+    Virtual,
+}
+
+impl std::fmt::Display for PackageLayout {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Physical => write!(f, "physical"),
+            Self::Virtual => write!(f, "virtual"),
+        }
+    }
+}
+
 impl std::fmt::Display for PackageProfile {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

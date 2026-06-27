@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use schemas::document::{Document, DocumentBody, DocumentMetadata, DocumentPath};
 use schemas::quality::ObjectStatistics;
 use std::path::PathBuf;

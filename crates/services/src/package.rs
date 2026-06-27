@@ -1,14 +1,27 @@
 use anyhow::{Context, Result};
 use registry::RegistryStore;
 use schemas::document::Document;
+use schemas::manifest::{RepositoryManifest, VirtualPackageManifest, VirtualRepoEntry};
 use schemas::package::{
-    KnowledgePackage, PackageArtifact, PackageIntegrity, PackageManifest, PackageProfile,
+    KnowledgePackage, PackageArtifact, PackageIntegrity, PackageLayout, PackageManifest,
+    PackageProfile,
 };
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tracing::info;
+use uuid::Uuid;
+
+/// Additional repository paths to include in a multi-repo package.
+/// Passed alongside the primary registry for Physical layout assembly.
+pub struct DependencyRepo {
+    pub id: String,
+    pub name: String,
+    pub root: String,
+    pub knowledge_db: String,
+    pub revision: u64,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PackageFormat {
@@ -25,6 +38,8 @@ pub struct PackageRequest {
     pub profile: PackageProfile,
     pub repository_name: String,
     pub format: PackageFormat,
+    pub layout: PackageLayout,
+    pub primary_root: Option<String>,
 }
 
 impl Default for PackageRequest {
@@ -34,6 +49,8 @@ impl Default for PackageRequest {
             profile: PackageProfile::Full,
             repository_name: String::new(),
             format: PackageFormat::Directory,
+            layout: PackageLayout::Physical,
+            primary_root: None,
         }
     }
 }
@@ -49,12 +66,17 @@ impl PackageService {
         registry: Arc<RegistryStore>,
         registry_path: Option<&Path>,
         request: &PackageRequest,
+        dependencies: &[DependencyRepo],
     ) -> Result<PackageResult> {
+        if request.layout == PackageLayout::Virtual {
+            return Self::generate_virtual(request, dependencies);
+        }
+
         let docs = registry.get_all_documents()?;
         let filtered = Self::filter_by_profile(&docs, &request.profile);
 
         let (artifacts, artifact_hashes) = if request.format == PackageFormat::Directory {
-            Self::build_directory_package(&filtered, &request, &registry, registry_path)?
+            Self::build_directory_package(&filtered, &request, &registry, registry_path, dependencies)?
         } else {
             Self::build_json_artifacts(&filtered, &request, &registry)?
         };
@@ -108,6 +130,106 @@ impl PackageService {
         })
     }
 
+    /// Generate a Virtual package (reference-only manifest, no file copying).
+    fn generate_virtual(
+        request: &PackageRequest,
+        dependencies: &[DependencyRepo],
+    ) -> Result<PackageResult> {
+        let workspace_root = request
+            .primary_root
+            .as_deref()
+            .and_then(|r| Path::new(r).parent())
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_default();
+
+        // Include primary repository as first entry.
+        let mut entries: Vec<VirtualRepoEntry> = Vec::new();
+        let primary_manifest = request.primary_root.as_ref().and_then(|root| {
+            let manifest_path = Path::new(root).join(".samgraha").join("manifest.json");
+            std::fs::read_to_string(&manifest_path).ok()
+                .and_then(|c| serde_json::from_str::<RepositoryManifest>(&c).ok())
+        });
+
+        let primary_uuid = primary_manifest.as_ref().map(|m| m.repository.uuid).unwrap_or(Uuid::nil());
+        let primary_revision = primary_manifest.as_ref().map(|m| m.revision).unwrap_or(0);
+
+        entries.push(VirtualRepoEntry {
+            id: request.repository_name.clone(),
+            uuid: primary_uuid,
+            knowledge_db: request.primary_root.as_ref().map_or_else(String::new, |root| {
+                Path::new(root).join(".samgraha").join("knowledge.db").to_string_lossy().to_string()
+            }),
+            revision: primary_revision,
+        });
+
+        // Add dependency repos, reading actual UUID from each manifest.
+        for dep in dependencies {
+            let uuid = std::fs::read_to_string(
+                Path::new(&dep.root).join(".samgraha").join("manifest.json"),
+            )
+            .ok()
+            .and_then(|c| serde_json::from_str::<RepositoryManifest>(&c).ok())
+            .map(|m| m.repository.uuid)
+            .unwrap_or(Uuid::nil());
+
+            entries.push(VirtualRepoEntry {
+                id: dep.id.clone(),
+                uuid,
+                knowledge_db: dep.knowledge_db.clone(),
+                revision: dep.revision,
+            });
+        }
+
+        let manifest = VirtualPackageManifest {
+            layout: "virtual".to_string(),
+            generated_at: chrono::Utc::now().to_rfc3339(),
+            workspace_root,
+            repositories: entries,
+        };
+
+        let output_dir = &request.output_path;
+        std::fs::create_dir_all(output_dir)?;
+        let manifest_path = output_dir.join("virtual-package.json");
+        let json = serde_json::to_string_pretty(&manifest)?;
+        std::fs::write(&manifest_path, &json)?;
+
+            let package = KnowledgePackage {
+                manifest: PackageManifest {
+                    name: format!("{}-knowledge-virtual", request.repository_name),
+                    version: "0.1.0".to_string(),
+                    description: format!(
+                        "Virtual knowledge package for {} (profile: {}, layout: virtual)",
+                        request.repository_name, request.profile
+                    ),
+                    repository: request.repository_name.clone(),
+                    included_repositories: {
+                        let mut repos = vec![request.repository_name.clone()];
+                        repos.extend(dependencies.iter().map(|d| d.id.clone()));
+                        repos
+                    },
+                included_domains: Vec::new(),
+                dependencies: Vec::new(),
+                generated_at: epoch_now(),
+                compiler_version: env!("CARGO_PKG_VERSION").to_string(),
+                profile: request.profile.to_string(),
+            },
+            artifacts: Vec::new(),
+            integrity: schemas::package::PackageIntegrity {
+                package_hash: String::new(),
+                artifact_hashes: HashMap::new(),
+                signature: None,
+            },
+        };
+
+        Self::validate(&package)?;
+
+        Ok(PackageResult {
+            package,
+            output_path: request.output_path.clone(),
+            documents_packaged: 0,
+        })
+    }
+
     /// Build artifacts list for JSON-only output (legacy).
     fn build_json_artifacts(
         filtered: &[&Document],
@@ -140,6 +262,7 @@ impl PackageService {
         request: &PackageRequest,
         registry: &RegistryStore,
         registry_path: Option<&Path>,
+        dependencies: &[DependencyRepo],
     ) -> Result<(Vec<PackageArtifact>, HashMap<String, String>)> {
         let output_dir = &request.output_path;
         if output_dir.exists() {
@@ -197,6 +320,31 @@ impl PackageService {
                     hash: db_hash,
                     artifact_type: "registry/db".into(),
                     repository: request.repository_name.clone(),
+                    source_document: None,
+                });
+            }
+        }
+
+        // Copy dependency knowledge databases.
+        for dep in dependencies {
+            let dep_db = Path::new(&dep.knowledge_db);
+            if dep_db.exists() {
+                let target_dep_dir = output_dir.join("dependencies");
+                std::fs::create_dir_all(&target_dep_dir)?;
+                let target_dep_db = target_dep_dir.join(format!("{}.knowledge.db", dep.id));
+                std::fs::copy(dep_db, &target_dep_db).context(format!(
+                    "Failed to copy dependency DB from {} to {}",
+                    dep_db.display(),
+                    target_dep_db.display()
+                ))?;
+                let rel_dep_db = format!("dependencies/{}.knowledge.db", dep.id);
+                let dep_db_hash = file_hash(&target_dep_db);
+                hashes.insert(rel_dep_db.clone(), dep_db_hash.clone());
+                artifacts.push(PackageArtifact {
+                    path: rel_dep_db,
+                    hash: dep_db_hash,
+                    artifact_type: "registry/db".into(),
+                    repository: dep.id.clone(),
                     source_document: None,
                 });
             }
@@ -281,7 +429,8 @@ impl PackageService {
         if pkg.manifest.repository.is_empty() {
             anyhow::bail!("Package manifest missing repository");
         }
-        if pkg.integrity.package_hash.is_empty() {
+        // Virtual packages have no artifacts and no integrity hash — skip hash check.
+        if !pkg.artifacts.is_empty() && pkg.integrity.package_hash.is_empty() {
             anyhow::bail!("Package integrity hash missing");
         }
         Ok(())
@@ -315,9 +464,5 @@ fn file_hash(path: &Path) -> String {
 }
 
 fn epoch_now() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let dur = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default();
-    format!("{}", dur.as_secs())
+    chrono::Utc::now().to_rfc3339()
 }

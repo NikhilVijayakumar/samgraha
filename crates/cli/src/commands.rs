@@ -6,7 +6,7 @@ use services::package::PackageFormat;
 use schemas::search::{RetrievalLevel, SearchQuery, SectionQuery};
 use std::path::PathBuf;
 
-use crate::output::{format_output, render_audit, render_compile, render_info, render_search, render_sections, render_workspace_compile, OutputFormat};
+use crate::output::{format_output, render_audit, render_compile, render_info, render_registry_list, render_search, render_sections, render_workspace_compile, OutputFormat};
 use common::config::SamgrahaConfig;
 use services::{KnowledgeRuntime, WorkspaceService};
 
@@ -129,6 +129,12 @@ pub enum Commands {
         json: bool,
     },
 
+    #[command(about = "Repository Registry operations")]
+    Registry {
+        #[command(subcommand)]
+        action: RegistryAction,
+    },
+
     #[command(about = "Workspace multi-repository operations")]
     Workspace {
         #[command(subcommand)]
@@ -165,6 +171,30 @@ pub enum WorkspaceAction {
 
         #[arg(long = "max", default_value = "20")]
         max: usize,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum RegistryAction {
+    #[command(about = "Register this repository in local registry")]
+    Register,
+    #[command(about = "Unregister a repository by UUID")]
+    Unregister {
+        #[arg(help = "Repository UUID")]
+        uuid: String,
+    },
+    #[command(about = "Sync dependency metadata from their manifests")]
+    Sync,
+    #[command(about = "Refresh all cached dependency metadata")]
+    Refresh,
+    #[command(about = "Show registry status")]
+    Status,
+    #[command(about = "List registered repositories")]
+    List,
+    #[command(about = "Resolve dependencies for runtime")]
+    Resolve {
+        #[arg(help = "Resolution mode (runtime)")]
+        mode: String,
     },
 }
 
@@ -206,6 +236,7 @@ impl Cli {
             Commands::Package { output, profile, json } => {
                 self.execute_package(output.as_ref(), profile.as_deref(), *json, &format)
             }
+            Commands::Registry { action } => self.execute_registry(action, &format),
             Commands::Workspace { action } => self.execute_workspace(action, &format),
             Commands::Version => self.execute_version(&format),
         }
@@ -467,7 +498,15 @@ impl Cli {
             );
         }
 
-        let config = SamgrahaConfig::default();
+        let mut config = SamgrahaConfig::default();
+        let dir_name = root
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("repository")
+            .to_string();
+        config.repository.id = Some(dir_name.clone());
+        config.repository.name = Some(dir_name);
+        config.repository.uuid = Some(uuid::Uuid::new_v4());
         let content = toml::to_string_pretty(&config)?;
         std::fs::write(&config_path, content).context(format!(
             "Failed to write config to {}",
@@ -536,6 +575,148 @@ impl Cli {
         );
 
         Ok(ExitCode::Success)
+    }
+
+    fn execute_registry(&self, action: &RegistryAction, format: &OutputFormat) -> Result<ExitCode> {
+        let root = crate::config::discover_repository_root()?;
+        let config = crate::config::load_config(self.config.as_ref())?;
+
+        use services::registry_client::FileRegistryClient;
+        use services::registry_client::RegistryClient;
+
+        let client = FileRegistryClient::with_config(&root, &config.resolver);
+
+        match action {
+            RegistryAction::Register => {
+                let manifest_path = root.join(".samgraha").join("manifest.json");
+                if !manifest_path.exists() {
+                    anyhow::bail!(
+                        "No manifest found at {}. Compile the repository first.",
+                        manifest_path.display()
+                    );
+                }
+                let content = std::fs::read_to_string(&manifest_path)?;
+                let manifest: schemas::manifest::RepositoryManifest =
+                    serde_json::from_str(&content)?;
+                client.register(&manifest)?;
+                println!(
+                    "{}",
+                    format_output(
+                        &serde_json::json!({
+                            "success": true,
+                            "action": "register",
+                            "repository": manifest.repository.id,
+                            "uuid": manifest.repository.uuid.to_string(),
+                        }),
+                        format,
+                    )
+                );
+                Ok(ExitCode::Success)
+            }
+            RegistryAction::Unregister { uuid } => {
+                let parsed_uuid = uuid::Uuid::parse_str(uuid)?;
+                client.unregister(&parsed_uuid)?;
+                println!(
+                    "{}",
+                    format_output(
+                        &serde_json::json!({
+                            "success": true,
+                            "action": "unregister",
+                            "uuid": uuid,
+                        }),
+                        format,
+                    )
+                );
+                Ok(ExitCode::Success)
+            }
+            RegistryAction::Sync => {
+                client.sync(&config)?;
+                println!(
+                    "{}",
+                    format_output(
+                        &serde_json::json!({
+                            "success": true,
+                            "action": "sync",
+                        }),
+                        format,
+                    )
+                );
+                Ok(ExitCode::Success)
+            }
+            RegistryAction::Refresh => {
+                client.sync(&config)?;
+                println!(
+                    "{}",
+                    format_output(
+                        &serde_json::json!({
+                            "success": true,
+                            "action": "refresh",
+                        }),
+                        format,
+                    )
+                );
+                Ok(ExitCode::Success)
+            }
+            RegistryAction::Status => {
+                let entries = client.list()?;
+                let now = std::time::SystemTime::now();
+                let repos: Vec<_> = entries
+                    .iter()
+                    .map(|e| serde_json::json!({
+                        "id": e.repository.id,
+                        "uuid": e.repository.uuid.to_string(),
+                        "status": format!("{:?}", e.status(now)),
+                        "revision": e.revision,
+                        "audit": e.audit,
+                        "expires": e.expires,
+                    }))
+                    .collect();
+                println!(
+                    "{}",
+                    format_output(
+                        &serde_json::json!({
+                            "registered": entries.len(),
+                            "dependencies": config.repository.dependencies.len(),
+                            "repositories": repos,
+                        }),
+                        format,
+                    )
+                );
+                Ok(ExitCode::Success)
+            }
+            RegistryAction::List => {
+                let entries = client.list()?;
+                println!("{}", render_registry_list(&entries, format));
+                Ok(ExitCode::Success)
+            }
+            RegistryAction::Resolve { mode } => {
+                if mode != "runtime" {
+                    anyhow::bail!("Unsupported resolve mode: {}. Use 'runtime'.", mode);
+                }
+                let runtime = KnowledgeRuntime::new(&root, config)?;
+                let output_path = root.join(".samgraha").join("resolved");
+                let result = runtime.resolve(
+                    schemas::package::PackageProfile::Full,
+                    output_path,
+                    PackageFormat::Directory,
+                    schemas::package::PackageLayout::Virtual,
+                )?;
+                println!(
+                    "{}",
+                    format_output(
+                        &serde_json::json!({
+                            "success": true,
+                            "action": "resolve",
+                            "mode": mode,
+                            "repositories": result.context.dependencies.len() + 1,
+                            "output": result.output_path.display().to_string(),
+                        }),
+                        format,
+                    )
+                );
+                Ok(ExitCode::Success)
+            }
+        }
     }
 
     fn execute_workspace(&self, action: &WorkspaceAction, format: &OutputFormat) -> Result<ExitCode> {

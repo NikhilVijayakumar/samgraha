@@ -6,6 +6,7 @@ license.workspace = true
 
 [dependencies]
 common.workspace = true
+registry.workspace = true
 schemas.workspace = true
 services.workspace = true
 tracing.workspace = true
@@ -13,3 +14,4 @@ thiserror.workspace = true
 anyhow.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+uuid.workspace = true

@@ -23,9 +23,9 @@ Repository discovery uses the local metadata cache as its primary source:
 * workspace configuration
 * repository configuration
 * declared dependencies
-* cached metadata (.meta.json files)
+* cached metadata (`.samgraha/registry.db` — `repository_cache` table)
 
-The metadata cache is populated from the Repository Registry during sync. The resolver never contacts the Repository Registry directly during discovery.
+The metadata cache (`.samgraha/registry.db`) is populated from the Repository Registry during sync. The resolver never contacts the Repository Registry directly during discovery.
 
 Repository discovery determines the available knowledge sources.
 
@@ -149,7 +149,7 @@ When repository knowledge changes, only affected Knowledge Packages shall be rec
 
 * Documentation remains the authoritative source of knowledge.
 * The Knowledge Registry provides compiled knowledge.
-* Resolution never modifies source documentation, compiled knowledge databases, or repository configuration. Resolution may write disposable metadata files to `.samgraha/dependencies/` as a performance optimization. These files are excluded from version control and can be deleted without affecting correctness.
+* Resolution never modifies source documentation, compiled knowledge databases, or repository configuration. Resolution may update the registry cache in `.samgraha/registry.db` as a performance optimization. The cache database is disposable and can be deleted without affecting correctness.
 * Knowledge Packages are generated artifacts.
 * Resolution shall be deterministic.
 * Unrelated repositories shall not be included.
@@ -211,7 +211,7 @@ Knowledge Resolution consumes:
 * audit metadata
 * enrichment artifacts
 * resolution configuration
-* metadata cache (.meta.json files)
+* metadata cache (`.samgraha/registry.db` — `repository_cache` table)
 
 ---
 

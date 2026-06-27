@@ -1,4 +1,5 @@
 use anyhow::Result;
+use chrono::Utc;
 use common::config::SamgrahaConfig;
 use compiler::CompilationPipeline;
 use providers::traits::EnrichmentProvider;
@@ -6,15 +7,29 @@ use providers::RuleBasedProvider;
 use registry::RegistryStore;
 use schemas::compilation::{CompilationRequest, CompilationResult};
 use schemas::enrichment::{EnrichmentProfile, EnrichmentType};
+use schemas::manifest::{AuditSummary, CompilerInfo, KnowledgeLocation, RepoIdentity, RepositoryManifest};
 use standards::StandardRegistry;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 use tracing::info;
+use uuid::Uuid;
 
 use crate::enrichment::EnrichmentService;
+use crate::registry_client::{FileRegistryClient, RegistryClient};
 
 pub struct CompilationService;
+
+/// Read existing manifest audit fields. Returns (status, last_audit) or defaults.
+pub fn read_existing_audit(root: &Path) -> (String, Option<String>) {
+    let manifest_path = root.join(".samgraha").join("manifest.json");
+    if let Ok(content) = std::fs::read_to_string(&manifest_path) {
+        if let Ok(manifest) = serde_json::from_str::<RepositoryManifest>(&content) {
+            return (manifest.audit.status, manifest.audit.last_audit);
+        }
+    }
+    ("PASS".to_string(), None)
+}
 
 impl CompilationService {
     pub fn execute<P: AsRef<Path>>(
@@ -69,52 +84,152 @@ impl CompilationService {
             }
         }
 
+        // Write Repository Manifest (Phase F2) — only on full success (zero failures).
+        let success = output.result.success;
+        if success {
+            let next_revision = registry.get_revision().map(|r| r + 1).unwrap_or(1);
+
+            let uuid = config.repository.uuid.unwrap_or_else(|| {
+                let new_uuid = Uuid::new_v4();
+                tracing::warn!(
+                    "Repository UUID not configured in samgraha.toml. \
+                     Generated temporary UUID: {}. \
+                     Set repository.uuid in samgraha.toml to make it permanent.",
+                    new_uuid
+                );
+                new_uuid
+            });
+
+            let mut exports: Vec<String> = registry
+                .get_all_documents()
+                .unwrap_or_default()
+                .iter()
+                .map(|d| d.standard.clone())
+                .collect();
+            exports.sort();
+            exports.dedup();
+
+            let mut capabilities: Vec<String> = vec!["compile".to_string(), "mcp".to_string()];
+            if config.audit.providers.iter().any(|p| p == "deterministic") {
+                capabilities.push("audit".to_string());
+            }
+            if config.audit.providers.iter().any(|p| p == "semantic") && config.ai.provider.is_some() {
+                capabilities.push("semantic-audit".to_string());
+            }
+            if config.ai.provider.is_some() {
+                capabilities.push("enrichment".to_string());
+            }
+
+            let dependencies: Vec<String> = config
+                .repository
+                .dependencies
+                .iter()
+                .map(|d| d.name.clone())
+                .collect();
+
+            let repo_dir_name = || -> String {
+                root.file_name()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("unknown")
+                    .to_string()
+            };
+
+            let (audit_status, audit_last) = read_existing_audit(root);
+
+            let manifest = RepositoryManifest {
+                repository: RepoIdentity {
+                    id: config.repository.id.clone().unwrap_or_else(repo_dir_name),
+                    name: config.repository.name.clone().unwrap_or_else(repo_dir_name),
+                    uuid,
+                },
+                revision: next_revision,
+                compiler: CompilerInfo {
+                    version: "0.1.0".to_string(),
+                },
+                audit: AuditSummary {
+                    status: audit_status,
+                    last_audit: audit_last,
+                },
+                repository_root: root.to_string_lossy().to_string(),
+                knowledge: KnowledgeLocation {
+                    location: ".samgraha/knowledge.db".to_string(),
+                },
+                exports,
+                capabilities,
+                dependencies,
+                generated_at: Utc::now().to_rfc3339(),
+            };
+
+            let manifest_dir = root.join(".samgraha");
+            std::fs::create_dir_all(&manifest_dir)
+                .unwrap_or_else(|e| tracing::warn!("Cannot create .samgraha dir: {}", e));
+            let manifest_path = manifest_dir.join("manifest.json");
+            match serde_json::to_string_pretty(&manifest) {
+                Ok(json) => {
+                    std::fs::write(&manifest_path, &json).unwrap_or_else(|e| {
+                        tracing::warn!("Cannot write manifest.json: {}", e)
+                    });
+                    let _ = registry.set_revision(next_revision);
+                    info!(
+                        "Repository manifest written to {} (rev {})",
+                        manifest_path.display(),
+                        next_revision,
+                    );
+                }
+                Err(e) => tracing::warn!("Cannot serialize manifest.json: {}", e),
+            }
+
+            // Auto-refresh: if enabled, update local registry after successful compile.
+            if config.resolver.auto_refresh {
+                if let Ok(json) = std::fs::read_to_string(&manifest_path) {
+                    if let Ok(manifest) = serde_json::from_str::<RepositoryManifest>(&json) {
+                        let client = FileRegistryClient::with_config(root, &config.resolver);
+                        if let Err(e) = client.register(&manifest) {
+                            tracing::warn!("Auto-refresh registry update failed: {}", e);
+                        }
+                    }
+                }
+            }
+        }
+
         // Enrich newly compiled documents (not skipped ones — their enrichment is still valid).
         if !output.documents.is_empty() {
-            let enrichment_enabled = config.ai.provider.is_some()
-                || config.ai.lms.is_some()
-                || config.ai.ollama.is_some()
-                || config.ai.openai.is_some()
-                || true; // always run rule-based enrichment
+            let provider = RuleBasedProvider::new();
+            let profile = EnrichmentProfile {
+                name: "compile".to_string(),
+                enabled_types: vec![EnrichmentType::Summary, EnrichmentType::Keywords],
+                provider: "rule-based".to_string(),
+                model: None,
+                batch_size: 50,
+            };
 
-            if enrichment_enabled {
-                let provider = RuleBasedProvider::new();
-                let profile = EnrichmentProfile {
-                    name: "compile".to_string(),
-                    enabled_types: vec![EnrichmentType::Summary, EnrichmentType::Keywords],
-                    provider: "rule-based".to_string(),
-                    model: None,
-                    batch_size: 50,
-                };
-
-                match EnrichmentService::enrich_batch(&provider, &output.documents, &profile) {
-                    Ok(artifacts) => {
-                        registry.insert_enrichments(&artifacts)?;
-                        info!("Enriched {} artifacts for {} documents", artifacts.len(), output.documents.len());
-                    }
-                    Err(e) => {
-                        // Enrichment failure is non-fatal — compilation still succeeds.
-                        info!("Enrichment skipped: {}", e);
-                    }
+            match EnrichmentService::enrich_batch(&provider, &output.documents, &profile) {
+                Ok(artifacts) => {
+                    registry.insert_enrichments(&artifacts)?;
+                    info!("Enriched {} artifacts for {} documents", artifacts.len(), output.documents.len());
                 }
-
-                // Glossary is a batch operation across all docs.
-                let all_compiled = registry.get_all_documents()?;
-                match provider.glossary(&all_compiled) {
-                    Ok(entries) => {
-                        let glossary_entries: Vec<schemas::registry::GlossaryEntry> = entries
-                            .into_iter()
-                            .map(|g| schemas::registry::GlossaryEntry {
-                                id: 0,
-                                term: g.term,
-                                definition: g.definition,
-                                source_document_id: None,
-                            })
-                            .collect();
-                        let _ = registry.insert_glossary_entries(&glossary_entries);
-                    }
-                    Err(_) => {}
+                Err(e) => {
+                    // Enrichment failure is non-fatal — compilation still succeeds.
+                    info!("Enrichment skipped: {}", e);
                 }
+            }
+
+            // Glossary is a batch operation across all docs.
+            let all_compiled = registry.get_all_documents()?;
+            match provider.glossary(&all_compiled) {
+                Ok(entries) => {
+                    let glossary_entries: Vec<schemas::registry::GlossaryEntry> = entries
+                        .into_iter()
+                        .map(|g| schemas::registry::GlossaryEntry {
+                            id: 0,
+                            term: g.term,
+                        definition: g.definition,
+                        source_document_id: None,
+                    })
+                    .collect();
+                    let _ = registry.insert_glossary_entries(&glossary_entries);
+                }
+                Err(_) => {}
             }
         }
 

@@ -109,7 +109,7 @@ Repository Manifest (.samgraha/manifest.json)
 Repository Registry (.samgraha/registry.db)
           │
           ▼
-Metadata Cache (.samgraha/dependencies/*.meta.json)
+Metadata Cache (.samgraha/registry.db: repository_cache table)
 ```
 
 The two tracks never intersect.
@@ -118,7 +118,7 @@ Only the Knowledge Compiler may create or update persistent engineering knowledg
 
 The Knowledge Runtime consumes compiled knowledge. It never modifies it.
 
-The Metadata Cache is written by the Knowledge Resolver as a disposable performance optimization. Cache files may be deleted and regenerated from the Repository Registry at any time.
+The Metadata Cache is written by the Knowledge Resolver as a disposable performance optimization. The cache database may be deleted and regenerated from the Repository Registry at any time.
 
 ---
 

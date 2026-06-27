@@ -1,3 +1,4 @@
+use schemas::manifest::CachedRepoMetadata;
 use serde::Serialize;
 use schemas::audit::AuditReport;
 use schemas::compilation::CompilationResult;
@@ -228,6 +229,26 @@ pub fn render_sections(resp: &SectionQueryResponse, format: &OutputFormat) -> St
             out.push_str(&format!("    {}\n", preview));
         }
         out.push('\n');
+    }
+    out
+}
+
+pub fn render_registry_list(entries: &[CachedRepoMetadata], format: &OutputFormat) -> String {
+    if matches!(format, OutputFormat::Json) {
+        return serde_json::to_string_pretty(entries).unwrap_or_default();
+    }
+    let mut out = String::new();
+    out.push_str(&format!("Registered repositories ({})\n", entries.len()));
+    out.push_str(&format!("{:-<80}\n", ""));
+    for entry in entries {
+        out.push_str(&format!(
+            "  {} ({}) — rev {} | exports: {} | audit: {}\n",
+            entry.repository.id,
+            entry.repository.uuid.to_string().split('-').next().unwrap_or("?"),
+            entry.revision,
+            entry.exports.join(", "),
+            entry.audit,
+        ));
     }
     out
 }

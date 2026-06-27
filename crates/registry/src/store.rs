@@ -1,4 +1,4 @@
-use crate::migration::MIGRATIONS;
+use crate::migration::KNOWLEDGE_MIGRATIONS;
 use anyhow::{Context, Result};
 use rusqlite::{params, Connection};
 use schemas::audit::AuditFinding;
@@ -59,7 +59,7 @@ impl RegistryStore {
             )
             .unwrap_or(0);
 
-        for (i, migration) in MIGRATIONS.iter().enumerate() {
+        for (i, migration) in KNOWLEDGE_MIGRATIONS.iter().enumerate() {
             let version = (i + 1) as i64;
             if version > current_version {
                 self.conn.execute_batch(migration)?;
@@ -588,6 +588,21 @@ impl RegistryStore {
         self.conn.execute(
             "INSERT OR REPLACE INTO build_metadata (key, value) VALUES ('build_timestamp', ?1)",
             params![meta.build_timestamp],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_revision(&self) -> Result<u64> {
+        self
+            .get_meta_value("revision")
+            .and_then(|v| v.parse::<u64>().ok())
+            .ok_or_else(|| anyhow::anyhow!("No revision stored"))
+    }
+
+    pub fn set_revision(&self, revision: u64) -> Result<()> {
+        self.conn.execute(
+            "INSERT OR REPLACE INTO build_metadata (key, value) VALUES ('revision', ?1)",
+            params![revision.to_string()],
         )?;
         Ok(())
     }

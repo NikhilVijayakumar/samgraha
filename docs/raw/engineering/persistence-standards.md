@@ -28,7 +28,9 @@ SQLite is the persistence engine for all platform data. Rationale is documented 
 - Schema version is verified on every startup
 - Backward compatibility is maintained for at least one major version
 
-Migration file naming: `V<number>__<description>.sql`
+The platform maintains two independent migration chains — `KNOWLEDGE_MIGRATIONS` (V1–V7) for the knowledge registry and `REGISTRY_MIGRATIONS` (REG_V1+) for the repository registry. Both use the same inline `const &[&str]` pattern in `crates/registry/src/migration.rs`. This is an intentional deviation from file-per-migration convention for simplicity at current scale.
+
+Migration file naming (documented convention, not implemented): `V<number>__<description>.sql`
 
 ```
 V1__initial_schema.sql

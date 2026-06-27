@@ -14,7 +14,8 @@ use registry::RegistryStore;
 use schemas::audit::AuditReport;
 use schemas::compilation::{CompilationRequest, CompilationResult};
 use schemas::document::Document;
-use schemas::package::PackageProfile;
+use schemas::manifest::RepositoryManifest;
+use schemas::package::{PackageLayout, PackageProfile};
 use schemas::search::{SearchQuery, SearchResponse, SectionQuery, SectionQueryResponse};
 use serde::Serialize;
 use standards::StandardRegistry;
@@ -138,6 +139,34 @@ impl KnowledgeRuntime {
         self.registry.clear_audit_results()?;
         self.registry.insert_audit_findings(&result.findings)?;
 
+        // Phase F4: Update manifest audit status after audit run.
+        let audit_status = if result
+            .findings
+            .iter()
+            .any(|f| matches!(f.severity, schemas::audit::Severity::Error))
+        {
+            "FAIL"
+        } else {
+            "PASS"
+        };
+        let now = chrono::Utc::now().to_rfc3339(); // keep fully-qualified, avoid unused import
+
+        let manifest_path = self
+            .context
+            .repository_root
+            .join(".samgraha")
+            .join("manifest.json");
+        if let Ok(content) = std::fs::read_to_string(&manifest_path) {
+            if let Ok(mut manifest) = serde_json::from_str::<RepositoryManifest>(&content)
+            {
+                manifest.audit.status = audit_status.to_string();
+                manifest.audit.last_audit = Some(now);
+                if let Ok(json) = serde_json::to_string_pretty(&manifest) {
+                    let _ = std::fs::write(&manifest_path, &json);
+                }
+            }
+        }
+
         Ok(result)
     }
 
@@ -201,11 +230,14 @@ impl KnowledgeRuntime {
             profile,
             repository_name: repo_name,
             format,
+            layout: PackageLayout::Physical,
+            primary_root: Some(self.context.repository_root.to_string_lossy().to_string()),
         };
         PackageService::generate(
             Arc::clone(&self.registry),
             Some(&registry_path),
             &request,
+            &[],
         )
     }
 
@@ -214,6 +246,7 @@ impl KnowledgeRuntime {
         profile: PackageProfile,
         output_path: std::path::PathBuf,
         format: PackageFormat,
+        layout: PackageLayout,
     ) -> Result<ResolutionResult> {
         KnowledgeResolver::resolve(
             &self.context.repository_root,
@@ -223,6 +256,7 @@ impl KnowledgeRuntime {
             profile,
             output_path,
             format,
+            layout,
         )
     }
 
