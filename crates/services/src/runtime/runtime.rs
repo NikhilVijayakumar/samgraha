@@ -1,6 +1,6 @@
 use crate::audit::AuditService;
 use crate::compilation::CompilationService;
-use crate::package::{PackageRequest, PackageResult, PackageService};
+use crate::package::{PackageFormat, PackageRequest, PackageResult, PackageService};
 use crate::registry::{BoxedService, ServiceRegistry};
 use crate::resolution::{KnowledgeResolver, ResolutionResult};
 use crate::runtime::context::RuntimeContext;
@@ -153,31 +153,76 @@ impl KnowledgeRuntime {
         self.registry.get_all_documents()
     }
 
+    // ── Typed accessors ──────────────────────────────────────────────────────────
+
+    pub fn documents_by_standard(&self, standard: &str) -> Result<Vec<Document>> {
+        Ok(self
+            .registry
+            .get_all_documents()?
+            .into_iter()
+            .filter(|d| d.standard == standard)
+            .collect())
+    }
+
+    pub fn features(&self) -> Result<Vec<Document>> {
+        self.documents_by_standard("feature")
+    }
+
+    pub fn architecture_docs(&self) -> Result<Vec<Document>> {
+        self.documents_by_standard("architecture")
+    }
+
+    pub fn design_docs(&self) -> Result<Vec<Document>> {
+        self.documents_by_standard("design")
+    }
+
+    pub fn engineering_docs(&self) -> Result<Vec<Document>> {
+        self.documents_by_standard("engineering")
+    }
+
+    pub fn vision_docs(&self) -> Result<Vec<Document>> {
+        self.documents_by_standard("vision")
+    }
+
+    pub fn feature_technical_docs(&self) -> Result<Vec<Document>> {
+        self.documents_by_standard("feature-technical")
+    }
+
     pub fn package(
         &self,
         output_path: std::path::PathBuf,
         profile: PackageProfile,
+        format: PackageFormat,
     ) -> Result<PackageResult> {
         let repo_name = self.context.repository_name();
+        let registry_path = self.context.registry_path.clone();
         let request = PackageRequest {
             output_path,
             profile,
             repository_name: repo_name,
+            format,
         };
-        PackageService::generate(Arc::clone(&self.registry), &request)
+        PackageService::generate(
+            Arc::clone(&self.registry),
+            Some(&registry_path),
+            &request,
+        )
     }
 
     pub fn resolve(
         &self,
         profile: PackageProfile,
         output_path: std::path::PathBuf,
+        format: PackageFormat,
     ) -> Result<ResolutionResult> {
         KnowledgeResolver::resolve(
             &self.context.repository_root,
             &self.context.config,
             Arc::clone(&self.registry),
+            &self.context.registry_path,
             profile,
             output_path,
+            format,
         )
     }
 
@@ -224,6 +269,8 @@ fn workspace_result_to_compilation(ws: WorkspaceBuildResult) -> CompilationResul
         documents_skipped: 0,
         errors: all_errors,
         warnings: Vec::new(),
+        diagnostics: Vec::new(),
+        quality: None,
         duration_ms,
         registry_path: None,
     }

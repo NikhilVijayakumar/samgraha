@@ -21,7 +21,7 @@ impl SearchService {
                 true
             })
             .filter_map(|doc| {
-                let body_lower = doc.body.to_lowercase();
+                let body_lower = doc.body.raw().to_lowercase();
                 let title_lower = doc.title.to_lowercase();
 
                 let mut score = 0.0;
@@ -43,13 +43,14 @@ impl SearchService {
                         RetrievalLevel::Metadata => None,
                         RetrievalLevel::Summary => Some(
                             doc.body
+                                .raw()
                                 .lines()
                                 .find(|l| !l.trim().is_empty())
                                 .unwrap_or("")
                                 .to_string(),
                         ),
                         RetrievalLevel::Section | RetrievalLevel::Full => {
-                            find_relevant_snippet(&doc.body, &query_terms)
+                            find_relevant_snippet(doc.body.raw(), &query_terms)
                         }
                     };
 
