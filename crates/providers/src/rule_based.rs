@@ -18,7 +18,7 @@ impl EnrichmentProvider for RuleBasedProvider {
     }
 
     fn summarize(&self, document: &Document) -> Result<SummaryOutput> {
-        let body = &document.body;
+        let body = document.body.raw();
         let first_line = body.lines().find(|l| !l.trim().is_empty()).unwrap_or("");
         let summary = if first_line.starts_with('#') {
             first_line.trim_start_matches('#').trim().to_string()
@@ -34,6 +34,7 @@ impl EnrichmentProvider for RuleBasedProvider {
     fn keywords(&self, document: &Document) -> Result<KeywordsOutput> {
         let mut words: Vec<String> = document
             .body
+            .raw()
             .split_whitespace()
             .filter(|w| w.len() > 4)
             .map(|w| {
@@ -62,7 +63,7 @@ impl EnrichmentProvider for RuleBasedProvider {
         let mut terms = Vec::new();
         let mut seen = std::collections::HashSet::new();
         for doc in documents {
-            for line in doc.body.lines() {
+            for line in doc.body.raw().lines() {
                 let lower = line.trim().to_lowercase();
                 if lower.starts_with("### ") || lower.starts_with("#### ") {
                     let term = line.trim_start_matches('#').trim().to_string();

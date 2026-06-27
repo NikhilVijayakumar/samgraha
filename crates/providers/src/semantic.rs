@@ -24,7 +24,7 @@ impl SemanticAuditProvider {
 /// FR1/FR5: Documentation quality — body length, section depth, vague language.
 fn check_quality(doc: &Document) -> Vec<AuditFinding> {
     let mut findings = Vec::new();
-    let word_count = doc.body.split_whitespace().count();
+    let word_count = doc.body.raw().split_whitespace().count();
 
     if word_count < 50 {
         findings.push(AuditFinding {
@@ -42,7 +42,7 @@ fn check_quality(doc: &Document) -> Vec<AuditFinding> {
 
     let vague = ["TBD", "TODO", "FIXME", "placeholder", "coming soon", "to be determined"];
     for term in &vague {
-        if doc.body.to_lowercase().contains(&term.to_lowercase()) {
+        if doc.body.raw().to_lowercase().contains(&term.to_lowercase()) {
             findings.push(AuditFinding {
                 check_id: "sem-002".into(),
                 severity: Severity::Suggestion,
@@ -76,7 +76,7 @@ fn check_technology_independence(doc: &Document) -> Vec<AuditFinding> {
     ];
 
     for term in &impl_terms {
-        if doc.body.contains(term) {
+        if doc.body.raw().contains(term) {
             findings.push(AuditFinding {
                 check_id: "sem-003".into(),
                 severity: Severity::Suggestion,
@@ -103,7 +103,7 @@ fn check_scope(doc: &Document) -> Vec<AuditFinding> {
     // Vision docs should not contain implementation requirements.
     if doc.standard == "vision" {
         let impl_keywords = ["SHALL", "MUST", "REQUIRED", "FR1", "FR2", "API", "endpoint"];
-        let upper = doc.body.to_uppercase();
+        let upper = doc.body.raw().to_uppercase();
         for kw in &impl_keywords {
             if upper.contains(kw) {
                 findings.push(AuditFinding {
@@ -125,11 +125,12 @@ fn check_scope(doc: &Document) -> Vec<AuditFinding> {
 
     // Engineering docs should have a rationale section.
     if doc.standard == "engineering" || doc.standard == "architecture" {
-        let has_rationale = doc.body.to_lowercase().contains("rationale")
-            || doc.body.to_lowercase().contains("reason")
-            || doc.body.to_lowercase().contains("because")
-            || doc.body.to_lowercase().contains("decision");
-        if !has_rationale && doc.body.split_whitespace().count() > 50 {
+        let raw = doc.body.raw();
+        let has_rationale = raw.to_lowercase().contains("rationale")
+            || raw.to_lowercase().contains("reason")
+            || raw.to_lowercase().contains("because")
+            || raw.to_lowercase().contains("decision");
+        if !has_rationale && raw.split_whitespace().count() > 50 {
             findings.push(AuditFinding {
                 check_id: "sem-005".into(),
                 severity: Severity::Suggestion,
@@ -149,7 +150,8 @@ fn check_scope(doc: &Document) -> Vec<AuditFinding> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use schemas::document::{DocumentMetadata, DocumentPath};
+    use schemas::document::{DocumentBody, DocumentMetadata, DocumentPath};
+    use schemas::quality::ObjectStatistics;
     use std::path::PathBuf;
 
     fn doc(standard: &str, body: &str) -> Document {
@@ -159,9 +161,13 @@ mod tests {
             hash: "abc".into(),
             standard: standard.into(),
             title: "Test".into(),
-            body: body.into(),
+            body: DocumentBody::Generic {
+                raw: body.to_string(),
+                sections: vec![],
+            },
             metadata: DocumentMetadata::default(),
-            sections: vec![],
+            provenance: None,
+            quality: ObjectStatistics::default(),
             created_at: "0".into(),
             updated_at: "0".into(),
         }
