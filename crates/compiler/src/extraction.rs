@@ -7,8 +7,9 @@ pub struct MetadataExtractor;
 impl MetadataExtractor {
     pub fn extract_standard_metadata(doc: &Document) -> DocumentMetadata {
         let mut metadata = doc.metadata.clone();
+        let raw = doc.body.raw();
 
-        for line in doc.body.lines() {
+        for line in raw.lines() {
             let lower = line.trim().to_lowercase();
             if lower.starts_with("## purpose") || lower.starts_with("## overview") {
                 metadata
@@ -38,11 +39,12 @@ pub struct RelationshipExtractor;
 impl RelationshipExtractor {
     pub fn extract_refs(doc: &Document, all_docs: &[Document]) -> Vec<Relationship> {
         let mut rels = Vec::new();
+        let raw = doc.body.raw();
         for other in all_docs {
             if other.id == doc.id {
                 continue;
             }
-            if doc.body.contains(&other.title) || doc.body.contains(other.path.as_str()) {
+            if raw.contains(&other.title) || raw.contains(other.path.as_str()) {
                 rels.push(Relationship {
                     id: 0,
                     source_id: doc.id,
