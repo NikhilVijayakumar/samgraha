@@ -18,16 +18,19 @@ Configuration is declarative and deterministic.
 
 Every participating repository shall define its identity.
 
-Repository identity may include:
+Repository identity consists of:
 
-* repository name
-* repository identifier
-* repository description
-* repository version
-* repository ownership
-* repository metadata
+* `uuid` — globally unique identifier, never changes
+* `id` — short identifier, may change on rename
+* `name` — human-readable display name, may change
+* description
+* version
+* ownership
+* metadata
 
-Identity uniquely identifies engineering knowledge.
+The UUID is generated once at `samgraha init` and committed to version control. It is never overwritten. The UUID is the authoritative identity key in the Repository Registry.
+
+Identity uniquely identifies engineering knowledge. Renaming a repository changes the ID and name but preserves the UUID, allowing the Repository Registry to maintain continuity.
 
 ---
 
@@ -142,6 +145,22 @@ Invalid configuration shall be reported.
 
 ---
 
+## FR9. Resolver Configuration
+
+Repository Configuration shall define resolver behavior.
+
+Configuration may specify:
+
+* `metadata_cache` — enable local metadata caching (default: true)
+* `metadata_ttl` — cache expiration duration (default: "24h")
+* `auto_refresh` — automatically refresh expired cache from local Registry (default: true)
+* `registry_type` — local file or remote HTTP (default: "file")
+* `registry_url` — remote registry endpoint (only when registry_type is "http")
+
+Resolver configuration controls how the Knowledge Resolver locates dependencies without contacting the Repository Registry at runtime.
+
+---
+
 ## Business Rules
 
 * Configuration is declarative.
@@ -151,6 +170,8 @@ Invalid configuration shall be reported.
 * Workspace configuration provides shared defaults.
 * Repository configuration may override shared defaults where permitted.
 * Configuration changes shall be reproducible.
+* Repository UUID is generated once at `samgraha init` and never overwritten.
+* Compilation generates UUID if absent, warns user, never blocks.
 
 ---
 
@@ -173,6 +194,7 @@ Platform Services
           ├── Audit Framework
           ├── Knowledge Enrichment
           ├── Knowledge Registry
+          ├── Repository Registry
           ├── Knowledge Resolution
           ├── Knowledge Runtime
           └── Engineering CLI
@@ -235,6 +257,7 @@ Repository Configuration provides configuration to:
 * Audit Framework
 * Knowledge Enrichment
 * Knowledge Registry
+* Repository Registry
 * Knowledge Resolution
 * Knowledge Package
 * Knowledge Runtime
@@ -264,6 +287,7 @@ The Repository Configuration framework should support future capabilities, inclu
 * environment profiles
 * organization policies
 * remote configuration providers
+* remote registry configuration (registry_url for HTTP Registry)
 * encrypted configuration values
 * configuration templates
 * configuration migration

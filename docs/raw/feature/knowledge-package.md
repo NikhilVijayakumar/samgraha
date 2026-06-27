@@ -175,13 +175,28 @@ Knowledge Packages remain reproducible throughout their lifecycle.
 
 ---
 
+## Package Layouts
+
+Knowledge Packages are assembled in one of two layouts.
+
+| Layout | Portability | Use Case |
+|---|---|---|
+| Physical | Portable across environments | Default; copies `knowledge.db` and `docs/` into output directory |
+| Virtual | Workspace-local only | Performance optimization; references source `knowledge.db` by absolute path |
+
+Physical is the default and the only distributable format.
+
+Virtual packages break if any source repository moves or the package is used on a different machine. Virtual packages are not suitable for distribution or archiving.
+
+---
+
 ## Business Rules
 
 * Knowledge Packages are generated artifacts.
 * Documentation remains the authoritative source.
 * Knowledge Packages are deterministic.
 * Packages preserve repository ownership.
-* Packages remain portable.
+* Physical packages remain portable across environments. Virtual packages are workspace-local only and not portable.
 * Packages are disposable.
 * Packages never modify repository documentation.
 

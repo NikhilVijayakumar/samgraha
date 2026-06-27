@@ -18,12 +18,14 @@ The resulting Knowledge Package becomes the foundation for MCP delivery, enginee
 
 The resolver shall discover repositories participating in knowledge composition.
 
-Repository discovery may use:
+Repository discovery uses the local metadata cache as its primary source:
 
 * workspace configuration
 * repository configuration
 * declared dependencies
-* registry metadata
+* cached metadata (.meta.json files)
+
+The metadata cache is populated from the Repository Registry during sync. The resolver never contacts the Repository Registry directly during discovery.
 
 Repository discovery determines the available knowledge sources.
 
@@ -42,6 +44,14 @@ Resolution shall identify:
 * unresolved dependencies
 
 Resolution determines repository relationships rather than implementation dependencies.
+
+Cycle detection uses depth-first search. When a cycle is detected, resolution aborts immediately and reports the full cycle path. No partial package is produced.
+
+Example:
+```
+error: Dependency cycle detected
+  astra → prana → tantra → astra
+```
 
 ---
 
@@ -139,42 +149,54 @@ When repository knowledge changes, only affected Knowledge Packages shall be rec
 
 * Documentation remains the authoritative source of knowledge.
 * The Knowledge Registry provides compiled knowledge.
-* Resolution never modifies repositories.
+* Resolution never modifies source documentation, compiled knowledge databases, or repository configuration. Resolution may write disposable metadata files to `.samgraha/dependencies/` as a performance optimization. These files are excluded from version control and can be deleted without affecting correctness.
 * Knowledge Packages are generated artifacts.
 * Resolution shall be deterministic.
 * Unrelated repositories shall not be included.
 * Resolution shall preserve repository ownership and boundaries.
+* Resolution uses metadata cache only. The Repository Registry is never contacted at runtime.
+* Cache miss at runtime degrades gracefully — reports missing dependency, does not block.
 
 ---
 
 ## Resolution Lifecycle
 
 ```text
-Knowledge Registry
+Metadata Cache
         │
-        ▼
-Repository Discovery
-        │
-        ▼
+   ┌────┴────┐
+   ▼         ▼
+  Hit       Miss
+   │         │
+   ▼         ▼
+Repository  Degrade
+Discovery   Gracefully
+   │
+   ▼
 Dependency Resolution
-        │
-        ▼
+   │
+   ▼
+Knowledge Registry
+   │
+   ▼
 Knowledge Composition
-        │
-        ▼
+   │
+   ▼
 Package Validation
-        │
-        ▼
+   │
+   ▼
 Knowledge Package
-        │
-        ▼
+   │
+   ▼
 Knowledge Consumers
-        │
-        ├── MCP Runtime
-        ├── Engineering CLI
-        ├── Documentation Tools
-        └── Future Consumers
+   │
+   ├── MCP Runtime
+   ├── Engineering CLI
+   ├── Documentation Tools
+   └── Future Consumers
 ```
+
+Resolution uses the metadata cache first. Cache miss at runtime degrades gracefully — reports missing dependency, never contacts the Repository Registry.
 
 ---
 
@@ -182,13 +204,14 @@ Knowledge Consumers
 
 Knowledge Resolution consumes:
 
-* repository metadata
+* repository metadata (from cache)
 * workspace metadata
 * dependency declarations
 * compiled knowledge
 * audit metadata
 * enrichment artifacts
 * resolution configuration
+* metadata cache (.meta.json files)
 
 ---
 
@@ -216,6 +239,7 @@ Knowledge Resolution shall:
 * minimize package size
 * support incremental recomposition
 * tolerate optional dependencies
+* degrade gracefully on metadata cache miss
 
 ---
 
@@ -224,6 +248,7 @@ Knowledge Resolution shall:
 Knowledge Resolution depends upon:
 
 * Knowledge Registry
+* Repository Registry (indirectly through metadata cache)
 * Incremental Build
 * Audit Framework
 * Knowledge Enrichment

@@ -4,7 +4,9 @@
 
 The Knowledge Registry is the compiled representation of engineering knowledge produced from repository documentation.
 
-It serves as the authoritative source of generated knowledge artifacts for repository discovery, search, dependency resolution, audit metadata, enrichment, and MCP delivery.
+It serves as the authoritative source of generated knowledge artifacts for search, retrieval, audit metadata, enrichment, and MCP delivery.
+
+The Knowledge Registry stores compiled knowledge. It does not manage repository identity, registration, or metadata synchronization. Those responsibilities belong to the Repository Registry.
 
 The Knowledge Registry is a generated artifact.
 
@@ -14,22 +16,7 @@ It is never manually edited and can always be regenerated from repository docume
 
 ## Functional Requirements
 
-## FR1. Repository Registration
-
-The Knowledge Registry shall maintain information about registered repositories.
-
-Registration includes:
-
-* repository identity
-* repository metadata
-* workspace membership
-* declared dependencies
-* supported documentation domains
-* registry metadata
-
----
-
-## FR2. Knowledge Artifact Storage
+## FR1. Knowledge Artifact Storage
 
 The Knowledge Registry shall store generated knowledge artifacts.
 
@@ -60,7 +47,7 @@ Semantic sections shall be stored as first-class artifacts alongside their paren
 
 ---
 
-## FR3. Knowledge Retrieval
+## FR2. Knowledge Retrieval
 
 The Knowledge Registry shall support retrieval of compiled knowledge.
 
@@ -88,7 +75,7 @@ Retrieval shall operate independently of source documentation.
 
 ---
 
-## FR4. Artifact Lifecycle Management
+## FR3. Artifact Lifecycle Management
 
 The Knowledge Registry shall manage generated artifact lifecycles.
 
@@ -105,7 +92,7 @@ Generated artifacts shall remain independently manageable.
 
 ---
 
-## FR5. Registry Integrity
+## FR4. Registry Integrity
 
 The Knowledge Registry shall maintain integrity information.
 
@@ -122,7 +109,7 @@ Consumers shall be able to determine whether the registry is suitable for use.
 
 ---
 
-## FR6. Version Awareness
+## FR5. Version Awareness
 
 The Knowledge Registry shall track build metadata.
 
@@ -140,7 +127,7 @@ Version metadata supports incremental builds and reproducibility.
 
 ---
 
-## FR7. Workspace Support
+## FR6. Workspace Support
 
 The Knowledge Registry shall support both repository and workspace knowledge.
 
@@ -148,7 +135,7 @@ Workspace registries shall preserve repository boundaries while enabling unified
 
 ---
 
-## FR8. Concurrent Access
+## FR7. Concurrent Access
 
 The Knowledge Registry shall support:
 
@@ -186,7 +173,6 @@ Knowledge Registry
         │
         ├── Compiled Documents
         ├── Search Indexes
-        ├── Dependency Graphs
         ├── Audit Metadata
         ├── Enrichment Artifacts
         ├── Package Manifests
@@ -201,6 +187,8 @@ Knowledge Consumers
         └── Future Consumers
 ```
 
+This is the knowledge track. Repository metadata follows a separate track through the Repository Registry.
+
 ---
 
 ## Inputs
@@ -208,11 +196,8 @@ Knowledge Consumers
 The Knowledge Registry consumes:
 
 * compiled documentation
-* repository metadata
-* workspace metadata
 * audit metadata
 * enrichment artifacts
-* dependency information
 * build metadata
 
 ---
@@ -223,11 +208,9 @@ The Knowledge Registry provides:
 
 * compiled knowledge
 * searchable artifacts
-* dependency metadata
 * audit metadata
 * enrichment metadata
 * package metadata
-* registry metadata
 
 Outputs are consumed by platform services.
 
@@ -258,7 +241,8 @@ The Knowledge Registry depends upon:
 * Incremental Build
 * Audit Framework
 * Knowledge Enrichment
-* Workspace Management
+
+The Knowledge Registry is distinct from the Repository Registry. The Knowledge Registry stores compiled engineering knowledge. The Repository Registry stores repository metadata. The two registries never intersect.
 
 The Registry provides knowledge to:
 
@@ -277,9 +261,11 @@ The Knowledge Registry does not:
 * execute audits
 * perform enrichment
 * resolve dependencies
+* manage repository identity or registration
+* synchronize metadata between repositories
 * deliver knowledge to AI agents
 
-Those responsibilities belong to their respective platform components.
+Those responsibilities belong to their respective platform components. Repository identity, registration, and metadata synchronization belong to the Repository Registry.
 
 ---
 
@@ -287,15 +273,13 @@ Those responsibilities belong to their respective platform components.
 
 The Knowledge Registry should support future capabilities, including:
 
-* distributed registries
-* registry federation
-* artifact replication
-* workspace aggregation
 * knowledge package caching
 * semantic indexes
 * graph indexes
+* artifact replication
+* workspace aggregation
 * repository snapshots
-* registry migration
+* schema migration
 
 Future extensions should integrate without changing the logical registry model.
 
@@ -323,8 +307,11 @@ This feature derives from the following Vision commitments:
 * **Knowledge is compiled before delivery.**
 * **Generated artifacts are disposable.**
 * **Knowledge artifacts are reproducible.**
-* **The Knowledge Registry is the authoritative compiled representation of engineering knowledge.**
+
+**Note:** Repository registration (previously FR1) has been transferred to the Repository Registry feature. The Knowledge Registry now owns compiled engineering knowledge only. Repository identity, metadata, and synchronization are managed by the Repository Registry.
 
 **Traceability**
 
 Vision → Feature: Knowledge Registry
+Architecture: Component Model → Feature: Knowledge Registry
+Architecture: Repository Registry Architecture → Feature: Repository Registry (separate track)
