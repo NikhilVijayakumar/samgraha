@@ -20,7 +20,7 @@ impl RegistryStore {
                 true
             })
             .filter_map(|doc| {
-                let body_lower = doc.body.to_lowercase();
+                let body_lower = doc.body.raw().to_lowercase();
                 let title_lower = doc.title.to_lowercase();
 
                 let mut score = 0.0;
@@ -39,9 +39,9 @@ impl RegistryStore {
                 let snippet = match query.level {
                     RetrievalLevel::Metadata => None,
                     RetrievalLevel::Summary => {
-                        Some(doc.body.lines().find(|l| !l.trim().is_empty()).unwrap_or("").to_string())
+                        Some(doc.body.raw().lines().find(|l| !l.trim().is_empty()).unwrap_or("").to_string())
                     }
-                    _ => doc.body.lines()
+                    _ => doc.body.raw().lines()
                         .find(|l| query_terms.iter().any(|t| l.to_lowercase().contains(t)))
                         .map(|l| l.trim().to_string()),
                 };

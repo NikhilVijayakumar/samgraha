@@ -2,8 +2,9 @@ use crate::migration::MIGRATIONS;
 use anyhow::{Context, Result};
 use rusqlite::{params, Connection};
 use schemas::audit::AuditFinding;
-use schemas::document::{Document, DocumentSection};
+use schemas::document::{Document, DocumentBody, DocumentSection};
 use schemas::enrichment::EnrichmentArtifact;
+use schemas::graph::{EdgeType, GraphEdge, GraphNode, KnowledgeGraph};
 use schemas::registry::{
     BuildMetadata, GlossaryEntry, RegistryMetadata, RegistryStatus, Relationship,
 };
@@ -83,17 +84,19 @@ impl RegistryStore {
     // --- Document operations ---
 
     pub fn insert_document(&self, doc: &Document) -> Result<i64> {
+        let body_json = serde_json::to_string(&doc.body)?;
         self.conn.execute(
-            "INSERT OR REPLACE INTO documents (id, path, hash, standard, title, body, metadata, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            "INSERT OR REPLACE INTO documents (id, path, hash, standard, title, body, metadata, quality, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             params![
                 doc.id,
                 doc.path.as_str(),
                 doc.hash,
                 doc.standard,
                 doc.title,
-                doc.body,
+                body_json,
                 serde_json::to_string(&doc.metadata)?,
+                serde_json::to_string(&doc.quality)?,
                 doc.created_at,
                 doc.updated_at,
             ],
@@ -103,7 +106,7 @@ impl RegistryStore {
 
     pub fn get_document(&self, id: i64) -> Result<Option<Document>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, path, hash, standard, title, body, metadata, created_at, updated_at FROM documents WHERE id = ?1",
+            "SELECT id, path, hash, standard, title, body, metadata, quality, created_at, updated_at FROM documents WHERE id = ?1",
         )?;
 
         let mut rows = stmt.query(params![id])?;
@@ -114,11 +117,12 @@ impl RegistryStore {
                 hash: row.get(2)?,
                 standard: row.get(3)?,
                 title: row.get(4)?,
-                body: row.get(5)?,
+                body: serde_json::from_str(&row.get::<_, String>(5)?)?,
                 metadata: serde_json::from_str(&row.get::<_, String>(6)?)?,
-                created_at: row.get(7)?,
-                updated_at: row.get(8)?,
-                sections: Vec::new(),
+                provenance: None,
+                quality: serde_json::from_str(&row.get::<_, String>(7)?).unwrap_or_default(),
+                created_at: row.get(8)?,
+                updated_at: row.get(9)?,
             }))
         } else {
             Ok(None)
@@ -127,7 +131,7 @@ impl RegistryStore {
 
     pub fn get_document_by_path(&self, path: &str) -> Result<Option<Document>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, path, hash, standard, title, body, metadata, created_at, updated_at FROM documents WHERE path = ?1",
+            "SELECT id, path, hash, standard, title, body, metadata, quality, created_at, updated_at FROM documents WHERE path = ?1",
         )?;
 
         let mut rows = stmt.query(params![path])?;
@@ -138,11 +142,12 @@ impl RegistryStore {
                 hash: row.get(2)?,
                 standard: row.get(3)?,
                 title: row.get(4)?,
-                body: row.get(5)?,
+                body: serde_json::from_str(&row.get::<_, String>(5)?)?,
                 metadata: serde_json::from_str(&row.get::<_, String>(6)?)?,
-                created_at: row.get(7)?,
-                updated_at: row.get(8)?,
-                sections: Vec::new(),
+                provenance: None,
+                quality: serde_json::from_str(&row.get::<_, String>(7)?).unwrap_or_default(),
+                created_at: row.get(8)?,
+                updated_at: row.get(9)?,
             }))
         } else {
             Ok(None)
@@ -151,21 +156,26 @@ impl RegistryStore {
 
     pub fn get_all_documents(&self) -> Result<Vec<Document>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, path, hash, standard, title, body, metadata, created_at, updated_at FROM documents ORDER BY id",
+            "SELECT id, path, hash, standard, title, body, metadata, quality, created_at, updated_at FROM documents ORDER BY id",
         )?;
 
         let rows = stmt.query_map([], |row| {
+            let body_str: String = row.get(5)?;
             Ok(Document {
                 id: row.get(0)?,
                 path: schemas::document::DocumentPath(PathBuf::from(row.get::<_, String>(1)?)),
                 hash: row.get(2)?,
                 standard: row.get(3)?,
                 title: row.get(4)?,
-                body: row.get(5)?,
+                body: serde_json::from_str(&body_str).unwrap_or_else(|_| DocumentBody::Generic {
+                    raw: body_str,
+                    sections: Vec::new(),
+                }),
                 metadata: serde_json::from_str(&row.get::<_, String>(6)?).unwrap_or_default(),
-                created_at: row.get(7)?,
-                updated_at: row.get(8)?,
-                sections: Vec::new(),
+                provenance: None,
+                quality: serde_json::from_str(&row.get::<_, String>(7)?).unwrap_or_default(),
+                created_at: row.get(8)?,
+                updated_at: row.get(9)?,
             })
         })?;
 
@@ -440,6 +450,100 @@ impl RegistryStore {
         Ok(())
     }
 
+    // --- Graph operations ---
+
+    pub fn insert_graph(&self, graph: &KnowledgeGraph) -> Result<()> {
+        for node in &graph.nodes {
+            self.conn.execute(
+                "INSERT OR REPLACE INTO graph_nodes (urn, node_type, document_id, title) VALUES (?1, ?2, ?3, ?4)",
+                params![node.urn.as_str(), node.node_type, node.document_id, node.title],
+            )?;
+        }
+        for edge in &graph.edges {
+            self.conn.execute(
+                "INSERT OR IGNORE INTO graph_edges (source_urn, target_urn, edge_type, metadata) VALUES (?1, ?2, ?3, ?4)",
+                params![
+                    edge.source_urn.as_str(),
+                    edge.target_urn.as_str(),
+                    edge.edge_type.as_str(),
+                    serde_json::to_string(&edge.metadata)?,
+                ],
+            )?;
+        }
+        Ok(())
+    }
+
+    pub fn clear_graph(&self) -> Result<()> {
+        self.conn.execute("DELETE FROM graph_edges", [])?;
+        self.conn.execute("DELETE FROM graph_nodes", [])?;
+        Ok(())
+    }
+
+    pub fn get_graph_for_document(&self, document_id: i64) -> Result<KnowledgeGraph> {
+        let mut node_stmt = self.conn.prepare(
+            "SELECT urn, node_type, document_id, title FROM graph_nodes WHERE document_id = ?1",
+        )?;
+        let nodes: Vec<GraphNode> = node_stmt.query_map(params![document_id], |row| {
+            Ok(GraphNode {
+                urn: row.get::<_, String>(0)?.into(),
+                node_type: row.get(1)?,
+                document_id: row.get(2)?,
+                title: row.get(3)?,
+            })
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+
+        let urns: Vec<String> = nodes.iter().map(|n: &GraphNode| n.urn.as_str().to_string()).collect();
+        let mut edges = Vec::new();
+        if !urns.is_empty() {
+            let placeholders: Vec<String> = urns.iter().enumerate().map(|(i, _)| format!("?{}", i + 1)).collect();
+            let sql = format!(
+                "SELECT source_urn, target_urn, edge_type, metadata FROM graph_edges WHERE source_urn IN ({}) OR target_urn IN ({})",
+                placeholders.join(","), placeholders.join(",")
+            );
+            let mut edge_params: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
+            for urn in &urns {
+                edge_params.push(Box::new(urn.clone()));
+            }
+            for urn in &urns {
+                edge_params.push(Box::new(urn.clone()));
+            }
+            let mut edge_stmt = self.conn.prepare(&sql)?;
+            let param_refs: Vec<&dyn rusqlite::types::ToSql> = edge_params.iter().map(|p| p.as_ref()).collect();
+            let edge_rows = edge_stmt.query_map(param_refs.as_slice(), |row| {
+                Ok(GraphEdge {
+                    source_urn: row.get::<_, String>(0)?.into(),
+                    target_urn: row.get::<_, String>(1)?.into(),
+                    edge_type: EdgeType::from_str(&row.get::<_, String>(2)?),
+                    metadata: serde_json::from_str(&row.get::<_, String>(3)?).unwrap_or_default(),
+                })
+            })?;
+            for row in edge_rows {
+                if let Ok(edge) = row {
+                    edges.push(edge);
+                }
+            }
+        }
+
+        Ok(KnowledgeGraph { nodes, edges })
+    }
+
+    pub fn get_all_graph_nodes(&self) -> Result<Vec<GraphNode>> {
+        let mut stmt = self.conn.prepare("SELECT urn, node_type, document_id, title FROM graph_nodes ORDER BY urn")?;
+        let nodes = stmt.query_map([], |row| {
+            Ok(GraphNode {
+                urn: row.get::<_, String>(0)?.into(),
+                node_type: row.get(1)?,
+                document_id: row.get(2)?,
+                title: row.get(3)?,
+            })
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+        Ok(nodes)
+    }
+
     // --- Integrity ---
 
     pub fn check_integrity(&self) -> Result<RegistryMetadata> {
@@ -525,7 +629,8 @@ fn chrono_now() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use schemas::document::{DocumentMetadata, DocumentPath};
+    use schemas::document::{DocumentBody, DocumentMetadata, DocumentPath};
+    use schemas::quality::ObjectStatistics;
 
     fn create_test_doc(id: i64) -> Document {
         Document {
@@ -534,9 +639,13 @@ mod tests {
             hash: "abc123".into(),
             standard: "architecture".into(),
             title: format!("Test Document {}", id),
-            body: "# Test\n\nContent".into(),
+            body: DocumentBody::Generic {
+                raw: "# Test\n\nContent".into(),
+                sections: Vec::new(),
+            },
             metadata: DocumentMetadata::default(),
-            sections: Vec::new(),
+            provenance: None,
+            quality: ObjectStatistics::default(),
             created_at: "now".into(),
             updated_at: "now".into(),
         }

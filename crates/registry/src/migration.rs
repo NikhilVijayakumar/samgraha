@@ -1,4 +1,4 @@
-pub const MIGRATIONS: &[&str] = &[V1, V2, V3, V4];
+pub const MIGRATIONS: &[&str] = &[V1, V2, V3, V4, V5, V6, V7];
 
 const V1: &str = "
 CREATE TABLE IF NOT EXISTS _schema_version (
@@ -106,4 +106,38 @@ CREATE TABLE IF NOT EXISTS document_sections (
 CREATE INDEX IF NOT EXISTS idx_sections_semantic_type ON document_sections(semantic_type);
 CREATE INDEX IF NOT EXISTS idx_sections_document_id ON document_sections(document_id);
 CREATE INDEX IF NOT EXISTS idx_sections_type_doc ON document_sections(semantic_type, document_id);
+";
+
+const V5: &str = "
+ALTER TABLE document_sections ADD COLUMN parent_id INTEGER REFERENCES document_sections(id);
+
+CREATE INDEX IF NOT EXISTS idx_sections_parent_id ON document_sections(parent_id);
+";
+
+const V6: &str = "
+CREATE TABLE IF NOT EXISTS graph_nodes (
+    urn TEXT PRIMARY KEY,
+    node_type TEXT NOT NULL,
+    document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    title TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_graph_nodes_document ON graph_nodes(document_id);
+CREATE INDEX IF NOT EXISTS idx_graph_nodes_type ON graph_nodes(node_type);
+
+CREATE TABLE IF NOT EXISTS graph_edges (
+    id INTEGER PRIMARY KEY,
+    source_urn TEXT NOT NULL REFERENCES graph_nodes(urn) ON DELETE CASCADE,
+    target_urn TEXT NOT NULL REFERENCES graph_nodes(urn) ON DELETE CASCADE,
+    edge_type TEXT NOT NULL,
+    metadata TEXT NOT NULL DEFAULT '{}'
+);
+
+CREATE INDEX IF NOT EXISTS idx_graph_edges_source ON graph_edges(source_urn);
+CREATE INDEX IF NOT EXISTS idx_graph_edges_target ON graph_edges(target_urn);
+CREATE INDEX IF NOT EXISTS idx_graph_edges_type ON graph_edges(edge_type);
+";
+
+const V7: &str = "
+ALTER TABLE documents ADD COLUMN quality TEXT NOT NULL DEFAULT '{}';
 ";
