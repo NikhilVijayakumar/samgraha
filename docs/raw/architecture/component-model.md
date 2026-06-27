@@ -42,9 +42,13 @@ The platform consists of the following logical components.
      Knowledge Compiler             Knowledge Enrichment
              │                                 │
              └────────────────┬────────────────┘
-                              ▼
-                     Knowledge Registry
                               │
+                    ┌─────────┴─────────┐
+                    ▼                   ▼
+          Knowledge Registry    Repository Registry
+           (Knowledge Track)    (Metadata Track)
+                    │                   │
+                    └─────────┬─────────┘
                               ▼
                      Knowledge Runtime
                               │
@@ -123,6 +127,7 @@ The Knowledge Compiler transforms documentation into engineering knowledge.
 * Build structured representations
 * Resolve references
 * Produce compiled knowledge
+* Produce Repository Manifest
 * Generate verification metadata
 
 ### Dependencies
@@ -130,7 +135,7 @@ The Knowledge Compiler transforms documentation into engineering knowledge.
 * Documentation Standards
 * Knowledge Services
 
-The compiler is the only component that produces persistent engineering knowledge.
+The compiler produces two explicit outputs: a compiled knowledge database and a Repository Manifest. These outputs follow separate, non-intersecting tracks.
 
 ---
 
@@ -178,6 +183,32 @@ The Knowledge Registry owns compiled engineering knowledge.
 * Knowledge Compiler
 
 The Knowledge Registry is the persistent boundary of the platform.
+
+---
+
+## Repository Registry
+
+The Repository Registry is the authoritative catalog of repository metadata.
+
+### Responsibilities
+
+* Repository registration and unregistration
+* Repository discovery
+* Repository manifest storage
+* UUID to location mapping
+* Dependency graph management
+* Workspace membership tracking
+* Synchronization history
+
+### Dependencies
+
+* Knowledge Compiler (reads manifests only)
+
+### Boundary
+
+The Repository Registry reads only Repository Manifests. It never opens or reads compiled knowledge databases.
+
+The Registry is a compile-time and synchronization artifact. It is never in the runtime query path.
 
 ---
 
@@ -265,9 +296,15 @@ Knowledge Services
 Compiler     Knowledge Enrichment
       │             │
       └──────┬──────┘
-             ▼
-     Knowledge Registry
              │
+      ┌──────┴──────┐
+      ▼             ▼
+Knowledge     Repository
+ Registry      Registry
+(Knowledge    (Metadata
+  Track)        Track)
+      │             │
+      └──────┬──────┘
              ▼
      Knowledge Runtime
              │
@@ -289,6 +326,8 @@ Components should collaborate through contracts rather than shared implementatio
 
 Persistent engineering knowledge belongs exclusively to the Knowledge Registry.
 
+Persistent repository metadata belongs exclusively to the Repository Registry.
+
 Engineering rules belong exclusively to Documentation Standards.
 
 Runtime execution belongs exclusively to the Knowledge Runtime.
@@ -308,6 +347,8 @@ Typical interactions include:
 | Documentation Standards | Knowledge Services   | Engineering contracts |
 | Knowledge Services      | Knowledge Compiler   | Compilation workflows |
 | Knowledge Compiler      | Knowledge Registry   | Compiled knowledge    |
+| Knowledge Compiler      | Repository Registry  | Repository manifests  |
+| Repository Registry     | Knowledge Runtime    | Metadata cache        |
 | Knowledge Registry      | Knowledge Runtime    | Retrieval             |
 | Knowledge Runtime       | Transport Adapters   | Runtime operations    |
 | Provider Integrations   | Knowledge Enrichment | Optional enrichment   |
@@ -388,6 +429,7 @@ Supporting features include:
 * Knowledge Services
 * Markdown Compilation
 * Knowledge Registry
+* Repository Registry
 * Knowledge Runtime
 * Knowledge Enrichment
 * Workspace Support
@@ -403,7 +445,9 @@ System Overview
     ↓
 Component Model
     ↓
-Architecture
+Architecture — Repository Registry Architecture
+    ↓
+Feature — Repository Registry
     ↓
 Engineering
     ↓
