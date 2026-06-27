@@ -143,6 +143,23 @@ cargo build -p samgraha-compiler
 
 ---
 
+## Compilation Output Artifacts
+
+Knowledge compilation produces two distinct artifacts.
+
+| Artifact | Location | Consumer |
+|---|---|---|
+| Compiled knowledge database | `.samgraha/knowledge.db` | Knowledge Registry |
+| Repository manifest | `.samgraha/manifest.json` | Repository Registry |
+
+Both artifacts are generated on successful compilation. Failed compilations do not update either artifact.
+
+The manifest contains only repository metadata — identity, revision, capabilities, exports, dependencies. It never contains engineering knowledge.
+
+The manifest is written in JSON format (see Repository Registry Architecture for schema).
+
+---
+
 ## Traceability
 
 This document derives from:
@@ -150,14 +167,16 @@ This document derives from:
 - Engineering Principles (deterministic by default, offline first)
 - Technology Selection
 - Repository Structure
+- Repository Registry Architecture
 
 Build Standards provide the framework for:
 
 - CI/CD Pipeline
 - Packaging Standards
+- Repository Registry Implementation
 
 Traceability:
 
 ```
-Engineering Principles → Build Standards → Implementation
+Engineering Principles → Build Standards → Repository Registry → Implementation
 ```

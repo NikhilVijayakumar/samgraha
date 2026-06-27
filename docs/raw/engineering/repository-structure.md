@@ -18,45 +18,47 @@ samgraha/
 ├── Cargo.toml                  # Workspace root
 ├── samgraha.toml               # Platform configuration (dogfooding)
 │
-├── schemas/                    # Shared domain types
-│   ├── Cargo.toml
-│   └── src/
-│
-├── standards/                  # Documentation Standards
-│   ├── Cargo.toml
-│   └── src/
-│
-├── services/                   # Knowledge Services
-│   ├── Cargo.toml
-│   └── src/
-│
-├── compiler/                   # Knowledge Compiler
-│   ├── Cargo.toml
-│   └── src/
-│
-├── registry/                   # Knowledge Registry
-│   ├── Cargo.toml
-│   └── src/
-│
-├── runtime/                    # Knowledge Runtime
-│   ├── Cargo.toml
-│   └── src/
-│
-├── audit/                      # Audit Framework
-│   ├── Cargo.toml
-│   └── src/
-│
-├── providers/                  # Provider Integrations
-│   ├── Cargo.toml
-│   └── src/
-│
-├── cli/                        # CLI Adapter
-│   ├── Cargo.toml
-│   └── src/
-│
-├── mcp/                        # MCP Adapter
-│   ├── Cargo.toml
-│   └── src/
+├── crates/
+│   ├── common/                 # Shared configuration and utilities
+│   │   ├── Cargo.toml
+│   │   └── src/
+│   │
+│   ├── schemas/                # Shared domain types
+│   │   ├── Cargo.toml
+│   │   └── src/
+│   │
+│   ├── standards/              # Documentation Standards
+│   │   ├── Cargo.toml
+│   │   └── src/
+│   │
+│   ├── services/               # Knowledge Services + Knowledge Runtime
+│   │   ├── Cargo.toml
+│   │   └── src/
+│   │       └── runtime/        # Knowledge Runtime (inside services)
+│   │
+│   ├── compiler/               # Knowledge Compiler
+│   │   ├── Cargo.toml
+│   │   └── src/
+│   │
+│   ├── registry/               # Knowledge Registry + Repository Registry
+│   │   ├── Cargo.toml
+│   │   └── src/
+│   │
+│   ├── audit/                  # Audit Framework
+│   │   ├── Cargo.toml
+│   │   └── src/
+│   │
+│   ├── providers/              # Provider Integrations
+│   │   ├── Cargo.toml
+│   │   └── src/
+│   │
+│   ├── cli/                    # CLI Adapter
+│   │   ├── Cargo.toml
+│   │   └── src/
+│   │
+│   └── mcp/                    # MCP Adapter
+│       ├── Cargo.toml
+│       └── src/
 │
 ├── docs/                       # Documentation
 │   └── raw/
@@ -77,12 +79,12 @@ samgraha/
 
 | Crate | Architectural Component | Responsibility |
 |---|---|---|
+| common | Shared Utilities | Configuration types, shared utilities, path validation |
 | schemas | Shared Schemas | Domain types, serialization, validation shared across all crates |
 | standards | Documentation Standards | Standard definitions, contract types, audit rule types |
-| services | Knowledge Services | Service orchestration, workflow execution, service registry |
+| services | Knowledge Services + Knowledge Runtime | Service orchestration, workflow execution, KnowledgeRuntime (at `src/runtime/`) |
 | compiler | Knowledge Compiler | Document processing, metadata extraction, relationship resolution |
-| registry | Knowledge Registry | Storage, retrieval, indexing, integrity management |
-| runtime | Knowledge Runtime | Request routing, service coordination, policy enforcement |
+| registry | Knowledge Registry + Repository Registry | Compiled knowledge storage + repository metadata catalog, RegistryClient trait |
 | audit | Audit Framework | Audit execution, scoring, reporting, provider interface |
 | providers | Provider Integrations | AI provider abstraction, HTTP clients, response parsing |
 | cli | CLI Adapter | Argument parsing, output formatting, terminal interaction |
@@ -96,11 +98,13 @@ samgraha/
 Crate dependencies follow architectural layering:
 
 ```
-schemas (foundation — zero dependencies within workspace)
+common (shared config/utilities — minimal deps)
+    ↑
+schemas (depends on common)
     ↑
 standards (depends on schemas)
     ↑
-services (depends on standards, schemas)
+services (depends on standards, schemas, common)
     ↑
 compiler ──────┐
 audit ─────────┤
@@ -108,13 +112,15 @@ providers ─────┤
                ↓
 registry (depends on compiler, audit, schemas)
     ↑
-runtime (depends on registry, services, schemas)
+services/runtime (KnowledgeRuntime, inside services, depends on registry)
     ↑
 cli ───────────┤
 mcp ───────────┤
                ↓
 tests (depends on all crates)
 ```
+
+Note: `KnowledgeRuntime` is implemented at `crates/services/src/runtime/`. There is no standalone `runtime` crate.
 
 Circular dependencies are not permitted. Every dependency must be justified and explicit.
 
@@ -168,9 +174,10 @@ Public API modules expose the component interface. Internal modules are private 
 Generated artifacts are excluded from version control:
 
 | Pattern | Contents |
-|---|---|
+|---|---|---|
 | `/target/` | Build artifacts |
 | `knowledge.db` | Knowledge Registry |
+| `manifest.json` | Repository Manifest (compiler output, consumed by Repository Registry) |
 | `*.knowledge‑package` | Knowledge Packages |
 | `docs/raw/reports/*/archive/` | Rotated audit reports |
 
