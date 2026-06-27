@@ -173,39 +173,34 @@ Status derives from:
 
 # Metadata Cache
 
-Each repository maintains a local cache of dependency metadata.
+Each repository maintains a local SQLite-backed cache of dependency metadata.
 
 ```
 .samgraha/
-    dependencies/
-        astra.meta.json
-        prana.meta.json
-        tantra.meta.json
+    registry.db          ← SQLite database with repository_cache table
 ```
 
-Metadata files contain only repository metadata. Format: JSON. Extension: `.meta.json`.
+The cache stores `CachedRepoMetadata` entries — repository identity, revision, root path, knowledge database location, exports, audit status, sync timestamp, and TTL expiry. Same fields as the JSON prototype, now backed by an indexed SQLite table.
 
-Example `astra.meta.json`:
+The `repository_cache` table schema:
 
-```json
-{
-  "repository": {
-    "id": "astra",
-    "uuid": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
-  },
-  "revision": 52,
-  "repository_root": "D:/Projects/astra",
-  "knowledge": {
-    "location": ".samgraha/knowledge.db"
-  },
-  "exports": ["architecture", "design"],
-  "audit": "PASS",
-  "last_sync": "2026-06-27T12:00:00Z",
-  "expires": "2026-06-28T12:00:00Z"
-}
+```sql
+CREATE TABLE IF NOT EXISTS repository_cache (
+    id TEXT PRIMARY KEY,
+    uuid TEXT NOT NULL,
+    name TEXT NOT NULL,
+    repository_root TEXT NOT NULL,
+    knowledge_db TEXT NOT NULL,
+    revision INTEGER NOT NULL DEFAULT 0,
+    exports TEXT NOT NULL DEFAULT '[]',
+    audit TEXT NOT NULL DEFAULT 'PASS',
+    last_sync TEXT NOT NULL,
+    expires TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_repo_cache_uuid ON repository_cache(uuid);
 ```
 
-No engineering knowledge is duplicated.
+No engineering knowledge is duplicated. The cache is disposable — fully rebuildable from dependency manifests.
 
 ---
 

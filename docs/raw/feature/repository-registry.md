@@ -94,11 +94,11 @@ Status is computed from cached metadata. It is never persisted.
 
 The Repository Registry shall maintain a metadata cache.
 
-The cache stores dependency metadata as local `.meta.json` files.
+The cache stores dependency metadata in a local SQLite database (`.samgraha/registry.db`).
 
-Cache entries include:
+The `repository_cache` table stores:
 
-* repository identity
+* repository identity (UUID, ID, name)
 * revision
 * repository root
 * knowledge database location
@@ -206,7 +206,7 @@ Repository Registry
         └── Dependency Graph
         │
         ▼
-Metadata Cache (.meta.json)
+Metadata Cache (.samgraha/registry.db)
         │
         ▼
 Knowledge Resolver (cache only)
@@ -234,7 +234,7 @@ The Repository Registry provides:
 * repository discovery
 * manifest storage
 * status information
-* metadata cache files
+* metadata cache entries
 * dependency topology
 * synchronization history
 

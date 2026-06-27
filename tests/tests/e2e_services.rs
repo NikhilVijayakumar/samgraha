@@ -2,8 +2,6 @@ mod fixtures;
 
 use providers::traits::EnrichmentProvider;
 use schemas::audit::{AuditScore, QualityGate, ReadinessAssessment};
-use schemas::search::{RetrievalLevel, SearchQuery};
-use services::search::SearchService;
 use std::collections::HashMap;
 
 #[test]

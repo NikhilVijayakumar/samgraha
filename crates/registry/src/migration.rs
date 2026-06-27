@@ -1,4 +1,11 @@
-pub const MIGRATIONS: &[&str] = &[V1, V2, V3, V4, V5, V6, V7];
+/// Knowledge registry migrations — create `knowledge.db` tables.
+pub const KNOWLEDGE_MIGRATIONS: &[&str] = &[V1, V2, V3, V4, V5, V6, V7];
+
+/// Repository registry migrations — create `registry.db` tables.
+pub const REGISTRY_MIGRATIONS: &[&str] = &[REG_V1];
+
+/// Backward compat alias.
+pub const MIGRATIONS: &[&str] = KNOWLEDGE_MIGRATIONS;
 
 const V1: &str = "
 CREATE TABLE IF NOT EXISTS _schema_version (
@@ -140,4 +147,31 @@ CREATE INDEX IF NOT EXISTS idx_graph_edges_type ON graph_edges(edge_type);
 
 const V7: &str = "
 ALTER TABLE documents ADD COLUMN quality TEXT NOT NULL DEFAULT '{}';
+";
+
+/// REG_V1 — repository registry tables for `.samgraha/registry.db`.
+///
+/// Stores cached dependency metadata in a single `repository_cache` table,
+/// indexed by UUID for fast lookup during dependency resolution.
+/// Supersedes the Phase 1-5 JSON file approach (`.samgraha/dependencies/*.meta.json`).
+/// The cache is disposable — fully rebuildable from dependency manifests.
+const REG_V1: &str = "
+CREATE TABLE IF NOT EXISTS _schema_version (
+    version INTEGER PRIMARY KEY,
+    applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS repository_cache (
+    id TEXT PRIMARY KEY,
+    uuid TEXT NOT NULL,
+    name TEXT NOT NULL,
+    repository_root TEXT NOT NULL,
+    knowledge_db TEXT NOT NULL,
+    revision INTEGER NOT NULL DEFAULT 0,
+    exports TEXT NOT NULL DEFAULT '[]',
+    audit TEXT NOT NULL DEFAULT 'PASS',
+    last_sync TEXT NOT NULL,
+    expires TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_repo_cache_uuid ON repository_cache(uuid);
 ";

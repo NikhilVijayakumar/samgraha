@@ -61,9 +61,11 @@ impl McpCapabilities {
             methods: vec![
                 "compile".to_string(),
                 "search".to_string(),
+                "get_sections".to_string(),
                 "audit".to_string(),
                 "info".to_string(),
                 "get_document".to_string(),
+                "get_document_section".to_string(),
                 "list_domains".to_string(),
             ],
             protocol_version: "2025-03-26".to_string(),

@@ -31,7 +31,7 @@ Registry Client is the programmatic interface through which all components inter
 
 ### Metadata Cache
 
-Metadata Cache stores per-dependency repository metadata as `.meta.json` files in `.samgraha/dependencies/`. The cache is written during compilation and sync operations, read during knowledge resolution. TTL enforcement prevents silent staleness.
+Metadata Cache stores per-dependency repository metadata in a local SQLite database (`.samgraha/registry.db`, `repository_cache` table). The cache is written during compilation and sync operations, read during knowledge resolution. TTL enforcement prevents silent staleness.
 
 ### Knowledge Resolver
 
@@ -58,7 +58,7 @@ The MCP Runtime exposes registry operations through MCP tools alongside knowledg
 | Repository Registry | Maintain authoritative catalog; own repository lifecycle, dependency graph, sync history |
 | Registry Client | Provide programmatic interface; abstract storage backend via trait |
 | FileRegistryClient | SQLite-backed implementation; CRUD for manifests, UUID lookup, dependency queries |
-| Metadata Cache | Store per-dependency metadata as `.meta.json`; enforce TTL; no in-memory state |
+| Metadata Cache | Store per-dependency metadata in SQLite `repository_cache` table; enforce TTL |
 | Knowledge Compiler | Produce manifest.json as second compiler output |
 | Knowledge Resolver | Read metadata cache for dependency resolution; never contact Registry at runtime |
 | CLI | Surface registry operations as CLI subcommands |
@@ -86,15 +86,11 @@ The MCP Runtime exposes registry operations through MCP tools alongside knowledg
                                 │       │
                             ┌────┘       └────┐
                             ▼                  ▼
-                 FileRegistryClient    (future HttpRegistryClient)
-                 (.samgraha/registry.db)
-                            │
-                            ▼
-                     Metadata Cache
-                 (.samgraha/dependencies/*.meta.json)
-                            │
-                            ▼
-                   Knowledge Resolver
+                  FileRegistryClient    (future HttpRegistryClient)
+                  (.samgraha/registry.db)
+                             │
+                             ▼
+                    Knowledge Resolver
                             │
                             ▼
                   Knowledge Package
@@ -106,7 +102,7 @@ The MCP Runtime exposes registry operations through MCP tools alongside knowledg
 2. CLI reads the repository's `manifest.json` from `.samgraha/`.
 3. CLI calls `RegistryClient::register(&manifest)`.
 4. `FileRegistryClient` validates: UUID is unique, `knowledge_db` path is inside declared `root_path`.
-5. Registry writes repository entry to `repository_registry` table.
+5. Registry writes repository entry to `repository_cache` table.
 6. Registry returns success with repository identity.
 
 ### Synchronization Flow
@@ -117,7 +113,7 @@ The MCP Runtime exposes registry operations through MCP tools alongside knowledg
 4. `FileRegistryClient` validates UUID consistency: stored UUID must match manifest UUID. Mismatch is an error.
 5. Registry updates repository entry — revision, audit status, exports, capabilities, dependencies.
 6. Registry updates synchronization timestamp.
-7. Metadata Cache is updated — writes `.meta.json` for each dependency with new revision and TTL.
+7. Metadata Cache is updated — upserts `repository_cache` table entries for each dependency with new revision and TTL.
 
 ### Resolution Flow (Runtime)
 
@@ -126,7 +122,7 @@ The MCP Runtime exposes registry operations through MCP tools alongside knowledg
 3. For each dependency, Resolver queries the Metadata Cache by dependency ID.
 4. Cache hit: verify TTL (`expires` field against current time). If expired, report `STALE_METADATA` status but use cached data (graceful degradation).
 5. Cache miss: report missing dependency, continue with available repositories (no Registry contact).
-6. Cache hit (valid): read `knowledge_db` path from cached metadata.
+6. Cache hit (valid): read `knowledge_db` path from `repository_cache` table.
 7. Resolver opens `knowledge.db` at the resolved path for each available dependency.
 8. Resolver composes the Knowledge Package.
 9. Registry is never contacted during this flow.
@@ -144,7 +140,7 @@ Initialize Registry Client
 Open or Create SQLite Store
         │
         ▼
-Run Migrations (V8: repository_registry, repository_metadata_cache)
+Run Registry Migrations (REG_V1: repository_cache table)
         │
         ▼
 Ready for Operations
@@ -228,7 +224,7 @@ The `McpAdapter` holds `Arc<dyn RegistryClient>`. Registry MCP tools call trait 
 
 ### Knowledge Resolver → Metadata Cache
 
-The Resolver reads `.meta.json` files from the cache directory. It never calls `RegistryClient` at runtime. Cache writes happen only during sync operations (compile or explicit).
+The Resolver reads `repository_cache` entries from `.samgraha/registry.db`. It never calls `RegistryClient` at runtime. Cache writes happen only during sync operations (compile or explicit).
 
 ---
 
@@ -255,7 +251,7 @@ The compiler produces the manifest as a second output. Post-compile, if `auto_re
 
 ### Knowledge Resolver
 
-The Resolver is the primary consumer of cached metadata. It reads `.meta.json` files to locate dependency `knowledge.db` files. The Resolver never contacts the Registry at runtime.
+The Resolver is the primary consumer of cached metadata. It reads `repository_cache` entries from `.samgraha/registry.db` to locate dependency `knowledge.db` files. The Resolver never contacts the Registry at runtime.
 
 ### CLI
 
@@ -267,7 +263,7 @@ The MCP Runtime provides dual routing — knowledge operations through `Knowledg
 
 ### Metadata Cache
 
-The cache bridges the Registry and the Resolver. It is written during sync, read during resolution. File-based for Phase 1-5, optional in-memory overlay for Phase 7+ long-running MCP server.
+The cache bridges the Registry and the Resolver. It is written during sync, read during resolution. SQLite-backed for local operation, optional in-memory overlay for long-running MCP server.
 
 ---
 

@@ -24,3 +24,4 @@ target
 !/docs/raw/reports/*/latest/report.md
 /docs/test.md
 /docs/report/
+tests/.samgraha/

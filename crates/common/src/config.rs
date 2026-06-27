@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SamgrahaConfig {
@@ -8,6 +9,8 @@ pub struct SamgrahaConfig {
     pub repository: RepositoryConfig,
     #[serde(default)]
     pub compilation: CompilationConfigSection,
+    #[serde(default)]
+    pub resolver: ResolverConfig,
     #[serde(default)]
     pub ai: AiConfigSection,
     #[serde(default)]
@@ -28,6 +31,31 @@ pub struct RepositoryConfig {
     pub workspace: Option<WorkspaceMembershipConfig>,
     #[serde(default)]
     pub dependencies: Vec<DependencyConfig>,
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub uuid: Option<Uuid>,
+}
+
+/// Parse duration strings like "24h", "7d", "3600" into seconds.
+pub fn parse_ttl_duration(s: &str) -> Option<i64> {
+    let s = s.trim();
+    if s.is_empty() {
+        return None;
+    }
+    let (num, unit) = s
+        .find(|c: char| !c.is_ascii_digit())
+        .map_or((s, ""), |i| s.split_at(i));
+    let n: i64 = num.parse().ok()?;
+    match unit {
+        "s" | "sec" | "secs" | "second" | "seconds" => Some(n),
+        "m" | "min" | "mins" | "minute" | "minutes" => Some(n * 60),
+        "" | "h" | "hr" | "hrs" | "hour" | "hours" => Some(n * 3600),
+        "d" | "day" | "days" => Some(n * 86400),
+        _ => None,
+    }
 }
 
 impl Default for RepositoryConfig {
@@ -38,6 +66,9 @@ impl Default for RepositoryConfig {
             ignore: IgnoreConfig::default(),
             workspace: None,
             dependencies: Vec::new(),
+            id: None,
+            name: None,
+            uuid: None,
         }
     }
 }
@@ -137,6 +168,74 @@ impl Default for DocumentationCompilationConfig {
     }
 }
 
+/// Resolver configuration — controls how the Knowledge Resolver
+/// locates dependencies and interacts with the Repository Registry.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ResolverConfig {
+    #[serde(default = "default_metadata_cache")]
+    pub metadata_cache: bool,
+    #[serde(default = "default_metadata_ttl")]
+    pub metadata_ttl: String,
+    #[serde(default = "default_auto_refresh")]
+    pub auto_refresh: bool,
+    #[serde(default)]
+    pub registry_type: RegistryType,
+    #[serde(default)]
+    pub registry_url: Option<String>,
+}
+
+fn default_metadata_cache() -> bool {
+    true
+}
+
+fn default_metadata_ttl() -> String {
+    "24h".to_string()
+}
+
+fn default_auto_refresh() -> bool {
+    true
+}
+
+impl Default for ResolverConfig {
+    fn default() -> Self {
+        Self {
+            metadata_cache: true,
+            metadata_ttl: "24h".to_string(),
+            auto_refresh: true,
+            registry_type: RegistryType::File,
+            registry_url: None,
+        }
+    }
+}
+
+impl ResolverConfig {
+    pub fn with_remote(url: &str) -> Self {
+        Self {
+            registry_type: RegistryType::Http,
+            registry_url: Some(url.to_string()),
+            ..Self::default()
+        }
+    }
+}
+
+/// Registry storage backend type.
+///
+/// Default is `File` (local SQLite). `Http` is reserved for future
+/// remote registry support (Phase 7+).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum RegistryType {
+    #[serde(rename = "file")]
+    File,
+    #[serde(rename = "http")]
+    Http,
+}
+
+impl Default for RegistryType {
+    fn default() -> Self {
+        Self::File
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AiConfigSection {
     #[serde(default)]
@@ -225,6 +324,7 @@ impl Default for SamgrahaConfig {
         Self {
             repository: RepositoryConfig::default(),
             compilation: CompilationConfigSection::default(),
+            resolver: ResolverConfig::default(),
             ai: AiConfigSection::default(),
             audit: AuditConfigSection::default(),
             output: OutputConfigSection::default(),
