@@ -1,4 +1,5 @@
-use schemas::document::{Document, DocumentMetadata, DocumentPath};
+use schemas::document::{Document, DocumentBody, DocumentMetadata, DocumentPath};
+use schemas::quality::ObjectStatistics;
 use std::path::PathBuf;
 
 pub fn sample_document(id: i64, standard: &str, title: &str, body: &str) -> Document {
@@ -8,9 +9,13 @@ pub fn sample_document(id: i64, standard: &str, title: &str, body: &str) -> Docu
         hash: compute_hash(body),
         standard: standard.to_string(),
         title: title.to_string(),
-        body: body.to_string(),
+        body: DocumentBody::Generic {
+            raw: body.to_string(),
+            sections: Vec::new(),
+        },
         metadata: DocumentMetadata::default(),
-        sections: Vec::new(),
+        provenance: None,
+        quality: ObjectStatistics::default(),
         created_at: "2026-01-01T00:00:00Z".into(),
         updated_at: "2026-01-01T00:00:00Z".into(),
     }
