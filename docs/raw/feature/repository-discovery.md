@@ -48,12 +48,14 @@ Repository Discovery shall collect repository metadata.
 
 Metadata may include:
 
-* repository identity
+* repository identity (UUID, ID, name)
 * repository location
 * repository version
 * workspace membership
 * documentation availability
 * platform compatibility
+
+The UUID is the authoritative identity key. ID and name are mutable display fields.
 
 Metadata supports repository management without requiring compilation.
 
@@ -110,11 +112,11 @@ Invalid repositories shall be reported.
 
 ## FR7. Registration Support
 
-Repository Discovery shall provide discovered repositories to Workspace Management.
+Repository Discovery shall provide discovered repositories to Workspace Management and the Repository Registry.
 
-Workspace Management determines whether repositories become active workspace members.
+Workspace Management determines workspace membership. The Repository Registry manages repository identity, metadata, and synchronization.
 
-Discovery shall not automatically modify workspace configuration.
+Discovery shall not automatically modify workspace configuration or register repositories without confirmation.
 
 ---
 
@@ -162,6 +164,9 @@ Repository Metadata
 Workspace Management
         │
         ▼
+Repository Registry (registration)
+        │
+        ▼
 Repository Configuration
 ```
 
@@ -183,11 +188,12 @@ Repository Discovery consumes:
 Repository Discovery produces:
 
 * discovered repositories
-* repository metadata
+* repository metadata (including UUID-based identity)
 * validation results
 * discovery reports
+* registration requests for Repository Registry
 
-Outputs are consumed by Workspace Management.
+Outputs are consumed by Workspace Management and the Repository Registry.
 
 ---
 
@@ -216,6 +222,7 @@ Repository Discovery depends upon:
 Repository Discovery provides repository information to:
 
 * Workspace Management
+* Repository Registry (registration and metadata)
 * Knowledge Compilation
 * Knowledge Registry
 * Future platform services
