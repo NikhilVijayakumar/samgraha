@@ -65,7 +65,7 @@ fn main() -> Result<()> {
             Err(e) => {
                 let err = JsonRpcResponse {
                     jsonrpc: "2.0".to_string(),
-                    id: None,
+                    id: Some(serde_json::Value::Null),
                     result: None,
                     error: Some(JsonRpcError {
                         code: -32700,
@@ -77,6 +77,11 @@ fn main() -> Result<()> {
                 continue;
             }
         };
+
+        // JSON-RPC 2.0 notifications have no id — server must not respond.
+        if req.id.is_none() {
+            continue;
+        }
 
         let response = handle(&adapter, &req);
         let _ = writeln!(stdout, "{}", serde_json::to_string(&response).unwrap());
@@ -101,12 +106,10 @@ fn handle(adapter: &McpAdapter, req: &JsonRpcRequest) -> JsonRpcResponse {
             })),
             error: None,
         },
-        "notifications/initialized" => JsonRpcResponse {
-            jsonrpc: "2.0".to_string(),
-            id: None,
-            result: None,
-            error: None,
-        },
+        "notifications/initialized" => {
+            // Handled upstream — loop skips when id.is_none().
+            unreachable!()
+        }
         "tools/list" => JsonRpcResponse {
             jsonrpc: "2.0".to_string(),
             id: req.id.clone(),
