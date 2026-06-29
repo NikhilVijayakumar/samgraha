@@ -8,6 +8,14 @@ Technology selection is driven by engineering principles — determinism, offlin
 
 ---
 
+## Engineering Principles
+
+The project follows a set of core engineering principles including Documentation First, Architecture First, Deterministic by Default, Offline First, Local First, Minimal Dependencies, Explicit Configuration, Fail Fast, Secure by Default, Observable Systems, Progressive Enhancement, and Repository Isolation. See [Engineering Principles](engineering-principles.md) for the full description of each principle and the decision framework.
+
+## Technology Selection
+
+The project is built using Rust as the primary implementation language with a multi-crate workspace structure. Key technology choices include SQLite (via rusqlite with bundled feature) for the knowledge registry, pulldown-cmark for Markdown parsing, Rayon for parallel processing, and Serde for serialization. See [Technology Selection](technology-selection.md) for the complete rationale behind each technology choice.
+
 ## Programming Language: Rust
 
 ### Rationale
@@ -196,6 +204,14 @@ Technology Selection provides context for:
 - Build Standards
 - Dependency Standards
 - Persistence Standards
+
+## Build Standards
+
+Technology selection constrains build toolchain requirements. Rust edition 2021 with specific feature flags drives build configuration. See [Build Standards](build-standards.md) for toolchain version requirements and build profile definitions.
+
+## Testing Standards
+
+Technology choices are validated through cross-platform test suites ensuring compatibility across supported toolchains. See [Testing Standards](testing-standards.md) for platform coverage expectations.
 
 Traceability:
 

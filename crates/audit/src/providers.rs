@@ -50,12 +50,21 @@ impl DeterministicAuditProvider {
                 documents
                     .par_iter()
                     .filter(|doc| {
-                        doc.quality
+                        let count = doc
+                            .quality
                             .per_type
                             .get(&section_key)
                             .copied()
-                            .unwrap_or(0)
-                            == 0
+                            .unwrap_or(0);
+                        if count > 0 {
+                            return false;
+                        }
+                        let title_key = doc
+                            .title
+                            .to_lowercase()
+                            .replace(' ', "_")
+                            .replace('-', "_");
+                        title_key != section_key
                     })
                     .map(|doc| AuditFinding {
                         check_id: rule.id.clone(),

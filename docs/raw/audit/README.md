@@ -1,5 +1,9 @@
 # Documentation Audit System
 
+## Getting Started
+
+This directory contains audit documentation for the Saṃgraha knowledge platform. To understand the audit system, start with the [Audit Rules](#authority-chain) table below, then read individual audit docs for each domain.
+
 ## Context
 
 Documentation standards (`docs/raw/standards/`) define contracts each documentation domain must satisfy. Audits verify compliance against those contracts.

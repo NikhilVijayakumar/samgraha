@@ -12,6 +12,14 @@ Implementation details are documented separately.
 
 ---
 
+## System Overview
+
+The Saṃgraha platform follows a layered architecture with four primary layers: Documentation Standards, Knowledge Services, Knowledge Compilation, and Knowledge Runtime. See [System Overview](system-overview.md) for the complete architecture description, platform layers, logical components, and architectural principles.
+
+## Component Model
+
+The system is composed of logical components organized by responsibility: Documentation Standards, Knowledge Services, Knowledge Compiler, Knowledge Enrichment, Knowledge Registry, Repository Registry, Knowledge Runtime, Transport Adapters, and Provider Integrations. See [Component Model](component-model.md) for detailed component responsibilities, dependencies, and interaction contracts.
+
 # Persistence Philosophy
 
 Saṃgraha persists engineering knowledge rather than application state.
@@ -368,6 +376,10 @@ Supporting features include:
 * Incremental Compilation
 * Knowledge Search
 * Knowledge Enrichment
+
+## Security
+
+Persistent data is isolated by repository boundary. Knowledge registry contents are treated as generated artifacts, not authoritative sources. See [Security Architecture](security-architecture.md) for persistence security requirements and data isolation rules.
 
 Traceability:
 

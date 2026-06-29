@@ -8,6 +8,10 @@ Engineering principles shape every engineering decision — technology selection
 
 ---
 
+## Technology Selection
+
+The project is built using Rust as the primary implementation language with a multi-crate workspace structure. Key technology choices include SQLite (via rusqlite with bundled feature) for the knowledge registry, pulldown-cmark for Markdown parsing, Rayon for parallel processing, and Serde for serialization. See [Technology Selection](technology-selection.md) for the complete rationale behind each technology choice.
+
 ## Principles
 
 ### Documentation First
@@ -92,6 +96,14 @@ Engineering Principles provide the foundation for:
 - Build Standards
 - Testing Standards
 - All Engineering Documentation
+
+## Build Standards
+
+Engineering principles inform the build system: deterministic by default, offline first, minimal dependencies. Build profiles are explicit and configurable. See [Build Standards](build-standards.md) for detailed build system specification.
+
+## Testing Standards
+
+Testing follows from engineering principles: fail fast, secure by default, observable systems. Tests validate deterministic behavior across environments. See [Testing Standards](testing-standards.md) for testing approach and framework.
 
 Traceability:
 

@@ -8,6 +8,14 @@ Repository structure follows the architectural component model. Each architectur
 
 ---
 
+## Engineering Principles
+
+The project follows a set of core engineering principles including Documentation First, Architecture First, Deterministic by Default, Offline First, Local First, Minimal Dependencies, Explicit Configuration, Fail Fast, Secure by Default, Observable Systems, Progressive Enhancement, and Repository Isolation. See [Engineering Principles](engineering-principles.md) for the full description of each principle and the decision framework.
+
+## Technology Selection
+
+The project is built using Rust as the primary implementation language with a multi-crate workspace structure. Key technology choices include SQLite (via rusqlite with bundled feature) for the knowledge registry, pulldown-cmark for Markdown parsing, Rayon for parallel processing, and Serde for serialization. See [Technology Selection](technology-selection.md) for the complete rationale behind each technology choice.
+
 ## Workspace Organization
 
 The platform is organized as a Cargo workspace with the following crates:
@@ -198,6 +206,14 @@ Repository Structure provides the foundation for:
 - Build Standards
 - Dependency Standards
 - CI/CD Pipeline
+
+## Build Standards
+
+Repository structure defines the compilation boundaries. Each crate is compiled independently with defined dependencies. See [Build Standards](build-standards.md) for build system integration with workspace structure.
+
+## Testing Standards
+
+Repository structure is validated through workspace-level tests ensuring correct dependency resolution and feature flag isolation. See [Testing Standards](testing-standards.md) for testing expectations per crate.
 
 Traceability:
 

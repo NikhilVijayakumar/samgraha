@@ -12,6 +12,14 @@ Implementation structure is documented separately.
 
 ---
 
+## System Overview
+
+The Saṃgraha platform follows a layered architecture with four primary layers: Documentation Standards, Knowledge Services, Knowledge Compilation, and Knowledge Runtime. See [System Overview](system-overview.md) for the complete architecture description, platform layers, logical components, and architectural principles.
+
+## Component Model
+
+The system is composed of logical components organized by responsibility: Documentation Standards, Knowledge Services, Knowledge Compiler, Knowledge Enrichment, Knowledge Registry, Repository Registry, Knowledge Runtime, Transport Adapters, and Provider Integrations. See [Component Model](component-model.md) for detailed component responsibilities, dependencies, and interaction contracts.
+
 # Component Philosophy
 
 Saṃgraha is organized as a collection of loosely coupled components.
@@ -434,6 +442,10 @@ Supporting features include:
 * Knowledge Enrichment
 * Workspace Support
 
+## Security
+
+Security is addressed at the architectural boundary level. Each component is responsible for enforcing its own security within the contract defined by Security Architecture. See [Security Architecture](security-architecture.md) for the complete security model, threat categories, and component-level security responsibilities.
+
 Traceability:
 
 ```text
@@ -445,9 +457,9 @@ System Overview
     ↓
 Component Model
     ↓
-Architecture — Repository Registry Architecture
+Architecture ― Repository Registry Architecture
     ↓
-Feature — Repository Registry
+Feature ― Repository Registry
     ↓
 Engineering
     ↓

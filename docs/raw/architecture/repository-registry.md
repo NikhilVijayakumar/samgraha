@@ -10,6 +10,14 @@ It operates on an entirely separate track from compiled engineering knowledge. T
 
 ---
 
+## System Overview
+
+The Saṃgraha platform follows a layered architecture with four primary layers: Documentation Standards, Knowledge Services, Knowledge Compilation, and Knowledge Runtime. See [System Overview](system-overview.md) for the complete architecture description, platform layers, logical components, and architectural principles.
+
+## Component Model
+
+The system is composed of logical components organized by responsibility: Documentation Standards, Knowledge Services, Knowledge Compiler, Knowledge Enrichment, Knowledge Registry, Repository Registry, Knowledge Runtime, Transport Adapters, and Provider Integrations. See [Component Model](component-model.md) for detailed component responsibilities, dependencies, and interaction contracts.
+
 # Architecture Philosophy
 
 The Repository Registry follows a strict two-track separation.
@@ -296,18 +304,18 @@ The Repository Registry is never in the runtime query path.
 
 # Extension Model
 
-The Repository Registry is accessed through the `RegistryClient` trait.
+The Repository Registry is accessed through a `RegistryClient` interface with these operations:
 
-```rust
-pub trait RegistryClient: Send + Sync {
-    fn register(&self, manifest: &RepositoryManifest) -> Result<()>;
-    fn unregister(&self, uuid: &Uuid) -> Result<()>;
-    fn sync(&self, manifest: &RepositoryManifest) -> Result<()>;
-    fn discover(&self, query: &RegistryQuery) -> Result<Vec<RepoMetadata>>;
-    fn get_metadata(&self, uuid: &Uuid) -> Result<Option<RepoMetadata>>;
-    fn list(&self) -> Result<Vec<RepoMetadata>>;
-}
-```
+| Operation | Description |
+|---|---|
+| `register` | Add a repository manifest to the registry |
+| `unregister` | Remove a repository by UUID |
+| `sync` | Update a manifest to match current state |
+| `discover` | Query repositories by search criteria |
+| `get_metadata` | Retrieve metadata for a single repository |
+| `list` | Enumerate all known repositories |
+
+The interface is implemented by:
 
 | Implementation | When | Backend |
 |---|---|---|
@@ -388,6 +396,10 @@ This document provides architectural context for:
 * Feature: Repository Discovery
 * Feature: Repository Configuration
 * Engineering: Repository Registry Implementation
+
+## Security
+
+The Repository Registry operates outside the runtime query path and manages repository metadata only. Registry data is a generated artifact and never an authority boundary violation. See [Security Architecture](security-architecture.md) for registry-specific security requirements.
 
 Traceability:
 

@@ -48,6 +48,10 @@ impl DiscoveryEngine {
             .map(|s| s.to_lowercase())
             .unwrap_or_default();
 
+        if parent == "standards" {
+            return "standard-definition".to_string();
+        }
+
         let domain_map = [
             ("readme", "readme"),
             ("vision", "vision"),
@@ -137,5 +141,11 @@ mod tests {
     fn test_infer_standard_feature() {
         let p = Path::new("docs/raw/feature/knowledge-compilation.md");
         assert_eq!(DiscoveryEngine::infer_standard(p), "feature");
+    }
+
+    #[test]
+    fn test_infer_standard_definition() {
+        let p = Path::new("docs/raw/standards/feature-design.md");
+        assert_eq!(DiscoveryEngine::infer_standard(p), "standard-definition");
     }
 }

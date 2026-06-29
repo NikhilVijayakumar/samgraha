@@ -14,6 +14,14 @@ Documentation defines the system before implementation exists and remains the au
 
 Every documentation standard, template, generator, audit, validator, prototype, and implementation derives from this philosophy.
 
+## Principles
+
+Documentation as authoritative specification, documentation before implementation, atomicity, single responsibility, one-to-one document-to-domain mapping, no knowledge duplication, feature isolation, external reference over copy, prototype before production, traceability, and AI-first design. See [Core Principles](#core-principles) for the complete list.
+
+## Values
+
+Documentation is a first-class engineering artifact on par with source code. Standards define quality independently of tools. Engineering intent is documented before implementation begins. Knowledge is compiled deterministically — the same documentation always produces the same knowledge package. AI enhances engineering but never enables it; compilation works fully offline.
+
 ---
 
 # Philosophy
@@ -434,6 +442,12 @@ The documentation ecosystem follows these principles:
 * Documentation forms a traceable knowledge graph.
 * Documentation supports both humans and AI systems.
 * Generation, auditing, enhancement, validation, prototyping, and implementation all derive from Documentation Standards.
+
+---
+
+## Trade-offs
+
+Documentation-first engineering requires upfront investment in documentation before implementation, which can slow initial velocity compared to code-first approaches. Deterministic compilation trades runtime flexibility for verification guarantees. AI-enhancement-only limits automation but preserves human authority over engineering knowledge.
 
 ---
 

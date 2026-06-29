@@ -10,6 +10,14 @@ Rather than describing implementation workflows, this document defines the archi
 
 ---
 
+## System Overview
+
+The Saṃgraha platform follows a layered architecture with four primary layers: Documentation Standards, Knowledge Services, Knowledge Compilation, and Knowledge Runtime. See [System Overview](system-overview.md) for the complete architecture description, platform layers, logical components, and architectural principles.
+
+## Component Model
+
+The system is composed of logical components organized by responsibility: Documentation Standards, Knowledge Services, Knowledge Compiler, Knowledge Enrichment, Knowledge Registry, Repository Registry, Knowledge Runtime, Transport Adapters, and Provider Integrations. See [Component Model](component-model.md) for detailed component responsibilities, dependencies, and interaction contracts.
+
 # Knowledge Flow Philosophy
 
 Engineering knowledge is progressively refined.
@@ -463,6 +471,10 @@ Supporting features include:
 * Knowledge Enrichment
 * Automated Audit
 
+## Security
+
+Knowledge flow respects data isolation boundaries. Engineering knowledge is verified before registry insertion, and knowledge integrity is preserved throughout the pipeline. See [Security Architecture](security-architecture.md) for knowledge flow security controls.
+
 Traceability:
 
 ```text
@@ -474,9 +486,9 @@ System Overview
     ↓
 Knowledge Flow
     ↓
-Architecture — Repository Registry Architecture
+Architecture ― Repository Registry Architecture
     ↓
-Feature — Repository Registry
+Feature ― Repository Registry
     ↓
 Engineering
     ↓

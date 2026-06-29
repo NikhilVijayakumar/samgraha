@@ -65,7 +65,7 @@ AI engineering assistants must either:
 
 * consume entire repositories,
 * rely on expensive prompts,
-* reconstruct missing knowledge,
+* infer missing engineering knowledge,
 * or make assumptions.
 
 The result is:
@@ -562,7 +562,7 @@ Engineering knowledge should outlive implementation technologies.
 
 ---
 
-# Target Audience
+## Target Audience
 
 Saṃgraha is designed for organizations building software with AI-assisted engineering.
 

@@ -8,6 +8,14 @@ The platform is distributed as a single self-contained executable. No runtime de
 
 ---
 
+## Engineering Principles
+
+The project follows a set of core engineering principles including Documentation First, Architecture First, Deterministic by Default, Offline First, Local First, Minimal Dependencies, Explicit Configuration, Fail Fast, Secure by Default, Observable Systems, Progressive Enhancement, and Repository Isolation. See [Engineering Principles](engineering-principles.md) for the full description of each principle and the decision framework.
+
+## Technology Selection
+
+The project is built using Rust as the primary implementation language with a multi-crate workspace structure. Key technology choices include SQLite (via rusqlite with bundled feature) for the knowledge registry, pulldown-cmark for Markdown parsing, Rayon for parallel processing, and Serde for serialization. See [Technology Selection](technology-selection.md) for the complete rationale behind each technology choice.
+
 ## Distribution Artifacts
 
 ### Primary: Single Executable
@@ -165,6 +173,10 @@ Packaging Standards provide the framework for:
 
 - CI/CD Pipeline
 - Release Process
+
+## Testing Standards
+
+Packages are verified through integrity checks, signature validation, and compatibility tests across target environments. See [Testing Standards](testing-standards.md) for packaging test methodology.
 
 Traceability:
 
