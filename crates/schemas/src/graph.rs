@@ -71,7 +71,7 @@ impl EdgeType {
 pub struct GraphNode {
     pub urn: Urn,
     pub node_type: String,
-    pub document_id: i64,
+    pub document_id: Option<i64>,
     pub title: String,
 }
 

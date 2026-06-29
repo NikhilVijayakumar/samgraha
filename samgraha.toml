@@ -1,5 +1,5 @@
 [repository]
-root = "."
+
 
 [repository.documentation]
 standards = ["readme", "vision", "philosophy", "architecture", "feature", "feature-design", "feature-technical", "design", "engineering", "external-context", "prototype"]

@@ -133,7 +133,7 @@ impl CompilationPipeline {
                 .nodes
                 .iter()
                 .filter(|n| n.node_type == "document")
-                .map(|n| (n.urn.as_str().to_string(), n.document_id))
+                .filter_map(|n| n.document_id.map(|id| (n.urn.as_str().to_string(), id)))
                 .collect();
             let mut doc_rel_counts: std::collections::HashMap<i64, usize> =
                 std::collections::HashMap::new();

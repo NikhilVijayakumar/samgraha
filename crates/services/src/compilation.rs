@@ -67,8 +67,9 @@ impl CompilationService {
         // Persist newly compiled documents and their semantic sections to registry.
         for doc in &output.documents {
             registry.insert_document(doc)?;
-            let doc_sections: Vec<schemas::document::DocumentSection> = doc.body.sections().into_iter().cloned().collect();
-            registry.insert_document_sections(doc.id, &doc_sections)?;
+            let standard_def = standard_registry.get_by_domain(&doc.standard);
+            let sections = compiler::parse_sections(doc.body.raw(), &doc.path.as_str(), standard_def);
+            registry.insert_document_sections(doc.id, &sections)?;
         }
 
         // Persist compiled knowledge graph
@@ -87,9 +88,17 @@ impl CompilationService {
         // Write Repository Manifest (Phase F2) — only on full success (zero failures).
         let success = output.result.success;
         if success {
-            let next_revision = registry.get_revision().map(|r| r + 1).unwrap_or(1);
+            let current_revision = registry.get_revision().unwrap_or(0);
+            let changed = !output.documents.is_empty();
+            let next_revision = if changed { current_revision + 1 } else { current_revision };
 
-            let uuid = config.repository.uuid.unwrap_or_else(|| {
+            let uuid = config.repository.uuid.or_else(|| {
+                // Reuse existing manifest UUID if one exists, else generate fresh.
+                let manifest_path = root.join(".samgraha").join("manifest.json");
+                std::fs::read_to_string(&manifest_path).ok().and_then(|c| {
+                    serde_json::from_str::<RepositoryManifest>(&c).ok()
+                }).map(|m| m.repository.uuid)
+            }).unwrap_or_else(|| {
                 let new_uuid = Uuid::new_v4();
                 tracing::warn!(
                     "Repository UUID not configured in samgraha.toml. \
