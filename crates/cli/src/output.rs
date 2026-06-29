@@ -129,6 +129,105 @@ pub fn render_audit(report: &AuditReport, format: &OutputFormat) -> String {
     out
 }
 
+pub fn render_audit_report(report: &AuditReport) -> String {
+    use std::collections::BTreeMap;
+
+    let domain = report.domain.as_deref().unwrap_or("all");
+    let errors: Vec<_> = report
+        .findings
+        .iter()
+        .filter(|f| matches!(f.severity, schemas::audit::Severity::Error))
+        .collect();
+    let warnings: Vec<_> = report
+        .findings
+        .iter()
+        .filter(|f| matches!(f.severity, schemas::audit::Severity::Warning))
+        .collect();
+    let suggestions: Vec<_> = report
+        .findings
+        .iter()
+        .filter(|f| matches!(f.severity, schemas::audit::Severity::Suggestion))
+        .collect();
+
+    let mut out = String::new();
+    out.push_str("# Saṃgraha Audit Report\n\n");
+    out.push_str(&format!("**Date:** {}\n", chrono::Local::now().format("%Y-%m-%d %H:%M:%S")));
+    out.push_str(&format!("**Domain:** {}\n", domain));
+    out.push_str(&format!("**Provider:** {}\n", report.provider));
+    out.push_str(&format!("**Score:** {:.1}%\n", report.score.overall));
+    out.push_str(&format!("**Readiness:** {}\n\n", report.readiness));
+
+    out.push_str("## Summary\n\n");
+    out.push_str("| Metric | Value |\n");
+    out.push_str("|---|---|\n");
+    out.push_str(&format!(
+        "| Documents Checked | {} |\n",
+        report.score.documents_checked
+    ));
+    out.push_str(&format!(
+        "| Documents Passed | {} |\n",
+        report.score.documents_passed
+    ));
+    out.push_str(&format!("| Errors | {} |\n", errors.len()));
+    out.push_str(&format!("| Warnings | {} |\n", warnings.len()));
+    out.push_str(&format!("| Suggestions | {} |\n", suggestions.len()));
+
+    if !report.score.categories.is_empty() {
+        out.push_str("\n## Category Scores\n\n");
+        out.push_str("| Standard | Score |\n");
+        out.push_str("|---|---|\n");
+        let sorted: BTreeMap<_, _> = report.score.categories.iter().collect();
+        for (std, score) in &sorted {
+            out.push_str(&format!("| {} | {:.1}% |\n", std, score));
+        }
+    }
+
+    if !errors.is_empty() {
+        out.push_str("\n## Errors\n\n");
+        out.push_str("| Check | Document | Message |\n");
+        out.push_str("|---|---|---|\n");
+        for f in &errors {
+            let loc = f.location.as_deref().unwrap_or("-");
+            out.push_str(&format!(
+                "| {} | {} | {} |\n",
+                f.check_id, loc, f.message
+            ));
+        }
+    }
+
+    if !warnings.is_empty() {
+        out.push_str("\n## Warnings\n\n");
+        out.push_str("| Check | Document | Message |\n");
+        out.push_str("|---|---|---|\n");
+        for f in &warnings {
+            let loc = f.location.as_deref().unwrap_or("-");
+            out.push_str(&format!(
+                "| {} | {} | {} |\n",
+                f.check_id, loc, f.message
+            ));
+        }
+    }
+
+    if !suggestions.is_empty() {
+        out.push_str("\n## Suggestions\n\n");
+        out.push_str("| Check | Document | Message |\n");
+        out.push_str("|---|---|---|\n");
+        for f in &suggestions {
+            let loc = f.location.as_deref().unwrap_or("-");
+            out.push_str(&format!(
+                "| {} | {} | {} |\n",
+                f.check_id, loc, f.message
+            ));
+        }
+    }
+
+    out.push_str(&format!(
+        "\n---\n*Report ID: {}*\n",
+        chrono::Local::now().format("audit-%Y%m%d-%H%M%S")
+    ));
+    out
+}
+
 pub fn render_info(info: &RuntimeInfo, format: &OutputFormat) -> String {
     if matches!(format, OutputFormat::Json) {
         return serde_json::to_string_pretty(info).unwrap_or_default();

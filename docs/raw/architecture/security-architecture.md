@@ -12,6 +12,14 @@ This document describes the architectural principles, trust boundaries, and secu
 
 ---
 
+## System Overview
+
+The Saṃgraha platform follows a layered architecture with four primary layers: Documentation Standards, Knowledge Services, Knowledge Compilation, and Knowledge Runtime. See [System Overview](system-overview.md) for the complete architecture description, platform layers, logical components, and architectural principles.
+
+## Component Model
+
+The system is composed of logical components organized by responsibility: Documentation Standards, Knowledge Services, Knowledge Compiler, Knowledge Enrichment, Knowledge Registry, Repository Registry, Knowledge Runtime, Transport Adapters, and Provider Integrations. See [Component Model](component-model.md) for detailed component responsibilities, dependencies, and interaction contracts.
+
 # Security Objectives
 
 The security architecture is designed to ensure:
@@ -397,6 +405,10 @@ Supporting features include:
 * Knowledge Search
 * Knowledge Enrichment
 * Workspace Support
+
+## Security
+
+Security Architecture is the authoritative document for all security concerns. It defines the security model, trust boundaries, component responsibilities, and threat categories. All other architecture documents reference Security Architecture for security requirements within their domain.
 
 Traceability:
 

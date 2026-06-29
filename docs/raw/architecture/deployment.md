@@ -12,6 +12,14 @@ Implementation-specific deployment strategies are documented separately.
 
 ---
 
+## System Overview
+
+The Saṃgraha platform follows a layered architecture with four primary layers: Documentation Standards, Knowledge Services, Knowledge Compilation, and Knowledge Runtime. See [System Overview](system-overview.md) for the complete architecture description, platform layers, logical components, and architectural principles.
+
+## Component Model
+
+The system is composed of logical components organized by responsibility: Documentation Standards, Knowledge Services, Knowledge Compiler, Knowledge Enrichment, Knowledge Registry, Repository Registry, Knowledge Runtime, Transport Adapters, and Provider Integrations. See [Component Model](component-model.md) for detailed component responsibilities, dependencies, and interaction contracts.
+
 # Deployment Philosophy
 
 Saṃgraha is designed as a local-first Knowledge Engineering Platform.
@@ -287,6 +295,10 @@ Supporting features include:
 * Workspace Support
 * Knowledge Registry
 * Knowledge Services
+
+## Security
+
+Deployment follows secure-by-default principles. Build artifacts are verified before deployment, and runtime environments maintain isolation boundaries. See [Security Architecture](security-architecture.md) for deployment-specific security requirements.
 
 Traceability:
 

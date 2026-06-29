@@ -8,6 +8,14 @@ Security is a platform property, not a feature. Path traversal, repository isola
 
 ---
 
+## Engineering Principles
+
+The project follows a set of core engineering principles including Documentation First, Architecture First, Deterministic by Default, Offline First, Local First, Minimal Dependencies, Explicit Configuration, Fail Fast, Secure by Default, Observable Systems, Progressive Enhancement, and Repository Isolation. See [Engineering Principles](engineering-principles.md) for the full description of each principle and the decision framework.
+
+## Technology Selection
+
+The project is built using Rust as the primary implementation language with a multi-crate workspace structure. Key technology choices include SQLite (via rusqlite with bundled feature) for the knowledge registry, pulldown-cmark for Markdown parsing, Rayon for parallel processing, and Serde for serialization. See [Technology Selection](technology-selection.md) for the complete rationale behind each technology choice.
+
 ## Threat Model
 
 ### In Scope
@@ -142,6 +150,14 @@ Security Standards provide the framework for:
 - Registry Implementation
 - Provider Integration
 - CLI Design
+
+## Build Standards
+
+Security-sensitive builds apply hardening flags and dependency audit checks. Build pipeline verifies no known-vulnerability dependencies are included. See [Build Standards](build-standards.md) for security build configuration.
+
+## Testing Standards
+
+Security is verified through dependency audits, fuzzing, and penetration testing. Security tests validate authentication, authorization, and data isolation guarantees. See [Testing Standards](testing-standards.md) for security testing methodology.
 
 Traceability:
 

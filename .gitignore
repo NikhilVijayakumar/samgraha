@@ -27,3 +27,4 @@ target
 tests/.samgraha/
 /.samgraha/
 /samgraha.toml.phase1bak
+/docs/raw/reports/

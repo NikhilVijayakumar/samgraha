@@ -338,9 +338,13 @@ Expected: revision, audit, capabilities, exports update. Nothing else.
 
 ### 1.12 — Search
 
+Replace `<term>` with an actual query (e.g., `"repository"`, `"registry"`, `"compiler"`):
+
 ```bash
-cargo run --bin cli -- search "<term>"
+cargo run --bin cli -- search "repository"
 ```
+
+Exit code `4` (InputError) means zero results — try a different term.
 
 Architectural invariant: search reads `knowledge.db` only. Never touches registry.
 
@@ -348,15 +352,29 @@ Architectural invariant: search reads `knowledge.db` only. Never touches registr
 
 ### 1.13 — Audit
 
+#### 1.13.1 — Basic Audit
+
 ```bash
 cargo run --bin cli -- audit
+```
+
+Verify: audit runs against all domains, PASS/FAIL per category, overall readiness score printed.
+
+#### 1.13.2 — Full Audit (all checks)
+
+```bash
 cargo run --bin cli -- audit --all
+```
+
+Verify: uses all available providers, comprehensive check output, no skipped categories.
+
+#### 1.13.3 — Audit Gate
+
+```bash
 cargo run --bin cli -- audit --gate
 ```
 
-Verify guardrails integration and gate exit code on failure.
-
-**Audit gate test**: `audit --gate` fails → verify MCP returns no document for failed audits.
+Verify: exits with code `2` (AuditFailure) if any check fails; MCP returns no document for failed audits.
 
 ---
 

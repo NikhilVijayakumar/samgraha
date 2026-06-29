@@ -8,6 +8,14 @@ Dependencies are carefully managed to align with the minimal dependencies princi
 
 ---
 
+## Engineering Principles
+
+The project follows a set of core engineering principles including Documentation First, Architecture First, Deterministic by Default, Offline First, Local First, Minimal Dependencies, Explicit Configuration, Fail Fast, Secure by Default, Observable Systems, Progressive Enhancement, and Repository Isolation. See [Engineering Principles](engineering-principles.md) for the full description of each principle and the decision framework.
+
+## Technology Selection
+
+The project is built using Rust as the primary implementation language with a multi-crate workspace structure. Key technology choices include SQLite (via rusqlite with bundled feature) for the knowledge registry, pulldown-cmark for Markdown parsing, Rayon for parallel processing, and Serde for serialization. See [Technology Selection](technology-selection.md) for the complete rationale behind each technology choice.
+
 ## Dependency Philosophy
 
 - Dependencies must be justified by clear engineering value.
@@ -134,6 +142,10 @@ Dependency Standards provide the framework for:
 
 - Build Standards
 - Security Standards
+
+## Build Standards
+
+Dependency declarations are validated during build. Unused or duplicate dependencies are rejected by the build pipeline. See [Build Standards](build-standards.md) for dependency audit configuration.
 
 Traceability:
 

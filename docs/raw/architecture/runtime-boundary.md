@@ -12,6 +12,14 @@ Instead, it defines the logical execution model of the platform.
 
 ---
 
+## System Overview
+
+The Saṃgraha platform follows a layered architecture with four primary layers: Documentation Standards, Knowledge Services, Knowledge Compilation, and Knowledge Runtime. See [System Overview](system-overview.md) for the complete architecture description, platform layers, logical components, and architectural principles.
+
+## Component Model
+
+The system is composed of logical components organized by responsibility: Documentation Standards, Knowledge Services, Knowledge Compiler, Knowledge Enrichment, Knowledge Registry, Repository Registry, Knowledge Runtime, Transport Adapters, and Provider Integrations. See [Component Model](component-model.md) for detailed component responsibilities, dependencies, and interaction contracts.
+
 # Runtime Philosophy
 
 Saṃgraha is a compilation-oriented platform.
@@ -374,6 +382,10 @@ Supporting features include:
 * Workspace Support
 * Knowledge Search
 * CLI Interface
+
+## Security
+
+The runtime boundary enforces isolation between engineering knowledge and execution. Deterministic execution ensures predictable behavior. See [Security Architecture](security-architecture.md) for runtime security model and isolation guarantees.
 
 Traceability:
 

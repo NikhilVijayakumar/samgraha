@@ -4,6 +4,26 @@
 
 ---
 
+## Getting Started
+
+```bash
+# Clone and build
+git clone <repository-url>
+cd samgraha
+cargo build --release
+
+# Compile documentation
+./target/release/samgraha compile
+
+# Search compiled knowledge
+./target/release/samgraha search --query "<search-term>"
+
+# Run audit
+./target/release/samgraha audit --all
+```
+
+Prerequisites: Rust toolchain (edition 2021), no external database or AI services required.
+
 ## Overview
 
 Saṃgraha is a **Knowledge Engineering Platform** that transforms engineering

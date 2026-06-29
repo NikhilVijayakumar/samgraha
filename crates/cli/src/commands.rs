@@ -6,7 +6,7 @@ use services::package::PackageFormat;
 use schemas::search::{RetrievalLevel, SearchQuery, SectionQuery};
 use std::path::PathBuf;
 
-use crate::output::{format_output, render_audit, render_compile, render_info, render_registry_list, render_search, render_sections, render_workspace_compile, OutputFormat};
+use crate::output::{format_output, render_audit, render_audit_report, render_compile, render_info, render_registry_list, render_search, render_sections, render_workspace_compile, OutputFormat};
 use common::config::SamgrahaConfig;
 use services::{KnowledgeRuntime, WorkspaceService};
 
@@ -95,8 +95,17 @@ pub enum Commands {
         #[arg(long = "all", help = "Audit all domains")]
         all: bool,
 
-        #[arg(long = "gate", help = "Minimum score for quality gate")]
+        #[arg(
+            long = "gate",
+            help = "Quality gate minimum score (default: 100.0). Pass --gate or --gate <SCORE>",
+            default_missing_value = "100.0",
+            num_args = 0..=1,
+            value_name = "SCORE",
+        )]
         gate: Option<f64>,
+
+        #[arg(long = "report", help = "Save markdown report to docs/report/audit/")]
+        report: bool,
     },
 
     #[command(about = "Display repository information")]
@@ -230,7 +239,8 @@ impl Cli {
                 provider,
                 all,
                 gate,
-            } => self.execute_audit(domain.as_deref(), provider, *all, *gate, &format),
+                report,
+            } => self.execute_audit(domain.as_deref(), provider, *all, *gate, *report, &format),
             Commands::Info { path } => self.execute_info(path.as_ref(), &format),
             Commands::Init { path, force } => self.execute_init(path.as_ref(), *force, &format),
             Commands::Package { output, profile, json } => {
@@ -431,6 +441,7 @@ impl Cli {
         providers: &[String],
         _all: bool,
         gate: Option<f64>,
+        report: bool,
         format: &OutputFormat,
     ) -> Result<ExitCode> {
         let root = crate::config::discover_repository_root()?;
@@ -451,14 +462,28 @@ impl Cli {
             providers.to_vec()
         };
 
-        let report = runtime.audit(audit_domain, &provider_names, None)?;
-        println!("{}", render_audit(&report, format));
+        let audit_report = runtime.audit(audit_domain, &provider_names, None)?;
+        println!("{}", render_audit(&audit_report, format));
+
+        if report {
+            let report_dir = root.join("docs").join("report").join("audit");
+            std::fs::create_dir_all(&report_dir)?;
+            let now = chrono::Local::now();
+            let filename = format!("{}.md", now.format("%Y%m%d-%H%M%S"));
+            let path = report_dir.join(&filename);
+            let md = render_audit_report(&audit_report);
+            std::fs::write(&path, md)?;
+            println!(
+                "Report saved: {}",
+                path.to_string_lossy()
+            );
+        }
 
         if let Some(min_score) = gate {
-            if report.score.overall < min_score {
+            if audit_report.score.overall < min_score {
                 eprintln!(
                     "Quality gate failed: score {:.1}% < minimum {:.1}%",
-                    report.score.overall, min_score
+                    audit_report.score.overall, min_score
                 );
                 return Ok(ExitCode::AuditFailure);
             }

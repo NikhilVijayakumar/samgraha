@@ -8,6 +8,14 @@ Performance is defined in terms of user-visible behavior — time to complete op
 
 ---
 
+## Engineering Principles
+
+The project follows a set of core engineering principles including Documentation First, Architecture First, Deterministic by Default, Offline First, Local First, Minimal Dependencies, Explicit Configuration, Fail Fast, Secure by Default, Observable Systems, Progressive Enhancement, and Repository Isolation. See [Engineering Principles](engineering-principles.md) for the full description of each principle and the decision framework.
+
+## Technology Selection
+
+The project is built using Rust as the primary implementation language with a multi-crate workspace structure. Key technology choices include SQLite (via rusqlite with bundled feature) for the knowledge registry, pulldown-cmark for Markdown parsing, Rayon for parallel processing, and Serde for serialization. See [Technology Selection](technology-selection.md) for the complete rationale behind each technology choice.
+
 ## Performance Targets
 
 ### Compilation
@@ -142,6 +150,14 @@ Performance Standards provide the framework for:
 - Compiler Implementation
 - Registry Implementation
 - CI/CD Pipeline
+
+## Build Standards
+
+Performance benchmarks are integrated into the build pipeline. Release builds enable optimizations relevant to performance measurement. See [Build Standards](build-standards.md) for build profile configuration.
+
+## Testing Standards
+
+Performance is verified through benchmark tests measuring compilation speed, query latency, and memory usage against defined thresholds. See [Testing Standards](testing-standards.md) for benchmarking methodology.
 
 Traceability:
 

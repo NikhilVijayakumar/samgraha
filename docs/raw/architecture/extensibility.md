@@ -14,6 +14,14 @@ Implementation mechanisms are documented separately.
 
 ---
 
+## System Overview
+
+The Saṃgraha platform follows a layered architecture with four primary layers: Documentation Standards, Knowledge Services, Knowledge Compilation, and Knowledge Runtime. See [System Overview](system-overview.md) for the complete architecture description, platform layers, logical components, and architectural principles.
+
+## Component Model
+
+The system is composed of logical components organized by responsibility: Documentation Standards, Knowledge Services, Knowledge Compiler, Knowledge Enrichment, Knowledge Registry, Repository Registry, Knowledge Runtime, Transport Adapters, and Provider Integrations. See [Component Model](component-model.md) for detailed component responsibilities, dependencies, and interaction contracts.
+
 # Extension Philosophy
 
 Extensibility should never compromise determinism.
@@ -348,6 +356,10 @@ Supporting features include:
 * Knowledge Enrichment
 * Knowledge Runtime
 * Workspace Support
+
+## Security
+
+Extensions operate within security boundaries defined by the platform. Extension failures must not compromise system integrity. See [Security Architecture](security-architecture.md) for extension isolation requirements and threat model.
 
 Traceability:
 

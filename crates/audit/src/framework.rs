@@ -40,15 +40,6 @@ impl AuditFramework {
         documents: &[Document],
         providers: &[String],
     ) -> Result<AuditReport> {
-        let domain_docs: Vec<Document> = match domain {
-            Some(d) => documents
-                .iter()
-                .filter(|doc| doc.standard == d)
-                .cloned()
-                .collect(),
-            None => documents.to_vec(),
-        };
-
         let standards: Vec<_> = match domain {
             Some(d) => self
                 .standard_registry
@@ -65,20 +56,60 @@ impl AuditFramework {
                 .collect(),
         };
 
-        let rules: Vec<AuditRuleDef> = standards
+        let rules_by_domain: HashMap<String, Vec<AuditRuleDef>> = standards
             .iter()
-            .flat_map(|s| s.audit_rules.iter().cloned())
+            .map(|s| (s.domain.clone(), s.audit_rules.iter().cloned().collect()))
             .collect();
 
-        let all_findings: Vec<AuditFinding> = providers
-            .par_iter()
-            .flat_map(|provider_name| {
-                self.providers
-                    .get(provider_name.as_str())
-                    .map(|provider_fn| provider_fn(&domain_docs, &rules))
-                    .unwrap_or_default()
-            })
-            .collect();
+        let domain_docs: Vec<Document> = match domain {
+            Some(d) => documents
+                .iter()
+                .filter(|doc| doc.standard == d)
+                .cloned()
+                .collect(),
+            None => documents.to_vec(),
+        };
+
+        let all_findings: Vec<AuditFinding> = match domain {
+            Some(d) => {
+                let rules = rules_by_domain.get(d).cloned().unwrap_or_default();
+                providers
+                    .par_iter()
+                    .flat_map(|provider_name| {
+                        self.providers
+                            .get(provider_name.as_str())
+                            .map(|provider_fn| provider_fn(&domain_docs, &rules))
+                            .unwrap_or_default()
+                    })
+                    .collect()
+            }
+            None => {
+                let mut doc_groups: HashMap<String, Vec<Document>> = HashMap::new();
+                for doc in documents.iter() {
+                    doc_groups
+                        .entry(doc.standard.clone())
+                        .or_default()
+                        .push(doc.clone());
+                }
+                doc_groups
+                    .into_par_iter()
+                    .flat_map(|(std_name, docs)| {
+                        let rules = rules_by_domain.get(&std_name).cloned().unwrap_or_default();
+                        providers
+                            .par_iter()
+                            .flat_map(|provider_name| {
+                                self.providers
+                                    .get(provider_name.as_str())
+                                    .map(|provider_fn| provider_fn(&docs, &rules))
+                                    .unwrap_or_default()
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .collect()
+            }
+        };
+
+        let total = domain_docs.len();
 
         let provider_used = providers
             .iter()
@@ -86,8 +117,6 @@ impl AuditFramework {
             .cloned()
             .collect::<Vec<_>>()
             .join(",");
-
-        let total = domain_docs.len();
         let error_count = all_findings
             .iter()
             .filter(|f| f.severity == Severity::Error)

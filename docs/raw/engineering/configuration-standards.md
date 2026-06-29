@@ -8,6 +8,14 @@ Configuration is explicit, validated, and documented. Every configurable behavio
 
 ---
 
+## Engineering Principles
+
+The project follows a set of core engineering principles including Documentation First, Architecture First, Deterministic by Default, Offline First, Local First, Minimal Dependencies, Explicit Configuration, Fail Fast, Secure by Default, Observable Systems, Progressive Enhancement, and Repository Isolation. See [Engineering Principles](engineering-principles.md) for the full description of each principle and the decision framework.
+
+## Technology Selection
+
+The project is built using Rust as the primary implementation language with a multi-crate workspace structure. Key technology choices include SQLite (via rusqlite with bundled feature) for the knowledge registry, pulldown-cmark for Markdown parsing, Rayon for parallel processing, and Serde for serialization. See [Technology Selection](technology-selection.md) for the complete rationale behind each technology choice.
+
 ## Configuration File: samgraha.toml
 
 The platform is configured through a single `samgraha.toml` file. The file is optional — all settings have documented defaults. When present, the file overrides defaults.
@@ -151,6 +159,14 @@ Configuration Standards provide the framework for:
 
 - Repository Structure
 - CLI Design
+
+## Build Standards
+
+Configuration follows build-time validation. Configuration structure and format are validated during build to catch errors early. See [Build Standards](build-standards.md) for the complete build system specification.
+
+## Testing Standards
+
+Configuration correctness is verified through schema validation and integration tests. See [Testing Standards](testing-standards.md) for the testing framework and coverage expectations.
 
 Traceability:
 

@@ -8,6 +8,14 @@ Persistence stores compiled documentation knowledge for query and audit. The per
 
 ---
 
+## Engineering Principles
+
+The project follows a set of core engineering principles including Documentation First, Architecture First, Deterministic by Default, Offline First, Local First, Minimal Dependencies, Explicit Configuration, Fail Fast, Secure by Default, Observable Systems, Progressive Enhancement, and Repository Isolation. See [Engineering Principles](engineering-principles.md) for the full description of each principle and the decision framework.
+
+## Technology Selection
+
+The project is built using Rust as the primary implementation language with a multi-crate workspace structure. Key technology choices include SQLite (via rusqlite with bundled feature) for the knowledge registry, pulldown-cmark for Markdown parsing, Rayon for parallel processing, and Serde for serialization. See [Technology Selection](technology-selection.md) for the complete rationale behind each technology choice.
+
 ## Storage Engine: SQLite
 
 SQLite is the persistence engine for all platform data. Rationale is documented in Technology Selection.
@@ -200,6 +208,14 @@ Persistence Standards provide the foundation for:
 
 - Registry Implementation
 - Knowledge Package Implementation
+
+## Build Standards
+
+Persistence layer is built with release optimizations for SQLite. Build profiles support bundled and system SQLite linkage. See [Build Standards](build-standards.md) for persistence-specific build configuration.
+
+## Testing Standards
+
+Persistence correctness is verified through integration tests covering CRUD operations, migration paths, and concurrent access patterns. See [Testing Standards](testing-standards.md) for testing framework.
 
 Traceability:
 

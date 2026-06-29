@@ -157,9 +157,9 @@ fn philosophy_standard() -> StandardDefinition {
             relationship("philosophy", "design", "guides"),
         ],
         audit_rules: vec![
-            rule("phil-001", "Has principles", "Philosophy must document principles", "error", "has_section", "Principles"),
+            rule("phil-001", "Has principles", "Philosophy must document principles", "error", "has_section", "guiding_principles"),
             rule("phil-002", "Has values", "Philosophy must document values", "warning", "has_section", "Values"),
-            rule("phil-003", "Has trade-offs", "Philosophy should document trade-offs", "suggestion", "has_section", "Trade-offs"),
+            rule("phil-003", "Has trade-offs", "Philosophy should document trade-offs", "suggestion", "has_section", "tradeoffs"),
         ],
         profiles: vec![],
     }
@@ -192,7 +192,7 @@ fn architecture_standard() -> StandardDefinition {
             rule("arch-001", "Has overview", "Architecture must include system overview", "error", "has_section", "System Overview"),
             rule("arch-002", "Has component model", "Architecture must define component responsibilities", "error", "has_section", "Component Model"),
             rule("arch-003", "No implementation details", "Architecture must avoid implementation specifics", "warning", "no_implementation", ""),
-            rule("arch-004", "Has security", "Architecture must address security", "warning", "has_section", "Security"),
+            rule("arch-004", "Has security", "Architecture must address security", "warning", "has_section", "security_considerations"),
         ],
         profiles: vec![
             schemas::standard::profile_def(
@@ -419,8 +419,8 @@ fn engineering_standard() -> StandardDefinition {
             relationship("engineering", "feature-technical", "guides"),
         ],
         audit_rules: vec![
-            rule("eng-001", "Has principles", "Engineering must document principles", "error", "has_section", "Engineering Principles"),
-            rule("eng-002", "Has technology rationale", "Engineering must explain technology choices", "error", "has_section", "Technology Selection"),
+            rule("eng-001", "Has principles", "Engineering must document principles", "error", "has_section", "guiding_principles"),
+            rule("eng-002", "Has technology rationale", "Engineering must explain technology choices", "error", "has_section", "rationale"),
             rule("eng-003", "Has build standards", "Engineering must define build standards", "warning", "has_section", "Build Standards"),
             rule("eng-004", "Has testing standards", "Engineering must define testing approach", "warning", "has_section", "Testing Standards"),
         ],
