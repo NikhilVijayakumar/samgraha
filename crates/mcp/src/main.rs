@@ -252,7 +252,8 @@ fn tool_definitions() -> Vec<serde_json::Value> {
         }),
         serde_json::json!({
             "name": "info",
-            "description": "Get runtime information"
+            "description": "Get runtime information",
+            "inputSchema": { "type": "object", "properties": {} }
         }),
         serde_json::json!({
             "name": "get_document",
@@ -281,7 +282,8 @@ fn tool_definitions() -> Vec<serde_json::Value> {
         }),
         serde_json::json!({
             "name": "list_domains",
-            "description": "List available documentation domains"
+            "description": "List available documentation domains",
+            "inputSchema": { "type": "object", "properties": {} }
         }),
         serde_json::json!({
             "name": "list_repositories",
@@ -318,11 +320,13 @@ fn tool_definitions() -> Vec<serde_json::Value> {
         }),
         serde_json::json!({
             "name": "synchronize_repository",
-            "description": "Synchronize dependency metadata from their manifests"
+            "description": "Synchronize dependency metadata from their manifests",
+            "inputSchema": { "type": "object", "properties": {} }
         }),
         serde_json::json!({
             "name": "resolve_dependencies",
-            "description": "Resolve dependency graph for all registered repositories"
+            "description": "Resolve dependency graph for all registered repositories",
+            "inputSchema": { "type": "object", "properties": {} }
         }),
         serde_json::json!({
             "name": "repository_status",
