@@ -69,6 +69,7 @@ fn build_body(
         "feature" => {
             DocumentBody::Feature(schemas::document::FeatureBody {
                 raw: raw.to_string(),
+                sections: sections.to_vec(),
                 functional_requirements: items::parse_fr_headings(sections, doc_urn),
                 business_rules: find_and_parse(sections, "business_rules", doc_urn, items::parse_business_rules),
                 constraints: find_and_parse(sections, "constraints", doc_urn, items::parse_constraints),
@@ -84,6 +85,7 @@ fn build_body(
         "architecture" => {
             DocumentBody::Architecture(schemas::document::ArchitectureBody {
                 raw: raw.to_string(),
+                sections: sections.to_vec(),
                 components: items::parse_components(sections, doc_urn),
                 communication_paths: find_and_parse(sections, "communication_paths", doc_urn, items::parse_communication_paths),
                 constraints: find_and_parse(sections, "constraints", doc_urn, items::parse_constraints),
@@ -93,6 +95,7 @@ fn build_body(
         "feature-technical" => {
             DocumentBody::FeatureTechnical(schemas::document::FeatureTechnicalBody {
                 raw: raw.to_string(),
+                sections: sections.to_vec(),
                 components: items::parse_components(sections, doc_urn),
                 traceability: find_and_parse(sections, "traceability", doc_urn, items::parse_traceability),
             })
@@ -100,6 +103,7 @@ fn build_body(
         "engineering" => {
             DocumentBody::Engineering(schemas::document::EngineeringBody {
                 raw: raw.to_string(),
+                sections: sections.to_vec(),
                 principles: find_and_parse(sections, "guiding_principles", doc_urn, items::parse_principles),
                 constraints: find_and_parse(sections, "constraints", doc_urn, items::parse_constraints),
                 traceability: find_and_parse(sections, "traceability", doc_urn, items::parse_traceability),
@@ -112,6 +116,7 @@ fn build_body(
                 .unwrap_or_default();
             DocumentBody::Vision(schemas::document::VisionBody {
                 raw: raw.to_string(),
+                sections: sections.to_vec(),
                 vision_statement: vision_text,
                 principles: find_and_parse(sections, "guiding_principles", doc_urn, items::parse_principles),
                 traceability: find_and_parse(sections, "traceability", doc_urn, items::parse_traceability),
@@ -120,12 +125,14 @@ fn build_body(
         "philosophy" => {
             DocumentBody::Philosophy(schemas::document::PhilosophyBody {
                 raw: raw.to_string(),
+                sections: sections.to_vec(),
                 principles: find_and_parse(sections, "guiding_principles", doc_urn, items::parse_principles),
             })
         }
         "design" => {
             DocumentBody::Design(schemas::document::DesignBody {
                 raw: raw.to_string(),
+                sections: sections.to_vec(),
                 principles: find_and_parse(sections, "design_principles", doc_urn, items::parse_principles),
                 constraints: find_and_parse(sections, "constraints", doc_urn, items::parse_constraints),
             })
@@ -133,6 +140,7 @@ fn build_body(
         "external-context" => {
             DocumentBody::ExternalContext(schemas::document::ExternalContextBody {
                 raw: raw.to_string(),
+                sections: sections.to_vec(),
                 constraints: find_and_parse(sections, "constraints", doc_urn, items::parse_constraints),
                 dependencies: find_and_parse(sections, "dependencies", doc_urn, items::parse_dependencies),
                 traceability: find_and_parse(sections, "traceability", doc_urn, items::parse_traceability),
@@ -141,6 +149,7 @@ fn build_body(
         "prototype" => {
             DocumentBody::Prototype(schemas::document::PrototypeBody {
                 raw: raw.to_string(),
+                sections: sections.to_vec(),
                 constraints: find_and_parse(sections, "constraints", doc_urn, items::parse_constraints),
                 traceability: find_and_parse(sections, "traceability", doc_urn, items::parse_traceability),
             })

@@ -73,6 +73,7 @@ macro_rules! body_with_raw {
         #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
         pub struct $name {
             pub raw: String,
+            pub sections: Vec<DocumentSection>,
             $(pub $field: $ty),*
         }
     };
@@ -127,7 +128,16 @@ impl DocumentBody {
     pub fn sections(&self) -> Vec<&DocumentSection> {
         match self {
             Self::Generic { sections, .. } => sections.iter().collect(),
-            _ => Vec::new(),
+            Self::Feature(b) => b.sections.iter().collect(),
+            Self::FeatureTechnical(b) => b.sections.iter().collect(),
+            Self::Architecture(b) => b.sections.iter().collect(),
+            Self::Vision(b) => b.sections.iter().collect(),
+            Self::Design(b) => b.sections.iter().collect(),
+            Self::Engineering(b) => b.sections.iter().collect(),
+            Self::ExternalContext(b) => b.sections.iter().collect(),
+            Self::Prototype(b) => b.sections.iter().collect(),
+            Self::Philosophy(b) => b.sections.iter().collect(),
+            Self::Readme(b) => b.sections.iter().collect(),
         }
     }
 }
