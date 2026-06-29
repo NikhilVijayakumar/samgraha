@@ -198,6 +198,7 @@ mod tests {
         let raw = String::new();
         DocumentBody::Feature(schemas::document::FeatureBody {
             raw,
+            sections: vec![],
             functional_requirements: vec![],
             business_rules: vec![],
             constraints: vec![],
@@ -232,6 +233,7 @@ mod tests {
         };
         let body = DocumentBody::Feature(schemas::document::FeatureBody {
             raw: String::new(),
+            sections: vec![],
             functional_requirements: vec![fr],
             business_rules: vec![],
             constraints: vec![],
@@ -259,6 +261,7 @@ mod tests {
         let urn_b = Urn::for_document("feature", "feature-b");
         let dep_body = DocumentBody::Feature(schemas::document::FeatureBody {
             raw: String::new(),
+            sections: vec![],
             functional_requirements: vec![],
             business_rules: vec![],
             constraints: vec![],
