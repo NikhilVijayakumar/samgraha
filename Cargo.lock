@@ -610,7 +610,9 @@ dependencies = [
  "serde_json",
  "services",
  "thiserror",
+ "toml",
  "tracing",
+ "tracing-subscriber",
  "uuid",
 ]
 

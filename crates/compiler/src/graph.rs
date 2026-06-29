@@ -19,7 +19,7 @@ impl RelationshipBuilder {
             nodes.push(GraphNode {
                 urn: doc_urn.clone(),
                 node_type: "document".to_string(),
-                document_id: doc.id,
+                document_id: Some(doc.id),
                 title: doc.title.clone(),
             });
 
@@ -158,7 +158,7 @@ impl RelationshipBuilder {
         nodes.push(GraphNode {
             urn: item_urn.clone(),
             node_type: node_type.to_string(),
-            document_id: 0,
+            document_id: None,
             title: title.to_string(),
         });
         edges.push(GraphEdge {

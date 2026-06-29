@@ -254,7 +254,7 @@ fn byte_to_line_number(line_starts: &[usize], byte: usize) -> u32 {
     }
 }
 
-fn parse_sections(
+pub fn parse_sections(
     content: &str,
     file_path: &str,
     standard_def: Option<&StandardDefinition>,

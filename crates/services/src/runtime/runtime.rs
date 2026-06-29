@@ -34,11 +34,15 @@ pub struct KnowledgeRuntime {
 impl KnowledgeRuntime {
     pub fn new<P: AsRef<Path>>(root: P, config: SamgrahaConfig) -> Result<Self> {
         let root = root.as_ref().to_path_buf();
-        let registry_path = config
-            .repository
-            .root
-            .clone()
-            .unwrap_or_else(|| root.join("knowledge.db"));
+        let default_db = root.join(".samgraha").join("knowledge.db");
+        let registry_path = config.repository.root.clone().unwrap_or(default_db);
+
+        // Ensure parent directory exists
+        if let Some(parent) = registry_path.parent() {
+            std::fs::create_dir_all(parent).unwrap_or_else(|e| {
+                tracing::warn!("Cannot create registry directory: {}", e)
+            });
+        }
 
         let registry = Arc::new(
             RegistryStore::open(&registry_path).context("Failed to open knowledge registry")?,

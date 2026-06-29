@@ -1,5 +1,5 @@
 /// Knowledge registry migrations — create `knowledge.db` tables.
-pub const KNOWLEDGE_MIGRATIONS: &[&str] = &[V1, V2, V3, V4, V5, V6, V7];
+pub const KNOWLEDGE_MIGRATIONS: &[&str] = &[V1, V2, V3, V4, V5, V6, V7, V8];
 
 /// Repository registry migrations — create `registry.db` tables.
 pub const REGISTRY_MIGRATIONS: &[&str] = &[REG_V1];
@@ -125,7 +125,7 @@ const V6: &str = "
 CREATE TABLE IF NOT EXISTS graph_nodes (
     urn TEXT PRIMARY KEY,
     node_type TEXT NOT NULL,
-    document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    document_id INTEGER REFERENCES documents(id) ON DELETE CASCADE,
     title TEXT NOT NULL
 );
 
@@ -147,6 +147,34 @@ CREATE INDEX IF NOT EXISTS idx_graph_edges_type ON graph_edges(edge_type);
 
 const V7: &str = "
 ALTER TABLE documents ADD COLUMN quality TEXT NOT NULL DEFAULT '{}';
+";
+
+const V8: &str = "
+-- V8: Make graph_nodes.document_id nullable (sub-item nodes don't belong to a document)
+DROP TABLE IF EXISTS graph_edges;
+DROP TABLE IF EXISTS graph_nodes;
+
+CREATE TABLE IF NOT EXISTS graph_nodes (
+    urn TEXT PRIMARY KEY,
+    node_type TEXT NOT NULL,
+    document_id INTEGER REFERENCES documents(id) ON DELETE CASCADE,
+    title TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_graph_nodes_document ON graph_nodes(document_id);
+CREATE INDEX IF NOT EXISTS idx_graph_nodes_type ON graph_nodes(node_type);
+
+CREATE TABLE IF NOT EXISTS graph_edges (
+    id INTEGER PRIMARY KEY,
+    source_urn TEXT NOT NULL REFERENCES graph_nodes(urn) ON DELETE CASCADE,
+    target_urn TEXT NOT NULL REFERENCES graph_nodes(urn) ON DELETE CASCADE,
+    edge_type TEXT NOT NULL,
+    metadata TEXT NOT NULL DEFAULT '{}'
+);
+
+CREATE INDEX IF NOT EXISTS idx_graph_edges_source ON graph_edges(source_urn);
+CREATE INDEX IF NOT EXISTS idx_graph_edges_target ON graph_edges(target_urn);
+CREATE INDEX IF NOT EXISTS idx_graph_edges_type ON graph_edges(edge_type);
 ";
 
 /// REG_V1 — repository registry tables for `.samgraha/registry.db`.

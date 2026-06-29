@@ -115,7 +115,8 @@ impl AuditFramework {
             let score = if domain_total == 0 {
                 100.0
             } else {
-                ((domain_total - errors) as f64 / domain_total as f64) * 100.0
+                let passed = domain_total.saturating_sub(errors);
+                (passed as f64 / domain_total as f64) * 100.0
             };
             cat_scores.insert(std.domain.clone(), score);
         }
@@ -123,7 +124,8 @@ impl AuditFramework {
         let overall = if total == 0 {
             100.0
         } else {
-            ((total - error_count) as f64 / total as f64) * 100.0
+            let passed = total.saturating_sub(error_count);
+            (passed as f64 / total as f64) * 100.0
         };
 
         let readiness = if overall >= 90.0 && error_count == 0 {
