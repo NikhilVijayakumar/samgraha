@@ -1,6 +1,6 @@
 # Saṃgraha — Manual Audit Guide
 
-> Run from project root: `E:\Python\samgraha`
+> Run from project root: `E:\Python\samgraha` (Windows) or `~/PycharmProjects/samgraha` (Ubuntu)
 >
 > All CLI commands: `cargo run --bin cli -- <subcommand>` (virtual workspace — must specify binary)
 > Short alias: `cargo run -p cli -- <subcommand>`
@@ -9,7 +9,11 @@
 
 ## Automated Test Runner
 
-A PowerShell script automates all phases: `scripts/run-tests.ps1`
+Scripts are provided for both platforms:
+
+### Windows (PowerShell)
+
+Script: `scripts/run-tests.ps1`
 
 ```powershell
 # Quick run (Phase 1a + 1b)
@@ -28,7 +32,28 @@ A PowerShell script automates all phases: `scripts/run-tests.ps1`
 .\scripts\run-tests.ps1 -SkipBuild
 ```
 
-Each test prints `✓ PASS` or `✗ FAIL`. Exit code = number of failures.
+### Ubuntu (Bash)
+
+Script: `scripts/run-tests.sh`
+
+```bash
+# Quick run (Phase 1a + 1b)
+./scripts/run-tests.sh
+
+# Full platform + multi-repo
+./scripts/run-tests.sh --full
+
+# Full platform + MCP (requires Node.js)
+./scripts/run-tests.sh --with-mcp
+
+# Everything
+./scripts/run-tests.sh --full --with-mcp
+
+# Skip build step (already built)
+./scripts/run-tests.sh --skip-build
+```
+
+Each test prints `OK` or `XX`. Exit code = number of failures.
 
 A markdown report is saved automatically after every run:
 
@@ -38,9 +63,16 @@ docs/report/manual-audit/YYYYMMDD-HHmmss-{mode}.md
 
 The report contains a failure summary table and captured output (stdout + stderr) for each failing test. Feed the report directly to Claude Code or OpenCode to debug failures.
 
+**Windows (PowerShell):**
 ```powershell
 # Example: hand latest report to Claude Code
 claude "here are the failing tests: $(Get-Content (Get-ChildItem docs\report\ | Sort-Object LastWriteTime -Descending | Select-Object -First 1))"
+```
+
+**Ubuntu (Bash):**
+```bash
+# Example: hand latest report to Claude Code
+claude "here are the failing tests: $(ls -t docs/report/manual-audit/*.md | head -1 | xargs cat)"
 ```
 
 ---
@@ -86,13 +118,21 @@ Goal: validate compiler, registry, resolver, search, audit. No MCP, no AI.
 
 Back up config before Phase 1, restore after:
 
+**Windows (PowerShell):**
 ```powershell
 .\scripts\audit-phase1.ps1          # backup
 # ... run Phase 1 commands ...
 .\scripts\audit-phase1.ps1 -Restore # restore
 ```
 
-Sections 1.4 and 1.5 use `scripts/demo-dependency.ps1` which handles its own backup.
+**Ubuntu (Bash):**
+```bash
+./scripts/audit-phase1.sh           # backup
+# ... run Phase 1 commands ...
+./scripts/audit-phase1.sh --restore # restore
+```
+
+Sections 1.4 and 1.5 use `scripts/demo-dependency.ps1` / `scripts/demo-dependency.sh` which handle their own backup.
 
 Section 1.7 uses a temp config copy (`--config`) so original TTL is preserved.
 
@@ -167,13 +207,19 @@ Verifies: Resolver, Locator, Knowledge Package.
 
 ### 1.4 — Simulate Dependency
 
+**Windows (PowerShell):**
 ```powershell
 .\scripts\demo-dependency.ps1
 ```
 
-Creates temp fixture `id = "astra"`, compiles, registers, lists registry, cleans up. Use `-Keep` to preserve the fixture dir.
+**Ubuntu (Bash):**
+```bash
+./scripts/demo-dependency.sh
+```
 
-See `scripts/demo-dependency.ps1` for implementation — mirrors `New-TestFixture` pattern from `run-tests.ps1`.
+Creates temp fixture `id = "astra"`, compiles, registers, lists registry, cleans up. Use `-Keep` (PowerShell) / `--keep` (Bash) to preserve the fixture dir.
+
+See `scripts/demo-dependency.ps1` / `scripts/demo-dependency.sh` for implementation — mirrors `New-TestFixture` pattern from the test runner scripts.
 
 Registry now has `samgraha` (project root) + `astra`.
 
@@ -181,10 +227,16 @@ Registry now has `samgraha` (project root) + `astra`.
 
 ### 1.5 — Dependency Resolution
 
-Use the demo script with `-Resolve`:
+Use the demo script with the resolve flag:
 
+**Windows (PowerShell):**
 ```powershell
 .\scripts\demo-dependency.ps1 -Resolve
+```
+
+**Ubuntu (Bash):**
+```bash
+./scripts/demo-dependency.sh --resolve
 ```
 
 This will:
@@ -248,9 +300,11 @@ Cache hit — Registry not queried.
 
 ```bash
 # Delete cache, resolve again
-Remove-Item -Recurse -Force .samgraha/dependencies/
+rm -rf .samgraha/dependencies/
 cargo run --bin cli -- registry resolve runtime
 ```
+
+*(Windows: `Remove-Item -Recurse -Force .samgraha/dependencies/`)*
 
 Cache miss — Registry queried again.
 
@@ -260,25 +314,39 @@ Cache miss — Registry queried again.
 
 Use a temp config copy to avoid changing the real `samgraha.toml`:
 
+**Windows (PowerShell):**
 ```powershell
 $TtlCfg = "$env:TEMP\samgraha-ttl-test.toml"
 Copy-Item samgraha.toml $TtlCfg
 Add-Content $TtlCfg "`n[resolver]`nmetadata_ttl = `"5s`""
 ```
 
+**Ubuntu (Bash):**
+```bash
+TtlCfg=/tmp/samgraha-ttl-test.toml
+cp samgraha.toml "$TtlCfg"
+cat >> "$TtlCfg" << EOF
+
+[resolver]
+metadata_ttl = "5s"
+EOF
+```
+
 Wait 6s.
 
-```powershell
-cargo run --bin cli -- --config $TtlCfg registry resolve runtime
+```bash
+cargo run --bin cli -- --config "$TtlCfg" registry resolve runtime
 ```
 
 Expected: metadata expired → registry refresh → resolver.
 
 Cleanup:
 
-```powershell
-Remove-Item $TtlCfg -Force
+```bash
+rm "$TtlCfg"
 ```
+
+*(Windows: `Remove-Item $TtlCfg -Force`)*
 
 ---
 
@@ -314,9 +382,11 @@ Change one doc, compile → revision++.
 ### 1.10 — Knowledge DB Recovery
 
 ```bash
-Remove-Item .samgraha/knowledge.db
+rm -f .samgraha/knowledge.db
 cargo run --bin cli -- compile
 ```
+
+*(Windows: `Remove-Item .samgraha/knowledge.db`)*
 
 Expected: DB regenerated, manifest updated, registry synced.
 
@@ -394,16 +464,18 @@ Expected: only the changed file rebuilt (not full recompile).
 
 After dependency testing, restore `samgraha.toml` to its original state (no dependencies).
 
-If you ran `.\scripts\demo-dependency.ps1 -Resolve`, this happens automatically — the script backs up `samgraha.toml`, patches in `[[repository.dependencies]]`, runs resolve, then restores.
+If you ran `.\scripts\demo-dependency.ps1 -Resolve` / `./scripts/demo-dependency.sh --resolve`, this happens automatically — the script backs up `samgraha.toml`, patches in `[[repository.dependencies]]`, runs resolve, then restores.
 
 Manual cleanup:
 
 ```bash
 # If samgraha.toml.bak exists from a previous run:
-Move-Item samgraha.toml.bak samgraha.toml -Force
+mv samgraha.toml.bak samgraha.toml
 
 # Otherwise, remove the [[repository.dependencies]] section:
 ```
+
+*(Windows: `Move-Item samgraha.toml.bak samgraha.toml -Force`)*
 
 Remove the added section from `samgraha.toml`:
 
@@ -507,7 +579,7 @@ echo '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"search","a
 echo '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_document","arguments":{"id":"1"}}}' | cargo run --bin mcp
 ```
 
-See Phase 2.5 in `run-tests.ps1` for protocol edge-case testing via the same method.
+See Phase 2.5 in `scripts/run-tests.ps1` / `scripts/run-tests.sh` for protocol edge-case testing via the same method.
 
 ---
 
@@ -597,4 +669,4 @@ Test compatibility.
 - `resolve` is `registry resolve runtime`, not top-level `resolve`.
 - `status` shows all repos (no per-name argument).
 - List output shows audit PASS/FAIL, not computed status.
-- Test reports auto-saved to `docs/report/manual-audit/` (gitignored) after each `run-tests.ps1` run.
+- Test reports auto-saved to `docs/report/manual-audit/` (gitignored) after each test runner run.
