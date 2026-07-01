@@ -88,6 +88,7 @@ pub struct DocumentSection {
     pub required: bool,
     pub source_span: Option<SourceSpan>,
     pub subsections: Vec<DocumentSection>,
+    pub hash: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

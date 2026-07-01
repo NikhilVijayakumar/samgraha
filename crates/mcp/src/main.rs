@@ -350,6 +350,126 @@ fn tool_definitions() -> Vec<serde_json::Value> {
                 }
             }
         }),
+        // ── Semantic Audit Tools ─────────────────────────────────────────────
+        serde_json::json!({
+            "name": "get_documents_by_domain",
+            "description": "List compiled documents in a domain",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "domain": { "type": "string", "description": "Domain/standard name" },
+                    "limit": { "type": "integer" },
+                    "offset": { "type": "integer" }
+                },
+                "required": ["domain"]
+            }
+        }),
+        serde_json::json!({
+            "name": "get_section",
+            "description": "Get a single section by database primary key",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "section_id": { "type": "integer", "description": "Section primary key" }
+                },
+                "required": ["section_id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "get_audit_knowledge",
+            "description": "Serve audit knowledge file content for a domain section type",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "domain": { "type": "string", "description": "Domain name" },
+                    "section_type": { "type": "string", "description": "Section semantic type" }
+                },
+                "required": ["domain", "section_type"]
+            }
+        }),
+        serde_json::json!({
+            "name": "get_audit_report",
+            "description": "Get the latest audit report for a scope",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "domain": { "type": "string", "description": "Domain name" },
+                    "document_id": { "type": "integer", "description": "Optional document ID" },
+                    "section_id": { "type": "integer", "description": "Optional section ID" },
+                    "stage": { "type": "string", "enum": ["deterministic", "section", "document", "cross_domain"], "description": "Audit stage" }
+                },
+                "required": ["domain", "stage"]
+            }
+        }),
+        serde_json::json!({
+            "name": "get_section_changed",
+            "description": "Check if a section changed since last audit (incremental skip)",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "section_id": { "type": "integer", "description": "Section primary key" }
+                },
+                "required": ["section_id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "check_gate",
+            "description": "Check if a stage gate is clear before proceeding",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "stage": { "type": "string", "enum": ["deterministic", "section", "document", "cross_domain"], "description": "Audit stage to check" },
+                    "document_id": { "type": "integer", "description": "Optional document ID for scoped check" }
+                },
+                "required": ["stage"]
+            }
+        }),
+        serde_json::json!({
+            "name": "store_section_report",
+            "description": "Agent writes section audit findings; validates schema before persist",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "report_json": { "type": "object", "description": "SemanticReport as JSON object" }
+                },
+                "required": ["report_json"]
+            }
+        }),
+        serde_json::json!({
+            "name": "store_document_report",
+            "description": "Agent writes document-level audit findings; validates schema",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "report_json": { "type": "object", "description": "SemanticReport as JSON object" }
+                },
+                "required": ["report_json"]
+            }
+        }),
+        serde_json::json!({
+            "name": "store_cross_domain_report",
+            "description": "Agent writes cross-domain audit findings; validates schema",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "report_json": { "type": "object", "description": "SemanticReport as JSON object" }
+                },
+                "required": ["report_json"]
+            }
+        }),
+        serde_json::json!({
+            "name": "update_finding_status",
+            "description": "Engineer marks a finding as Fixed / Accepted / False Positive",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "report_id": { "type": "integer", "description": "Report database ID" },
+                    "criterion_id": { "type": "string", "description": "Finding criterion ID to update" },
+                    "status": { "type": "string", "enum": ["open", "fixed", "accepted", "ignored", "false_positive"], "description": "New finding status" }
+                },
+                "required": ["report_id", "criterion_id", "status"]
+            }
+        }),
     ]
 }
 

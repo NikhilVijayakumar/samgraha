@@ -1,5 +1,6 @@
 use crate::protocol::{McpCapabilities, McpError, McpMessage, McpRequest, McpResponse};
 use anyhow::Result;
+use schemas::audit::{AuditStage, FindingStatus, SemanticReport};
 use schemas::compilation::{CompilationRequest, CompilationScope};
 use schemas::search::{RetrievalLevel, SearchQuery, SectionQuery};
 use services::registry_client::RegistryClient;
@@ -23,6 +24,16 @@ impl McpAdapter {
         caps.methods.push("resolve_dependencies".to_string());
         caps.methods.push("repository_status".to_string());
         caps.methods.push("workspace_status".to_string());
+        caps.methods.push("get_documents_by_domain".to_string());
+        caps.methods.push("get_section".to_string());
+        caps.methods.push("get_audit_knowledge".to_string());
+        caps.methods.push("get_audit_report".to_string());
+        caps.methods.push("get_section_changed".to_string());
+        caps.methods.push("check_gate".to_string());
+        caps.methods.push("store_section_report".to_string());
+        caps.methods.push("store_document_report".to_string());
+        caps.methods.push("store_cross_domain_report".to_string());
+        caps.methods.push("update_finding_status".to_string());
         Self {
             runtime,
             registry,
@@ -68,6 +79,17 @@ impl McpAdapter {
             "resolve_dependencies"    => self.handle_resolve_dependencies(&req),
             "repository_status"       => self.handle_repository_status(&req),
             "workspace_status"        => self.handle_workspace_status(&req),
+            // Semantic audit handlers
+            "get_documents_by_domain" => self.handle_get_documents_by_domain(&req),
+            "get_section"             => self.handle_get_section(&req),
+            "get_audit_knowledge"     => self.handle_get_audit_knowledge(&req),
+            "get_audit_report"        => self.handle_get_audit_report(&req),
+            "get_section_changed"     => self.handle_get_section_changed(&req),
+            "check_gate"              => self.handle_check_gate(&req),
+            "store_section_report"    => self.handle_store_section_report(&req),
+            "store_document_report"   => self.handle_store_document_report(&req),
+            "store_cross_domain_report" => self.handle_store_cross_domain_report(&req),
+            "update_finding_status"   => self.handle_update_finding_status(&req),
             _                         => Err(anyhow::anyhow!("Unknown method: {}", req.method)),
         };
 
@@ -198,6 +220,7 @@ impl McpAdapter {
             semantic_type: semantic_type.to_string(),
             domain: domain.map(|d| d.to_string()),
             max_results: usize::MAX,
+            document_id: None,
         };
 
         let response = self.runtime.get_sections(&query)?;
@@ -428,5 +451,135 @@ impl McpAdapter {
         let mut out = Self::paginate(repos, offset, limit, "repositories");
         out["registered"] = serde_json::json!(entries.len());
         Ok(out)
+    }
+
+    // ── Semantic Audit Handlers ─────────────────────────────────────────────
+
+    fn handle_get_documents_by_domain(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let domain = req.params.get("domain")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'domain' parameter"))?;
+        let (limit, offset) = Self::page_params(req, 50);
+        let docs = self.runtime.get_documents_by_domain(domain)?;
+        Ok(Self::paginate(docs, offset, limit, "documents"))
+    }
+
+    fn handle_get_section(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let section_id = req.params.get("section_id")
+            .and_then(|v| v.as_i64())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'section_id' parameter"))?;
+        let section = self.runtime.get_section_by_id(section_id)?
+            .ok_or_else(|| anyhow::anyhow!("Section not found: {}", section_id))?;
+        Ok(serde_json::to_value(&section)?)
+    }
+
+    fn handle_get_audit_knowledge(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let domain = req.params.get("domain")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'domain' parameter"))?;
+        let section_type = req.params.get("section_type")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'section_type' parameter"))?;
+        let content = self.runtime.get_audit_knowledge(domain, section_type)?;
+        Ok(serde_json::json!({ "content": content, "domain": domain, "section_type": section_type }))
+    }
+
+    fn handle_get_audit_report(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let domain = req.params.get("domain")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'domain' parameter"))?;
+        let stage_str = req.params.get("stage")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'stage' parameter"))?;
+        let document_id = req.params.get("document_id").and_then(|v| v.as_i64());
+        let section_id = req.params.get("section_id").and_then(|v| v.as_i64());
+
+        let stage = match stage_str {
+            "deterministic" => AuditStage::Deterministic,
+            "section" => AuditStage::Section,
+            "document" => AuditStage::Document,
+            "cross_domain" => AuditStage::CrossDomain,
+            _ => return Err(anyhow::anyhow!("Invalid stage: {}", stage_str)),
+        };
+
+        let report = self.runtime.get_audit_report(domain, document_id, section_id, stage)?;
+        Ok(serde_json::to_value(&report)?)
+    }
+
+    fn handle_get_section_changed(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let section_id = req.params.get("section_id")
+            .and_then(|v| v.as_i64())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'section_id' parameter"))?;
+        let result = self.runtime.get_section_changed(section_id)?;
+        Ok(serde_json::to_value(&result)?)
+    }
+
+    fn handle_check_gate(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let stage_str = req.params.get("stage")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'stage' parameter"))?;
+        let document_id = req.params.get("document_id").and_then(|v| v.as_i64());
+
+        let stage = match stage_str {
+            "deterministic" => AuditStage::Deterministic,
+            "section" => AuditStage::Section,
+            "document" => AuditStage::Document,
+            "cross_domain" => AuditStage::CrossDomain,
+            _ => return Err(anyhow::anyhow!("Invalid stage: {}", stage_str)),
+        };
+
+        let result = self.runtime.check_gate(stage, document_id)?;
+        Ok(serde_json::to_value(&result)?)
+    }
+
+    fn handle_store_section_report(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let report_json = req.params.get("report_json")
+            .ok_or_else(|| anyhow::anyhow!("Missing 'report_json' parameter"))?;
+        let report: SemanticReport = serde_json::from_value(report_json.clone())
+            .map_err(|e| anyhow::anyhow!("Invalid report schema: {}", e))?;
+        let id = self.runtime.store_section_report(&report)?;
+        Ok(serde_json::json!({"report_id": id, "status": "stored"}))
+    }
+
+    fn handle_store_document_report(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let report_json = req.params.get("report_json")
+            .ok_or_else(|| anyhow::anyhow!("Missing 'report_json' parameter"))?;
+        let report: SemanticReport = serde_json::from_value(report_json.clone())
+            .map_err(|e| anyhow::anyhow!("Invalid report schema: {}", e))?;
+        let id = self.runtime.store_document_report(&report)?;
+        Ok(serde_json::json!({"report_id": id, "status": "stored"}))
+    }
+
+    fn handle_store_cross_domain_report(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let report_json = req.params.get("report_json")
+            .ok_or_else(|| anyhow::anyhow!("Missing 'report_json' parameter"))?;
+        let report: SemanticReport = serde_json::from_value(report_json.clone())
+            .map_err(|e| anyhow::anyhow!("Invalid report schema: {}", e))?;
+        let id = self.runtime.store_cross_domain_report(&report)?;
+        Ok(serde_json::json!({"report_id": id, "status": "stored"}))
+    }
+
+    fn handle_update_finding_status(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let report_id = req.params.get("report_id")
+            .and_then(|v| v.as_i64())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'report_id' parameter"))?;
+        let criterion_id = req.params.get("criterion_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'criterion_id' parameter"))?;
+        let status_str = req.params.get("status")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'status' parameter"))?;
+
+        let status = match status_str {
+            "open" => FindingStatus::Open,
+            "fixed" => FindingStatus::Fixed,
+            "accepted" => FindingStatus::Accepted,
+            "ignored" => FindingStatus::Ignored,
+            "false_positive" => FindingStatus::FalsePositive,
+            _ => return Err(anyhow::anyhow!("Invalid status: {}", status_str)),
+        };
+
+        self.runtime.update_finding_status(report_id, criterion_id, status)?;
+        Ok(serde_json::json!({"success": true}))
     }
 }

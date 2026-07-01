@@ -11,7 +11,7 @@ use anyhow::{Context, Result};
 use audit_crate::AuditFramework;
 use common::config::SamgrahaConfig;
 use registry::RegistryStore;
-use schemas::audit::AuditReport;
+use schemas::audit::{AuditReport, AuditStage, FindingStatus, GateResult, SectionChangedResult, SemanticReport};
 use schemas::compilation::{CompilationRequest, CompilationResult};
 use schemas::document::Document;
 use schemas::manifest::RepositoryManifest;
@@ -184,6 +184,54 @@ impl KnowledgeRuntime {
 
     pub fn get_all_documents(&self) -> Result<Vec<Document>> {
         self.registry.get_all_documents()
+    }
+
+    // ── Semantic Audit Pass-Throughs ────────────────────────────────────────
+
+    pub fn get_documents_by_domain(&self, domain: &str) -> Result<Vec<Document>> {
+        self.registry.get_documents_by_domain(domain)
+    }
+
+    pub fn get_section_by_id(&self, section_id: i64) -> Result<Option<schemas::search::SemanticSection>> {
+        self.registry.get_section_by_id(section_id)
+    }
+
+    pub fn get_audit_knowledge(&self, domain: &str, section_type: &str) -> Result<String> {
+        self.registry.get_audit_knowledge(domain, section_type)
+    }
+
+    pub fn get_section_changed(&self, section_id: i64) -> Result<SectionChangedResult> {
+        self.registry.get_section_changed(section_id)
+    }
+
+    pub fn check_gate(&self, stage: AuditStage, document_id: Option<i64>) -> Result<GateResult> {
+        self.registry.check_gate(stage, document_id)
+    }
+
+    pub fn get_audit_report(
+        &self,
+        domain: &str,
+        document_id: Option<i64>,
+        section_id: Option<i64>,
+        stage: AuditStage,
+    ) -> Result<Option<SemanticReport>> {
+        self.registry.get_audit_report(domain, document_id, section_id, stage)
+    }
+
+    pub fn store_section_report(&self, report: &SemanticReport) -> Result<i64> {
+        self.registry.store_section_report(report)
+    }
+
+    pub fn store_document_report(&self, report: &SemanticReport) -> Result<i64> {
+        self.registry.store_document_report(report)
+    }
+
+    pub fn store_cross_domain_report(&self, report: &SemanticReport) -> Result<i64> {
+        self.registry.store_cross_domain_report(report)
+    }
+
+    pub fn update_finding_status(&self, report_id: i64, criterion_id: &str, status: FindingStatus) -> Result<()> {
+        self.registry.update_finding_status(report_id, criterion_id, status)
     }
 
     // ── Typed accessors ──────────────────────────────────────────────────────────

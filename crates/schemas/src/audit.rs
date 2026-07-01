@@ -29,7 +29,7 @@ impl Severity {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AuditFinding {
     pub check_id: AuditCheckId,
     pub severity: Severity,
@@ -37,6 +37,67 @@ pub struct AuditFinding {
     pub location: Option<String>,
     pub document_id: Option<i64>,
     pub provider: String,
+
+    // semantic audit extensions
+    pub stage: Option<AuditStage>,
+    pub section_id: Option<i64>,
+    pub confidence: Option<f64>,
+    pub evidence: Option<Evidence>,
+    pub status: Option<FindingStatus>,
+    pub strategy: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Evidence {
+    pub section_id: i64,
+    pub paragraph_index: usize,
+    pub sentence: Option<String>,
+    pub excerpt: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum FindingStatus {
+    Open,
+    Fixed,
+    Accepted,
+    Ignored,
+    FalsePositive,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum AuditStage {
+    Deterministic,
+    Section,
+    Document,
+    CrossDomain,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct GateResult {
+    pub blocked: bool,
+    pub reason: Option<String>,
+    pub blocking_ids: Vec<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SectionChangedResult {
+    pub changed: bool,
+    pub previous_report_id: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SemanticReport {
+    pub report_id: String,
+    pub stage: AuditStage,
+    pub domain: String,
+    pub document_id: Option<i64>,
+    pub section_id: Option<i64>,
+    pub strategy: Option<String>,
+    pub score: i64,
+    pub findings: Vec<AuditFinding>,
+    pub created_at: String,
+    pub document_revision: Option<i64>,
+    pub document_hash: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

@@ -8,6 +8,7 @@ pub mod package;
 pub mod registry;
 pub mod registry_client;
 pub mod resolution;
+pub mod reporting;
 pub mod runtime;
 pub mod search;
 pub mod workspace;

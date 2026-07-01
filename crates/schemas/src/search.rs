@@ -91,6 +91,7 @@ pub struct SemanticSection {
     pub content: String,
     pub required: bool,
     pub section_order: i64,
+    pub hash: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -98,6 +99,7 @@ pub struct SectionQuery {
     pub semantic_type: String,
     pub domain: Option<String>,
     pub max_results: usize,
+    pub document_id: Option<i64>,
 }
 
 impl Default for SectionQuery {
@@ -106,6 +108,7 @@ impl Default for SectionQuery {
             semantic_type: String::new(),
             domain: None,
             max_results: 50,
+            document_id: None,
         }
     }
 }

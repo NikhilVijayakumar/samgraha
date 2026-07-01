@@ -423,6 +423,7 @@ impl Cli {
             semantic_type: semantic_type.to_string(),
             domain: domain.map(|d| d.to_string()),
             max_results: max,
+            document_id: None,
         };
 
         let response = runtime.get_sections(&query)?;
