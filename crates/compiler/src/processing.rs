@@ -28,7 +28,16 @@ impl DocumentProcessor {
 
         let hash = compute_hash(&content);
         let file_path = relative_path.as_ref().to_string_lossy().to_string();
-        let sections = parse_sections(&content, &file_path, standard_def);
+        let mut sections = parse_sections(&content, &file_path, standard_def);
+
+        // Compute content hash for each section (semantic audit incremental skip)
+        for section in &mut sections {
+            section.hash = compute_content_hash(&section.body);
+            for sub in &mut section.subsections {
+                sub.hash = compute_content_hash(&sub.body);
+            }
+        }
+
         let title = extract_title(&content, path);
         let purpose = extract_purpose(&sections);
         let metadata = extract_metadata(&content, &title, &purpose, standard);
@@ -355,6 +364,7 @@ pub fn parse_sections(
                     line_end: byte_to_line_number(&line_starts, h3_line_end),
                 }),
                 subsections: Vec::new(),
+                hash: String::new(),
             });
         }
 
@@ -371,6 +381,7 @@ pub fn parse_sections(
                 line_end: byte_to_line_number(&line_starts, h2_line_end),
             }),
             subsections,
+            hash: String::new(),
         });
     }
 

@@ -1,7 +1,10 @@
 use crate::migration::KNOWLEDGE_MIGRATIONS;
 use anyhow::{Context, Result};
 use rusqlite::{params, Connection};
-use schemas::audit::AuditFinding;
+use schemas::audit::{
+    AuditFinding, AuditStage, FindingStatus, GateResult, SectionChangedResult,
+    SemanticReport,
+};
 use schemas::document::{Document, DocumentBody, DocumentSection};
 use schemas::enrichment::EnrichmentArtifact;
 use schemas::graph::{EdgeType, GraphEdge, GraphNode, KnowledgeGraph};
@@ -242,8 +245,8 @@ impl RegistryStore {
         let mut order = order_offset;
         for section in sections {
             self.conn.execute(
-                "INSERT INTO document_sections (document_id, semantic_type, canonical_name, content, required, section_order)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                "INSERT INTO document_sections (document_id, semantic_type, canonical_name, content, required, section_order, hash)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
                 params![
                     doc_id,
                     section.semantic_type,
@@ -251,6 +254,7 @@ impl RegistryStore {
                     section.body,
                     section.required as i64,
                     order as i64,
+                    section.hash,
                 ],
             )?;
             order += 1;
@@ -263,19 +267,21 @@ impl RegistryStore {
         let start = Instant::now();
         let mut stmt = self.conn.prepare(
             "SELECT ds.id, ds.document_id, d.title, d.path, d.standard,
-                    ds.semantic_type, ds.canonical_name, ds.content, ds.required, ds.section_order
+                    ds.semantic_type, ds.canonical_name, ds.content, ds.required, ds.section_order, ds.hash
              FROM document_sections ds
              JOIN documents d ON ds.document_id = d.id
              WHERE ds.semantic_type = ?1
                AND (?2 IS NULL OR d.standard = ?2)
+               AND (?3 IS NULL OR ds.document_id = ?3)
              ORDER BY ds.section_order
-             LIMIT ?3",
+             LIMIT ?4",
         )?;
 
         let rows = stmt.query_map(
             params![
                 query.semantic_type,
                 query.domain,
+                query.document_id,
                 query.max_results as i64,
             ],
             |row| {
@@ -290,6 +296,7 @@ impl RegistryStore {
                     content: row.get(7)?,
                     required: row.get::<_, i64>(8)? != 0,
                     section_order: row.get(9)?,
+                    hash: row.get(10)?,
                 })
             },
         )?;
@@ -394,6 +401,12 @@ impl RegistryStore {
                 location: row.get(3)?,
                 document_id: row.get(4)?,
                 provider: "registry".into(),
+                stage: None,
+                section_id: None,
+                confidence: None,
+                evidence: None,
+                status: None,
+                strategy: None,
             })
         })?;
         let mut findings = Vec::new();
@@ -630,6 +643,341 @@ impl RegistryStore {
                 |row| row.get(0),
             )
             .ok()
+    }
+
+    // ── Semantic Audit: Read Methods ────────────────────────────────────────
+
+    pub fn get_documents_by_domain(&self, domain: &str) -> Result<Vec<Document>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, path, hash, standard, title, body, metadata, quality, created_at, updated_at
+             FROM documents WHERE standard = ?1 ORDER BY id",
+        )?;
+        let rows = stmt.query_map(params![domain], |row| {
+            let body_str: String = row.get(5)?;
+            Ok(Document {
+                id: row.get(0)?,
+                path: schemas::document::DocumentPath(PathBuf::from(row.get::<_, String>(1)?)),
+                hash: row.get(2)?,
+                standard: row.get(3)?,
+                title: row.get(4)?,
+                body: serde_json::from_str(&body_str).unwrap_or_else(|_| DocumentBody::Generic {
+                    raw: body_str,
+                    sections: Vec::new(),
+                }),
+                metadata: serde_json::from_str(&row.get::<_, String>(6)?).unwrap_or_default(),
+                provenance: None,
+                quality: serde_json::from_str(&row.get::<_, String>(7)?).unwrap_or_default(),
+                created_at: row.get(8)?,
+                updated_at: row.get(9)?,
+            })
+        })?;
+        let mut documents = Vec::new();
+        for row in rows {
+            documents.push(row?);
+        }
+        Ok(documents)
+    }
+
+    pub fn get_section_by_id(&self, section_id: i64) -> Result<Option<SemanticSection>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT ds.id, ds.document_id, d.title, d.path, d.standard,
+                    ds.semantic_type, ds.canonical_name, ds.content, ds.required, ds.section_order, ds.hash
+             FROM document_sections ds
+             JOIN documents d ON ds.document_id = d.id
+             WHERE ds.id = ?1",
+        )?;
+        let mut rows = stmt.query(params![section_id])?;
+        if let Some(row) = rows.next()? {
+            Ok(Some(SemanticSection {
+                id: row.get(0)?,
+                document_id: row.get(1)?,
+                document_title: row.get(2)?,
+                document_path: row.get(3)?,
+                standard: row.get(4)?,
+                semantic_type: row.get(5)?,
+                canonical_name: row.get(6)?,
+                content: row.get(7)?,
+                required: row.get::<_, i64>(8)? != 0,
+                section_order: row.get(9)?,
+                hash: row.get(10)?,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn get_audit_knowledge(&self, domain: &str, section_type: &str) -> Result<String> {
+        let knowledge_path = PathBuf::from("docs/raw/audit-standards")
+            .join(domain)
+            .join(format!("{}.md", section_type));
+        let content = std::fs::read_to_string(&knowledge_path)
+            .with_context(|| format!("Audit knowledge not found: {:?}", knowledge_path))?;
+        Ok(content)
+    }
+
+    pub fn get_section_changed(&self, section_id: i64) -> Result<SectionChangedResult> {
+        // Get current hash from document_sections
+        let current_hash: Option<String> = self
+            .conn
+            .query_row(
+                "SELECT hash FROM document_sections WHERE id = ?1",
+                params![section_id],
+                |row| row.get(0),
+            )
+            .ok();
+
+        let current_hash = match current_hash {
+            Some(h) => h,
+            None => {
+                return Ok(SectionChangedResult {
+                    changed: true,
+                    previous_report_id: None,
+                });
+            }
+        };
+
+        // Get stored hash from section_audit_hashes
+        let stored: Option<(String, i64)> = self
+            .conn
+            .query_row(
+                "SELECT hash, report_id FROM section_audit_hashes WHERE section_id = ?1",
+                params![section_id],
+                |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?)),
+            )
+            .ok();
+
+        match stored {
+            Some((stored_hash, report_id)) if stored_hash == current_hash => {
+                Ok(SectionChangedResult {
+                    changed: false,
+                    previous_report_id: Some(report_id),
+                })
+            }
+            _ => Ok(SectionChangedResult {
+                changed: true,
+                previous_report_id: None,
+            }),
+        }
+    }
+
+    pub fn check_gate(&self, stage: AuditStage, document_id: Option<i64>) -> Result<GateResult> {
+        let stage_str = match stage {
+            AuditStage::Deterministic => "deterministic",
+            AuditStage::Section => "section",
+            AuditStage::Document => "document",
+            AuditStage::CrossDomain => "cross_domain",
+        };
+
+        match stage {
+            AuditStage::Deterministic => {
+                // Check audit_results for ERROR-severity findings
+                let count: i64 = match document_id {
+                    Some(did) => self.conn.query_row(
+                        "SELECT COUNT(*) FROM audit_results WHERE document_id = ?1 AND severity = 'error'",
+                        params![did],
+                        |row| row.get(0),
+                    ).unwrap_or(0),
+                    None => self.conn.query_row(
+                        "SELECT COUNT(*) FROM audit_results WHERE severity = 'error'",
+                        [],
+                        |row| row.get(0),
+                    ).unwrap_or(0),
+                };
+                if count > 0 {
+                    Ok(GateResult {
+                        blocked: true,
+                        reason: Some(format!("{} ERROR-severity deterministic findings", count)),
+                        blocking_ids: Vec::new(),
+                    })
+                } else {
+                    Ok(GateResult { blocked: false, reason: None, blocking_ids: Vec::new() })
+                }
+            }
+            _ => {
+                // Check semantic_reports for ERROR-severity findings
+                let (where_clause, doc_param): (&str, Option<i64>) = match document_id {
+                    Some(did) => ("AND document_id = ?2", Some(did)),
+                    None => ("", None),
+                };
+
+                let sql = format!(
+                    "SELECT COUNT(*) FROM semantic_reports
+                     WHERE stage = ?1 {} AND score < 100",
+                    where_clause
+                );
+
+                let count: i64 = match doc_param {
+                    Some(did) => self.conn.query_row(
+                        &sql,
+                        params![stage_str, did],
+                        |row| row.get(0),
+                    ).unwrap_or(0),
+                    None => self.conn.query_row(
+                        &sql,
+                        params![stage_str],
+                        |row| row.get(0),
+                    ).unwrap_or(0),
+                };
+
+                if count > 0 {
+                    Ok(GateResult {
+                        blocked: true,
+                        reason: Some(format!("{} {} reports not converged (score < 100)", count, stage_str)),
+                        blocking_ids: Vec::new(),
+                    })
+                } else {
+                    Ok(GateResult { blocked: false, reason: None, blocking_ids: Vec::new() })
+                }
+            }
+        }
+    }
+
+    pub fn get_audit_report(
+        &self,
+        domain: &str,
+        document_id: Option<i64>,
+        section_id: Option<i64>,
+        stage: AuditStage,
+    ) -> Result<Option<SemanticReport>> {
+        let stage_str = match stage {
+            AuditStage::Deterministic => "deterministic",
+            AuditStage::Section => "section",
+            AuditStage::Document => "document",
+            AuditStage::CrossDomain => "cross_domain",
+        };
+
+        let mut sql = String::from(
+            "SELECT report_uuid, stage, domain, document_id, section_id, score, findings, strategy, document_revision, document_hash, created_at
+             FROM semantic_reports WHERE domain = ?1 AND stage = ?2",
+        );
+        let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
+        param_values.push(Box::new(domain.to_string()));
+        param_values.push(Box::new(stage_str.to_string()));
+
+        if let Some(did) = document_id {
+            sql.push_str(" AND document_id = ?3");
+            param_values.push(Box::new(did));
+        }
+        if let Some(sid) = section_id {
+            sql.push_str(" AND section_id = ?4");
+            param_values.push(Box::new(sid));
+        }
+        sql.push_str(" ORDER BY id DESC LIMIT 1");
+
+        let mut stmt = self.conn.prepare(&sql)?;
+        let param_refs: Vec<&dyn rusqlite::types::ToSql> = param_values.iter().map(|p| p.as_ref()).collect();
+        let mut rows = stmt.query(param_refs.as_slice())?;
+
+        if let Some(row) = rows.next()? {
+            let findings_str: String = row.get(6)?;
+            let findings: Vec<schemas::audit::AuditFinding> =
+                serde_json::from_str(&findings_str).unwrap_or_default();
+            Ok(Some(SemanticReport {
+                report_id: row.get(0)?,
+                stage: stage,
+                domain: row.get(2)?,
+                document_id: row.get(3)?,
+                section_id: row.get(4)?,
+                score: row.get(5)?,
+                findings,
+                strategy: row.get(7)?,
+                document_revision: row.get(8)?,
+                document_hash: row.get(9)?,
+                created_at: row.get(10)?,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    // ── Semantic Audit: Write Methods ───────────────────────────────────────
+
+    fn store_report(&self, report: &SemanticReport) -> Result<i64> {
+        let stage_str = match report.stage {
+            AuditStage::Deterministic => "deterministic",
+            AuditStage::Section => "section",
+            AuditStage::Document => "document",
+            AuditStage::CrossDomain => "cross_domain",
+        };
+        let findings_json = serde_json::to_string(&report.findings)?;
+        self.conn.execute(
+            "INSERT INTO semantic_reports (report_uuid, stage, domain, document_id, section_id, score, findings, strategy, document_revision, document_hash, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+            params![
+                report.report_id,
+                stage_str,
+                report.domain,
+                report.document_id,
+                report.section_id,
+                report.score,
+                findings_json,
+                report.strategy,
+                report.document_revision,
+                report.document_hash,
+                report.created_at,
+            ],
+        )?;
+        let id = self.conn.last_insert_rowid();
+
+        // Update section_audit_hashes if this is a section report
+        if report.stage == AuditStage::Section {
+            if let Some(section_id) = report.section_id {
+                if let Some(doc_hash) = &report.document_hash {
+                    self.conn.execute(
+                        "INSERT OR REPLACE INTO section_audit_hashes (section_id, hash, report_id, checked_at)
+                         VALUES (?1, ?2, ?3, datetime('now'))",
+                        params![section_id, doc_hash, id],
+                    )?;
+                }
+            }
+        }
+
+        Ok(id)
+    }
+
+    pub fn store_section_report(&self, report: &SemanticReport) -> Result<i64> {
+        self.store_report(report)
+    }
+
+    pub fn store_document_report(&self, report: &SemanticReport) -> Result<i64> {
+        self.store_report(report)
+    }
+
+    pub fn store_cross_domain_report(&self, report: &SemanticReport) -> Result<i64> {
+        self.store_report(report)
+    }
+
+    pub fn update_finding_status(
+        &self,
+        report_id: i64,
+        criterion_id: &str,
+        status: FindingStatus,
+    ) -> Result<()> {
+        // Load existing findings, update the matching criterion, save
+        let findings_json: String = self
+            .conn
+            .query_row(
+                "SELECT findings FROM semantic_reports WHERE id = ?1",
+                params![report_id],
+                |row| row.get(0),
+            )
+            .map_err(|_| anyhow::anyhow!("Report not found: {}", report_id))?;
+
+        let mut findings: Vec<schemas::audit::AuditFinding> =
+            serde_json::from_str(&findings_json)?;
+
+        for finding in &mut findings {
+            if finding.check_id == criterion_id {
+                finding.status = Some(status.clone());
+            }
+        }
+
+        let updated_json = serde_json::to_string(&findings)?;
+        self.conn.execute(
+            "UPDATE semantic_reports SET findings = ?1 WHERE id = ?2",
+            params![updated_json, report_id],
+        )?;
+        Ok(())
     }
 }
 

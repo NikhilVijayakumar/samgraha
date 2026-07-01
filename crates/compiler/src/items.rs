@@ -237,6 +237,7 @@ mod tests {
                 body: "The compiler shall discover documentation sources.".into(),
                 required: false,
                 source_span: None,
+                hash: String::new(),
                 subsections: vec![],
             },
         ];
@@ -256,6 +257,7 @@ mod tests {
                 body: "Body text".into(),
                 required: false,
                 source_span: None,
+                hash: String::new(),
                 subsections: vec![],
             },
         ];
@@ -274,6 +276,7 @@ mod tests {
                 body: String::new(),
                 required: true,
                 source_span: None,
+                hash: String::new(),
                 subsections: vec![
                     DocumentSection {
                         heading: "FR1. Documentation Discovery".into(),
@@ -282,6 +285,7 @@ mod tests {
                         body: "The compiler shall discover docs.".into(),
                         required: false,
                         source_span: None,
+                        hash: String::new(),
                         subsections: vec![],
                     },
                 ],
@@ -436,6 +440,7 @@ mod tests {
                 body: "Parses documentation into typed objects.".into(),
                 required: false,
                 source_span: None,
+                hash: String::new(),
                 subsections: vec![],
             },
             DocumentSection {
@@ -445,6 +450,7 @@ mod tests {
                 body: "Persists compiled knowledge.".into(),
                 required: false,
                 source_span: None,
+                hash: String::new(),
                 subsections: vec![],
             },
         ];
@@ -465,6 +471,7 @@ mod tests {
                 body: "Describe the system.".into(),
                 required: true,
                 source_span: None,
+                hash: String::new(),
                 subsections: vec![],
             },
             DocumentSection {
@@ -474,6 +481,7 @@ mod tests {
                 body: "Listing.".into(),
                 required: false,
                 source_span: None,
+                hash: String::new(),
                 subsections: vec![],
             },
         ];
@@ -503,6 +511,7 @@ mod tests {
                 body: "Purpose text".into(),
                 required: true,
                 source_span: None,
+                hash: String::new(),
                 subsections: vec![],
             },
         ];

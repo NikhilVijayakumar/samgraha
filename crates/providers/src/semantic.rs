@@ -37,6 +37,12 @@ fn check_quality(doc: &Document) -> Vec<AuditFinding> {
             location: Some(doc.path.0.to_string_lossy().to_string()),
             document_id: Some(doc.id),
             provider: "semantic".into(),
+            stage: None,
+            section_id: None,
+            confidence: None,
+            evidence: None,
+            status: None,
+            strategy: None,
         });
     }
 
@@ -50,6 +56,12 @@ fn check_quality(doc: &Document) -> Vec<AuditFinding> {
                 location: Some(doc.path.0.to_string_lossy().to_string()),
                 document_id: Some(doc.id),
                 provider: "semantic".into(),
+                stage: None,
+                section_id: None,
+                confidence: None,
+                evidence: None,
+                status: None,
+                strategy: None,
             });
             break;
         }
@@ -88,6 +100,12 @@ fn check_technology_independence(doc: &Document) -> Vec<AuditFinding> {
                 location: Some(doc.path.0.to_string_lossy().to_string()),
                 document_id: Some(doc.id),
                 provider: "semantic".into(),
+                stage: None,
+                section_id: None,
+                confidence: None,
+                evidence: None,
+                status: None,
+                strategy: None,
             });
             break; // one finding per doc, don't flood
         }
@@ -117,6 +135,12 @@ fn check_scope(doc: &Document) -> Vec<AuditFinding> {
                     location: Some(doc.path.0.to_string_lossy().to_string()),
                     document_id: Some(doc.id),
                     provider: "semantic".into(),
+                    stage: None,
+                    section_id: None,
+                    confidence: None,
+                    evidence: None,
+                    status: None,
+                    strategy: None,
                 });
                 break;
             }
@@ -140,6 +164,12 @@ fn check_scope(doc: &Document) -> Vec<AuditFinding> {
                 location: Some(doc.path.0.to_string_lossy().to_string()),
                 document_id: Some(doc.id),
                 provider: "semantic".into(),
+                stage: None,
+                section_id: None,
+                confidence: None,
+                evidence: None,
+                status: None,
+                strategy: None,
             });
         }
     }

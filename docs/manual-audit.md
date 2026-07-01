@@ -498,7 +498,7 @@ Should resolve with only the current repo.
 
 ## Phase 2 — MCP Binary + Inspector (Functional Audit)
 
-Goal: validate MCP server works. No AI.
+Goal: validate MCP server works. No AI. Server now exposes **25 tools** (15 core + 10 semantic audit).
 
 ---
 
@@ -541,7 +541,7 @@ In the Inspector UI:
 | Step | Action | Expected |
 |---|---|---|
 | Initialize | Auto on connect | Server info + protocol version |
-| `tools/list` | Click | 15 tools listed with schemas |
+| `tools/list` | Click | 25 tools listed with schemas |
 | `search` | Call with `query: "repository"` | Results from knowledge.db |
 | `compile` | Call with `force: true` | Compilation result |
 | `get_document` | Call with `id: 1` | Document metadata + section TOC |
@@ -550,6 +550,15 @@ In the Inspector UI:
 | `list_domains` | Call | Domain list |
 | `list_repositories` | Call | All registered repos |
 | `repository_status` | Call | Status per repository |
+| `get_documents_by_domain` | Call with `domain: "feature"` | Documents in that domain |
+| `get_section` | Call with `section_id: 1` | Section by PK |
+| `get_audit_knowledge` | Call with `domain: "feature", section_type: "functional_requirements"` | Knowledge file content |
+| `get_audit_report` | Call with `domain: "feature", stage: "section"` | Latest report |
+| `get_section_changed` | Call with `section_id: 1` | Changed status + previous report ID |
+| `check_gate` | Call with `stage: "section", document_id: 1` | Gate PASS/BLOCK |
+| `store_section_report` | Call with full report JSON | Report stored |
+| `store_document_report` | Call with full report JSON | Report stored |
+| `update_finding_status` | Call with `report_id: 1, criterion_id: "C1", status: "fixed"` | Status updated |
 | Invalid tool | Call `nonexistent` | Error response |
 
 ---
@@ -600,11 +609,139 @@ Still using the Inspector. Test error handling and robustness:
 
 ---
 
-## Phase 3 — AI Integration
+## Phase 3 — Semantic Audit Pipeline (Core Logic)
 
-Only when Phases 1, 2, and 2.5 pass.
+Goal: validate the 4-stage pipeline (Deterministic → Section → Document → Cross-Domain) and knowledge file serving. No AI required for most steps — section change detection, gates, and report persistence are all deterministic.
 
-### 3.1 — Claude Code
+---
+
+### 3.1 — Verify Audit Knowledge Files Exist
+
+Knowledge files live under `docs/raw/audit-standards/`. The P0 files are:
+
+| File | Purpose |
+|---|---|
+| `orchestration.md` | Pipeline order, gate conditions, incremental skip logic |
+| `_prompt-template.md` | Shared prompt shell for LLM audit agents |
+| `registry.md` | Domain→section_type→strategy mapping |
+| `feature/functional-requirements.md` | Audit contract for FR completeness |
+| `feature/constraints.md` | Audit contract for constraint specificity |
+| `feature/success-criteria.md` | Audit contract for verifiability |
+| `architecture/component-model.md` | Audit contract for component clarity |
+| `architecture/constraints.md` | Audit contract for architectural constraint quality |
+
+Verify the files exist and are parseable:
+
+```bash
+ls docs/raw/audit-standards/feature/
+ls docs/raw/audit-standards/architecture/
+```
+
+---
+
+### 3.2 — Verify Knowledge File Serving via CLI
+
+The MCP tool `get_audit_knowledge` reads these files and returns their content.
+
+Test via stdin JSON-RPC:
+
+```bash
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_audit_knowledge","arguments":{"domain":"feature","section_type":"functional_requirements"}}}' | cargo run --bin mcp
+```
+
+Expected: JSON response with file content (score criteria, red flags, evidence schema).
+
+---
+
+### 3.3 — Verify Section Change Detection
+
+This is deterministic — it compares hashes. After a compile, each section has a SHA-256 hash stored in `section_audit_hashes`.
+
+Test via MCP:
+
+```bash
+# First compile to populate hashes
+cargo run --bin cli -- compile
+
+# Check a section
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_section_changed","arguments":{"section_id":1}}}' | cargo run --bin mcp
+```
+
+Expected: `{changed: false}` on first call (no previous hash to compare against meaning we can't know, or if a section_id exists in the compiled output, it may show changed).
+
+Modify a source file and recompile:
+
+```bash
+# Touch a doc to change it
+echo "" >> docs/raw/some-doc.md
+cargo run --bin cli -- compile
+
+# Check same section — should now show changed
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_section_changed","arguments":{"section_id":1}}}' | cargo run --bin mcp
+```
+
+Expected: `{changed: true}` (hash mismatch).
+
+---
+
+### 3.4 — Verify Gate Logic
+
+Gates block pipeline progression when the previous stage has unresolved ERROR findings.
+
+```bash
+# Check gate for deterministic stage (always passes — no deterministic audit configured)
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"check_gate","arguments":{"stage":"deterministic","document_id":1}}}' | cargo run --bin mcp
+```
+
+Expected: gate passes if no ERROR-severity findings exist for the deterministic stage on that document.
+
+---
+
+### 3.5 — Verify Report Store Round-Trip
+
+Full cycle: write a section report → read it back → update a finding status.
+
+```bash
+# Write a report
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"store_section_report","arguments":{"report_json":{"domain":"feature","stage":"section","document_id":1,"section_id":1,"strategy":"completeness","score":85,"findings":[{"criterion_id":"C1","passed":true,"severity":"error","confidence":0.95,"evidence":{"section_id":1,"paragraph_index":0,"excerpt":"FR1 exists"},"message":"All requirements present","status":"open"}]}}}}' | cargo run --bin mcp
+
+# Read it back
+echo '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"get_audit_report","arguments":{"domain":"feature","stage":"section","document_id":1}}}' | cargo run --bin mcp
+
+# Mark finding as fixed
+echo '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"update_finding_status","arguments":{"report_id":1,"criterion_id":"C1","status":"fixed"}}}' | cargo run --bin mcp
+```
+
+Expected: reports are stored to SQLite `semantic_reports` table + filesystem under `docs/reports/<domain>/`. Status transitions persist.
+
+---
+
+### 3.6 — Verify Atomic Report Filesystem Storage
+
+Reports are also written atomically to `docs/reports/<domain>/`:
+
+```bash
+ls "docs/reports/feature/"
+# Should show:
+#   latest.json
+#   history/
+```
+
+Verify atomic rename (no partial writes survive a crash):
+
+```bash
+# The .tmp file should never remain after a write
+ls "docs/reports/feature/" 2>/dev/null
+# No *.tmp files should exist
+```
+
+---
+
+## Phase 4 — AI Integration
+
+Only when Phases 1, 2, 2.5, and 3 pass.
+
+### 4.1 — Claude Code
 
 Configure MCP server in Claude Code's `mcp.json`:
 
@@ -625,13 +762,13 @@ Test prompts:
 - "Search for 'repository registry'"
 - "What documents are available?"
 
-### 3.2 — OpenCode
+### 4.2 — OpenCode
 
 Configure MCP server in OpenCode's settings.
 
 Verify knowledge retrieval works.
 
-### 3.3 — Codex CLI / future IDE integrations
+### 4.3 — Codex CLI / future IDE integrations
 
 Test compatibility.
 
@@ -649,9 +786,21 @@ Test compatibility.
 | Sync | `cargo run --bin cli -- registry sync` |
 | Resolve | `cargo run --bin cli -- registry resolve runtime` |
 | Search | `cargo run --bin cli -- search <query>` |
+| Sections | `cargo run --bin cli -- sections <semantic_type>` |
 | Build MCP binary | `cargo build --bin mcp` |
 | Run MCP binary | `cargo run --bin mcp` |
 | MCP Inspector | `npx @modelcontextprotocol/inspector cargo run --bin mcp` |
+| **MCP semantic audit tools** (25 tools total — 15 core + 10 audit) | |
+| `get_documents_by_domain` | `tools/call` with `domain` |
+| `get_section` | `tools/call` with `section_id` |
+| `get_audit_knowledge` | `tools/call` with `domain`, `section_type` |
+| `get_audit_report` | `tools/call` with `domain`, `stage` |
+| `get_section_changed` | `tools/call` with `section_id` |
+| `check_gate` | `tools/call` with `stage` |
+| `store_section_report` | `tools/call` with `report_json` |
+| `store_document_report` | `tools/call` with `report_json` |
+| `store_cross_domain_report` | `tools/call` with `report_json` |
+| `update_finding_status` | `tools/call` with `report_id`, `criterion_id`, `status` |
 
 ---
 
@@ -661,6 +810,10 @@ Test compatibility.
 2. **Registry** → `manifest.json` ONLY. `knowledge.db` NEVER.
 3. **Resolver** → Never inspects Markdown. Only compiled artifacts.
 4. **MCP** → Thin protocol layer over Knowledge Runtime. No business logic.
+5. **Semantic Audit Pipeline** → Deterministic → Section → Document → Cross-Domain. Each stage gated by previous.
+6. **Audit Knowledge Files** → Source of truth for audit criteria, scoring, and red flags. Engine is criteria-agnostic.
+7. **Change Detection** → Section hash (`SHA-256`) compared against `section_audit_hashes` table. Unchanged sections skip LLM calls.
+8. **Report Storage** → Atomic write (`latest.json.tmp` → rename) + history rotation. No partial writes survive crash.
 
 ---
 
@@ -670,3 +823,6 @@ Test compatibility.
 - `status` shows all repos (no per-name argument).
 - List output shows audit PASS/FAIL, not computed status.
 - Test reports auto-saved to `docs/report/manual-audit/` (gitignored) after each test runner run.
+- Semantic audit reports persisted to SQLite `semantic_reports` table + filesystem under `docs/reports/<domain>/latest.json`.
+- Audit knowledge files live at `docs/raw/audit-standards/` — shared via MCP `get_audit_knowledge` tool.
+- P0 knowledge files cover `feature` and `architecture` domains. Remaining ~80 files added incrementally as domains are used.

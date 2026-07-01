@@ -1,5 +1,5 @@
 /// Knowledge registry migrations — create `knowledge.db` tables.
-pub const KNOWLEDGE_MIGRATIONS: &[&str] = &[V1, V2, V3, V4, V5, V6, V7, V8];
+pub const KNOWLEDGE_MIGRATIONS: &[&str] = &[V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12];
 
 /// Repository registry migrations — create `registry.db` tables.
 pub const REGISTRY_MIGRATIONS: &[&str] = &[REG_V1];
@@ -175,6 +175,113 @@ CREATE TABLE IF NOT EXISTS graph_edges (
 CREATE INDEX IF NOT EXISTS idx_graph_edges_source ON graph_edges(source_urn);
 CREATE INDEX IF NOT EXISTS idx_graph_edges_target ON graph_edges(target_urn);
 CREATE INDEX IF NOT EXISTS idx_graph_edges_type ON graph_edges(edge_type);
+";
+
+const V9: &str = "
+-- V9: ON DELETE CASCADE on all FK constraints referencing documents(id).
+--      Enables INSERT OR REPLACE on documents to cascade-clean child rows.
+--      Recreates tables using CREATE+INSERT+DROP+RENAME pattern.
+
+CREATE TABLE IF NOT EXISTS relationships_v9 (
+    id INTEGER PRIMARY KEY,
+    source_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    target_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    rel_type TEXT NOT NULL,
+    metadata TEXT NOT NULL DEFAULT '{}'
+);
+INSERT INTO relationships_v9 SELECT * FROM relationships;
+DROP TABLE IF EXISTS relationships;
+ALTER TABLE relationships_v9 RENAME TO relationships;
+CREATE INDEX IF NOT EXISTS idx_relationships_source ON relationships(source_id);
+CREATE INDEX IF NOT EXISTS idx_relationships_target ON relationships(target_id);
+
+CREATE TABLE IF NOT EXISTS audit_results_v9 (
+    id INTEGER PRIMARY KEY,
+    document_id INTEGER REFERENCES documents(id) ON DELETE CASCADE,
+    check_id TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    message TEXT NOT NULL,
+    location TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+INSERT INTO audit_results_v9 SELECT * FROM audit_results;
+DROP TABLE IF EXISTS audit_results;
+ALTER TABLE audit_results_v9 RENAME TO audit_results;
+CREATE INDEX IF NOT EXISTS idx_audit_document ON audit_results(document_id);
+
+CREATE TABLE IF NOT EXISTS glossary_v9 (
+    id INTEGER PRIMARY KEY,
+    term TEXT NOT NULL UNIQUE,
+    definition TEXT NOT NULL,
+    source_document_id INTEGER REFERENCES documents(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+INSERT INTO glossary_v9 SELECT * FROM glossary;
+DROP TABLE IF EXISTS glossary;
+ALTER TABLE glossary_v9 RENAME TO glossary;
+
+CREATE TABLE IF NOT EXISTS enrichment_v9 (
+    id INTEGER PRIMARY KEY,
+    document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    artifact_type TEXT NOT NULL,
+    content TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    model TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+INSERT INTO enrichment_v9 SELECT * FROM enrichment;
+DROP TABLE IF EXISTS enrichment;
+ALTER TABLE enrichment_v9 RENAME TO enrichment;
+CREATE INDEX IF NOT EXISTS idx_enrichment_document ON enrichment(document_id);
+
+CREATE TABLE IF NOT EXISTS search_index_v9 (
+    term TEXT NOT NULL,
+    document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    frequency INTEGER NOT NULL DEFAULT 1,
+    PRIMARY KEY (term, document_id)
+);
+INSERT INTO search_index_v9 SELECT * FROM search_index;
+DROP TABLE IF EXISTS search_index;
+ALTER TABLE search_index_v9 RENAME TO search_index;
+CREATE INDEX IF NOT EXISTS idx_search_term ON search_index(term);
+";
+
+const V10: &str = "
+-- V10: Add hash column to document_sections for incremental change detection
+ALTER TABLE document_sections ADD COLUMN hash TEXT NOT NULL DEFAULT '';
+";
+
+const V11: &str = "
+-- V11: semantic_reports table for semantic audit report storage
+CREATE TABLE IF NOT EXISTS semantic_reports (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    report_uuid     TEXT    NOT NULL UNIQUE,
+    stage           TEXT    NOT NULL,
+    domain          TEXT    NOT NULL,
+    document_id     INTEGER,
+    section_id      INTEGER,
+    score           INTEGER NOT NULL DEFAULT 0,
+    findings        TEXT    NOT NULL DEFAULT '[]',
+    strategy        TEXT,
+    document_revision INTEGER,
+    document_hash   TEXT,
+    created_at      TEXT    NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_semantic_reports_stage ON semantic_reports(stage);
+CREATE INDEX IF NOT EXISTS idx_semantic_reports_domain ON semantic_reports(domain);
+CREATE INDEX IF NOT EXISTS idx_semantic_reports_document ON semantic_reports(document_id);
+CREATE INDEX IF NOT EXISTS idx_semantic_reports_section ON semantic_reports(section_id);
+";
+
+const V12: &str = "
+-- V12: section_audit_hashes for fast incremental skip lookup
+CREATE TABLE IF NOT EXISTS section_audit_hashes (
+    section_id  INTEGER NOT NULL,
+    hash        TEXT    NOT NULL,
+    report_id   INTEGER NOT NULL,
+    checked_at  TEXT    NOT NULL,
+    PRIMARY KEY (section_id)
+);
 ";
 
 /// REG_V1 — repository registry tables for `.samgraha/registry.db`.

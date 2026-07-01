@@ -24,6 +24,12 @@ impl DeterministicAuditProvider {
                         location: None,
                         document_id: None,
                         provider: "deterministic".into(),
+                        stage: None,
+                        section_id: None,
+                        confidence: None,
+                        evidence: None,
+                        status: None,
+                        strategy: None,
                     }]
                 } else {
                     vec![]
@@ -39,6 +45,12 @@ impl DeterministicAuditProvider {
                     location: Some(doc.path.as_str().to_string()),
                     document_id: Some(doc.id),
                     provider: "deterministic".into(),
+                    stage: None,
+                    section_id: None,
+                    confidence: None,
+                    evidence: None,
+                    status: None,
+                    strategy: None,
                 })
                 .collect(),
             "has_section" => {
@@ -73,6 +85,12 @@ impl DeterministicAuditProvider {
                         location: Some(doc.path.as_str().to_string()),
                         document_id: Some(doc.id),
                         provider: "deterministic".into(),
+                        stage: None,
+                        section_id: None,
+                        confidence: None,
+                        evidence: None,
+                        status: None,
+                        strategy: None,
                     })
                     .collect()
             }
@@ -86,6 +104,12 @@ impl DeterministicAuditProvider {
                     location: Some(doc.path.as_str().to_string()),
                     document_id: Some(doc.id),
                     provider: "deterministic".into(),
+                    stage: None,
+                    section_id: None,
+                    confidence: None,
+                    evidence: None,
+                    status: None,
+                    strategy: None,
                 })
                 .collect(),
             _ => vec![],
