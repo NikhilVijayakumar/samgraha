@@ -218,6 +218,75 @@ function Invoke-Phase2 {
     }
 }
 
+function Invoke-Phase3 {
+    Write-Step "Phase 3 - Semantic Audit Tools"
+    $testDir = Join-Path $TestTemp "p3"
+    New-TestFixture $testDir "audit-test"
+    # Create minimal audit knowledge files for the test fixture
+    $auditDir = Join-Path $testDir "docs\raw\audit-standards\feature"
+    New-Item -ItemType Directory -Force $auditDir | Out-Null
+    @"
+# Functional Requirements Audit
+## Scoring Criteria
+| ID | Score | Description |
+|---|---|---|
+| C1 | 30 | All requirements uniquely identified |
+| C2 | 30 | Each requirement is testable |
+"@ | Set-Content -Path (Join-Path $auditDir "functional-requirements.md")
+    Push-Location $testDir
+    try {
+        Run-Cli @("compile") | Out-Null
+        function RawMcp($json) {
+            $out = $json | & cargo run --manifest-path "$RootDir\Cargo.toml" --bin mcp 2>&1
+            $Global:LastOutput = $out
+            return $out
+        }
+
+        Write-Info "get_documents_by_domain"
+        $r = RawMcp '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_documents_by_domain","arguments":{"domain":"feature"}}}'
+        if ($r -match '"documents"' -or $r -match '\[\]' -or $LASTEXITCODE -eq 0) { Write-Pass "get_documents_by_domain" } else { Write-Fail "get_documents_by_domain" }
+
+        Write-Info "get_section"
+        $r = RawMcp '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"get_section","arguments":{"section_id":1}}}'
+        if ($r -match '"section"' -or $LASTEXITCODE -eq 0) { Write-Pass "get_section" } else { Write-Fail "get_section" }
+
+        Write-Info "get_audit_knowledge"
+        $r = RawMcp '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_audit_knowledge","arguments":{"domain":"feature","section_type":"functional-requirements"}}}'
+        if ($r -match "C1|C2") { Write-Pass "get_audit_knowledge" } else { Write-Fail "get_audit_knowledge" }
+
+        Write-Info "get_section_changed"
+        $r = RawMcp '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"get_section_changed","arguments":{"section_id":1}}}'
+        if ($r -match "changed") { Write-Pass "get_section_changed" } else { Write-Fail "get_section_changed" }
+
+        Write-Info "check_gate"
+        $r = RawMcp '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"check_gate","arguments":{"stage":"deterministic","document_id":1}}}'
+        if ($r -match "passed|blocked") { Write-Pass "check_gate" } else { Write-Fail "check_gate" }
+
+        Write-Info "store_section_report"
+        $r = RawMcp '{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"store_section_report","arguments":{"report_json":{"report_id":"00000000-0000-0000-0000-000000000001","domain":"feature","stage":"Section","document_id":1,"section_id":1,"strategy":"completeness","score":85,"findings":[{"check_id":"C1","severity":"Error","message":"All present","provider":"test","confidence":0.95,"evidence":{"section_id":1,"paragraph_index":0,"excerpt":"test"},"status":"Open"}],"created_at":"2026-01-01T00:00:00Z"}}}}'
+        if ($r -match "report_id") { Write-Pass "store_section_report" } else { Write-Fail "store_section_report" }
+
+        Write-Info "get_audit_report"
+        $r = RawMcp '{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"get_audit_report","arguments":{"domain":"feature","stage":"section","document_id":1}}}'
+        if ($r -match "report_id|findings") { Write-Pass "get_audit_report" } else { Write-Fail "get_audit_report" }
+
+        Write-Info "update_finding_status"
+        $r = RawMcp '{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"update_finding_status","arguments":{"report_id":1,"criterion_id":"C1","status":"fixed"}}}'
+        if ($r -match "success|true") { Write-Pass "update_finding_status" } else { Write-Fail "update_finding_status" }
+
+        Write-Info "store_document_report"
+        $r = RawMcp '{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"store_document_report","arguments":{"report_json":{"report_id":"00000000-0000-0000-0000-000000000002","domain":"feature","stage":"Document","document_id":1,"section_id":null,"strategy":"completeness","score":90,"findings":[{"check_id":"C1","severity":"Error","message":"Doc level","provider":"test","confidence":0.95,"evidence":{"section_id":1,"paragraph_index":0,"excerpt":"test"},"status":"Open"}],"created_at":"2026-01-01T00:00:00Z"}}}}'
+        if ($r -match "report_id") { Write-Pass "store_document_report" } else { Write-Fail "store_document_report" }
+
+        Write-Info "store_cross_domain_report"
+        $r = RawMcp '{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"store_cross_domain_report","arguments":{"report_json":{"report_id":"00000000-0000-0000-0000-000000000003","domain":"feature","stage":"CrossDomain","document_id":null,"section_id":null,"strategy":"consistency","score":80,"findings":[{"check_id":"C1","severity":"Warning","message":"Cross domain","provider":"test","confidence":0.85,"evidence":{"section_id":1,"paragraph_index":0,"excerpt":"cross"},"status":"Open"}],"created_at":"2026-01-01T00:00:00Z"}}}}'
+        if ($r -match "report_id" -or $LASTEXITCODE -eq 0) { Write-Pass "store_cross_domain_report" } else { Write-Fail "store_cross_domain_report" }
+    } finally {
+        Pop-Location
+        Remove-TestFixture $testDir
+    }
+}
+
 function Invoke-Phase25 {
     Write-Step "Phase 2.5 - Protocol"
     $testDir = Join-Path $TestTemp "p25"
@@ -285,7 +354,7 @@ try {
     Invoke-Phase1a
     Invoke-Phase1b
     if ($Full) { Invoke-Phase1c }
-    if ($WithMCP) { Invoke-Phase2; Invoke-Phase25 }
+    if ($WithMCP) { Invoke-Phase2; Invoke-Phase25; Invoke-Phase3 }
 } finally {
     Remove-TestFixture $TestTemp
 }
