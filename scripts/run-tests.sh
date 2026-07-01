@@ -266,6 +266,75 @@ invoke_phase2() {
     remove_test_fixture "$test_dir"
 }
 
+invoke_phase3() {
+    write_step "Phase 3 - Semantic Audit Tools"
+    local test_dir="$TEST_TEMP/p3"
+    new_test_fixture "$test_dir" "audit-test"
+    # Create minimal audit knowledge files for the test fixture
+    mkdir -p "$test_dir/docs/raw/audit-standards/feature"
+    cat > "$test_dir/docs/raw/audit-standards/feature/functional-requirements.md" << 'EOF'
+# Functional Requirements Audit
+## Scoring Criteria
+| ID | Score | Description |
+|---|---|---|
+| C1 | 30 | All requirements uniquely identified |
+| C2 | 30 | Each requirement is testable |
+EOF
+    pushd "$test_dir" > /dev/null
+    run_cli "compile" > /dev/null
+
+    raw_mcp() {
+        LAST_OUTPUT=$(echo "$1" | cargo run --manifest-path "$ROOT_DIR/Cargo.toml" --bin mcp 2>&1)
+        echo "$LAST_OUTPUT"
+    }
+
+    write_info "get_documents_by_domain"
+    local r
+    r=$(raw_mcp '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_documents_by_domain","arguments":{"domain":"feature"}}}')
+    if echo "$r" | grep -qiE "documents"; then write_pass "get_documents_by_domain"; else write_fail "get_documents_by_domain"; fi
+
+    write_info "get_section"
+    r=$(raw_mcp '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"get_section","arguments":{"section_id":1}}}')
+    if echo "$r" | grep -qiE "section"; then write_pass "get_section"; else write_fail "get_section"; fi
+
+    write_info "get_audit_knowledge"
+    r=$(raw_mcp '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_audit_knowledge","arguments":{"domain":"feature","section_type":"functional-requirements"}}}')
+    if echo "$r" | grep -qE "C1|C2"; then write_pass "get_audit_knowledge"; else write_fail "get_audit_knowledge"; fi
+
+    write_info "get_section_changed"
+    r=$(raw_mcp '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"get_section_changed","arguments":{"section_id":1}}}')
+    if echo "$r" | grep -qiE "changed"; then write_pass "get_section_changed"; else write_fail "get_section_changed"; fi
+
+    write_info "check_gate"
+    r=$(raw_mcp '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"check_gate","arguments":{"stage":"deterministic","document_id":1}}}')
+    if echo "$r" | grep -qiE "passed|blocked"; then write_pass "check_gate"; else write_fail "check_gate"; fi
+
+    write_info "store_section_report"
+    r=$(raw_mcp '{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"store_section_report","arguments":{"report_json":{"report_id":"00000000-0000-0000-0000-000000000001","domain":"feature","stage":"Section","document_id":1,"section_id":1,"strategy":"completeness","score":85,"findings":[{"check_id":"C1","severity":"Error","message":"All present","provider":"test","confidence":0.95,"evidence":{"section_id":1,"paragraph_index":0,"excerpt":"test"},"status":"Open"}],"created_at":"2026-01-01T00:00:00Z"}}}}')
+    if echo "$r" | grep -qiE "report_id"; then write_pass "store_section_report"; else write_fail "store_section_report"; fi
+
+    write_info "get_audit_report"
+    r=$(raw_mcp '{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"get_audit_report","arguments":{"domain":"feature","stage":"section","document_id":1}}}')
+
+    if echo "$r" | grep -qiE "report_id|findings"; then write_pass "get_audit_report"; else write_fail "get_audit_report"; fi
+
+    write_info "update_finding_status"
+    r=$(raw_mcp '{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"update_finding_status","arguments":{"report_id":1,"criterion_id":"C1","status":"fixed"}}}')
+    if echo "$r" | grep -qiE "success|true"; then write_pass "update_finding_status"; else write_fail "update_finding_status"; fi
+
+    write_info "store_document_report"
+    r=$(raw_mcp '{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"store_document_report","arguments":{"report_json":{"report_id":"00000000-0000-0000-0000-000000000002","domain":"feature","stage":"Document","document_id":1,"section_id":null,"strategy":"completeness","score":90,"findings":[{"check_id":"C1","severity":"Error","message":"Doc level","provider":"test","confidence":0.95,"evidence":{"section_id":1,"paragraph_index":0,"excerpt":"test"},"status":"Open"}],"created_at":"2026-01-01T00:00:00Z"}}}}')
+    if echo "$r" | grep -qiE "report_id"; then write_pass "store_document_report"; else write_fail "store_document_report"; fi
+
+    write_info "store_cross_domain_report"
+    r=$(raw_mcp '{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"store_cross_domain_report","arguments":{"report_json":{"report_id":"00000000-0000-0000-0000-000000000003","domain":"feature","stage":"CrossDomain","document_id":null,"section_id":null,"strategy":"consistency","score":80,"findings":[{"check_id":"C1","severity":"Warning","message":"Cross domain","provider":"test","confidence":0.85,"evidence":{"section_id":1,"paragraph_index":0,"excerpt":"cross"},"status":"Open"}],"created_at":"2026-01-01T00:00:00Z"}}}}')
+
+    if echo "$r" | grep -qiE "report_id"; then write_pass "store_cross_domain_report"; else write_fail "store_cross_domain_report"; fi
+
+    popd > /dev/null
+    remove_test_fixture "$test_dir"
+}
+
 invoke_phase25() {
     write_step "Phase 2.5 - Protocol"
     local test_dir="$TEST_TEMP/p25"
@@ -329,7 +398,7 @@ trap cleanup_test EXIT
 invoke_phase1a
 invoke_phase1b
 if $FULL; then invoke_phase1c; fi
-if $WITH_MCP; then invoke_phase2; invoke_phase25; fi
+if $WITH_MCP; then invoke_phase2; invoke_phase25; invoke_phase3; fi
 
 END_TIME=$(date +%s)
 DURATION=$((END_TIME - START_TIME))
