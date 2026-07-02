@@ -80,9 +80,10 @@ impl RegistryDb {
         let expires = chrono::DateTime::parse_from_rfc3339(&manifest.generated_at)
             .map(|dt| (dt + chrono::Duration::hours(24)).to_rfc3339())
             .unwrap_or_else(|_| (chrono::Utc::now() + chrono::Duration::hours(24)).to_rfc3339());
+        let deps_str = serde_json::to_string(&manifest.dependencies).unwrap_or_default();
         conn.execute(
-            "INSERT OR REPLACE INTO repository_cache (id, uuid, name, repository_root, knowledge_db, revision, exports, audit, last_sync, expires)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            "INSERT OR REPLACE INTO repository_cache (id, uuid, name, repository_root, knowledge_db, revision, exports, audit, last_sync, expires, dependencies)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             params![
                 manifest.repository.id,
                 uuid_str,
@@ -94,6 +95,7 @@ impl RegistryDb {
                 manifest.audit.status,
                 manifest.generated_at,
                 expires,
+                deps_str,
             ],
         )?;
         Ok(())
@@ -111,7 +113,7 @@ impl RegistryDb {
     pub fn list(&self) -> Result<Vec<CachedRepoMetadata>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, uuid, name, repository_root, knowledge_db, revision, exports, audit, last_sync, expires
+            "SELECT id, uuid, name, repository_root, knowledge_db, revision, exports, audit, last_sync, expires, dependencies
              FROM repository_cache ORDER BY id",
         )?;
         let rows = stmt.query_map([], |row| {
@@ -120,6 +122,9 @@ impl RegistryDb {
             let exports_str: String = row.get(6)?;
             let exports: Vec<String> =
                 serde_json::from_str(&exports_str).unwrap_or_default();
+            let deps_str: String = row.get::<_, String>(10).unwrap_or_default();
+            let dependencies: Vec<String> =
+                serde_json::from_str(&deps_str).unwrap_or_default();
             Ok(CachedRepoMetadata {
                 repository: RepoIdentity {
                     id: row.get(0)?,
@@ -135,6 +140,7 @@ impl RegistryDb {
                 audit: row.get(7)?,
                 last_sync: row.get(8)?,
                 expires: row.get(9)?,
+                dependencies,
             })
         })?;
         let mut results = Vec::new();
@@ -149,7 +155,7 @@ impl RegistryDb {
         let conn = self.conn.lock().unwrap();
         let uuid_str = uuid.to_string();
         let mut stmt = conn.prepare(
-            "SELECT id, uuid, name, repository_root, knowledge_db, revision, exports, audit, last_sync, expires
+            "SELECT id, uuid, name, repository_root, knowledge_db, revision, exports, audit, last_sync, expires, dependencies
              FROM repository_cache WHERE uuid = ?1",
         )?;
         let mut rows = stmt.query_map(params![uuid_str], |row| {
@@ -158,6 +164,9 @@ impl RegistryDb {
             let exports_str: String = row.get(6)?;
             let exports: Vec<String> =
                 serde_json::from_str(&exports_str).unwrap_or_default();
+            let deps_str: String = row.get::<_, String>(10).unwrap_or_default();
+            let dependencies: Vec<String> =
+                serde_json::from_str(&deps_str).unwrap_or_default();
             Ok(CachedRepoMetadata {
                 repository: RepoIdentity {
                     id: row.get(0)?,
@@ -173,6 +182,7 @@ impl RegistryDb {
                 audit: row.get(7)?,
                 last_sync: row.get(8)?,
                 expires: row.get(9)?,
+                dependencies,
             })
         })?;
         match rows.next() {
@@ -185,7 +195,7 @@ impl RegistryDb {
     pub fn get_by_id(&self, id: &str) -> Result<Option<CachedRepoMetadata>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, uuid, name, repository_root, knowledge_db, revision, exports, audit, last_sync, expires
+            "SELECT id, uuid, name, repository_root, knowledge_db, revision, exports, audit, last_sync, expires, dependencies
              FROM repository_cache WHERE id = ?1",
         )?;
         let mut rows = stmt.query_map(params![id], |row| {
@@ -194,6 +204,9 @@ impl RegistryDb {
             let exports_str: String = row.get(6)?;
             let exports: Vec<String> =
                 serde_json::from_str(&exports_str).unwrap_or_default();
+            let deps_str: String = row.get::<_, String>(10).unwrap_or_default();
+            let dependencies: Vec<String> =
+                serde_json::from_str(&deps_str).unwrap_or_default();
             Ok(CachedRepoMetadata {
                 repository: RepoIdentity {
                     id: row.get(0)?,
@@ -209,6 +222,7 @@ impl RegistryDb {
                 audit: row.get(7)?,
                 last_sync: row.get(8)?,
                 expires: row.get(9)?,
+                dependencies,
             })
         })?;
         match rows.next() {
@@ -222,9 +236,10 @@ impl RegistryDb {
         let conn = self.conn.lock().unwrap();
         let uuid_str = meta.repository.uuid.to_string();
         let exports_str = serde_json::to_string(&meta.exports)?;
+        let deps_str = serde_json::to_string(&meta.dependencies)?;
         conn.execute(
-            "INSERT OR REPLACE INTO repository_cache (id, uuid, name, repository_root, knowledge_db, revision, exports, audit, last_sync, expires)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            "INSERT OR REPLACE INTO repository_cache (id, uuid, name, repository_root, knowledge_db, revision, exports, audit, last_sync, expires, dependencies)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             params![
                 meta.repository.id,
                 uuid_str,
@@ -236,6 +251,7 @@ impl RegistryDb {
                 meta.audit,
                 meta.last_sync,
                 meta.expires,
+                deps_str,
             ],
         )?;
         Ok(())
@@ -294,6 +310,7 @@ mod tests {
             audit: "PASS".to_string(),
             last_sync: "2026-06-27T12:00:00Z".to_string(),
             expires: "2026-06-28T12:00:00Z".to_string(),
+            dependencies: Vec::new(),
         }
     }
 

@@ -2,7 +2,7 @@
 pub const KNOWLEDGE_MIGRATIONS: &[&str] = &[V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12];
 
 /// Repository registry migrations — create `registry.db` tables.
-pub const REGISTRY_MIGRATIONS: &[&str] = &[REG_V1];
+pub const REGISTRY_MIGRATIONS: &[&str] = &[REG_V1, REG_V2];
 
 /// Backward compat alias.
 pub const MIGRATIONS: &[&str] = KNOWLEDGE_MIGRATIONS;
@@ -309,4 +309,10 @@ CREATE TABLE IF NOT EXISTS repository_cache (
     expires TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_repo_cache_uuid ON repository_cache(uuid);
+";
+
+/// REG_V2 — add `dependencies` column for cached transitive dependency names.
+/// Enables offline resolution without reading dependency manifests on cache hit.
+const REG_V2: &str = "
+ALTER TABLE repository_cache ADD COLUMN dependencies TEXT NOT NULL DEFAULT '[]';
 ";

@@ -55,6 +55,7 @@ pub struct RepositoryManifest {
 /// Written by the Resolver during sync operations.
 /// Read by the Resolver during resolution — never by the Registry at runtime.
 /// TTL enforced by comparing `expires` against current time.
+/// `dependencies` are transitive dependency names (no paths), used for cycle detection.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CachedRepoMetadata {
     pub repository: RepoIdentity,
@@ -65,6 +66,8 @@ pub struct CachedRepoMetadata {
     pub audit: String,
     pub last_sync: String,
     pub expires: String,
+    #[serde(default)]
+    pub dependencies: Vec<String>,
 }
 
 impl CachedRepoMetadata {
