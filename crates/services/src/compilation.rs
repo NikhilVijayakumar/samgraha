@@ -76,11 +76,13 @@ impl CompilationService {
         registry.clear_graph()?;
         registry.insert_graph(&output.graph)?;
 
-        // Remove registry entries for files that no longer exist on disk.
+        // Remove registry entries for files that no longer exist on disk
+        // or are in directories excluded from compilation (e.g. audit-standards).
         let all_docs = registry.get_all_documents()?;
         for stored in &all_docs {
             let abs = root.join(&stored.path.0);
-            if !abs.exists() {
+            let rel = stored.path.0.to_string_lossy().replace('\\', "/");
+            if !abs.exists() || rel.contains("audit-standards") {
                 registry.delete_document(stored.id)?;
             }
         }

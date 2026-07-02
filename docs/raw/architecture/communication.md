@@ -8,7 +8,7 @@ Communication Architecture describes how architectural components exchange engin
 
 Rather than describing protocols or implementation technologies, this document defines the logical communication model of the platform.
 
-Implementation details are documented separately.
+Technology-specific documentation is maintained separately.
 
 ---
 
@@ -20,13 +20,51 @@ The Saṃgraha platform follows a layered architecture with four primary layers:
 
 The system is composed of logical components organized by responsibility: Documentation Standards, Knowledge Services, Knowledge Compiler, Knowledge Enrichment, Knowledge Registry, Repository Registry, Knowledge Runtime, Transport Adapters, and Provider Integrations. See [Component Model](component-model.md) for detailed component responsibilities, dependencies, and interaction contracts.
 
+## Communication
+
+Components communicate through well-defined architectural interfaces. The platform uses a layered communication model where each layer interacts only with adjacent architectural layers through explicit contracts.
+
+Communication paths follow these rules:
+
+* Components communicate through documented interfaces only
+* Communication always flows toward runtime consumption
+* Reverse dependencies are not permitted
+* Every communication path preserves component ownership boundaries
+
+The primary communication paths are:
+
+| Source | Target | Purpose |
+|--------|--------|---------|
+| Documentation Standards | Knowledge Services | Engineering contracts |
+| Knowledge Services | Knowledge Compiler | Compilation requests |
+| Knowledge Compiler | Knowledge Registry | Compiled knowledge |
+| Knowledge Registry | Knowledge Runtime | Runtime queries |
+| Knowledge Runtime | Transport Adapters | External responses |
+| CLI Adapter | Development Tools | Terminal interactions |
+| MCP Adapter | Development Tools | MCP protocol interactions |
+
+## Data Flow
+
+Engineering knowledge flows through deterministic compilation stages from source documentation to runtime consumption.
+
+The data flow follows a unidirectional pipeline:
+
+1. Source markdown documents are ingested by Documentation Standards
+2. Knowledge Services coordinate compilation, validation, and enrichment
+3. Knowledge Compiler transforms raw documentation into compiled knowledge
+4. Knowledge Registry persists and indexes compiled knowledge
+5. Knowledge Runtime serves compiled knowledge to transport adapters
+6. Transport adapters expose knowledge to external development tools
+
+Data never flows backward through the pipeline. Each stage produces output consumed only by the next stage. The Knowledge Registry is the single authoritative persistence boundary — components never bypass it.
+
 # Communication Philosophy
 
 Saṃgraha follows a direct, contract-based communication model.
 
 Components communicate only through well-defined architectural interfaces.
 
-Communication exists to coordinate engineering knowledge rather than share implementation details.
+Communication exists to coordinate engineering knowledge rather than couple to specific technology choices.
 
 Every communication path should:
 

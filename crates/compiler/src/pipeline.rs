@@ -40,6 +40,7 @@ impl CompilationPipeline {
                 "node_modules".to_string(),
                 "target".to_string(),
                 ".git".to_string(),
+                "audit-standards".to_string(),
             ],
         )?;
 

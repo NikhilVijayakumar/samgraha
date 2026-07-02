@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tracing::info;
+use tracing::debug;
 
 use crate::metadata_cache::MetadataCache;
 use crate::package::{DependencyRepo, PackageFormat, PackageRequest, PackageService};
@@ -226,53 +226,56 @@ impl KnowledgeResolver {
         let available = dep_root.as_ref().map(|p| p.exists()).unwrap_or(false);
 
         if !available {
-            // Offline mode: check cache before giving up.
-            if let Some(ref db) = db {
-                if let Ok(Some(cached)) = db.cache_read(&dep.name) {
-                    if !cached.is_expired() {
-                        info!("Metadata Cache → Resolver (offline, non-expired cache for '{}')", dep.name);
-                        let transitive_deps = cached_to_dep_configs(&cached);
-                        resolved.push(ResolvedDependency {
-                            name: dep.name.clone(),
-                            path: dep_root,
-                            available: true,
-                            required: dep.required,
-                            domains: cached.exports.clone(),
-                            revision: cached.revision,
-                        });
-                        let dep_root = cached.repository_root.clone();
-                        for trans_dep in transitive_deps {
-                            Self::dfs_resolve(
-                                &trans_dep, config_deps, Path::new(&dep_root), Some(db),
-                                resolved, unresolved, globally_visited, stack,
-                                ttl_seconds,
-                            ).with_context(|| format!("While resolving dependency '{}'", dep.name))?;
+            // For required deps: path missing means fail — cache can't substitute
+            // for a deleted dependency. Only non-required deps get cache fallback
+            // for offline mode.
+            if !dep.required {
+                if let Some(ref db) = db {
+                    if let Ok(Some(cached)) = db.cache_read(&dep.name) {
+                        if !cached.is_expired() {
+                            debug!("Metadata Cache → Resolver (offline, non-expired cache for '{}')", dep.name);
+                            let transitive_deps = cached_to_dep_configs(&cached);
+                            resolved.push(ResolvedDependency {
+                                name: dep.name.clone(),
+                                path: dep_root,
+                                available: true,
+                                required: dep.required,
+                                domains: cached.exports.clone(),
+                                revision: cached.revision,
+                            });
+                            let dep_root = cached.repository_root.clone();
+                            for trans_dep in transitive_deps {
+                                Self::dfs_resolve(
+                                    &trans_dep, config_deps, Path::new(&dep_root), Some(db),
+                                    resolved, unresolved, globally_visited, stack,
+                                    ttl_seconds,
+                                ).with_context(|| format!("While resolving dependency '{}'", dep.name))?;
+                            }
+                            return Ok(());
+                        } else {
+                            debug!(
+                                "Warning: stale cache used for '{}' (path not found, cache expired)",
+                                dep.name
+                            );
+                            let transitive_deps = cached_to_dep_configs(&cached);
+                            resolved.push(ResolvedDependency {
+                                name: dep.name.clone(),
+                                path: dep_root,
+                                available: true,
+                                required: dep.required,
+                                domains: cached.exports.clone(),
+                                revision: cached.revision,
+                            });
+                            let dep_root = cached.repository_root.clone();
+                            for trans_dep in transitive_deps {
+                                Self::dfs_resolve(
+                                    &trans_dep, config_deps, Path::new(&dep_root), Some(db),
+                                    resolved, unresolved, globally_visited, stack,
+                                    ttl_seconds,
+                                ).with_context(|| format!("While resolving dependency '{}'", dep.name))?;
+                            }
+                            return Ok(());
                         }
-                        return Ok(());
-                    } else {
-                        // Cache expired but we still have stale data — emit warning.
-                        info!(
-                            "Warning: stale cache used for '{}' (path not found, cache expired)",
-                            dep.name
-                        );
-                        let transitive_deps = cached_to_dep_configs(&cached);
-                        resolved.push(ResolvedDependency {
-                            name: dep.name.clone(),
-                            path: dep_root,
-                            available: true,
-                            required: dep.required,
-                            domains: cached.exports.clone(),
-                            revision: cached.revision,
-                        });
-                        let dep_root = cached.repository_root.clone();
-                        for trans_dep in transitive_deps {
-                            Self::dfs_resolve(
-                                &trans_dep, config_deps, Path::new(&dep_root), Some(db),
-                                resolved, unresolved, globally_visited, stack,
-                                ttl_seconds,
-                            ).with_context(|| format!("While resolving dependency '{}'", dep.name))?;
-                        }
-                        return Ok(());
                     }
                 }
             }
@@ -331,11 +334,11 @@ impl KnowledgeResolver {
         if let Some(ref db) = db {
             if let Ok(Some(cached)) = db.cache_read(name) {
                 if !cached.is_expired() {
-                    info!("Metadata Cache → Resolver (cache hit for '{}')", name);
+                    debug!("Metadata Cache → Resolver (cache hit for '{}')", name);
                     let transitive_deps = cached_to_dep_configs(&cached);
                     return (cached.exports.clone(), cached.revision, transitive_deps);
                 } else {
-                    info!("Registry → Metadata Cache → Resolver (cache expired for '{}')", name);
+                    debug!("Registry → Metadata Cache → Resolver (cache expired for '{}')", name);
                 }
             }
         }
@@ -364,7 +367,7 @@ impl KnowledgeResolver {
                 let mut meta = MetadataCache::from_manifest(m);
                 meta.expires = expires;
                 let _ = db.cache_write(&meta);
-                info!("Cached metadata for '{}' (TTL: {}s)", name, ttl_seconds);
+                debug!("Cached metadata for '{}' (TTL: {}s)", name, ttl_seconds);
             }
             return (m.exports.clone(), m.revision, transitive_deps);
         }
