@@ -1,11 +1,13 @@
 use anyhow::{Context, Result};
-use common::config::{DependencyConfig, SamgrahaConfig};
+use common::config::{parse_ttl_duration, DependencyConfig, SamgrahaConfig};
 use registry::registry_db::RegistryDb;
+use schemas::manifest::CachedRepoMetadata;
 use schemas::package::{KnowledgePackage, PackageLayout, PackageProfile};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use tracing::info;
 
 use crate::metadata_cache::MetadataCache;
 use crate::package::{DependencyRepo, PackageFormat, PackageRequest, PackageService};
@@ -77,10 +79,12 @@ impl KnowledgeResolver {
 
         // Phase 6: Resolve dependency graph via SQLite-backed RegistryDb.
         let db = RegistryDb::open(root).ok();
+        let ttl_seconds: i64 = parse_ttl_duration(&config.resolver.metadata_ttl).unwrap_or(86400);
         let (resolved_deps, unresolved) = Self::resolve_dependency_graph(
             &config.repository.dependencies,
             root,
             db.as_ref(),
+            ttl_seconds,
         );
 
         let dep_repos: Vec<DependencyRepo> = resolved_deps
@@ -162,6 +166,7 @@ impl KnowledgeResolver {
         deps: &[DependencyConfig],
         root: &Path,
         db: Option<&RegistryDb>,
+        ttl_seconds: i64,
     ) -> (Vec<ResolvedDependency>, Vec<String>) {
         let mut resolved: Vec<ResolvedDependency> = Vec::new();
         let mut unresolved: Vec<String> = Vec::new();
@@ -172,6 +177,7 @@ impl KnowledgeResolver {
             if let Err(e) = Self::dfs_resolve(
                 dep, deps, root, db, &mut resolved, &mut unresolved,
                 &mut globally_visited, &mut stack,
+                ttl_seconds,
             ) {
                 let msg = format!("{:#}", e);
                 unresolved.push(msg);
@@ -190,6 +196,7 @@ impl KnowledgeResolver {
         unresolved: &mut Vec<String>,
         globally_visited: &mut HashSet<String>,
         stack: &mut Vec<(String, PathBuf)>,
+        ttl_seconds: i64,
     ) -> Result<()> {
         if stack.iter().any(|(name, _)| name == &dep.name) {
             let cycle_path: Vec<String> = stack.iter().map(|(n, _)| n.clone()).collect();
@@ -219,6 +226,57 @@ impl KnowledgeResolver {
         let available = dep_root.as_ref().map(|p| p.exists()).unwrap_or(false);
 
         if !available {
+            // Offline mode: check cache before giving up.
+            if let Some(ref db) = db {
+                if let Ok(Some(cached)) = db.cache_read(&dep.name) {
+                    if !cached.is_expired() {
+                        info!("Metadata Cache → Resolver (offline, non-expired cache for '{}')", dep.name);
+                        let transitive_deps = cached_to_dep_configs(&cached);
+                        resolved.push(ResolvedDependency {
+                            name: dep.name.clone(),
+                            path: dep_root,
+                            available: true,
+                            required: dep.required,
+                            domains: cached.exports.clone(),
+                            revision: cached.revision,
+                        });
+                        let dep_root = cached.repository_root.clone();
+                        for trans_dep in transitive_deps {
+                            Self::dfs_resolve(
+                                &trans_dep, config_deps, Path::new(&dep_root), Some(db),
+                                resolved, unresolved, globally_visited, stack,
+                                ttl_seconds,
+                            ).with_context(|| format!("While resolving dependency '{}'", dep.name))?;
+                        }
+                        return Ok(());
+                    } else {
+                        // Cache expired but we still have stale data — emit warning.
+                        info!(
+                            "Warning: stale cache used for '{}' (path not found, cache expired)",
+                            dep.name
+                        );
+                        let transitive_deps = cached_to_dep_configs(&cached);
+                        resolved.push(ResolvedDependency {
+                            name: dep.name.clone(),
+                            path: dep_root,
+                            available: true,
+                            required: dep.required,
+                            domains: cached.exports.clone(),
+                            revision: cached.revision,
+                        });
+                        let dep_root = cached.repository_root.clone();
+                        for trans_dep in transitive_deps {
+                            Self::dfs_resolve(
+                                &trans_dep, config_deps, Path::new(&dep_root), Some(db),
+                                resolved, unresolved, globally_visited, stack,
+                                ttl_seconds,
+                            ).with_context(|| format!("While resolving dependency '{}'", dep.name))?;
+                        }
+                        return Ok(());
+                    }
+                }
+            }
+
             if dep.required {
                 unresolved.push(dep.name.clone());
             }
@@ -235,7 +293,7 @@ impl KnowledgeResolver {
 
         let dep_root = dep_root.unwrap();
         let (domains, revision, transitive_deps) =
-            Self::resolve_dependency_metadata(&dep.name, &dep_root, db);
+            Self::resolve_dependency_metadata(&dep.name, &dep_root, db, ttl_seconds);
 
         resolved.push(ResolvedDependency {
             name: dep.name.clone(),
@@ -251,7 +309,7 @@ impl KnowledgeResolver {
         for trans_dep in transitive_deps {
             Self::dfs_resolve(
                 &trans_dep, config_deps, &dep_root, db, resolved, unresolved,
-                globally_visited, stack,
+                globally_visited, stack, ttl_seconds,
             ).with_context(|| format!("While resolving dependency '{}'", dep.name))?;
         }
 
@@ -259,12 +317,30 @@ impl KnowledgeResolver {
         Ok(())
     }
 
-    /// Resolve a single dependency — use SQLite cache for metadata, manifest for transitive deps.
+    /// Resolve a single dependency — use SQLite cache FIRST, fall back to manifest on disk.
+    ///
+    /// On cache hit (non-expired), returns cached data without disk I/O.
+    /// On cache miss or expired, reads manifest from disk and writes to cache.
     fn resolve_dependency_metadata(
         name: &str,
         dep_root: &Path,
         db: Option<&RegistryDb>,
+        ttl_seconds: i64,
     ) -> (Vec<String>, u64, Vec<DependencyConfig>) {
+        // Try SQLite-backed registry cache FIRST — avoids disk I/O on cache hit.
+        if let Some(ref db) = db {
+            if let Ok(Some(cached)) = db.cache_read(name) {
+                if !cached.is_expired() {
+                    info!("Metadata Cache → Resolver (cache hit for '{}')", name);
+                    let transitive_deps = cached_to_dep_configs(&cached);
+                    return (cached.exports.clone(), cached.revision, transitive_deps);
+                } else {
+                    info!("Registry → Metadata Cache → Resolver (cache expired for '{}')", name);
+                }
+            }
+        }
+
+        // Cache miss or expired — read manifest from disk.
         let manifest = MetadataCache::read_dependency_manifest(dep_root).ok().flatten();
         let transitive_deps: Vec<DependencyConfig> = manifest
             .as_ref()
@@ -280,20 +356,31 @@ impl KnowledgeResolver {
             })
             .unwrap_or_default();
 
-        // Try SQLite-backed registry cache for exports + revision.
-        if let Some(ref db) = db {
-            if let Ok(Some(cached)) = db.cache_read(name) {
-                if !cached.is_expired() {
-                    return (cached.exports.clone(), cached.revision, transitive_deps);
-                }
+        if let Some(ref m) = manifest {
+            // Write to cache for future resolves.
+            if let Some(ref db) = db {
+                let now = chrono::Utc::now();
+                let expires = (now + chrono::Duration::seconds(ttl_seconds)).to_rfc3339();
+                let mut meta = MetadataCache::from_manifest(m);
+                meta.expires = expires;
+                let _ = db.cache_write(&meta);
+                info!("Cached metadata for '{}' (TTL: {}s)", name, ttl_seconds);
             }
-        }
-
-        // Fall back to manifest values.
-        if let Some(m) = manifest {
             return (m.exports.clone(), m.revision, transitive_deps);
         }
 
         (Vec::new(), 0, Vec::new())
     }
+}
+
+/// Convert cached dependency names into DependencyConfig list (paths unknown, optional).
+fn cached_to_dep_configs(cached: &CachedRepoMetadata) -> Vec<DependencyConfig> {
+    cached.dependencies
+        .iter()
+        .map(|d| DependencyConfig {
+            name: d.clone(),
+            path: None,
+            required: false,
+        })
+        .collect()
 }

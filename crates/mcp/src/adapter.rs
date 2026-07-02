@@ -402,10 +402,14 @@ impl McpAdapter {
         let db = registry::registry_db::RegistryDb::open(
             &self.runtime.context.repository_root
         ).ok();
+        use common::config::parse_ttl_duration;
+        let ttl_seconds = parse_ttl_duration(&self.runtime.context.config.resolver.metadata_ttl)
+            .unwrap_or(86400);
         let (resolved, unresolved) = KnowledgeResolver::resolve_dependency_graph(
             &self.runtime.context.config.repository.dependencies,
             &self.runtime.context.repository_root,
             db.as_ref(),
+            ttl_seconds,
         );
         Ok(serde_json::json!({
             "dependencies": resolved.iter().map(|d| serde_json::json!({

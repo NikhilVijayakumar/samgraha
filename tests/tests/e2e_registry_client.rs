@@ -232,6 +232,7 @@ fn test_expired_metadata() {
         audit: "PASS".into(),
         last_sync: "2020-01-01T00:00:00Z".into(),
         expires: "2020-01-02T00:00:00Z".into(),
+        dependencies: Vec::new(),
     };
     assert!(meta.is_expired());
 
@@ -256,6 +257,7 @@ fn test_status_registered() {
         audit: "PASS".into(),
         last_sync: "2026-06-27T12:00:00Z".into(),
         expires: "2099-01-01T00:00:00Z".into(),
+        dependencies: Vec::new(),
     };
     assert_eq!(meta.status(now), RepositoryStatus::Registered);
 }
@@ -276,6 +278,7 @@ fn test_status_missing() {
         audit: "PASS".into(),
         last_sync: "2026-06-27T12:00:00Z".into(),
         expires: "2099-01-01T00:00:00Z".into(),
+        dependencies: Vec::new(),
     };
     assert_eq!(meta.status(std::time::SystemTime::now()), RepositoryStatus::Missing);
 }
@@ -297,6 +300,7 @@ fn test_status_stale_metadata() {
         audit: "PASS".into(),
         last_sync: "2020-01-01T00:00:00Z".into(),
         expires: "2020-01-02T00:00:00Z".into(),
+        dependencies: Vec::new(),
     };
     assert_eq!(meta.status(now), RepositoryStatus::StaleMetadata);
 }
@@ -318,6 +322,7 @@ fn test_status_audit_failed() {
         audit: "FAIL".into(),
         last_sync: "2026-06-27T12:00:00Z".into(),
         expires: "2099-01-01T00:00:00Z".into(),
+        dependencies: Vec::new(),
     };
     assert_eq!(meta.status(std::time::SystemTime::now()), RepositoryStatus::AuditFailed);
 }
@@ -343,6 +348,7 @@ fn test_status_stale_knowledge() {
         audit: "PASS".into(),
         last_sync: "2026-06-27T12:00:00Z".into(),
         expires: "2099-01-01T00:00:00Z".into(),
+        dependencies: Vec::new(),
     };
     assert_eq!(meta.status(std::time::SystemTime::now()), RepositoryStatus::StaleKnowledge);
 }
@@ -368,6 +374,7 @@ fn test_status_sync_required() {
         audit: "PASS".into(),
         last_sync: "2026-06-27T11:00:00Z".into(),
         expires: "2099-01-01T00:00:00Z".into(),
+        dependencies: Vec::new(),
     };
     assert_eq!(meta.status(std::time::SystemTime::now()), RepositoryStatus::SyncRequired);
 }
@@ -400,6 +407,7 @@ fn test_resolve_simple_deps() {
         &config.repository.dependencies,
         &root,
         db.as_ref(),
+        86400,
     );
 
     assert!(unresolved.is_empty(), "unexpected unresolved: {:?}", unresolved);
@@ -430,6 +438,7 @@ fn test_resolve_missing_dep() {
         &config.repository.dependencies,
         &std::env::temp_dir(),
         db.as_ref(),
+        86400,
     );
 
     assert_eq!(resolved.len(), 1);
@@ -482,6 +491,7 @@ fn test_cycle_detection() {
         &config.repository.dependencies,
         &repos,
         db.as_ref(),
+        86400,
     );
 
     assert!(!unresolved.is_empty(), "expected cycle error");

@@ -90,6 +90,16 @@ if $RESOLVE; then
 
     cd "$ROOT_DIR"
 
+    # Ensure config is always restored, even on error.
+    cleanup_config() {
+        if [ -f "$CONFIG_BACKUP" ]; then
+            cp "$CONFIG_BACKUP" "samgraha.toml"
+            rm -f "$CONFIG_BACKUP"
+            echo "  OK samgraha.toml restored"
+        fi
+    }
+    trap cleanup_config EXIT
+
     cp "samgraha.toml" "$CONFIG_BACKUP"
 
     TOML_PATH="${TMP//\/\//\/}"
@@ -108,10 +118,8 @@ EOF
         echo "  XX resolve failed"
     fi
 
-    echo -e "\n--- Phase 1.15: Cleanup ---"
-    cp "$CONFIG_BACKUP" "samgraha.toml"
-    rm -f "$CONFIG_BACKUP"
-    echo "  OK samgraha.toml restored"
+    cleanup_config
+    trap - EXIT
 
     cd "$TMP"
 fi

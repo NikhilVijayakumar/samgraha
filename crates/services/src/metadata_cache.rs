@@ -37,6 +37,7 @@ impl MetadataCache {
             audit: manifest.audit.status.clone(),
             last_sync: now.to_rfc3339(),
             expires: expires.to_rfc3339(),
+            dependencies: manifest.dependencies.clone(),
         }
     }
 }
