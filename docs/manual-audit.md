@@ -252,61 +252,72 @@ required = true
 
 3. Run `cargo run --bin cli -- registry resolve runtime`
 
-Expected: `Current → Astra → Knowledge Package`. No DB copy.
+Expected JSON output:
+```json
+{
+  "action": "resolve",
+  "mode": "runtime",
+  "output": ".samgraha/resolved",
+  "repositories": 2,
+  "success": true
+}
+```
 
-Verify generated Knowledge Package:
+No DB copy — registry reads manifest only.
+
+Verify generated Knowledge Package at `.samgraha/resolved/`:
 
 - Included repositories list
 - Repository order (current first, then dependencies)
 - No duplicated knowledge
 
-**Cycle detection test** — simulate a dependency cycle:
+**Cycle detection test** — simulate a dependency cycle `A → B → C → A`:
+
+Resolver must exit with error:
 
 ```
-A → B → C → A
+Error: Dependency cycle detected: A → B → C → A
 ```
 
-Resolver must report:
+**Missing dependency test** — add `astra` to dependencies, delete `samgraha-copy/`. Resolver must exit with error (not panic):
 
 ```
-Dependency cycle detected: A → B → C → A
+Error: Required dependency 'astra' is not available at "..."
 ```
-
-**Missing dependency test** — add `astra` to dependencies, delete `samgraha-copy/`. Resolver must report `Repository not found` (not panic).
 
 ---
 
 ### 1.6 — Metadata Cache
 
 ```bash
-# First resolve creates metadata cache
+# First resolve: creates metadata cache (reads manifest from disk)
 cargo run --bin cli -- registry resolve runtime
 ```
 
-First run: `Registry → Metadata Cache → Resolver`
+Expected: JSON resolve output (no prior cache → reads manifest from disk, caches it).
 
 ```bash
-# Second resolve (immediate) hits cache
+# Second resolve (immediate): hits cache, no disk I/O
 cargo run --bin cli -- registry resolve runtime
 ```
 
-Expected:
+Expected: same JSON output (same `success: true`). Cache hit — manifest not re-read.
 
+**Windows (PowerShell):**
+```powershell
+# Delete metadata cache (SQLite registry.db), resolve again — cache miss
+Remove-Item -Force .samgraha/registry.db
+cargo run --bin cli -- registry resolve runtime
 ```
-Metadata Cache → Resolver
-```
 
-Cache hit — Registry not queried.
-
+**Ubuntu (Bash):**
 ```bash
-# Delete cache, resolve again
-rm -rf .samgraha/dependencies/
+# Delete metadata cache (SQLite registry.db), resolve again — cache miss
+rm -f .samgraha/registry.db
 cargo run --bin cli -- registry resolve runtime
 ```
 
-*(Windows: `Remove-Item -Recurse -Force .samgraha/dependencies/`)*
-
-Cache miss — Registry queried again.
+Cache miss — manifest read from disk again, re-cached.
 
 ---
 
@@ -764,9 +775,35 @@ Test prompts:
 
 ### 4.2 — OpenCode
 
-Configure MCP server in OpenCode's settings.
+Configure MCP server in `opencode.json` (project root or global config):
 
-Verify knowledge retrieval works.
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "samgraha": {
+      "type": "local",
+      "command": ["cargo", "run", "--bin", "mcp"]
+    }
+  }
+}
+```
+
+The `cwd` defaults to the workspace root — ensure `.samgraha/knowledge.db` and a registered repo exist there, otherwise the server exits with "Failed to open knowledge registry".
+
+Verify the server is registered:
+
+```bash
+opencode mcp list
+```
+
+Expected: `samgraha` listed with status.
+
+Test prompts:
+
+- "Use the samgraha tools — how does Knowledge Resolution work?"
+- "Use samgraha — search for 'repository registry'"
+- "Use samgraha — what documents are available?"
 
 ### 4.3 — Codex CLI / future IDE integrations
 

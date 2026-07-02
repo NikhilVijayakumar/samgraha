@@ -102,17 +102,21 @@ fn test_register_overwrite_same_id() {
 }
 
 #[test]
-fn test_register_uuid_mismatch_rejected() {
-    let (root, repos) = create_test_env("register_uuid_mismatch");
-    let repo_root = init_repo(&repos, "uuid-mismatch");
+fn test_register_uuid_changed_upserts() {
+    let (root, repos) = create_test_env("register_uuid_upsert");
+    let repo_root = init_repo(&repos, "uuid-upsert");
     let client = FileRegistryClient::new(&root);
     let uuid1 = Uuid::new_v4();
     let uuid2 = Uuid::new_v4();
     let m1 = make_manifest("same-id", uuid1, &repo_root, 1, vec![], "PASS");
     let m2 = make_manifest("same-id", uuid2, &repo_root, 2, vec![], "PASS");
     client.register(&m1).unwrap();
-    let err = client.register(&m2).unwrap_err();
-    assert!(err.to_string().contains("UUID mismatch"));
+    // UUID change (manifest regenerated after .samgraha/ recovery) should upsert.
+    client.register(&m2).unwrap();
+    let all = client.list().unwrap();
+    assert_eq!(all.len(), 1);
+    assert_eq!(all[0].repository.uuid, uuid2);
+    assert_eq!(all[0].revision, 2);
 }
 
 #[test]

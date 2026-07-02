@@ -83,11 +83,12 @@ impl FileRegistryClient {
 impl RegistryClient for FileRegistryClient {
     fn register(&self, manifest: &RepositoryManifest) -> Result<()> {
         validate_path(Path::new(&manifest.repository_root), &self.root)?;
-        // ENG-GAP-06: UUID spoofing prevention — reject if id exists with different UUID.
+        // If ID exists with different UUID, the manifest was regenerated (e.g., after
+        // .samgraha/ recovery). Upsert with new UUID — manifest is authoritative.
         if let Some(existing) = self.db.get_by_id(&manifest.repository.id)? {
             if existing.repository.uuid != manifest.repository.uuid {
-                anyhow::bail!(
-                    "UUID mismatch for '{}': stored {} != manifest {}",
+                tracing::warn!(
+                    "UUID changed for '{}': {} → {} (manifest regenerated)",
                     manifest.repository.id,
                     existing.repository.uuid,
                     manifest.repository.uuid
