@@ -1,5 +1,7 @@
 # Saṃgraha Vision
 
+This section details the Saṃgraha Vision.
+
 ## Purpose
 
 Saṃgraha is a Knowledge Engineering Platform that transforms engineering documentation into structured, verified, and deterministic engineering knowledge for humans and AI systems.
@@ -435,6 +437,8 @@ Audit informs engineering quality.
 ---
 
 # Product Philosophy
+
+This section details the Product Philosophy.
 
 ### Documentation First
 

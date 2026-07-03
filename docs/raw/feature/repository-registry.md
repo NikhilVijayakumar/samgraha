@@ -1,5 +1,7 @@
 # Repository Registry
 
+This section details the Repository Registry.
+
 ## Purpose
 
 The Repository Registry is the authoritative catalog of repository metadata.
@@ -13,6 +15,8 @@ The Registry is a compile-time and synchronization artifact. It is never consult
 ---
 
 ## Functional Requirements
+
+This section details the Functional Requirements.
 
 ## FR1. Repository Registration
 

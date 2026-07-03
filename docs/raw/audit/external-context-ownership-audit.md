@@ -1,5 +1,7 @@
 # External Context Audit
 
+This section details the External Context Audit.
+
 ## Purpose
 
 Verifies that the External Context Documentation completely, consistently, and accurately defines every external dependency used by the repository.
@@ -48,6 +50,8 @@ The audit evaluates the entire documentation ecosystem.
 ---
 
 # Dependency Coverage
+
+This section details the Dependency Coverage.
 
 ## EC1. External Dependencies Complete
 
@@ -102,6 +106,8 @@ Constraints should be actionable by downstream documentation.
 
 # Documentation Integration
 
+This section details the Documentation Integration.
+
 ## EC5. Downstream Application
 
 Documentation that references an external dependency correctly applies the documented constraints.
@@ -146,6 +152,8 @@ Internal knowledge belongs to repository documentation.
 ---
 
 # Consistency
+
+This section details the Consistency.
 
 ## EC9. Terminology Consistency
 

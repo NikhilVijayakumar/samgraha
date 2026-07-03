@@ -1,5 +1,7 @@
 # Knowledge Enrichment
 
+This section details the Knowledge Enrichment.
+
 ## Purpose
 
 Knowledge Enrichment enhances compiled engineering knowledge with optional semantic and analytical artifacts that improve discovery, navigation, and AI-assisted retrieval.
@@ -11,6 +13,8 @@ The platform functions completely without enrichment. Enrichment improves the kn
 ---
 
 ## Functional Requirements
+
+This section details the Functional Requirements.
 
 ## FR1. Enrichment Provider Abstraction
 

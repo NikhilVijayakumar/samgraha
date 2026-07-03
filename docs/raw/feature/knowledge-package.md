@@ -1,5 +1,7 @@
 # Knowledge Package
 
+This section details the Knowledge Package.
+
 ## Purpose
 
 A Knowledge Package is the deployable representation of compiled engineering knowledge.
@@ -13,6 +15,8 @@ Knowledge Packages are generated artifacts and can always be regenerated from so
 ---
 
 ## Functional Requirements
+
+This section details the Functional Requirements.
 
 ## FR1. Package Composition
 

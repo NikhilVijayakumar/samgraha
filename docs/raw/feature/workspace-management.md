@@ -1,5 +1,7 @@
 # Workspace Management
 
+This section details the Workspace Management.
+
 ## Purpose
 
 Workspace Management defines the logical boundary within which Saṃgraha manages engineering knowledge.
@@ -13,6 +15,8 @@ Single-repository projects are treated as workspaces containing one repository.
 ---
 
 ## Functional Requirements
+
+This section details the Functional Requirements.
 
 ## FR1. Workspace Definition
 

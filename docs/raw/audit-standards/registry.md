@@ -1,5 +1,7 @@
 # Semantic Type to Strategy Mapping
 
+This section details the Semantic Type to Strategy Mapping.
+
 ## Feature
 
 | Section Type | Strategy | Description |

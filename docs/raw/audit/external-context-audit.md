@@ -1,5 +1,7 @@
 # External Context Audit
 
+This section details the External Context Audit.
+
 ## Purpose
 
 Verifies that each External Context document correctly describes one external dependency in a way that is atomic, relevant, constraint-complete, and free of internal architecture leakage.
@@ -37,6 +39,8 @@ The collection is also evaluated for completeness and consistency.
 ---
 
 # Document Quality
+
+This section details the Document Quality.
 
 ## EC1. One Document Per Dependency
 
@@ -79,6 +83,8 @@ The relevance to features, architecture, or engineering is explicit.
 ---
 
 # Content Completeness
+
+This section details the Content Completeness.
 
 ## EC5. Constraints Documented
 
@@ -127,6 +133,8 @@ The External Context document summarizes relevant knowledge — it does not repr
 
 # Documentation Integrity
 
+This section details the Documentation Integrity.
+
 ## EC8. No Internal Architecture Leakage
 
 External Context does not describe:
@@ -162,6 +170,8 @@ It describes the knowledge dependency — not the implementation of that depende
 ---
 
 # Collection Quality
+
+This section details the Collection Quality.
 
 ## EC11. Collection Completeness
 

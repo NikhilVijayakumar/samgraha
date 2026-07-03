@@ -1,5 +1,7 @@
 # README Standard
 
+This section details the README Standard.
+
 ## Purpose
 
 This document defines the standard for README documentation within the engineering documentation ecosystem.

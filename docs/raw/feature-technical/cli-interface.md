@@ -1,5 +1,7 @@
 # CLI Interface — Feature Technical Design
 
+This section details the CLI Interface — Feature Technical Design.
+
 ## Purpose
 
 This document describes the architectural realization of the CLI Interface feature.
@@ -18,6 +20,8 @@ This document applies the architectural principles defined in Component Model, R
 ---
 
 ## Participating Components
+
+This section details the Participating Components.
 
 ### CLI Adapter
 
@@ -101,6 +105,8 @@ Formatted Output
 
 ## Runtime Behavior
 
+This section details the Runtime Behavior.
+
 ### Command Lifecycle
 
 ```
@@ -137,6 +143,8 @@ All commands execute without network access. AI providers are never required.
 
 ## Communication Paths
 
+This section details the Communication Paths.
+
 ### Terminal → CLI Adapter
 
 The adapter reads stdin for command-line arguments and flags. It may also read piped input for batch operations.
@@ -168,6 +176,8 @@ Formatted output is written to stdout (results, data) and stderr (progress, erro
 ---
 
 ## Integration Points
+
+This section details the Integration Points.
 
 ### Knowledge Runtime
 
@@ -246,6 +256,8 @@ Optional: When configured, semantic audit and knowledge enrichment may use local
 ---
 
 ## Extension Points
+
+This section details the Extension Points.
 
 ### Custom Commands
 

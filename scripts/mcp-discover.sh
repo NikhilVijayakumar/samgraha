@@ -753,15 +753,15 @@ phase_4_doc_verify() {
                     sections_arr=$(echo "$body_val" | jq -c '.sections // []')
                     local sc
                     sc=$(echo "$sections_arr" | jq 'length')
-                    for si in $(seq 0 $((sc - 1))); do
-                        local st
-                        st=$(echo "$sections_arr" | jq -r ".[$si].semantic_type // empty")
-                        if [ -n "$st" ]; then
-                            ALL_RESULTS=$(echo "$ALL_RESULTS" | jq --arg d "$d" --arg st "$st" \
-                                '.Domains[$d].sectionTypes[$st] += 1')
-                            all_sections_total=$((all_sections_total + 1))
+                    if [ "$sc" -gt 0 ]; then
+                        local st_counts
+                        st_counts=$(echo "$sections_arr" | jq -c 'map(select(.semantic_type != null) | .semantic_type) | group_by(.) | map({key: .[0], value: length}) | from_entries')
+                        if [ "$st_counts" != "{}" ] && [ -n "$st_counts" ]; then
+                            ALL_RESULTS=$(echo "$ALL_RESULTS" | jq --arg d "$d" --argjson counts "$st_counts" \
+                                'reduce ($counts | to_entries[]) as $i (.; .Domains[$d].sectionTypes[$i.key] += $i.value)')
+                            all_sections_total=$((all_sections_total + sc))
                         fi
-                    done
+                    fi
                 fi
             fi
 

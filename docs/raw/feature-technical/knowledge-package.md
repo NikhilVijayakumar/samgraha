@@ -1,5 +1,7 @@
 # Knowledge Package — Feature Technical Design
 
+This section details the Knowledge Package — Feature Technical Design.
+
 ## Purpose
 
 This document describes the architectural realization of the Knowledge Package feature.
@@ -18,6 +20,8 @@ This document applies the architectural principles defined in Component Model, W
 ---
 
 ## Participating Components
+
+This section details the Participating Components.
 
 ### Knowledge Package
 
@@ -99,6 +103,8 @@ Knowledge Runtime (load and serve)
 ---
 
 ## Runtime Behavior
+
+This section details the Runtime Behavior.
 
 ### Package Lifecycle
 
@@ -183,6 +189,8 @@ pub enum PackageLayout {
 
 ## Communication Paths
 
+This section details the Communication Paths.
+
 ### Knowledge Resolution → Knowledge Package
 
 Resolution passes composed knowledge content and metadata to the packaging component.
@@ -211,6 +219,8 @@ The runtime loads packages from the output location. The package is the unit of 
 ---
 
 ## Integration Points
+
+This section details the Integration Points.
 
 ### Knowledge Resolution
 
@@ -291,6 +301,8 @@ Optional: Future package distribution (remote registries, package servers) may i
 ---
 
 ## Extension Points
+
+This section details the Extension Points.
 
 ### Package Formats
 

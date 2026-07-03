@@ -1,5 +1,7 @@
 # Dependency Standards
 
+This section details the Dependency Standards.
+
 ## Purpose
 
 This document defines the dependency management standards for the Saṃgraha platform.
@@ -28,6 +30,8 @@ The project is built using Rust as the primary implementation language with a mu
 ---
 
 ## Allowed Dependency Categories
+
+This section details the Allowed Dependency Categories.
 
 ### Core Infrastructure
 
@@ -61,6 +65,8 @@ Crates that provide essential platform infrastructure with no reasonable alterna
 
 ## Prohibited Dependency Patterns
 
+This section details the Prohibited Dependency Patterns.
+
 ### Async Runtimes
 
 tokio, async-std, smol, and other async runtimes are not used. The platform is CPU-bound rather than I/O-bound. Async adds complexity, binary size, and cognitive overhead without benefit for the primary workload. CLI commands execute synchronously. MCP and future REST adapters use simple threading where needed.
@@ -78,6 +84,8 @@ File system watching (notify crate) is limited to the incremental build watch mo
 ---
 
 ## Dependency Management Process
+
+This section details the Dependency Management Process.
 
 ### Adding a Dependency
 

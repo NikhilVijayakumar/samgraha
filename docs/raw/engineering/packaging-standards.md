@@ -1,5 +1,7 @@
 # Packaging Standards
 
+This section details the Packaging Standards.
+
 ## Purpose
 
 This document defines the packaging and distribution standards for the Saṃgraha platform.
@@ -17,6 +19,8 @@ The project follows a set of core engineering principles including Documentation
 The project is built using Rust as the primary implementation language with a multi-crate workspace structure. Key technology choices include SQLite (via rusqlite with bundled feature) for the knowledge registry, pulldown-cmark for Markdown parsing, Rayon for parallel processing, and Serde for serialization. See [Technology Selection](technology-selection.md) for the complete rationale behind each technology choice.
 
 ## Distribution Artifacts
+
+This section details the Distribution Artifacts.
 
 ### Primary: Single Executable
 
@@ -65,6 +69,8 @@ samgraha/
 ---
 
 ## Build Process
+
+This section details the Build Process.
 
 ### Release Build
 

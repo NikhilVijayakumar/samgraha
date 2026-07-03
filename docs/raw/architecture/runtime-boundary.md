@@ -1,5 +1,7 @@
 # Runtime Boundary
 
+This section details the Runtime Boundary.
+
 ## Purpose
 
 This document defines the runtime boundaries of the Saṃgraha platform.
@@ -73,6 +75,8 @@ The Repository Registry is never in the runtime layer stack.
 ---
 
 # Runtime Components
+
+This section details the Runtime Components.
 
 ## Development Tools
 

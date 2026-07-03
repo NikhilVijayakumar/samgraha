@@ -1,5 +1,7 @@
 # System Overview
 
+This section details the System Overview.
+
 ## Purpose
 
 This document provides a high-level architectural overview of Saṃgraha.
@@ -51,6 +53,8 @@ Compilation produces two distinct outputs that follow separate, non-intersecting
 ---
 
 # Architectural Layers
+
+This section details the Architectural Layers.
 
 ## Documentation Standards
 

@@ -1,5 +1,7 @@
 # Repository Registry — Feature Technical Design
 
+This section details the Repository Registry — Feature Technical Design.
+
 ## Purpose
 
 This document describes the architectural realization of the Repository Registry feature.
@@ -20,6 +22,8 @@ This document applies the architectural principles defined in Component Model, K
 ---
 
 ## Participating Components
+
+This section details the Participating Components.
 
 ### Repository Registry
 
@@ -131,6 +135,8 @@ The MCP Runtime exposes registry operations through MCP tools alongside knowledg
 
 ## Runtime Behavior
 
+This section details the Runtime Behavior.
+
 ### Registry Lifecycle
 
 ```
@@ -210,6 +216,8 @@ error: Dependency cycle detected
 
 ## Communication Paths
 
+This section details the Communication Paths.
+
 ### Knowledge Compiler → Repository Registry (via Registry Client)
 
 The compiler writes manifest.json. Post-compile, `auto_refresh` triggers a local Registry update. The compiler does not call `RegistryClient` directly — routing is through a post-compile hook in the compilation pipeline.
@@ -245,6 +253,8 @@ The Resolver reads `repository_cache` entries from `.samgraha/registry.db`. It n
 
 ## Integration Points
 
+This section details the Integration Points.
+
 ### Knowledge Compiler
 
 The compiler produces the manifest as a second output. Post-compile, if `auto_refresh = true`, the manifest is synced to the local Registry. The compiler never reads Registry data.
@@ -268,6 +278,8 @@ The cache bridges the Registry and the Resolver. It is written during sync, read
 ---
 
 ## Key Algorithms
+
+This section details the Key Algorithms.
 
 ### Dependency Resolution
 
@@ -362,6 +374,8 @@ Future `HttpRegistryClient` (Phase 7+) would live in `crates/providers/` per dep
 ---
 
 ## Extension Points
+
+This section details the Extension Points.
 
 ### Registry Backends
 

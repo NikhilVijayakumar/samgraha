@@ -1,5 +1,7 @@
 # Technology Selection
 
+This section details the Technology Selection.
+
 ## Purpose
 
 This document explains the rationale behind technology choices for the Saṃgraha platform.
@@ -17,6 +19,8 @@ The project follows a set of core engineering principles including Documentation
 The project is built using Rust as the primary implementation language with a multi-crate workspace structure. Key technology choices include SQLite (via rusqlite with bundled feature) for the knowledge registry, pulldown-cmark for Markdown parsing, Rayon for parallel processing, and Serde for serialization. See [Technology Selection](technology-selection.md) for the complete rationale behind each technology choice.
 
 ## Programming Language: Rust
+
+This section details the Programming Language: Rust.
 
 ### Rationale
 
@@ -44,6 +48,8 @@ Rust was selected as the implementation language for the following reasons:
 
 ## CLI Framework: clap
 
+This section details the CLI Framework: clap.
+
 ### Rationale
 
 clap is the standard CLI argument parsing library for Rust. It provides:
@@ -59,6 +65,8 @@ No alternative was seriously considered — clap is the de facto standard for Ru
 ---
 
 ## Serialization: serde + serde_json + toml
+
+This section details the Serialization: serde + serde_json + toml.
 
 ### Rationale
 
@@ -76,6 +84,8 @@ No alternative was seriously considered — clap is the de facto standard for Ru
 
 ## Content Hashing: sha2
 
+This section details the Content Hashing: sha2.
+
 ### Rationale
 
 SHA-256 provides deterministic content hashing for change detection and integrity verification. It is:
@@ -88,6 +98,8 @@ SHA-256 provides deterministic content hashing for change detection and integrit
 ---
 
 ## MCP Protocol: rust-mcp-sdk
+
+This section details the MCP Protocol: rust-mcp-sdk.
 
 ### Rationale
 
@@ -103,6 +115,8 @@ MCP was selected as the primary AI integration protocol because it is an open st
 
 ## Concurrency: std::thread + rayon
 
+This section details the Concurrency: std::thread + rayon.
+
 ### Rationale
 
 - **std::thread** for coarse-grained parallelism across independent compilation units and concurrent runtime request handling
@@ -116,6 +130,8 @@ Asynchronous runtimes (tokio, async-std) are intentionally avoided. The platform
 
 ## Error Handling: anyhow + thiserror
 
+This section details the Error Handling: anyhow + thiserror.
+
 ### Rationale
 
 - **anyhow** for application-level error handling in CLI and service orchestration code — context-rich error reporting with backtrace support
@@ -126,6 +142,8 @@ This is the standard Rust error handling pattern. anyhow provides ergonomic erro
 ---
 
 ## Logging: tracing
+
+This section details the Logging: tracing.
 
 ### Rationale
 
@@ -140,6 +158,8 @@ tracing provides structured, async-aware diagnostic logging with:
 
 ## Testing: built-in + proptest + rstest
 
+This section details the Testing: built-in + proptest + rstest.
+
 ### Rationale
 
 - Rust built-in test framework for unit tests and integration tests
@@ -149,6 +169,8 @@ tracing provides structured, async-aware diagnostic logging with:
 ---
 
 ## Storage: SQLite via rusqlite
+
+This section details the Storage: SQLite via rusqlite.
 
 ### Rationale
 
@@ -172,6 +194,8 @@ rusqlite provides idiomatic Rust bindings with compile-time SQL validation via t
 ---
 
 ## AI Provider Integration: Custom Provider Abstraction
+
+This section details the AI Provider Integration: Custom Provider Abstraction.
 
 ### Rationale
 

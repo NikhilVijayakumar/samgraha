@@ -1,5 +1,7 @@
 # Feature Standard
 
+This section details the Feature Standard.
+
 ## Purpose
 
 This document defines the standard for Feature Documentation within the engineering documentation ecosystem.

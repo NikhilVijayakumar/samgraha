@@ -1,27 +1,34 @@
-# Audit Phase 1 Summary
+# 📊 Audit Phase 1 Summary
 
-**Status:** {{STATUS}}
+> Generated on: {{TIMESTAMP}}
 
-**Duration:** {{DURATION}}
+### 📋 Overview
 
-**Overall Score:** {{SCORE}}/100 (trend: {{TREND}}, previous: {{PREV_SCORE}}/100)
+- **Status:** {{STATUS}}
+- **Duration:** ⏱️ {{DURATION}}
+- **Overall Score:** 📈 {{SCORE}}/100 (Trend: {{TREND}}, Previous: {{PREV_SCORE}}/100)
+- **Checks:** ✅ {{PASSES}} Passes | ❌ {{FAILURES}} Failures
 
-## Analysis
+---
+
+### 🔍 Analysis
 
 {{ANALYSIS}}
 
-## Recommendations
+### 💡 Recommendations
 
 {{RECOMMENDATIONS}}
 
-## Phase Results
+---
+
+### 📉 Phase Results
 
 | Phase | Score | Status | Errors | Duration |
 |-------|-------|--------|--------|----------|
 {{PHASE_RESULTS_ROWS}}
 
-## Failed Phases
+---
+
+### ⚠️ Failed Phases
 
 {{FAILED_PHASES}}
-
-**Passes:** {{PASSES}} | **Failures:** {{FAILURES}}

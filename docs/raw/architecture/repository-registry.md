@@ -1,5 +1,7 @@
 # Repository Registry Architecture
 
+This section details the Repository Registry Architecture.
+
 ## Purpose
 
 This document defines the architecture of the Repository Registry — the authoritative catalog of repository metadata within Saṃgraha.

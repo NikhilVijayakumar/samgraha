@@ -1,5 +1,7 @@
 # Knowledge Registry
 
+This section details the Knowledge Registry.
+
 ## Purpose
 
 The Knowledge Registry is the compiled representation of engineering knowledge produced from repository documentation.
@@ -15,6 +17,8 @@ It is never manually edited and can always be regenerated from repository docume
 ---
 
 ## Functional Requirements
+
+This section details the Functional Requirements.
 
 ## FR1. Knowledge Artifact Storage
 

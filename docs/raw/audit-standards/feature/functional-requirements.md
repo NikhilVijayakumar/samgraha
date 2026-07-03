@@ -1,5 +1,7 @@
 # Functional Requirements Audit
 
+This section details the Functional Requirements Audit.
+
 ## Version
 1.0.0
 

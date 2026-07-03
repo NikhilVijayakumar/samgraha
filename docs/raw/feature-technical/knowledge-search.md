@@ -1,5 +1,7 @@
 # Knowledge Search — Feature Technical Design
 
+This section details the Knowledge Search — Feature Technical Design.
+
 ## Purpose
 
 This document describes the architectural realization of the Knowledge Search feature.
@@ -18,6 +20,8 @@ This document applies the architectural principles defined in Component Model, R
 ---
 
 ## Participating Components
+
+This section details the Participating Components.
 
 ### Knowledge Runtime
 
@@ -103,6 +107,8 @@ Consumer
 
 ## Runtime Behavior
 
+This section details the Runtime Behavior.
+
 ### Search Lifecycle
 
 ```
@@ -147,6 +153,8 @@ Identical queries against identical registry content produce identical results. 
 
 ## Communication Paths
 
+This section details the Communication Paths.
+
 ### Consumer → Transport Adapter
 
 Consumers submit search queries through the adapter interface. Queries include search terms, filters, retrieval level, and repository scope.
@@ -179,6 +187,8 @@ The runtime optionally queries enrichment metadata to augment search results wit
 ---
 
 ## Integration Points
+
+This section details the Integration Points.
 
 ### CLI Interface
 
@@ -254,6 +264,8 @@ Optional: When Knowledge Enrichment is configured with AI providers, semantic se
 ---
 
 ## Extension Points
+
+This section details the Extension Points.
 
 ### Search Providers
 

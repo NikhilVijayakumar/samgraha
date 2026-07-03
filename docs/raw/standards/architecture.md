@@ -1,5 +1,7 @@
 # Architecture Standard
 
+This section details the Architecture Standard.
+
 ## Purpose
 
 This document defines the standard for Architecture Documentation within the engineering documentation ecosystem.

@@ -1,5 +1,7 @@
 # Repository Configuration
 
+This section details the Repository Configuration.
+
 ## Purpose
 
 Repository Configuration defines how a repository participates in the Saṃgraha platform.
@@ -13,6 +15,8 @@ Configuration is declarative and deterministic.
 ---
 
 ## Functional Requirements
+
+This section details the Functional Requirements.
 
 ## FR1. Repository Identity
 

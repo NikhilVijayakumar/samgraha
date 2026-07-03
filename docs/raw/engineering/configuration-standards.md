@@ -1,5 +1,7 @@
 # Configuration Standards
 
+This section details the Configuration Standards.
+
 ## Purpose
 
 This document defines the configuration standards for the Saṃgraha platform.
@@ -35,53 +37,87 @@ The first location found is used. No merging occurs across locations.
 ```toml
 [repository]
 # Path to the repository root
+
+This section details the Path to the repository root.
 # Default: current working directory
+
+This section details the Default: current working directory.
 # root = "/path/to/repo"
 
 [repository.ignore]
 # Glob patterns for files to exclude from documentation discovery
+
+This section details the Glob patterns for files to exclude from documentation discovery.
 # Default: ["**/node_modules/**", "**/target/**", "**/.git/**"]
 patterns = ["**/node_modules/**", "**/target/**"]
 
 [registry]
 # Path to the Knowledge Registry database
+
+This section details the Path to the Knowledge Registry database.
 # Default: <repository-root>/knowledge.db
+
+This section details the Default: <repository-root>/knowledge.db.
 # path = "/path/to/knowledge.db"
 
 [compilation]
 # Whether to enable automatic compilation on source changes
+
+This section details the Whether to enable automatic compilation on source changes.
 # Default: false
+
+This section details the Default: false.
 # watch = true
 
 [compilation.documentation]
 # Documentation standards to apply during compilation
+
+This section details the Documentation standards to apply during compilation.
 # Default: determined by discovered standards docs
+
+This section details the Default: determined by discovered standards docs.
 # standards = ["adr", "prd", "spec"]
 
 [ai]
 # AI provider configuration (optional)
+
+This section details the AI provider configuration (optional).
 # provider = "lms"  # "lms" | "ollama" | "openai"
 
 [ai.lms]
 # endpoint = "http://localhost:1234"
+
+This section details the endpoint = "http://localhost:1234".
 # model = "llama-3.2-3b-q4"
 
 [ai.ollama]
 # endpoint = "http://localhost:11434"
+
+This section details the endpoint = "http://localhost:11434".
 # model = "llama3.2"
 
 [ai.openai]
 # endpoint = "https://api.openai.com/v1"
+
+This section details the endpoint = "https://api.openai.com/v1".
 # model = "gpt-4o"
 
 [audit]
 # Default severity for audit issues
+
+This section details the Default severity for audit issues.
 # Default: "suggestion"
+
+This section details the Default: "suggestion".
 # default-severity = "warning"
 
 [output]
 # Default output format
+
+This section details the Default output format.
 # Default: "text"
+
+This section details the Default: "text".
 # format = "json"
 ```
 

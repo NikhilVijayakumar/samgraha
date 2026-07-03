@@ -1,5 +1,7 @@
 # Vision Standard
 
+This section details the Vision Standard.
+
 ## Purpose
 
 This document defines the standard for Vision documentation within the engineering documentation ecosystem.

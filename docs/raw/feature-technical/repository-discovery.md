@@ -1,5 +1,7 @@
 # Repository Discovery — Feature Technical Design
 
+This section details the Repository Discovery — Feature Technical Design.
+
 ## Purpose
 
 This document describes the architectural realization of the Repository Discovery feature.
@@ -18,6 +20,8 @@ This document applies the architectural principles defined in Component Model, W
 ---
 
 ## Participating Components
+
+This section details the Participating Components.
 
 ### Repository Discovery
 
@@ -83,6 +87,8 @@ Repository Configuration (per-repository)
 
 ## Runtime Behavior
 
+This section details the Runtime Behavior.
+
 ### Discovery Lifecycle
 
 ```
@@ -120,6 +126,8 @@ Discovery supports incremental refresh — detecting new repositories, removed r
 
 ## Communication Paths
 
+This section details the Communication Paths.
+
 ### Discovery Sources → Repository Discovery
 
 Discovery reads file system locations, workspace configurations, and optional repository registries to identify candidates.
@@ -147,6 +155,8 @@ Discovery reads repository configuration to validate platform compatibility and 
 ---
 
 ## Integration Points
+
+This section details the Integration Points.
 
 ### Workspace Management
 
@@ -219,6 +229,8 @@ Optional: Remote discovery sources (GitHub, GitLab, Azure DevOps) may be registe
 ---
 
 ## Extension Points
+
+This section details the Extension Points.
 
 ### Discovery Providers
 

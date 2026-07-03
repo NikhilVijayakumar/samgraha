@@ -1,5 +1,7 @@
 # Prototype Standard
 
+This section details the Prototype Standard.
+
 ## Purpose
 
 This document defines the standard for Prototype Documentation within the engineering documentation ecosystem.

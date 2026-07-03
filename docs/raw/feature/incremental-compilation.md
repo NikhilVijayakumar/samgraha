@@ -1,5 +1,7 @@
 # Incremental Compilation
 
+This section details the Incremental Compilation.
+
 ## Purpose
 
 Incremental Build minimizes build time by rebuilding only the knowledge artifacts affected by repository changes.
@@ -11,6 +13,8 @@ Incremental Build guarantees that incremental execution produces the same Knowle
 ---
 
 ## Functional Requirements
+
+This section details the Functional Requirements.
 
 ## FR1. Change Detection
 

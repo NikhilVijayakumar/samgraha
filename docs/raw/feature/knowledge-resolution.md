@@ -1,5 +1,7 @@
 # Knowledge Resolution
 
+This section details the Knowledge Resolution.
+
 ## Purpose
 
 Knowledge Resolution assembles the engineering knowledge required by a consumer into a coherent Knowledge Package.
@@ -13,6 +15,8 @@ The resulting Knowledge Package becomes the foundation for MCP delivery, enginee
 ---
 
 ## Functional Requirements
+
+This section details the Functional Requirements.
 
 ## FR1. Repository Discovery
 

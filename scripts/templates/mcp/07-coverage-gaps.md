@@ -1,47 +1,58 @@
-# Coverage Gaps
+# 🕳️ Coverage Gaps
 
-**Timestamp:** {{TIMESTAMP}}
-**Duration:** {{DURATION}}s
-**Status:** {{STATUS}}
+> Generated on: {{TIMESTAMP}}
 
-## Score
+### 📋 Overview
 
-**{{SCORE}}/100** {{TREND}}
+- **Status:** {{STATUS}}
+- **Duration:** ⏱️ {{DURATION}}s
+- **Score:** 📈 **{{SCORE}}/100** (Trend: {{TREND}}, Previous: {{PREV_SCORE}})
 
-| Metric | Previous |
-|--------|---------|
-| Previous Score | {{PREV_SCORE}} |
+---
 
-## Analysis
+### 🔍 Analysis
 
 {{ANALYSIS}}
 
-## Recommendations
+### 💡 Recommendations
 
 {{RECOMMENDATIONS}}
 
-## Checks
+---
+
+### ✅ Checks
 
 {{CHECKS_TABLE}}
 
-## Errors
+---
+
+### ⚠️ Errors
 
 {{ERRORS_TABLE}}
 
-## Missing Knowledge
+---
+
+### ❌ Missing Knowledge
 
 {{MISSING_KNOWLEDGE_TABLE}}
 
-## Empty Sections
+---
+
+### 🈳 Empty Sections
 
 {{EMPTY_SECTIONS_TABLE}}
 
-## Low Quality Documents
+---
+
+### 📉 Low Quality Documents
 
 {{LOW_QUALITY_TABLE}}
 
-## Required Sections Missing
+---
+
+### 🚫 Required Sections Missing
 
 {{REQUIRED_MISSING_TABLE}}
 
+---
 **Counts:** Missing Knowledge: {{MISSING_KNOWLEDGE_COUNT}}, Empty Sections: {{EMPTY_SECTION_COUNT}}, Low Quality: {{LOW_QUALITY_COUNT}}, Required Missing: {{REQUIRED_MISSING_COUNT}}

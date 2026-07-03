@@ -26,7 +26,7 @@ done
 cd "$ROOT_DIR"
 
 report_dir_setup "audit"
-load_previous_metrics "$ARCHIVE_DIR"
+load_previous_metrics "$ARCHIVE_DIR" || true
 
 PHASE_ID="01-phase1"
 PHASE_START=$(date +%s)

@@ -1,5 +1,7 @@
 # Component Model
 
+This section details the Component Model.
+
 ## Purpose
 
 This document defines the logical component model of the Saṃgraha platform.
@@ -73,6 +75,8 @@ Each component has one primary architectural responsibility.
 ---
 
 # Components
+
+This section details the Components.
 
 ## Documentation Standards
 

@@ -1,5 +1,7 @@
 # Design Audit
 
+This section details the Design Audit.
+
 ## Purpose
 
 Verifies that the Design Documentation defines a complete, reusable, technology-independent design system for the product.
@@ -42,6 +44,8 @@ The Design collection is evaluated as **one reusable design system**.
 ---
 
 # Design System
+
+This section details the Design System.
 
 ## D1. Reusable Design Principles
 
@@ -106,6 +110,8 @@ Implementation belongs to Engineering.
 
 # Documentation Quality
 
+This section details the Documentation Quality.
+
 ## D5. Modular Documentation
 
 Design documentation is organized into focused documents.
@@ -149,6 +155,8 @@ External design systems should be referenced rather than duplicated.
 ---
 
 # Design Quality
+
+This section details the Design Quality.
 
 ## D9. Accessibility Guidance
 

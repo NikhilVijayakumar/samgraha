@@ -1,5 +1,7 @@
 # Communication Architecture
 
+This section details the Communication Architecture.
+
 ## Purpose
 
 This document defines the communication architecture of the Saṃgraha platform.
@@ -113,6 +115,8 @@ Reverse dependencies are not permitted.
 
 # Communication Principles
 
+This section details the Communication Principles.
+
 ## Explicit Contracts
 
 Components communicate only through documented interfaces.
@@ -156,6 +160,8 @@ Knowledge from another repository may only participate through explicitly declar
 ---
 
 # Communication Responsibilities
+
+This section details the Communication Responsibilities.
 
 ## Documentation Standards → Knowledge Services
 

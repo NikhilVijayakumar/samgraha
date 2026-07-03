@@ -1,5 +1,7 @@
 # MCP Adapter — Feature Technical Design
 
+This section details the MCP Adapter — Feature Technical Design.
+
 ## Purpose
 
 This document describes the architectural realization of the MCP (Model Context Protocol) transport adapter for Saṃgraha.
@@ -18,6 +20,8 @@ This document applies the architectural principles defined in Component Model, R
 ---
 
 ## Participating Components
+
+This section details the Participating Components.
 
 ### MCP Adapter
 
@@ -129,6 +133,8 @@ Example: An LLM with remaining context for 10 results passes `"limit": 10, "offs
 ---
 
 ## Method Reference
+
+This section details the Method Reference.
 
 ### `compile`
 
@@ -407,6 +413,8 @@ This pattern lets the LLM:
 
 ## Protocol Details
 
+This section details the Protocol Details.
+
 ### Transport
 
 The MCP Adapter reads from stdin and writes to stdout. Each message is a newline-delimited JSON object following the Model Context Protocol specification (version `2025-03-26`).
@@ -503,6 +511,8 @@ On initialization, the adapter publishes its capabilities:
 ---
 
 ## Extension Points
+
+This section details the Extension Points.
 
 ### New Methods
 

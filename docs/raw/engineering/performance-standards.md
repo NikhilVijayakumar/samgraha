@@ -1,5 +1,7 @@
 # Performance Standards
 
+This section details the Performance Standards.
+
 ## Purpose
 
 This document defines the performance expectations and measurement standards for the Saṃgraha platform.
@@ -17,6 +19,8 @@ The project follows a set of core engineering principles including Documentation
 The project is built using Rust as the primary implementation language with a multi-crate workspace structure. Key technology choices include SQLite (via rusqlite with bundled feature) for the knowledge registry, pulldown-cmark for Markdown parsing, Rayon for parallel processing, and Serde for serialization. See [Technology Selection](technology-selection.md) for the complete rationale behind each technology choice.
 
 ## Performance Targets
+
+This section details the Performance Targets.
 
 ### Compilation
 
@@ -57,6 +61,8 @@ Targets apply to the full compilation pipeline: discovery, parsing, metadata ext
 
 ## Measurement Standards
 
+This section details the Measurement Standards.
+
 ### Methodology
 
 - Measurements are taken on reference hardware:
@@ -91,6 +97,8 @@ docs/raw/reports/performance/latest/
 ---
 
 ## Design for Performance
+
+This section details the Design for Performance.
 
 ### Batch Processing
 

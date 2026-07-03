@@ -1,5 +1,7 @@
 # Architectural Constraints Audit
 
+This section details the Architectural Constraints Audit.
+
 ## Version
 1.0.0
 

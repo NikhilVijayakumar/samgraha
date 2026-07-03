@@ -1,5 +1,7 @@
 # Documentation Philosophy
 
+This section details the Documentation Philosophy.
+
 ## Purpose
 
 This document defines the philosophy, principles, and governing concepts behind the documentation ecosystem.

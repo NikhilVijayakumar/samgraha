@@ -1,53 +1,63 @@
-# Document Audit
+# 📝 Document Audit
 
-**Timestamp:** {{TIMESTAMP}}
-**Duration:** {{DURATION}}s
-**Status:** {{STATUS}}
+> Generated on: {{TIMESTAMP}}
 
-## Score
+### 📋 Overview
 
-**{{SCORE}}/100** {{TREND}}
+- **Status:** {{STATUS}}
+- **Duration:** ⏱️ {{DURATION}}s
+- **Score:** 📈 **{{SCORE}}/100** (Trend: {{TREND}}, Previous: {{PREV_SCORE}})
+- **Previous Docs:** {{PREV_DOCS}} | **Previous Issues:** {{PREV_ISSUES}}
 
-| Metric | Previous |
-|--------|---------|
-| Previous Score | {{PREV_SCORE}} |
-| Previous Docs | {{PREV_DOCS}} |
-| Previous Issues | {{PREV_ISSUES}} |
+---
 
-## Analysis
+### 🔍 Analysis
 
 {{ANALYSIS}}
 
-## Recommendations
+### 💡 Recommendations
 
 {{RECOMMENDATIONS}}
 
-## Checks
+---
+
+### ✅ Checks
 
 {{CHECKS_TABLE}}
 
-## Errors
+---
+
+### ⚠️ Errors
 
 {{ERRORS_TABLE}}
 
-## Documents by Domain
+---
+
+### 📚 Documents by Domain
 
 {{DOMAIN_DOCS_SECTIONS}}
 
-## Quality Summary
+---
+
+### 📊 Quality Summary
 
 | Domain | Docs | Avg Sections | Empty Sections | Missing Sections | Notes |
 |--------|------|-------------|----------------|-----------------|-------|
 {{QUALITY_TABLE}}
 
-## Issues
+---
+
+### 🐛 Issues
 
 {{ISSUES_LIST}}
 
-## Section Distribution
+---
+
+### 📈 Section Distribution
 
 | Bucket | Count |
 |--------|-------|
 {{SECTION_DIST_TABLE}}
 
+---
 **Totals:** {{TOTAL_DOCS}} documents, {{DOMAIN_COUNT}} domains, {{TOTAL_SECTIONS}} sections, {{ISSUE_COUNT}} issues

@@ -19,13 +19,15 @@ declare -A PHASE_CHECKS
 declare -A PHASE_RESULTS
 PREV_METRICS='{}'
 PHASE_ERRORS_JSON='{}'
+REPORT_DIR="docs/report/tests"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --full)     FULL=true; shift ;;
         --with-mcp) WITH_MCP=true; shift ;;
         --skip-build) SKIP_BUILD=true; shift ;;
-        *)          echo "Usage: $0 [--full] [--with-mcp] [--skip-build]"; exit 1 ;;
+        --report-dir) REPORT_DIR="$2"; shift 2 ;;
+        *)          echo "Usage: $0 [--full] [--with-mcp] [--skip-build] [--report-dir <dir>]"; exit 1 ;;
     esac
 done
 
@@ -44,7 +46,8 @@ write_step() { CURRENT_PHASE="$*"; LAST_OUTPUT=""; echo -e "\n== $CURRENT_PHASE 
 write_info() { echo "  .. $*"; }
 
 write_phase_report() {
-    local pid="$1" phase_checks="${PHASE_CHECKS[$pid]:-[]}" end
+    local pid="$1"
+    local phase_checks="${PHASE_CHECKS[$pid]:-[]}" end
     end=$(date +%s)
     local duration=$((end - PHASE_DURATION))
     local checks_table errors_table analysis recs
@@ -451,6 +454,7 @@ echo "Samgraha Test Runner"
 echo "Root: $ROOT_DIR"
 
 if ! $SKIP_BUILD; then
+    PHASE_ID="00-build"
     write_step "Building"
     pushd "$ROOT_DIR" > /dev/null
     LAST_OUTPUT=$(cargo build --bin cli 2>&1) || { write_fail "build cli"; popd > /dev/null; exit 1; }
@@ -484,11 +488,14 @@ fi
 PHASE_CHECKS["00-build"]="$build_checks"
 
 # Generate summary report
-local all_phase_rows="" all_failed="" score_sum=0 score_count=0
+all_phase_rows=""
+all_failed=""
+score_sum=0
+score_count=0
 for key in 00-build 01-phase1a 02-phase1b 03-phase1c 04-phase2 05-phase25 06-phase3; do
-    local pr="${PHASE_RESULTS[$key]:-}"
+    pr="${PHASE_RESULTS[$key]:-}"
     [ -z "$pr" ] && continue
-    local ps pf pe pd
+    ps=""; pf=""; pe=""; pd=""
     ps=$(echo "$pr" | jq -r '.Status // "?"')
     pf=$(echo "$pr" | jq -r '.Score // 0')
     pe=$(echo "$pr" | jq -r '.Errors // 0')
@@ -498,15 +505,14 @@ for key in 00-build 01-phase1a 02-phase1b 03-phase1c 04-phase2 05-phase25 06-pha
     score_count=$((score_count + 1))
     ! echo "$ps" | grep -q "PASS" && [ "$ps" != "⬜ SKIPPED" ] && all_failed+="- **$key**: $ps ($pe errors)"$'\n'
 done
-local total_score=0
+total_score=0
 [ "$score_count" -gt 0 ] && total_score=$((score_sum / score_count))
 
-local prev_total_score
 prev_total_score=$(get_prev_metric ".total_score // \"\"")
-local total_trend
 total_trend=$(trend_between "$total_score" "$prev_total_score")
 
-local analysis recs
+analysis=""
+recs=""
 if [ "$FAILURES" -gt 0 ]; then
     analysis="❌ $FAILURES failures across $score_count phases. $PASSES total passes."
     recs="- 🔴 Fix $FAILURES failing test(s) before next run"
@@ -516,7 +522,6 @@ else
 fi
 [ -z "$all_failed" ] && all_failed="—"
 
-local report_vals
 report_vals=$(jq -n \
     --arg ts "$(date '+%Y-%m-%d %H:%M:%S')" \
     --arg status "$([ "$FAILURES" -gt 0 ] && echo "❌ FAIL" || echo "✅ PASS")" \
@@ -534,12 +539,12 @@ report_vals=$(jq -n \
 write_report "00-summary.md" "00-summary.md" "$report_vals" > /dev/null
 
 # Save metrics
-local metrics_phase_order=(01-phase1a 02-phase1b)
+metrics_phase_order=(01-phase1a 02-phase1b)
 $FULL && metrics_phase_order+=(03-phase1c)
 $WITH_MCP && metrics_phase_order+=(04-phase2 05-phase25 06-phase3)
-local arr='[]'
+arr='[]'
 for key in "${metrics_phase_order[@]}"; do
-    local pr="${PHASE_RESULTS[$key]:-}"
+    pr="${PHASE_RESULTS[$key]:-}"
     [ -z "$pr" ] && continue
     arr=$(echo "$arr" | jq -c \
         --arg key "$key" \
@@ -549,7 +554,6 @@ for key in "${metrics_phase_order[@]}"; do
         --argjson dur "$(echo "$pr" | jq '(.Duration // 0)')" \
         '. + [{phase: $key, score: $score, status: $status, errors: $errors, duration: $dur}]')
 done
-local metrics
 metrics=$(jq -n \
     --arg ts "$(date '+%Y-%m-%d %H:%M:%S')" \
     --argjson ps "$arr" \

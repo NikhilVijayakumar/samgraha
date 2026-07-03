@@ -1,5 +1,7 @@
 # External Context Standard
 
+This section details the External Context Standard.
+
 ## Purpose
 
 This document defines the standard for External Context Documentation within the engineering documentation ecosystem.

@@ -1,5 +1,7 @@
 # Architecture Audit
 
+This section details the Architecture Audit.
+
 ## Purpose
 
 Verifies that the Architecture Documentation collectively defines a complete, coherent, implementation-independent architectural model of the system.
@@ -44,6 +46,8 @@ Each validation maps to one or more rules defined in the Architecture Standard.
 ---
 
 # Collection Integrity
+
+This section details the Collection Integrity.
 
 ## A1. Modular Architecture
 
@@ -107,6 +111,8 @@ Shared concepts should be referenced instead.
 ---
 
 # Structural Integrity
+
+This section details the Structural Integrity.
 
 ## A5. Ownership Explicit
 
@@ -175,6 +181,8 @@ Knowledge movement should be understandable without implementation knowledge.
 ---
 
 # Consistency
+
+This section details the Consistency.
 
 ## A9. Architectural Consistency
 

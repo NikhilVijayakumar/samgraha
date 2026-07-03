@@ -1,5 +1,7 @@
 # Persistence Standards
 
+This section details the Persistence Standards.
+
 ## Purpose
 
 This document defines the persistence architecture for the Saṃgraha platform.
@@ -49,6 +51,8 @@ V3__add_audit_results.sql
 ---
 
 ## Core Tables
+
+This section details the Core Tables.
 
 ### Documents
 
@@ -158,6 +162,8 @@ knowledge-package/
 ---
 
 ## Data Integrity
+
+This section details the Data Integrity.
 
 ### Content Hashing
 

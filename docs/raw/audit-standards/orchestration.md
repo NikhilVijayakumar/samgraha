@@ -1,5 +1,7 @@
 # Semantic Audit Orchestration
 
+This section details the Semantic Audit Orchestration.
+
 ## Pipeline Order
 
 1. Deterministic Audit
@@ -24,6 +26,8 @@ Each stage runs only after the previous stage gate passes.
 3. If `{changed: true}`, execute section audit
 
 ## Output Schemas
+
+This section details the Output Schemas.
 
 ### Section Report
 

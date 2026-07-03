@@ -1,5 +1,7 @@
 # Knowledge Resolution — Feature Technical Design
 
+This section details the Knowledge Resolution — Feature Technical Design.
+
 ## Purpose
 
 This document describes the architectural realization of the Knowledge Resolution feature.
@@ -18,6 +20,8 @@ This document applies the architectural principles defined in Component Model, W
 ---
 
 ## Participating Components
+
+This section details the Participating Components.
 
 ### Knowledge Runtime
 
@@ -122,6 +126,8 @@ Knowledge Runtime (return result)
 
 ## Runtime Behavior
 
+This section details the Runtime Behavior.
+
 ### Resolution Lifecycle
 
 ```
@@ -193,6 +199,8 @@ On cycle detection, resolution aborts immediately. No partial package is produce
 
 ## Communication Paths
 
+This section details the Communication Paths.
+
 ### Knowledge Runtime → Workspace Management
 
 The runtime queries workspace membership, repository configuration, and dependency declarations.
@@ -231,6 +239,8 @@ The resolver passes composed knowledge to the packaging service. The package ser
 ---
 
 ## Integration Points
+
+This section details the Integration Points.
 
 ### Workspace Management
 
@@ -318,6 +328,8 @@ Optional: Remote repository registries may be supported in the future for distri
 ---
 
 ## Extension Points
+
+This section details the Extension Points.
 
 ### Resolution Profiles
 

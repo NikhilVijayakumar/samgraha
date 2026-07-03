@@ -1,5 +1,7 @@
 # Repository Structure
 
+This section details the Repository Structure.
+
 ## Purpose
 
 This document defines the repository organization for the Saṃgraha platform.

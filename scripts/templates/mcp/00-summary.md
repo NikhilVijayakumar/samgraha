@@ -1,28 +1,42 @@
-# Samgraha MCP Discovery — Summary
+# 📊 Samgraha MCP Discovery — Summary
 
-**Timestamp:** {{TIMESTAMP}}
-**Overall Status:** {{OVERALL_STATUS}}
-**Total Duration:** {{TOTAL_DURATION}}s
-**Total MCP Calls:** {{TOTAL_CALLS}}
-**Total Errors:** {{TOTAL_ERRORS}}
+> Generated on: {{TIMESTAMP}}
 
-## Score
+### 📋 Overview
 
-**{{SCORE}}/100** {{TREND}}
+- **Overall Status:** {{OVERALL_STATUS}}
+- **Total Duration:** ⏱️ {{TOTAL_DURATION}}s
+- **Total MCP Calls:** 🔌 {{TOTAL_CALLS}}
+- **Total Score:** 📈 **{{SCORE}}/100** (Trend: {{TREND}}, Previous: {{PREV_SCORE}})
+- **Errors:** ⚠️ {{TOTAL_ERRORS}}
 
-| Metric | Previous |
-|--------|---------|
-| Total Score | {{PREV_SCORE}} |
+---
 
-## Analysis
+### 🔍 Analysis
 
 {{ANALYSIS}}
 
-## Recommendations
+### 💡 Recommendations
 
 {{RECOMMENDATIONS}}
 
-## Overview
+---
+
+### 📉 Phase Results
+
+| Phase | Report | Status | Errors | Duration |
+|-------|--------|--------|--------|----------|
+{{PHASE_RESULTS_ROWS}}
+
+---
+
+### ⚠️ Failed / Partial Phases
+
+{{FAILED_PHASES}}
+
+---
+
+### 📦 System Overview
 
 | Metric | Value |
 |--------|-------|
@@ -31,18 +45,9 @@
 | Documents | {{DOCUMENT_COUNT}} |
 | Sections | {{SECTION_COUNT}} |
 | Section Types | {{SECTION_TYPE_COUNT}} |
-| Errors | {{TOTAL_ERRORS}} |
 
-## Phase Results
+---
 
-| Phase | Report | Status | Errors | Duration |
-|-------|--------|--------|--------|----------|
-{{PHASE_RESULTS_ROWS}}
-
-## Failed / Partial Phases
-
-{{FAILED_PHASES}}
-
-## Archive
+### 📂 Archive
 
 Previous run: {{ARCHIVE_PATH}}

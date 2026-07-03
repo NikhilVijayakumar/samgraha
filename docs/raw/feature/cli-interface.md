@@ -1,5 +1,7 @@
 # CLI Interface
 
+This section details the CLI Interface.
+
 ## Purpose
 
 Saṃgraha provides a command-line interface for all platform operations.
@@ -11,6 +13,8 @@ The CLI is a single, self-contained executable with no external runtime dependen
 ---
 
 ## Functional Requirements
+
+This section details the Functional Requirements.
 
 ## FR1. Compile Command
 

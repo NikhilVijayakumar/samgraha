@@ -1,5 +1,7 @@
 # Documentation Standards
 
+This section details the Documentation Standards.
+
 ## Purpose
 
 Documentation Standards define the contracts that govern engineering documentation within Saṃgraha.
@@ -13,6 +15,8 @@ Documentation Standards are authoritative engineering assets.
 ---
 
 ## Functional Requirements
+
+This section details the Functional Requirements.
 
 ## FR1. Standard Discovery
 

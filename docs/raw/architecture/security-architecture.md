@@ -1,5 +1,7 @@
 # Security Architecture
 
+This section details the Security Architecture.
+
 ## Purpose
 
 This document defines the security architecture of Saṃgraha.

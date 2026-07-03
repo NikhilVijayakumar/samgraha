@@ -1,5 +1,7 @@
 # Audit Framework — Feature Technical Design
 
+This section details the Audit Framework — Feature Technical Design.
+
 ## Purpose
 
 This document describes the architectural realization of the Audit Framework feature.
@@ -18,6 +20,8 @@ This document applies the architectural principles defined in Component Model, E
 ---
 
 ## Participating Components
+
+This section details the Participating Components.
 
 ### Audit Framework
 
@@ -96,6 +100,8 @@ Knowledge Runtime (enforce quality gates)
 
 ## Runtime Behavior
 
+This section details the Runtime Behavior.
+
 ### Audit Lifecycle
 
 ```
@@ -138,6 +144,8 @@ The Semantic Audit Provider extends deterministic results with AI-assisted analy
 
 ## Communication Paths
 
+This section details the Communication Paths.
+
 ### CLI → Audit Framework
 
 The CLI invokes the framework with domain parameters and options. The framework returns structured audit results.
@@ -171,6 +179,8 @@ The framework writes audit metadata to the registry. Metadata includes scores, f
 ---
 
 ## Integration Points
+
+This section details the Integration Points.
 
 ### Documentation Standards
 
@@ -251,6 +261,8 @@ Optional: Semantic audit providers may integrate with AI providers. When no AI p
 ---
 
 ## Extension Points
+
+This section details the Extension Points.
 
 ### Audit Providers
 

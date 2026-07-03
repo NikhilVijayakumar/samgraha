@@ -1,5 +1,7 @@
 # Component Model Audit
 
+This section details the Component Model Audit.
+
 ## Version
 1.0.0
 

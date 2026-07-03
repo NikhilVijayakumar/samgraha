@@ -1,5 +1,7 @@
 # Extension Model
 
+This section details the Extension Model.
+
 ## Purpose
 
 This document defines the extensibility architecture of the Saṃgraha platform.

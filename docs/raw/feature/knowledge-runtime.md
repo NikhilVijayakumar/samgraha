@@ -1,5 +1,7 @@
 # Knowledge Runtime
 
+This section details the Knowledge Runtime.
+
 ## Purpose
 
 The Knowledge Runtime delivers verified engineering knowledge to external consumers.
@@ -15,6 +17,8 @@ The Model Context Protocol (MCP) is the first supported runtime interface.
 ---
 
 ## Functional Requirements
+
+This section details the Functional Requirements.
 
 ## FR1. Runtime Hosting
 

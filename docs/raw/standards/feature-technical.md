@@ -1,5 +1,7 @@
 # Feature Technical Design Standard
 
+This section details the Feature Technical Design Standard.
+
 ## Purpose
 
 This document defines the standard for Feature Technical Design Documentation within the engineering documentation ecosystem.

@@ -1,5 +1,7 @@
 # Success Criteria Audit
 
+This section details the Success Criteria Audit.
+
 ## Version
 1.0.0
 

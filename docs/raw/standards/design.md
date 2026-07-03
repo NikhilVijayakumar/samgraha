@@ -1,5 +1,7 @@
 # Design Standard
 
+This section details the Design Standard.
+
 ## Purpose
 
 This document defines the standard for Design Documentation within the engineering documentation ecosystem.

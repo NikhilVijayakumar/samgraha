@@ -1,5 +1,7 @@
 # Knowledge Flow
 
+This section details the Knowledge Flow.
+
 ## Purpose
 
 This document defines how engineering knowledge flows through the Saṃgraha platform.

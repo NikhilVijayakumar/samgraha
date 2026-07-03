@@ -1,5 +1,7 @@
 # Deployment Architecture
 
+This section details the Deployment Architecture.
+
 ## Purpose
 
 This document defines the deployment architecture of the Saṃgraha platform.
@@ -67,6 +69,8 @@ Only the transport interface differs.
 
 # Deployment Components
 
+This section details the Deployment Components.
+
 ## Core Platform
 
 The Core Platform contains:
@@ -113,6 +117,8 @@ Provider availability should never affect deterministic platform capabilities.
 ---
 
 # Supported Deployment Modes
+
+This section details the Supported Deployment Modes.
 
 ## Standalone CLI
 
@@ -200,6 +206,8 @@ Only the transport interface changes.
 ---
 
 # Deployment Principles
+
+This section details the Deployment Principles.
 
 ## Local First
 

@@ -1,5 +1,7 @@
 # Knowledge Compilation — Feature Technical Design
 
+This section details the Knowledge Compilation — Feature Technical Design.
+
 ## Purpose
 
 This document describes the architectural realization of the Knowledge Compilation feature.
@@ -18,6 +20,8 @@ This document applies the architectural principles defined in Component Model, K
 ---
 
 ## Participating Components
+
+This section details the Participating Components.
 
 ### Knowledge Compiler
 
@@ -103,6 +107,8 @@ Knowledge Services (report completion)
 
 ## Runtime Behavior
 
+This section details the Runtime Behavior.
+
 ### Compilation Lifecycle
 
 ```
@@ -150,6 +156,8 @@ Compilation is deterministic. Identical input documentation produces identical o
 
 ## Communication Paths
 
+This section details the Communication Paths.
+
 ### Compiler → Documentation Standards
 
 The compiler reads standards to obtain document structure rules, metadata schemas, and validation criteria. Standards are read-only during compilation.
@@ -184,6 +192,8 @@ The compiler returns compilation metadata including processed document count, er
 ---
 
 ## Integration Points
+
+This section details the Integration Points.
 
 ### CLI Interface
 
@@ -275,6 +285,8 @@ Section matching failures are never fatal. Content is always preserved.
 ---
 
 ## Extension Points
+
+This section details the Extension Points.
 
 ### Document Processors
 

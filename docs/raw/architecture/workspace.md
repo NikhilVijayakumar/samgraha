@@ -1,5 +1,7 @@
 # Workspace Architecture
 
+This section details the Workspace Architecture.
+
 ## Purpose
 
 This document defines the Workspace Architecture of the Saṃgraha platform.
@@ -260,6 +262,8 @@ The knowledge track serves runtime delivery. The metadata track serves synchroni
 ---
 
 # Workspace Principles
+
+This section details the Workspace Principles.
 
 ## Repository Independence
 

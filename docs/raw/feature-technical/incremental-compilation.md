@@ -1,5 +1,7 @@
 # Incremental Build — Feature Technical Design
 
+This section details the Incremental Build — Feature Technical Design.
+
 ## Purpose
 
 This document describes the architectural realization of the Incremental Build feature.
@@ -18,6 +20,8 @@ This document applies the architectural principles defined in Component Model, P
 ---
 
 ## Participating Components
+
+This section details the Participating Components.
 
 ### Incremental Build
 
@@ -93,6 +97,8 @@ Updated Knowledge Registry
 
 ## Runtime Behavior
 
+This section details the Runtime Behavior.
+
 ### Incremental Build Lifecycle
 
 ```
@@ -136,6 +142,8 @@ Incremental Build guarantees that incremental output is identical to a clean bui
 
 ## Communication Paths
 
+This section details the Communication Paths.
+
 ### File System → Incremental Build
 
 Change events from the filesystem (create, modify, delete) trigger build evaluation. Content hashing provides authoritative change detection.
@@ -171,6 +179,8 @@ Build invokes audit for invalidated documentation domains. Audit re-executes aga
 ---
 
 ## Integration Points
+
+This section details the Integration Points.
 
 ### Knowledge Compiler
 
@@ -248,6 +258,8 @@ Incremental Build operates entirely offline. No external services participate in
 ---
 
 ## Extension Points
+
+This section details the Extension Points.
 
 ### Change Detectors
 

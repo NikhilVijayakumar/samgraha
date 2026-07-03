@@ -1,5 +1,7 @@
 # Knowledge Registry — Feature Technical Design
 
+This section details the Knowledge Registry — Feature Technical Design.
+
 ## Purpose
 
 This document describes the architectural realization of the Knowledge Registry feature.
@@ -18,6 +20,8 @@ This document applies the architectural principles defined in Persistence Archit
 ---
 
 ## Participating Components
+
+This section details the Participating Components.
 
 ### Knowledge Registry
 
@@ -96,6 +100,8 @@ Incremental Build ◄───────┤ (read lifecycle metadata)
 
 ## Runtime Behavior
 
+This section details the Runtime Behavior.
+
 ### Registry Lifecycle
 
 ```
@@ -125,6 +131,8 @@ Identical compilation input produces identical registry content. Registry artifa
 ---
 
 ## Communication Paths
+
+This section details the Communication Paths.
 
 ### Knowledge Compiler → Knowledge Registry
 
@@ -159,6 +167,8 @@ Enrichment writes derived metadata. Enrichment artifacts are stored separately f
 ---
 
 ## Integration Points
+
+This section details the Integration Points.
 
 ### Knowledge Compilation
 
@@ -248,6 +258,8 @@ The registry guarantees that a failed write never corrupts previously committed 
 ---
 
 ## Extension Points
+
+This section details the Extension Points.
 
 ### Artifact Types
 

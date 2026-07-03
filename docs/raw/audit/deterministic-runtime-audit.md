@@ -1,5 +1,7 @@
 # Deterministic Runtime Audit
 
+This section details the Deterministic Runtime Audit.
+
 ## Purpose
 
 Verifies that the repository's architecture and engineering documentation define a deterministic, stateless, reproducible execution model.
@@ -47,6 +49,8 @@ The audit evaluates:
 ---
 
 # Runtime Model
+
+This section details the Runtime Model.
 
 ## S1. Explicit Stage Contracts
 
@@ -109,6 +113,8 @@ Examples include:
 
 # Engineering Principles
 
+This section details the Engineering Principles.
+
 ## S5. Determinism Documented
 
 Determinism is explicitly documented as a repository engineering principle.
@@ -164,6 +170,8 @@ Artifacts should remain reproducible.
 ---
 
 # Runtime Integrity
+
+This section details the Runtime Integrity.
 
 ## S9. No Hidden State
 

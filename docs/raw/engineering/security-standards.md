@@ -1,5 +1,7 @@
 # Security Standards
 
+This section details the Security Standards.
+
 ## Purpose
 
 This document defines the security engineering standards for the Saṃgraha platform.
@@ -17,6 +19,8 @@ The project follows a set of core engineering principles including Documentation
 The project is built using Rust as the primary implementation language with a multi-crate workspace structure. Key technology choices include SQLite (via rusqlite with bundled feature) for the knowledge registry, pulldown-cmark for Markdown parsing, Rayon for parallel processing, and Serde for serialization. See [Technology Selection](technology-selection.md) for the complete rationale behind each technology choice.
 
 ## Threat Model
+
+This section details the Threat Model.
 
 ### In Scope
 
@@ -74,6 +78,8 @@ fn validate_path(path: &Path, root: &Path) -> Result<CanonicalPath> {
 ---
 
 ## Input Validation
+
+This section details the Input Validation.
 
 ### Configuration
 

@@ -1,5 +1,7 @@
 # Repository Discovery
 
+This section details the Repository Discovery.
+
 ## Purpose
 
 Repository Discovery identifies repositories that can participate in the Saṃgraha knowledge ecosystem.
@@ -11,6 +13,8 @@ Repository Discovery discovers repositories. It does not compile, audit, or modi
 ---
 
 ## Functional Requirements
+
+This section details the Functional Requirements.
 
 ## FR1. Local Repository Discovery
 

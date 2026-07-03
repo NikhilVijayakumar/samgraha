@@ -1,5 +1,7 @@
 # Semantic Audit Provider — Feature Technical Design
 
+This section details the Semantic Audit Provider — Feature Technical Design.
+
 ## Purpose
 
 This document describes the architectural realization of the Semantic Audit Provider feature.
@@ -18,6 +20,8 @@ This document applies the architectural principles defined in Extensibility Arch
 ---
 
 ## Participating Components
+
+This section details the Participating Components.
 
 ### Semantic Audit Provider
 
@@ -91,6 +95,8 @@ Knowledge Registry (store combined report)
 
 ## Runtime Behavior
 
+This section details the Runtime Behavior.
+
 ### Evaluation Lifecycle
 
 ```
@@ -126,6 +132,8 @@ When no AI provider is available, semantic evaluation is skipped entirely. The a
 
 ## Communication Paths
 
+This section details the Communication Paths.
+
 ### Audit Framework → Semantic Audit Provider
 
 The framework invokes the provider through the standard provider interface. Input includes documentation, Documentation Standards, and deterministic audit results.
@@ -154,6 +162,8 @@ The provider reads domain contracts to determine appropriate scope and content r
 ---
 
 ## Integration Points
+
+This section details the Integration Points.
 
 ### Audit Framework
 
@@ -230,6 +240,8 @@ Supported integration patterns:
 ---
 
 ## Extension Points
+
+This section details the Extension Points.
 
 ### Evaluation Profiles
 

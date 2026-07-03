@@ -1,5 +1,7 @@
 # Knowledge Runtime — Feature Technical Design
 
+This section details the Knowledge Runtime — Feature Technical Design.
+
 ## Purpose
 
 This document describes the architectural realization of the Knowledge Runtime feature.
@@ -18,6 +20,8 @@ This document applies the architectural principles defined in Component Model, R
 ---
 
 ## Participating Components
+
+This section details the Participating Components.
 
 ### Knowledge Runtime
 
@@ -108,6 +112,8 @@ Section-type operations examples:
 
 ## Runtime Behavior
 
+This section details the Runtime Behavior.
+
 ### Runtime Lifecycle
 
 ```
@@ -144,6 +150,8 @@ Identical requests against identical compiled knowledge produce identical result
 
 ## Communication Paths
 
+This section details the Communication Paths.
+
 ### Consumer → Transport Adapter
 
 External consumers communicate through adapter-specific protocols (CLI arguments, MCP messages, future REST/GraphQL).
@@ -176,6 +184,8 @@ The runtime invokes services by operation type. Services implement specific engi
 ---
 
 ## Integration Points
+
+This section details the Integration Points.
 
 ### Transport Adapters
 
@@ -258,6 +268,8 @@ Optional: When configured, the runtime may integrate with AI providers through K
 ---
 
 ## Extension Points
+
+This section details the Extension Points.
 
 ### Transport Adapters
 

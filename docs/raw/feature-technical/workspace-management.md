@@ -1,5 +1,7 @@
 # Workspace Management — Feature Technical Design
 
+This section details the Workspace Management — Feature Technical Design.
+
 ## Purpose
 
 This document describes the architectural realization of the Workspace Management feature.
@@ -18,6 +20,8 @@ This document applies the architectural principles defined in Workspace Architec
 ---
 
 ## Participating Components
+
+This section details the Participating Components.
 
 ### Workspace Management
 
@@ -85,6 +89,8 @@ Workspace Management
 
 ## Runtime Behavior
 
+This section details the Runtime Behavior.
+
 ### Workspace Lifecycle
 
 ```
@@ -121,6 +127,8 @@ Identical workspace configuration and repository content produce identical works
 
 ## Communication Paths
 
+This section details the Communication Paths.
+
 ### Workspace Management → Repository Configuration
 
 Management reads per-repository configuration to determine documentation locations, standards versions, and build settings.
@@ -152,6 +160,8 @@ Management provides workspace context for runtime requests. Context includes rep
 ---
 
 ## Integration Points
+
+This section details the Integration Points.
 
 ### Repository Configuration
 
@@ -231,6 +241,8 @@ Optional: Future remote workspace synchronization may introduce network integrat
 ---
 
 ## Extension Points
+
+This section details the Extension Points.
 
 ### Workspace Providers
 

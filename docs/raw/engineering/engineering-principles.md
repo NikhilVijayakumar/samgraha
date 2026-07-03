@@ -1,5 +1,7 @@
 # Engineering Principles
 
+This section details the Engineering Principles.
+
 ## Purpose
 
 This document defines the engineering principles that govern implementation of the Saṃgraha platform.
@@ -13,6 +15,8 @@ Engineering principles shape every engineering decision — technology selection
 The project is built using Rust as the primary implementation language with a multi-crate workspace structure. Key technology choices include SQLite (via rusqlite with bundled feature) for the knowledge registry, pulldown-cmark for Markdown parsing, Rayon for parallel processing, and Serde for serialization. See [Technology Selection](technology-selection.md) for the complete rationale behind each technology choice.
 
 ## Principles
+
+This section details the Principles.
 
 ### Documentation First
 

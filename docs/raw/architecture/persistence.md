@@ -1,5 +1,7 @@
 # Persistence Architecture
 
+This section details the Persistence Architecture.
+
 ## Purpose
 
 This document defines the persistence architecture of the Saṃgraha platform.
@@ -289,6 +291,8 @@ Knowledge ownership remains explicit.
 ---
 
 # Persistence Principles
+
+This section details the Persistence Principles.
 
 ## Documentation First
 

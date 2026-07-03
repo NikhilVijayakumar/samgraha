@@ -1,5 +1,7 @@
 # Semantic Audit Provider
 
+This section details the Semantic Audit Provider.
+
 ## Purpose
 
 The Semantic Audit Provider extends the Audit Framework with AI-assisted evaluation capabilities.
@@ -13,6 +15,8 @@ The Audit Framework remains fully functional without it.
 ---
 
 ## Functional Requirements
+
+This section details the Functional Requirements.
 
 ## FR1. Semantic Evaluation
 

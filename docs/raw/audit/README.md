@@ -1,5 +1,7 @@
 # Documentation Audit System
 
+This section details the Documentation Audit System.
+
 ## Getting Started
 
 This directory contains audit documentation for the Saṃgraha knowledge platform. To understand the audit system, start with the [Audit Rules](#authority-chain) table below, then read individual audit docs for each domain.

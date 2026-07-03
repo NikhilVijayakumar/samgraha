@@ -1,5 +1,7 @@
 # Audit Framework
 
+This section details the Audit Framework.
+
 ## Purpose
 
 The Audit Framework verifies that repository documentation, architecture, engineering practices, prototypes, and implementations conform to documented standards.
@@ -13,6 +15,8 @@ Audit determines whether engineering knowledge is trusted before it enters the K
 ---
 
 ## Functional Requirements
+
+This section details the Functional Requirements.
 
 ## FR1. Audit Provider Abstraction
 

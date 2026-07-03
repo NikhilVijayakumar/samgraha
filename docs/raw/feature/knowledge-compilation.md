@@ -1,5 +1,7 @@
 # Knowledge Compilation
 
+This section details the Knowledge Compilation.
+
 ## Purpose
 
 Knowledge Compilation transforms authoritative engineering documentation into deterministic, structured knowledge artifacts.
@@ -13,6 +15,8 @@ Compilation converts documentation into reusable engineering knowledge without c
 ---
 
 ## Functional Requirements
+
+This section details the Functional Requirements.
 
 ## FR1. Documentation Discovery
 

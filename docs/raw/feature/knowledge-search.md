@@ -1,5 +1,7 @@
 # Knowledge Search
 
+This section details the Knowledge Search.
+
 ## Purpose
 
 Knowledge Search enables deterministic discovery and progressive retrieval of compiled engineering knowledge.
@@ -13,6 +15,8 @@ The search system emphasizes relevance, determinism, and progressive knowledge r
 ---
 
 ## Functional Requirements
+
+This section details the Functional Requirements.
 
 ## FR1. Knowledge Discovery
 

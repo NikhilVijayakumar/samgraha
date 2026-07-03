@@ -1,5 +1,7 @@
 # Knowledge Enrichment — Feature Technical Design
 
+This section details the Knowledge Enrichment — Feature Technical Design.
+
 ## Purpose
 
 This document describes the architectural realization of the Knowledge Enrichment feature.
@@ -18,6 +20,8 @@ This document applies the architectural principles defined in Component Model, E
 ---
 
 ## Participating Components
+
+This section details the Participating Components.
 
 ### Knowledge Enrichment
 
@@ -97,6 +101,8 @@ Knowledge Registry (enrichment artifacts)
 
 ## Runtime Behavior
 
+This section details the Runtime Behavior.
+
 ### Enrichment Lifecycle
 
 ```
@@ -138,6 +144,8 @@ The enrichment pipeline remains provider-independent. Providers are interchangea
 
 ## Communication Paths
 
+This section details the Communication Paths.
+
 ### Knowledge Enrichment → Provider Integrations
 
 Enrichment invokes provider operations through a common interface. Operations include summarization, keyword extraction, embedding generation, and glossary generation.
@@ -165,6 +173,8 @@ Enrichment reads compiled documentation from the registry. It does not interact 
 ---
 
 ## Integration Points
+
+This section details the Integration Points.
 
 ### Provider Integrations
 
@@ -245,6 +255,8 @@ Supported integration patterns:
 ---
 
 ## Extension Points
+
+This section details the Extension Points.
 
 ### Enrichment Providers
 

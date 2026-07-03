@@ -1,5 +1,7 @@
 # Engineering Standards
 
+This section details the Engineering Standards.
+
 ## Purpose
 
 This document defines the standard for Engineering Documentation within the engineering documentation ecosystem.
