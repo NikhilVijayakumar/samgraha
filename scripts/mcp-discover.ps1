@@ -67,8 +67,9 @@ $Script:RootDir = Split-Path -Parent $PSScriptRoot
 
 . "$Script:RootDir\scripts\lib\report.ps1"
 
-if (-not (Get-Command jq -ErrorAction SilentlyContinue)) { throw "jq is required but not found on PATH" }
-if (-not (Get-Command python3 -ErrorAction SilentlyContinue)) { throw "python3 is required but not found on PATH" }
+# jq dependency removed — all JSON via native PS
+$Script:PyCmd = if (Get-Command python3 -ErrorAction SilentlyContinue) { 'python3' } else { 'python' }
+if (-not (Get-Command $Script:PyCmd -ErrorAction SilentlyContinue)) { throw "python3/python is required but not found on PATH" }
 
 # Binary resolution
 if ($Build) {
@@ -101,22 +102,12 @@ $Script:TEMPLATE_DIR = Join-Path $Script:RootDir "scripts\templates\mcp"
 if (-not $ReportDir) { $ReportDir = "docs/report/manual-audit/mcp" }
 $Script:ReportDir = Join-Path $Script:RootDir $ReportDir
 
-Initialize-ReportDirs "mcp"
 $Script:ArchivePath = $null
-
-# Ensure template and archive dirs exist
-if (-not (Test-Path $Script:TEMPLATE_DIR)) { New-Item -ItemType Directory -Force $Script:TEMPLATE_DIR | Out-Null }
-if (-not (Test-Path $Script:ARCHIVE_DIR)) { New-Item -ItemType Directory -Force $Script:ARCHIVE_DIR | Out-Null }
-
-# Rotate previous latest → archive/{timestamp}/
-if (Test-Path $Script:LATEST_DIR) {
-    $ts = Get-Date -Format "yyyy-MM-dd_HHmmss"
-    $archivePath = Join-Path $Script:ARCHIVE_DIR $ts
-    Move-Item $Script:LATEST_DIR $archivePath
-    $Script:ArchivePath = $archivePath
-    Write-Host "Archived previous run → $archivePath" -ForegroundColor DarkGray
-}
-New-Item -ItemType Directory -Force $Script:LATEST_DIR | Out-Null
+# Initialize-ReportDirs handles archive rotation and LATEST_DIR creation
+Initialize-ReportDirs "mcp"
+# Capture the archive path that Initialize-ReportDirs created (newest entry in archive)
+$_newestArchive = Get-ChildItem $Script:ARCHIVE_DIR -Directory -ErrorAction SilentlyContinue | Sort-Object Name -Descending | Select-Object -First 1
+if ($_newestArchive) { $Script:ArchivePath = $_newestArchive.FullName }
 
 Load-PreviousMetrics $Script:ARCHIVE_DIR
 
@@ -250,11 +241,11 @@ function Invoke-McpToolAll {
     $hasMore = $true
 
     while ($hasMore) {
-        $args = @{} + $Arguments
-        $args.limit = $PageSize
-        $args.offset = $offset
+        $callArgs = @{} + $Arguments
+        $callArgs.limit = $PageSize
+        $callArgs.offset = $offset
 
-        $result = Invoke-McpTool -Name $Name -Arguments $args -Id $id
+        $result = Invoke-McpTool -Name $Name -Arguments $callArgs -Id $id
         if ($null -eq $result) { break }
 
         $items = $result.$CollectionKey
@@ -274,15 +265,17 @@ function Invoke-McpToolAll {
 
 function Build-PhaseScoresJson {
     $order = @("01-tool-health", "02-domain-catalog", "03-document-audit", "04-section-integrity", "05-search-results", "06-audit-findings", "07-coverage-gaps", "08-registry-state")
-    $arr = '[]'
+    $arr = New-Object System.Collections.ArrayList
     foreach ($key in $order) {
         if ($Script:PHASE_RESULTS.ContainsKey($key)) {
-            $pr = $Script:PHASE_RESULTS[$key]
-            $score = $pr | jq -r '.Score // 0'
-            $status = $pr | jq -r '.Status // "?"'
-            $errors = $pr | jq -r '.Errors // 0'
-            $dur = $pr | jq -r '.Duration // 0'
-            $arr = $arr | jq -c --arg key "$key" --argjson score $score --arg status "$status" --argjson errors $errors --argjson dur $dur '. += [{phase: $key, score: $score, status: $status, errors: $errors, duration: $dur}]'
+            $pr = $Script:PHASE_RESULTS[$key] | ConvertFrom-Json
+            $score = if ($null -ne $pr.Score) { $pr.Score } else { 0 }
+            $status = if ($null -ne $pr.Status) { $pr.Status } else { "?" }
+            $errors = if ($null -ne $pr.Errors) { $pr.Errors } else { 0 }
+            $dur = if ($null -ne $pr.Duration) { $pr.Duration } else { 0 }
+            $dc = if ($null -ne $pr.doc_count) { $pr.doc_count } else { 0 }
+            $ic = if ($null -ne $pr.issue_count) { $pr.issue_count } else { 0 }
+            [void]$arr.Add(@{phase = $key; score = $score; status = $status; errors = $errors; duration = $dur; doc_count = $dc; issue_count = $ic})
         }
     }
     return $arr
@@ -294,7 +287,7 @@ function Phase-1-Bootstrap {
     $Script:CURRENT_PHASE = "01-tool-health"
     Write-Host "Phase 1: Bootstrap..." -ForegroundColor Cyan
     $start = Get-Date
-    $checks = '[]'
+    $checks = New-Object System.Collections.ArrayList
 
     # initialize
     $initResult = Invoke-McpDirect -Method "initialize" -Params @{
@@ -305,9 +298,9 @@ function Phase-1-Bootstrap {
     if ($initResult) {
         $pv = $initResult.protocolVersion
         $Script:AllResults.Protocol = $pv
-        $checks = $checks | jq -c --arg pv "$pv" '. += [{"Name": "Initialize", "Status": "pass", "Detail": "Protocol \($pv)"}]'
+        [void]$checks.Add(@{Name = "Initialize"; Status = "pass"; Detail = "Protocol $pv"})
     } else {
-        $checks = $checks | jq -c '. += [{"Name": "Initialize", "Status": "fail", "Detail": "No response"}]'
+        [void]$checks.Add(@{Name = "Initialize"; Status = "fail"; Detail = "No response"})
     }
 
     # tools/list
@@ -317,9 +310,9 @@ function Phase-1-Bootstrap {
         $tools = $toolsResult.tools
         $tc = $tools.Count
         $Script:AllResults.Tools = $tools
-        $checks = $checks | jq -c --argjson tc $tc '. += [{"Name": "Tools/List", "Status": "pass", "Detail": "\($tc) tools"}]'
+        [void]$checks.Add(@{Name = "Tools/List"; Status = "pass"; Detail = "$tc tools"})
     } else {
-        $checks = $checks | jq -c '. += [{"Name": "Tools/List", "Status": "fail", "Detail": "No tools returned"}]'
+        [void]$checks.Add(@{Name = "Tools/List"; Status = "fail"; Detail = "No tools returned"})
     }
 
     # info via tools/call
@@ -327,27 +320,27 @@ function Phase-1-Bootstrap {
     if ($infoResult) {
         $dc = $infoResult.document_count
         $Script:AllResults.Runtime = $infoResult
-        $checks = $checks | jq -c --arg dc "$dc" '. += [{"Name": "Info", "Status": "pass", "Detail": "\($dc) docs"}]'
+        [void]$checks.Add(@{Name = "Info"; Status = "pass"; Detail = "$dc docs"})
     } else {
-        $checks = $checks | jq -c '. += [{"Name": "Info", "Status": "fail", "Detail": "No response"}]'
+        [void]$checks.Add(@{Name = "Info"; Status = "fail"; Detail = "No response"})
     }
 
     $duration = [math]::Round(((Get-Date) - $start).TotalSeconds)
     $errorJson = Get-PhaseErrorsJson "01-tool-health"
-    $errorCount = [int]($errorJson | jq 'length')
-    $hasFail = [int]($checks | jq '[.[] | select(.Status == "fail")] | length')
+    $errorCount = [int]($errorJson | ConvertFrom-Json).Count
+    $hasFail = @($checks | Where-Object { $_.Status -eq "fail" }).Count
     $status = if ($hasFail -gt 0) { "❌ FAIL" } else { "✅ PASS" }
 
     # Build tool table for template
     $toolRows = [System.Collections.ArrayList]::new()
     $ti = 0
+    $phase1ErrItems = Get-PhaseErrorsJson "01-tool-health" | ConvertFrom-Json
     foreach ($t in $tools) {
         $ti++
         $name = $t.name
         $req = if ($t.inputSchema -and $t.inputSchema.required) { $t.inputSchema.required -join ", " } else { "none" }
-        $errorsJson = Get-PhaseErrorsJson "01-tool-health"
-        $hasErr = $errorsJson | jq --arg n "$name" 'any(.[]; .Tool | contains($n))'
-        $toolStatus = if ($hasErr -eq "true") { "⚠️" } else { "✅" }
+        $hasErr = [bool]@($phase1ErrItems | Where-Object { $_.Tool -match $name }).Count
+        $toolStatus = if ($hasErr) { "⚠️" } else { "✅" }
         $toolRows.Add("| $ti | `"$name`" | $req | $toolStatus |") | Out-Null
     }
 
@@ -366,54 +359,55 @@ function Phase-1-Bootstrap {
     $docCount = if ($Script:AllResults.Runtime) { $Script:AllResults.Runtime.document_count } else { "?" }
     $healthyToolCount = $tools.Count
 
-    $checksTable = (Get-ChecksTable $checks) -join "`n"
+    $checksJson = $checks | ConvertTo-Json -Compress
+    $checksTable = (Get-ChecksTable $checksJson) -join "`n"
     $errorsTable = (Get-ErrorsTable "01-tool-health") -join "`n"
 
     # Score: % of checks passing, penalized by errors
-    $tc = [int]($checks | jq 'length')
-    $passC = [int]($checks | jq '[.[] | select(.Status == "pass")] | length')
+    $tc = $checks.Count
+    $passC = @($checks | Where-Object { $_.Status -eq "pass" }).Count
     $score = 0
     if ($tc -gt 0) { $score = [int]($passC * 100 / $tc) }
     if ($errorCount -gt 0) { $score = $score - $errorCount * 5 }
     if ($score -lt 0) { $score = 0 }
 
-    $analysis = Gen-PhaseAnalysis "01-tool-health" $checks
-    $recommendations = Gen-PhaseRecs "01-tool-health" $checks
+    $analysis = Gen-PhaseAnalysis "01-tool-health" $checksJson
+    $recommendations = Gen-PhaseRecs "01-tool-health" $checksJson
     $prevScore = Get-PrevMetric "01-tool-health" "score"
     $trend = Trend-Between $score $prevScore
     $prevDocCount = Get-PrevMetric "01-tool-health" "prev_doc_count"
     if ([string]::IsNullOrEmpty($prevDocCount)) { $prevDocCount = "" }
     $docTrend = Trend-Between $docCount $prevDocCount
 
-    $reportVals = jq -c -n `
-        --arg TIMESTAMP "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" `
-        --arg DURATION $duration `
-        --arg STATUS "$status" `
-        --arg CHECKS_TABLE "$checksTable" `
-        --arg ERRORS_TABLE "$errorsTable" `
-        --arg TOOLS_TABLE "$($toolRows -join "`n")" `
-        --arg DOC_COUNT "$docCount" `
-        --arg STANDARDS_LIST "$standards" `
-        --arg STANDARD_COUNT $standardCount `
-        --arg REGISTRY_PATH "$registryPath" `
-        --arg REPOSITORY "$repositoryName" `
-        --arg SERVICES "$services" `
-        --arg POLICY "$policy" `
-        --arg TOOL_COUNT $healthyToolCount `
-        --arg TOOL_ERROR_COUNT $errorCount `
-        --arg SCORE $score `
-        --arg TREND "$trend" `
-        --arg ANALYSIS "$analysis" `
-        --arg RECOMMENDATIONS "$recommendations" `
-        --arg PREV_SCORE "$prevScore" `
-        --arg PROTOCOL_VERSION "$($Script:AllResults.Protocol)" `
-        --arg HEALTHY_TOOL_COUNT $healthyToolCount `
-        --arg PREV_DOC_COUNT "$prevDocCount" `
-        --arg DOC_TREND "$docTrend" `
-        '{TIMESTAMP: $TIMESTAMP, DURATION: $DURATION, STATUS: $STATUS, CHECKS_TABLE: $CHECKS_TABLE, ERRORS_TABLE: $ERRORS_TABLE, TOOLS_TABLE: $TOOLS_TABLE, DOC_COUNT: $DOC_COUNT, STANDARDS_LIST: $STANDARDS_LIST, STANDARD_COUNT: $STANDARD_COUNT, REGISTRY_PATH: $REGISTRY_PATH, REPOSITORY: $REPOSITORY, SERVICES: $SERVICES, POLICY: $POLICY, TOOL_COUNT: $TOOL_COUNT, TOOL_ERROR_COUNT: $TOOL_ERROR_COUNT, SCORE: $SCORE, TREND: $TREND, ANALYSIS: $ANALYSIS, RECOMMENDATIONS: $RECOMMENDATIONS, PREV_SCORE: $PREV_SCORE, PROTOCOL_VERSION: $PROTOCOL_VERSION, HEALTHY_TOOL_COUNT: $HEALTHY_TOOL_COUNT, PREV_DOC_COUNT: $PREV_DOC_COUNT, DOC_TREND: $DOC_TREND}'
+    $reportVals = @{
+        TIMESTAMP = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+        DURATION = $duration
+        STATUS = "$status"
+        CHECKS_TABLE = "$checksTable"
+        ERRORS_TABLE = "$errorsTable"
+        TOOLS_TABLE = "$($toolRows -join "`n")"
+        DOC_COUNT = "$docCount"
+        STANDARDS_LIST = "$standards"
+        STANDARD_COUNT = $standardCount
+        REGISTRY_PATH = "$registryPath"
+        REPOSITORY = "$repositoryName"
+        SERVICES = "$services"
+        POLICY = "$policy"
+        TOOL_COUNT = $healthyToolCount
+        TOOL_ERROR_COUNT = $errorCount
+        SCORE = $score
+        TREND = "$trend"
+        ANALYSIS = "$analysis"
+        RECOMMENDATIONS = "$recommendations"
+        PREV_SCORE = "$prevScore"
+        PROTOCOL_VERSION = "$($Script:AllResults.Protocol)"
+        HEALTHY_TOOL_COUNT = $healthyToolCount
+        PREV_DOC_COUNT = "$prevDocCount"
+        DOC_TREND = "$docTrend"
+    } | ConvertTo-Json -Compress
     Write-Report "01-tool-health.md" "01-tool-health.md" $reportVals | Out-Null
 
-    $Script:PHASE_RESULTS["01-tool-health"] = jq -c -n --arg status "$status" --argjson errors $errorCount --argjson duration $duration --arg report "01-tool-health.md" --argjson score $score '{Status: $status, Errors: $errors, Duration: $duration, ReportFile: $report, Score: $score}'
+    $Script:PHASE_RESULTS["01-tool-health"] = @{Status = "$status"; Errors = $errorCount; Duration = $duration; ReportFile = "01-tool-health.md"; Score = $score} | ConvertTo-Json -Compress
     Write-Host "  → Score: $score/100 $trend — $status ($duration`s)" -ForegroundColor $(if ($status -match "FAIL") { "Red" } else { "Green" })
 }
 
@@ -423,7 +417,7 @@ function Phase-2-DomainScan {
     $Script:CURRENT_PHASE = "02-domain-catalog"
     Write-Host "Phase 2: Domain Scan..." -ForegroundColor Cyan
     $start = Get-Date
-    $checks = '[]'
+    $checks = New-Object System.Collections.ArrayList
 
     $domainsResult = Invoke-McpTool -Name "list_domains" -Arguments @{}
     $domains = @()
@@ -447,14 +441,14 @@ function Phase-2-DomainScan {
             }
         }
         $cnt = $domains.Count
-        $checks = $checks | jq -c --argjson cnt $cnt '. += [{"Name": "List Domains", "Status": "pass", "Detail": "\($cnt) domains"}]'
+        [void]$checks.Add(@{Name = "List Domains"; Status = "pass"; Detail = "$cnt domains"})
     } else {
-        $checks = $checks | jq -c '. += [{"Name": "List Domains", "Status": "fail", "Detail": "No domains"}]'
+        [void]$checks.Add(@{Name = "List Domains"; Status = "fail"; Detail = "No domains"})
     }
 
     $duration = [math]::Round(((Get-Date) - $start).TotalSeconds)
     $errorJson = Get-PhaseErrorsJson "02-domain-catalog"
-    $errorCount = [int]($errorJson | jq 'length')
+    $errorCount = [int]($errorJson | ConvertFrom-Json).Count
 
     $status = if ($allDomainNames.Count -gt 0) { "✅ PASS" } else { "❌ FAIL" }
 
@@ -468,7 +462,7 @@ function Phase-2-DomainScan {
     $prevScore = Get-PrevMetric "02-domain-catalog" "score"
     $trend = Trend-Between $score $prevScore
 
-    $Script:PHASE_RESULTS["02-domain-catalog"] = jq -c -n --arg status "$status" --argjson errors $errorCount --argjson duration $duration --arg report "02-domain-catalog.md" --argjson score $score '{Status: $status, Errors: $errors, Duration: $duration, ReportFile: $report, Score: $score}'
+    $Script:PHASE_RESULTS["02-domain-catalog"] = @{Status = "$status"; Errors = $errorCount; Duration = $duration; ReportFile = "02-domain-catalog.md"; Score = $score} | ConvertTo-Json -Compress
     Write-Host "  → Score: $score/100 $trend — $status ($duration`s)" -ForegroundColor $(if ($status -match "FAIL") { "Red" } else { "Green" })
 }
 
@@ -478,7 +472,7 @@ function Phase-3-DocDiscover {
     $Script:CURRENT_PHASE = "03-document-audit"
     Write-Host "Phase 3: Document Discovery..." -ForegroundColor Cyan
     $start = Get-Date
-    $checks = '[]'
+    $checks = New-Object System.Collections.ArrayList
 
     $domains = $Script:AllResults.Domains.Keys
     $totalDocs = 0
@@ -496,11 +490,11 @@ function Phase-3-DocDiscover {
             $totalDocs += $docs.Count
             $dc = $docs.Count
             $cn = "Docs in '$d'"
-            $checks = $checks | jq -c --arg n "$cn" --argjson dc $dc '. += [{"Name": $n, "Status": "pass", "Detail": "\($dc) docs"}]'
+            [void]$checks.Add(@{Name = $cn; Status = "pass"; Detail = "$dc docs"})
         } else {
             $Script:AllResults.Domains[$d].docCount = 0
             $cn = "Docs in '$d'"
-            $checks = $checks | jq -c --arg n "$cn" '. += [{"Name": $n, "Status": "skip", "Detail": "0 docs (or error)"}]'
+            [void]$checks.Add(@{Name = $cn; Status = "skip"; Detail = "0 docs (or error)"})
         }
         $allDocCount += $Script:AllResults.Domains[$d].docCount
     }
@@ -509,8 +503,8 @@ function Phase-3-DocDiscover {
 
     $duration = [math]::Round(((Get-Date) - $start).TotalSeconds)
     $errorJson = Get-PhaseErrorsJson "03-document-audit"
-    $errorCount = [int]($errorJson | jq 'length')
-    $hasFailChecks = [int]($checks | jq '[.[] | select(.Status == "fail")] | length')
+    $errorCount = [int]($errorJson | ConvertFrom-Json).Count
+    $hasFailChecks = @($checks | Where-Object { $_.Status -eq "fail" }).Count
     $status = if ($hasFailChecks -gt 0) { "⚠️ PARTIAL" } elseif ($allDocCount -gt 0) { "✅ PASS" } else { "❌ FAIL" }
 
     # Generate domain catalog report with actual doc counts
@@ -529,19 +523,34 @@ function Phase-3-DocDiscover {
     $sc = if ($Script:AllResults.Runtime -and $Script:AllResults.Runtime.standards) { $Script:AllResults.Runtime.standards.Count } else { 0 }
 
     # Build all checks from both phase 2 and 3
-    $allChecks = $checks | jq -c --argjson dc $domainNames.Count '. += [{"Name": "List Domains", "Status": "pass", "Detail": "\($dc) domains"}]'
-    $allChecksTable = (Get-ChecksTable $allChecks) -join "`n"
+    $checksJson = $checks | ConvertTo-Json -Compress
+    $allChecks = New-Object System.Collections.ArrayList
+    $phase3Items = $checksJson | ConvertFrom-Json
+    foreach ($item in $phase3Items) { [void]$allChecks.Add($item) }
+    [void]$allChecks.Add(@{Name = "List Domains"; Status = "pass"; Detail = "$($domainNames.Count) domains"})
+    $allChecksJson = $allChecks | ConvertTo-Json -Compress
+    $allChecksTable = (Get-ChecksTable $allChecksJson) -join "`n"
 
     $phase2Errors = Get-PhaseErrorsJson "02-domain-catalog"
-    $p2ErrorRows = ($phase2Errors | jq -r 'if length == 0 then "No errors" else (["| Tool Call | Error | Response |", "|-----------|-------|----------|"] + (.[] | "| " + (.Tool | gsub("\\|"; "\\|")) + " | " + (.Error | gsub("\\|"; "\\|")) + " | " + (.Response[0:120] | gsub("\\|"; "\\|")) + " |")) | join("\n") end') -join "`n"
+    $p2ErrorItems = $phase2Errors | ConvertFrom-Json
+    if ($p2ErrorItems.Count -eq 0) {
+        $p2ErrorRows = "No errors"
+    } else {
+        $rows = @("| Tool Call | Error | Response |", "|-----------|-------|----------|")
+        foreach ($e in $p2ErrorItems) {
+            $resp = if ($e.Response.Length -gt 120) { $e.Response.Substring(0, 120) } else { $e.Response }
+            $rows += "| $($e.Tool) | $($e.Error) | $resp |"
+        }
+        $p2ErrorRows = $rows -join "`n"
+    }
 
     # Phase 2 score from stored results
     $p2Obj = $Script:PHASE_RESULTS["02-domain-catalog"]
-    $p2Score = if ($p2Obj) { [int]($p2Obj | jq -r '.Score // 0') } else { 0 }
+    $p2Score = if ($p2Obj) { $p2Parsed = $p2Obj | ConvertFrom-Json; if ($null -ne $p2Parsed.Score) { [int]$p2Parsed.Score } else { 0 } } else { 0 }
     $p2Prev = Get-PrevMetric "02-domain-catalog" "score"
     $p2Trend = Trend-Between $p2Score $p2Prev
-    $p2Analysis = Gen-PhaseAnalysis "02-domain-catalog" $allChecks
-    $p2Recs = Gen-PhaseRecs "02-domain-catalog" $allChecks
+    $p2Analysis = Gen-PhaseAnalysis "02-domain-catalog" $allChecksJson
+    $p2Recs = Gen-PhaseRecs "02-domain-catalog" $allChecksJson
 
     $prevDocCount = Get-PrevMetric "03-document-audit" "prev_doc_count"
     if ([string]::IsNullOrEmpty($prevDocCount)) { $prevDocCount = "" }
@@ -550,28 +559,28 @@ function Phase-3-DocDiscover {
     if ([string]::IsNullOrEmpty($prevDomainCount)) { $prevDomainCount = "" }
     $domainTrend = Trend-Between $domainNames.Count $prevDomainCount
 
-    $reportVals = jq -c -n `
-        --arg TIMESTAMP "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" `
-        --arg DURATION $duration `
-        --arg STATUS "✅ PASS" `
-        --arg CHECKS_TABLE "$allChecksTable" `
-        --arg ERRORS_TABLE "$p2ErrorRows" `
-        --arg DOMAINS_TABLE "$($dcDomainRows -join "`n")" `
-        --arg STANDARDS_LIST "$dcStandards" `
-        --arg STANDARD_COUNT $sc `
-        --arg DOC_COUNTS_TABLE "$($dcDocCountRows -join "`n")" `
-        --arg DOMAIN_COUNT $domainNames.Count `
-        --arg DOCUMENT_COUNT $allDocCount `
-        --arg SCORE $p2Score `
-        --arg TREND "$p2Trend" `
-        --arg ANALYSIS "$p2Analysis" `
-        --arg RECOMMENDATIONS "$p2Recs" `
-        --arg PREV_SCORE "$p2Prev" `
-        --arg PREV_DOC_COUNT "$prevDocCount" `
-        --arg DOC_TREND "$docTrend" `
-        --arg PREV_DOMAIN_COUNT "$prevDomainCount" `
-        --arg DOMAIN_TREND "$domainTrend" `
-        '{TIMESTAMP: $TIMESTAMP, DURATION: $DURATION, STATUS: $STATUS, CHECKS_TABLE: $CHECKS_TABLE, ERRORS_TABLE: $ERRORS_TABLE, DOMAINS_TABLE: $DOMAINS_TABLE, STANDARDS_LIST: $STANDARDS_LIST, STANDARD_COUNT: $STANDARD_COUNT, DOC_COUNTS_TABLE: $DOC_COUNTS_TABLE, DOMAIN_COUNT: $DOMAIN_COUNT, DOCUMENT_COUNT: $DOCUMENT_COUNT, SCORE: $SCORE, TREND: $TREND, ANALYSIS: $ANALYSIS, RECOMMENDATIONS: $RECOMMENDATIONS, PREV_SCORE: $PREV_SCORE, PREV_DOC_COUNT: $PREV_DOC_COUNT, DOC_TREND: $DOC_TREND, PREV_DOMAIN_COUNT: $PREV_DOMAIN_COUNT, DOMAIN_TREND: $DOMAIN_TREND}'
+    $reportVals = @{
+        TIMESTAMP = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+        DURATION = $duration
+        STATUS = "✅ PASS"
+        CHECKS_TABLE = "$allChecksTable"
+        ERRORS_TABLE = "$p2ErrorRows"
+        DOMAINS_TABLE = "$($dcDomainRows -join "`n")"
+        STANDARDS_LIST = "$dcStandards"
+        STANDARD_COUNT = $sc
+        DOC_COUNTS_TABLE = "$($dcDocCountRows -join "`n")"
+        DOMAIN_COUNT = $domainNames.Count
+        DOCUMENT_COUNT = $allDocCount
+        SCORE = $p2Score
+        TREND = "$p2Trend"
+        ANALYSIS = "$p2Analysis"
+        RECOMMENDATIONS = "$p2Recs"
+        PREV_SCORE = "$p2Prev"
+        PREV_DOC_COUNT = "$prevDocCount"
+        DOC_TREND = "$docTrend"
+        PREV_DOMAIN_COUNT = "$prevDomainCount"
+        DOMAIN_TREND = "$domainTrend"
+    } | ConvertTo-Json -Compress
     Write-Report "02-domain-catalog.md" "02-domain-catalog.md" $reportVals | Out-Null
 
     # Score for doc-discover phase
@@ -586,7 +595,7 @@ function Phase-3-DocDiscover {
     $prevScore = Get-PrevMetric "03-document-audit" "score"
     $trend = Trend-Between $score $prevScore
 
-    $Script:PHASE_RESULTS["03-doc-discover"] = jq -c -n --arg status "$status" --argjson errors $errorCount --argjson duration $duration --argjson score $score '{Status: $status, Errors: $errors, Duration: $duration, Score: $score}'
+    $Script:PHASE_RESULTS["03-document-audit"] = @{Status = "$status"; Errors = $errorCount; Duration = $duration; Score = $score} | ConvertTo-Json -Compress
     Write-Host "  → Score: $score/100 $trend — $status ($allDocCount docs discovered)" -ForegroundColor $(if ($status -match "FAIL") { "Red" } else { "Green" })
 }
 
@@ -596,7 +605,7 @@ function Phase-4-DocVerify {
     $Script:CURRENT_PHASE = "03-document-audit"
     Write-Host "Phase 4: Document Verification..." -ForegroundColor Cyan
     $start = Get-Date
-    $checks = '[]'
+    $checks = New-Object System.Collections.ArrayList
 
     $domains = $Script:AllResults.Domains.Keys
     $domainNames = @($domains)
@@ -654,7 +663,11 @@ function Phase-4-DocVerify {
                 if ($bodyVal -and $bodyVal.sections) {
                     foreach ($section in $bodyVal.sections) {
                         $st = $section.semantic_type
-                        if ($st) { $Script:AllResults.Domains[$d].sectionTypes[$st] = ($Script:AllResults.Domains[$d].sectionTypes[$st] -or 0) + 1 }
+                        if ($st) {
+                            $cur = $Script:AllResults.Domains[$d].sectionTypes[$st]
+                            $curInt = if ($null -eq $cur) { 0 } else { [int]$cur }
+                            $Script:AllResults.Domains[$d].sectionTypes[$st] = $curInt + 1
+                        }
                         $allSectionsTotal++
                     }
                 }
@@ -668,7 +681,7 @@ function Phase-4-DocVerify {
             if (-not $doc.hash) { $docIssues += "no hash"; $issueCount++ }
 
             $issueStr = if ($docIssues.Count -gt 0) { $docIssues -join "; " } else { "✅" }
-            $coverageStr = if ($coverage -ne $null) { "$([math]::Round($coverage * 100, 0))%" } else { "?" }
+            $coverageStr = if ($coverage -as [double] -is [double]) { "$([math]::Round([double]$coverage * 100, 0))%" } else { "?" }
             $docParts.Add("| $docId | `"$title`" | $sectCount | $coverageStr | $issueStr |") | Out-Null
 
             if ($docIssues.Count -gt 0) {
@@ -689,8 +702,8 @@ function Phase-4-DocVerify {
     $Script:AllResults.TotalSections = $allSectionsTotal
 
     $allDocsCount = $allDocs.Count
-    $checks = $checks | jq -c --argjson dc $allDocsCount --argjson dm $domainNames.Count '. += [{"Name": "Document verification", "Status": "pass", "Detail": "\($dc) docs across \($dm) domains"}]'
-    $checks = $checks | jq -c --argjson ts $allSectionsTotal '. += [{"Name": "Section count", "Status": "pass", "Detail": "\($ts) sections total"}]'
+    [void]$checks.Add(@{Name = "Document verification"; Status = "pass"; Detail = "$allDocsCount docs across $($domainNames.Count) domains"})
+    [void]$checks.Add(@{Name = "Section count"; Status = "pass"; Detail = "$allSectionsTotal sections total"})
 
     $distRows = [System.Collections.ArrayList]::new()
     foreach ($k in @("0", "1-3", "4-7", "8-15", "16+")) {
@@ -701,10 +714,11 @@ function Phase-4-DocVerify {
 
     $duration = [math]::Round(((Get-Date) - $start).TotalSeconds)
     $errorJson = Get-PhaseErrorsJson "03-document-audit"
-    $errorCount = [int]($errorJson | jq 'length')
+    $errorCount = [int]($errorJson | ConvertFrom-Json).Count
     $status = if ($issueCount -gt 0) { "⚠️ PARTIAL" } else { "✅ PASS" }
 
-    $checksTable = (Get-ChecksTable $checks) -join "`n"
+    $checksJson = $checks | ConvertTo-Json -Compress
+    $checksTable = (Get-ChecksTable $checksJson) -join "`n"
     $errorsTable = (Get-ErrorsTable "03-document-audit") -join "`n"
 
     $issuesTable = "No issues found"
@@ -728,39 +742,45 @@ function Phase-4-DocVerify {
     if ($score -lt 0) { $score = 0 }
     if ($score -gt 100) { $score = 100 }
 
-    $analysis = Gen-PhaseAnalysis "03-document-audit" $checks
-    $recommendations = Gen-PhaseRecs "03-document-audit" $checks
+    $analysis = Gen-PhaseAnalysis "03-document-audit" $checksJson
+    $recommendations = Gen-PhaseRecs "03-document-audit" $checksJson
     $prevScore = Get-PrevMetric "03-document-audit" "score"
     $trend = Trend-Between $score $prevScore
     $prevSectCount = Get-PrevMetric "03-document-audit" "prev_sect_count"
     if ([string]::IsNullOrEmpty($prevSectCount)) { $prevSectCount = "" }
     $sectTrend = Trend-Between $allSectionsTotal $prevSectCount
+    $prevDocCount = Get-PrevMetric "03-document-audit" "prev_doc_count"
+    if ([string]::IsNullOrEmpty($prevDocCount)) { $prevDocCount = "" }
+    $prevIssues = Get-PrevMetric "03-document-audit" "prev_issue_count"
+    if ([string]::IsNullOrEmpty($prevIssues)) { $prevIssues = "" }
 
-    $reportVals = jq -c -n `
-        --arg TIMESTAMP "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" `
-        --arg DURATION $duration `
-        --arg STATUS "$status" `
-        --arg CHECKS_TABLE "$checksTable" `
-        --arg ERRORS_TABLE "$errorsTable" `
-        --arg DOMAIN_DOCS_SECTIONS "$($domainDocsSectionsParts -join "`n`n")" `
-        --arg QUALITY_TABLE "$($qualityRows -join "`n")" `
-        --arg ISSUES_LIST "$issuesTable" `
-        --arg SECTION_DIST_TABLE "$($distRows -join "`n")" `
-        --arg TOTAL_DOCS $allDocsCount `
-        --arg DOMAIN_COUNT $domainNames.Count `
-        --arg TOTAL_SECTIONS $allSectionsTotal `
-        --arg ISSUE_COUNT $issueCount `
-        --arg SCORE $score `
-        --arg TREND "$trend" `
-        --arg ANALYSIS "$analysis" `
-        --arg RECOMMENDATIONS "$recommendations" `
-        --arg PREV_SCORE "$prevScore" `
-        --arg PREV_SECT_COUNT "$prevSectCount" `
-        --arg SECT_TREND "$sectTrend" `
-        '{TIMESTAMP: $TIMESTAMP, DURATION: $DURATION, STATUS: $STATUS, CHECKS_TABLE: $CHECKS_TABLE, ERRORS_TABLE: $ERRORS_TABLE, DOMAIN_DOCS_SECTIONS: $DOMAIN_DOCS_SECTIONS, QUALITY_TABLE: $QUALITY_TABLE, ISSUES_LIST: $ISSUES_LIST, SECTION_DIST_TABLE: $SECTION_DIST_TABLE, TOTAL_DOCS: $TOTAL_DOCS, DOMAIN_COUNT: $DOMAIN_COUNT, TOTAL_SECTIONS: $TOTAL_SECTIONS, ISSUE_COUNT: $ISSUE_COUNT, SCORE: $SCORE, TREND: $TREND, ANALYSIS: $ANALYSIS, RECOMMENDATIONS: $RECOMMENDATIONS, PREV_SCORE: $PREV_SCORE, PREV_SECT_COUNT: $PREV_SECT_COUNT, SECT_TREND: $SECT_TREND}'
+    $reportVals = @{
+        TIMESTAMP = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+        DURATION = $duration
+        STATUS = "$status"
+        CHECKS_TABLE = "$checksTable"
+        ERRORS_TABLE = "$errorsTable"
+        DOMAIN_DOCS_SECTIONS = "$($domainDocsSectionsParts -join "`n`n")"
+        QUALITY_TABLE = "$($qualityRows -join "`n")"
+        ISSUES_LIST = "$issuesTable"
+        SECTION_DIST_TABLE = "$($distRows -join "`n")"
+        TOTAL_DOCS = $allDocsCount
+        DOMAIN_COUNT = $domainNames.Count
+        TOTAL_SECTIONS = $allSectionsTotal
+        ISSUE_COUNT = $issueCount
+        SCORE = $score
+        TREND = "$trend"
+        ANALYSIS = "$analysis"
+        RECOMMENDATIONS = "$recommendations"
+        PREV_SCORE = "$prevScore"
+        PREV_SECT_COUNT = "$prevSectCount"
+        SECT_TREND = "$sectTrend"
+        PREV_DOCS = "$prevDocCount"
+        PREV_ISSUES = "$prevIssues"
+    } | ConvertTo-Json -Compress
     Write-Report "03-document-audit.md" "03-document-audit.md" $reportVals | Out-Null
 
-    $Script:PHASE_RESULTS["03-document-audit"] = jq -c -n --arg status "$status" --argjson errors $errorCount --argjson duration $duration --arg report "03-document-audit.md" --argjson score $score '{Status: $status, Errors: $errors, Duration: $duration, ReportFile: $report, Score: $score}'
+    $Script:PHASE_RESULTS["03-document-audit"] = @{Status = "$status"; Errors = $errorCount; Duration = $duration; ReportFile = "03-document-audit.md"; Score = $score; doc_count = $allDocsCount; issue_count = $issueCount} | ConvertTo-Json -Compress
     Write-Host "  → Score: $score/100 $trend — $status ($issueCount issues)" -ForegroundColor $(if ($status -match "FAIL") { "Red" } elseif ($issueCount -gt 0) { "Yellow" } else { "Green" })
 }
 
@@ -770,7 +790,7 @@ function Phase-5-CrossSection {
     $Script:CURRENT_PHASE = "04-section-integrity"
     Write-Host "Phase 5: Cross-Section..." -ForegroundColor Cyan
     $start = Get-Date
-    $checks = '[]'
+    $checks = New-Object System.Collections.ArrayList
 
     # Collect unique (domain, type) pairs from Phase 4 data
     $pairs = @{}
@@ -809,11 +829,11 @@ function Phase-5-CrossSection {
     $Script:AllResults.SectionIds = $allSectionIds
     $Script:AllResults.SectionsByType = $sectionsByType
 
-    $checks = $checks | jq -c --argjson pc $pairCount --argjson ts $totalSections '. += [{"Name": "Cross-section query", "Status": "pass", "Detail": "\($pc) type-domain pairs, \($ts) sections"}]'
+    [void]$checks.Add(@{Name = "Cross-section query"; Status = "pass"; Detail = "$pairCount type-domain pairs, $totalSections sections"})
 
     $duration = [math]::Round(((Get-Date) - $start).TotalSeconds)
     $errorJson = Get-PhaseErrorsJson "04-section-integrity"
-    $errorCount = [int]($errorJson | jq 'length')
+    $errorCount = [int]($errorJson | ConvertFrom-Json).Count
 
     $status = if ($totalSections -gt 0) { "✅ PASS" } else { "⚠️ PARTIAL" }
 
@@ -830,7 +850,7 @@ function Phase-5-CrossSection {
     $prevScore = Get-PrevMetric "04-section-integrity" "score"
     $trend = Trend-Between $score $prevScore
 
-    $Script:PHASE_RESULTS["04-cross-section"] = jq -c -n --arg status "$status" --argjson errors $errorCount --argjson duration $duration --argjson score $score '{Status: $status, Errors: $errors, Duration: $duration, Score: $score}'
+    $Script:PHASE_RESULTS["04-section-integrity"] = @{Status = "$status"; Errors = $errorCount; Duration = $duration; Score = $score} | ConvertTo-Json -Compress
     Write-Host "  → $totalSections sections from $pairCount type-domain pairs" -ForegroundColor Green
 }
 
@@ -840,7 +860,7 @@ function Phase-6-SectionVerify {
     $Script:CURRENT_PHASE = "04-section-integrity"
     Write-Host "Phase 6: Section Verification..." -ForegroundColor Cyan
     $start = Get-Date
-    $checks = '[]'
+    $checks = New-Object System.Collections.ArrayList
 
     $sectionIds = $Script:AllResults.SectionIds
     $sectionVerifyParts = [System.Collections.ArrayList]::new()
@@ -872,6 +892,7 @@ function Phase-6-SectionVerify {
 
     $allUniqueTypes = @{}
 
+    # Pass 1: section verification (capped at $maxVerify to limit MCP calls)
     foreach ($d in $sectionIds.Keys) {
         foreach ($t in $sectionIds[$d].Keys) {
             $ids = $sectionIds[$d][$t]
@@ -880,11 +901,9 @@ function Phase-6-SectionVerify {
                 if ($verifyCount -ge $maxVerify) { break }
                 $verifyCount++
 
-                # get_section
                 $sectResult = Invoke-McpTool -Name "get_section" -Arguments @{ section_id = $sid }
                 $sectOk = if ($sectResult -and $sectResult.id -eq $sid) { "✅" } else { "❌" }
 
-                # get_section_changed
                 $changedResult = Invoke-McpTool -Name "get_section_changed" -Arguments @{ section_id = $sid }
                 $changed = if ($changedResult) { $changedResult.changed } else { "?" }
                 if ($changed -eq $true) { $staleCount++ }
@@ -892,8 +911,15 @@ function Phase-6-SectionVerify {
                 $verifyLines.Add("| $d | $sid | $t | $sectOk | $changed |") | Out-Null
                 $totalSections++
             }
-            # Audit knowledge per (domain, type) pair
-            if (-not $Script:NoAudit) {
+            if ($verifyCount -ge $maxVerify) { break }
+        }
+        if ($verifyCount -ge $maxVerify) { break }
+    }
+
+    # Pass 2: knowledge coverage — runs over ALL pairs, independent of section verify cap
+    if (-not $Script:NoAudit) {
+        foreach ($d in $sectionIds.Keys) {
+            foreach ($t in $sectionIds[$d].Keys) {
                 $knResult = Invoke-McpTool -Name "get_audit_knowledge" -Arguments @{
                     domain = $d
                     section_type = $t
@@ -906,9 +932,7 @@ function Phase-6-SectionVerify {
                     $knowledgeRows.Add("| $d | $t | ❌ Missing |") | Out-Null
                 }
             }
-            if ($verifyCount -ge $maxVerify) { break }
         }
-        if ($verifyCount -ge $maxVerify) { break }
     }
 
     $sectionVerifyParts.Add($verifyLines -join "`n") | Out-Null
@@ -953,14 +977,14 @@ function Phase-6-SectionVerify {
 
     $sectionTypesCount = $allUniqueTypes.Keys.Count
     $typeCount = $sectionTypesCount
-    $checks = $checks | jq -c --argjson ts $totalSections '. += [{"Name": "Section verification", "Status": "pass", "Detail": "\($ts) sections checked"}]'
+    [void]$checks.Add(@{Name = "Section verification"; Status = "pass"; Detail = "$totalSections sections checked"})
     if ($staleCount -gt 0) {
-        $checks = $checks | jq -c --argjson sc $staleCount '. += [{"Name": "Stale sections", "Status": "warn", "Detail": "\($sc) changed since last audit"}]'
+        [void]$checks.Add(@{Name = "Stale sections"; Status = "warn"; Detail = "$staleCount changed since last audit"})
     }
 
     $duration = [math]::Round(((Get-Date) - $start).TotalSeconds)
     $errorJson = Get-PhaseErrorsJson "04-section-integrity"
-    $errorCount = [int]($errorJson | jq 'length')
+    $errorCount = [int]($errorJson | ConvertFrom-Json).Count
     $status = "✅ PASS"
 
     # Change tracking table
@@ -970,57 +994,65 @@ function Phase-6-SectionVerify {
     if ($knowledgeRows.Count -eq 0) { $knowledgeRows.Add("| -- | -- | -- |") | Out-Null }
     if ($sectionTypeRows.Count -eq 0) { $sectionTypeRows.Add("| -- | -- |") | Out-Null }
 
-    $checksTable = (Get-ChecksTable $checks) -join "`n"
+    $checksJson = $checks | ConvertTo-Json -Compress
+    $checksTable = (Get-ChecksTable $checksJson) -join "`n"
     $errorsTable = (Get-ErrorsTable "04-section-integrity") -join "`n"
 
-    # Score: verification success rate + knowledge coverage
+    # Score: section freshness (primary) + knowledge coverage (secondary bonus)
+    # Knowledge gaps are tracked separately in Phase 9 (coverage-gaps) — don't let them
+    # tank a perfect section verification result.
     $score = 0
     if ($totalSections -gt 0) {
         $verOk = $totalSections - $staleCount
-        $verRate = [int]($verOk * 50 / $totalSections)
-        $knRate = 0
         $knTotal = $knowledgeCount + $knowledgeMissing
-        if ($knTotal -gt 0) { $knRate = [int]($knowledgeCount * 50 / $knTotal) }
-        $score = $verRate + $knRate
+        if ($knTotal -gt 0) {
+            # Both dimensions available: 70% freshness, 30% knowledge
+            $verRate  = [int]($verOk * 70 / $totalSections)
+            $knRate   = [int]($knowledgeCount * 30 / $knTotal)
+            $score    = $verRate + $knRate
+        } else {
+            # No knowledge data — score on freshness alone (full 100)
+            $score = [int]($verOk * 100 / $totalSections)
+        }
     }
     if ($errorCount -gt 0) { $score = $score - $errorCount * 3 }
     if ($score -lt 0) { $score = 0 }
 
-    $analysis = Gen-PhaseAnalysis "04-section-integrity" $checks
-    $recommendations = Gen-PhaseRecs "04-section-integrity" $checks
+    $analysis = Gen-PhaseAnalysis "04-section-integrity" $checksJson
+    $recommendations = Gen-PhaseRecs "04-section-integrity" $checksJson
     $prevScore = Get-PrevMetric "04-section-integrity" "score"
     $trend = Trend-Between $score $prevScore
     $prevStale = Get-PrevMetric "04-section-integrity" "stale"
     if ([string]::IsNullOrEmpty($prevStale)) { $prevStale = "" }
     $staleTrend = Trend-Between $staleCount $prevStale
 
-    $reportVals = jq -c -n `
-        --arg TIMESTAMP "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" `
-        --arg DURATION $duration `
-        --arg STATUS "$status" `
-        --arg CHECKS_TABLE "$checksTable" `
-        --arg ERRORS_TABLE "$errorsTable" `
-        --arg SECTION_TYPES_TABLE "$($sectionTypeRows -join "`n")" `
-        --arg SECTION_VERIFY_TABLE "$($sectionVerifyParts -join "`n`n")" `
-        --arg CHANGE_TRACKING_TABLE "$($changeTrackRows -join "`n")" `
-        --arg KNOWLEDGE_TABLE "$($knowledgeRows -join "`n")" `
-        --arg TOTAL_SECTIONS $totalSections `
-        --arg DOMAIN_COUNT $domainNames.Count `
-        --arg UNIQUE_TYPES $typeCount `
-        --arg STALE_SECTIONS $staleCount `
-        --arg KNOWLEDGE_COUNT $knowledgeCount `
-        --arg KNOWLEDGE_MISSING $knowledgeMissing `
-        --arg SCORE $score `
-        --arg TREND "$trend" `
-        --arg ANALYSIS "$analysis" `
-        --arg RECOMMENDATIONS "$recommendations" `
-        --arg PREV_SCORE "$prevScore" `
-        --arg PREV_STALE "$prevStale" `
-        --arg STALE_TREND "$staleTrend" `
-        '{TIMESTAMP: $TIMESTAMP, DURATION: $DURATION, STATUS: $STATUS, CHECKS_TABLE: $CHECKS_TABLE, ERRORS_TABLE: $ERRORS_TABLE, SECTION_TYPES_TABLE: $SECTION_TYPES_TABLE, SECTION_VERIFY_TABLE: $SECTION_VERIFY_TABLE, CHANGE_TRACKING_TABLE: $CHANGE_TRACKING_TABLE, KNOWLEDGE_TABLE: $KNOWLEDGE_TABLE, TOTAL_SECTIONS: $TOTAL_SECTIONS, DOMAIN_COUNT: $DOMAIN_COUNT, UNIQUE_TYPES: $UNIQUE_TYPES, STALE_SECTIONS: $STALE_SECTIONS, KNOWLEDGE_COUNT: $KNOWLEDGE_COUNT, KNOWLEDGE_MISSING: $KNOWLEDGE_MISSING, SCORE: $SCORE, TREND: $TREND, ANALYSIS: $ANALYSIS, RECOMMENDATIONS: $RECOMMENDATIONS, PREV_SCORE: $PREV_SCORE, PREV_STALE: $PREV_STALE, STALE_TREND: $STALE_TREND}'
+    $reportVals = @{
+        TIMESTAMP = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+        DURATION = $duration
+        STATUS = "$status"
+        CHECKS_TABLE = "$checksTable"
+        ERRORS_TABLE = "$errorsTable"
+        SECTION_TYPES_TABLE = "$($sectionTypeRows -join "`n")"
+        SECTION_VERIFY_TABLE = "$($sectionVerifyParts -join "`n`n")"
+        CHANGE_TRACKING_TABLE = "$($changeTrackRows -join "`n")"
+        KNOWLEDGE_TABLE = "$($knowledgeRows -join "`n")"
+        TOTAL_SECTIONS = $totalSections
+        DOMAIN_COUNT = $domainNames.Count
+        UNIQUE_TYPES = $typeCount
+        STALE_SECTIONS = $staleCount
+        KNOWLEDGE_COUNT = $knowledgeCount
+        KNOWLEDGE_MISSING = $knowledgeMissing
+        SCORE = $score
+        TREND = "$trend"
+        ANALYSIS = "$analysis"
+        RECOMMENDATIONS = "$recommendations"
+        PREV_SCORE = "$prevScore"
+        PREV_STALE = "$prevStale"
+        STALE_TREND = "$staleTrend"
+    } | ConvertTo-Json -Compress
     Write-Report "04-section-integrity.md" "04-section-integrity.md" $reportVals | Out-Null
 
-    $Script:PHASE_RESULTS["04-section-integrity"] = jq -c -n --arg status "$status" --argjson errors $errorCount --argjson duration $duration --arg report "04-section-integrity.md" --argjson score $score --argjson stale $staleCount '{Status: $status, Errors: $errors, Duration: $duration, ReportFile: $report, Score: $score, Stale: $stale}'
+    $Script:PHASE_RESULTS["04-section-integrity"] = @{Status = "$status"; Errors = $errorCount; Duration = $duration; ReportFile = "04-section-integrity.md"; Score = $score; Stale = $staleCount} | ConvertTo-Json -Compress
     Write-Host "  → Score: $score/100 $trend — $status ($totalSections sections)" -ForegroundColor Green
 }
 
@@ -1030,7 +1062,7 @@ function Phase-7-Search {
     $Script:CURRENT_PHASE = "05-search-results"
     Write-Host "Phase 7: Search..." -ForegroundColor Cyan
     $start = Get-Date
-    $checks = '[]'
+    $checks = New-Object System.Collections.ArrayList
 
     # Pick sample queries from discovered data
     $allDocs = $Script:AllResults.AllDocs
@@ -1068,60 +1100,63 @@ function Phase-7-Search {
             $queryResultParts.Add("| Document | Title | Score |") | Out-Null
             $queryResultParts.Add("|----------|-------|-------|") | Out-Null
             foreach ($hit in $result.results) {
-                $score = if ($hit.score -ne $null) { [math]::Round($hit.score, 4) } else { "--" }
+                $score = if ($hit.score -as [double] -is [double]) { [math]::Round([double]$hit.score, 4) } else { "--" }
                 $queryResultParts.Add("| $($hit.document_id) | `"$($hit.title)`" | $score |") | Out-Null
             }
             $queryResultParts.Add("") | Out-Null
             $queryResultParts.Add("_Results: $hitCount shown, $totalHits total_") | Out-Null
             $queryResultParts.Add("") | Out-Null
-            $checks = $checks | jq -c --arg q "$($q.query)" --argjson hc $hitCount '. += [{"Name": "Search \"\($q)\"", "Status": "pass", "Detail": "\($hc) results"}]'
+            $searchName = "Search `"$($q.query)`""
+            [void]$checks.Add(@{Name = $searchName; Status = "pass"; Detail = "$hitCount results"})
         } else {
             $searchErrors++
             $queryResultParts.Add("### Query: `"$($q.query)`"") | Out-Null
             $queryResultParts.Add("") | Out-Null
             $queryResultParts.Add("❌ No results or error") | Out-Null
             $queryResultParts.Add("") | Out-Null
-            $checks = $checks | jq -c --arg q "$($q.query)" '. += [{"Name": "Search \"\($q)\"", "Status": "warn", "Detail": "No results"}]'
+            $searchName = "Search `"$($q.query)`""
+            [void]$checks.Add(@{Name = $searchName; Status = "warn"; Detail = "No results"})
         }
     }
 
     $duration = [math]::Round(((Get-Date) - $start).TotalSeconds)
     $errorJson = Get-PhaseErrorsJson "05-search-results"
-    $errorCount = [int]($errorJson | jq 'length')
+    $errorCount = [int]($errorJson | ConvertFrom-Json).Count
     $status = if ($searchErrors -gt 0) { "⚠️ PARTIAL" } else { "✅ PASS" }
 
-    $checksTable = (Get-ChecksTable $checks) -join "`n"
+    $checksJson = $checks | ConvertTo-Json -Compress
+    $checksTable = (Get-ChecksTable $checksJson) -join "`n"
     $errorsTable = (Get-ErrorsTable "05-search-results") -join "`n"
 
     # Score: % of queries returning results
     $score = 0
     if ($expectedTotal -gt 0) { $score = [int]($expectedFound * 100 / $expectedTotal) }
 
-    $analysis = Gen-PhaseAnalysis "05-search-results" $checks
-    $recommendations = Gen-PhaseRecs "05-search-results" $checks
+    $analysis = Gen-PhaseAnalysis "05-search-results" $checksJson
+    $recommendations = Gen-PhaseRecs "05-search-results" $checksJson
     $prevScore = Get-PrevMetric "05-search-results" "score"
     $trend = Trend-Between $score $prevScore
 
-    $reportVals = jq -c -n `
-        --arg TIMESTAMP "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" `
-        --arg DURATION $duration `
-        --arg STATUS "$status" `
-        --arg CHECKS_TABLE "$checksTable" `
-        --arg ERRORS_TABLE "$errorsTable" `
-        --arg QUERY_RESULTS "$($queryResultParts -join "`n")" `
-        --arg QUERY_COUNT $sampleQueries.Count `
-        --arg EXPECTED_FOUND $expectedFound `
-        --arg EXPECTED_TOTAL $expectedTotal `
-        --arg SEARCH_ERRORS $searchErrors `
-        --arg SCORE $score `
-        --arg TREND "$trend" `
-        --arg ANALYSIS "$analysis" `
-        --arg RECOMMENDATIONS "$recommendations" `
-        --arg PREV_SCORE "$prevScore" `
-        '{TIMESTAMP: $TIMESTAMP, DURATION: $DURATION, STATUS: $STATUS, CHECKS_TABLE: $CHECKS_TABLE, ERRORS_TABLE: $ERRORS_TABLE, QUERY_RESULTS: $QUERY_RESULTS, QUERY_COUNT: $QUERY_COUNT, EXPECTED_FOUND: $EXPECTED_FOUND, EXPECTED_TOTAL: $EXPECTED_TOTAL, SEARCH_ERRORS: $SEARCH_ERRORS, SCORE: $SCORE, TREND: $TREND, ANALYSIS: $ANALYSIS, RECOMMENDATIONS: $RECOMMENDATIONS, PREV_SCORE: $PREV_SCORE}'
+    $reportVals = @{
+        TIMESTAMP = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+        DURATION = $duration
+        STATUS = "$status"
+        CHECKS_TABLE = "$checksTable"
+        ERRORS_TABLE = "$errorsTable"
+        QUERY_RESULTS = "$($queryResultParts -join "`n")"
+        QUERY_COUNT = $sampleQueries.Count
+        EXPECTED_FOUND = $expectedFound
+        EXPECTED_TOTAL = $expectedTotal
+        SEARCH_ERRORS = $searchErrors
+        SCORE = $score
+        TREND = "$trend"
+        ANALYSIS = "$analysis"
+        RECOMMENDATIONS = "$recommendations"
+        PREV_SCORE = "$prevScore"
+    } | ConvertTo-Json -Compress
     Write-Report "05-search-results.md" "05-search-results.md" $reportVals | Out-Null
 
-    $Script:PHASE_RESULTS["05-search-results"] = jq -c -n --arg status "$status" --argjson errors $errorCount --argjson duration $duration --arg report "05-search-results.md" --argjson score $score '{Status: $status, Errors: $errors, Duration: $duration, ReportFile: $report, Score: $score}'
+    $Script:PHASE_RESULTS["05-search-results"] = @{Status = "$status"; Errors = $errorCount; Duration = $duration; ReportFile = "05-search-results.md"; Score = $score} | ConvertTo-Json -Compress
     Write-Host "  → Score: $score/100 $trend — $status ($expectedFound/$expectedTotal queries OK)" -ForegroundColor $(if ($status -match "FAIL") { "Red" } else { "Green" })
 }
 
@@ -1131,33 +1166,33 @@ function Phase-8-Audit {
     $Script:CURRENT_PHASE = "06-audit-findings"
     Write-Host "Phase 8: Audit..." -ForegroundColor Cyan
     $start = Get-Date
-    $checks = '[]'
+    $checks = New-Object System.Collections.ArrayList
 
     if ($Script:NoAudit) {
         Write-Host "  Skipped (NoAudit)" -ForegroundColor DarkGray
-        $reportVals = jq -c -n `
-            --arg TIMESTAMP "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" `
-            --arg DURATION 0 `
-            --arg STATUS "⬜ SKIPPED" `
-            --arg CHECKS_TABLE "| - | Audit | ⬜ | Skipped via -NoAudit |" `
-            --arg ERRORS_TABLE "✅ No errors" `
-            --arg AUDIT_SCORES_TABLE "| -- | -- | -- | -- | -- | -- |" `
-            --arg FINDINGS_BY_DOMAIN "--" `
-            --arg GATES_TABLE "| -- | -- | -- | -- | -- |" `
-            --arg BLOCKED_GATES_DETAIL "--" `
-            --arg DOMAIN_COUNT 0 `
-            --arg TOTAL_FINDINGS 0 `
-            --arg GATE_PASSES 0 `
-            --arg GATE_TOTAL 0 `
-            --arg GATE_BLOCKS 0 `
-            --arg SCORE 0 `
-            --arg TREND "—" `
-            --arg ANALYSIS "Audit phase was skipped via -NoAudit flag." `
-            --arg RECOMMENDATIONS "Run without -NoAudit to assess audit health." `
-            --arg PREV_SCORE "" `
-            '{TIMESTAMP: $TIMESTAMP, DURATION: $DURATION, STATUS: $STATUS, CHECKS_TABLE: $CHECKS_TABLE, ERRORS_TABLE: $ERRORS_TABLE, AUDIT_SCORES_TABLE: $AUDIT_SCORES_TABLE, FINDINGS_BY_DOMAIN: $FINDINGS_BY_DOMAIN, GATES_TABLE: $GATES_TABLE, BLOCKED_GATES_DETAIL: $BLOCKED_GATES_DETAIL, DOMAIN_COUNT: $DOMAIN_COUNT, TOTAL_FINDINGS: $TOTAL_FINDINGS, GATE_PASSES: $GATE_PASSES, GATE_TOTAL: $GATE_TOTAL, GATE_BLOCKS: $GATE_BLOCKS, SCORE: $SCORE, TREND: $TREND, ANALYSIS: $ANALYSIS, RECOMMENDATIONS: $RECOMMENDATIONS, PREV_SCORE: $PREV_SCORE}'
+        $reportVals = @{
+            TIMESTAMP = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+            DURATION = 0
+            STATUS = "⬜ SKIPPED"
+            CHECKS_TABLE = "| - | Audit | ⬜ | Skipped via -NoAudit |"
+            ERRORS_TABLE = "✅ No errors"
+            AUDIT_SCORES_TABLE = "| -- | -- | -- | -- | -- | -- |"
+            FINDINGS_BY_DOMAIN = "--"
+            GATES_TABLE = "| -- | -- | -- | -- | -- |"
+            BLOCKED_GATES_DETAIL = "--"
+            DOMAIN_COUNT = 0
+            TOTAL_FINDINGS = 0
+            GATE_PASSES = 0
+            GATE_TOTAL = 0
+            GATE_BLOCKS = 0
+            SCORE = 0
+            TREND = "—"
+            ANALYSIS = "Audit phase was skipped via -NoAudit flag."
+            RECOMMENDATIONS = "Run without -NoAudit to assess audit health."
+            PREV_SCORE = ""
+        } | ConvertTo-Json -Compress
         Write-Report "06-audit-findings.md" "06-audit-findings.md" $reportVals | Out-Null
-        $Script:PHASE_RESULTS["06-audit-findings"] = jq -c -n --arg status "⬜ SKIPPED" --argjson errors 0 --arg duration 0 --arg report "06-audit-findings.md" --argjson score 0 '{Status: $status, Errors: $errors, Duration: $duration, ReportFile: $report, Score: $score}'
+        $Script:PHASE_RESULTS["06-audit-findings"] = @{Status = "⬜ SKIPPED"; Errors = 0; Duration = 0; ReportFile = "06-audit-findings.md"; Score = 0} | ConvertTo-Json -Compress
         return
     }
 
@@ -1186,11 +1221,14 @@ function Phase-8-Audit {
         $stageScores = @{}
         foreach ($stage in @("deterministic", "section", "document", "cross_domain")) {
             $reportResult = Invoke-McpTool -Name "get_audit_report" -Arguments @{ domain = $d; stage = $stage }
-            $s = if ($reportResult -and $reportResult.score -ne $null) { [math]::Round($reportResult.score, 2) } else { "--" }
+            $s = if ($reportResult -and $reportResult.score -as [double] -is [double]) { [math]::Round([double]$reportResult.score, 2) } else { "--" }
             $stageScores[$stage] = $s
         }
 
-        $scoreStr = if ($overallScore -ne $null) { [math]::Round($overallScore, 2) } else { "--" }
+        # If tool returns null/0 score but 0 findings, treat as 100 (no issues = perfect)
+        $effectiveScore = if ($overallScore -as [double] -is [double]) { [double]$overallScore } else { $null }
+        if (($null -eq $effectiveScore -or $effectiveScore -eq 0) -and $findings.Count -eq 0) { $effectiveScore = 100 }
+        $scoreStr = if ($null -ne $effectiveScore) { [math]::Round($effectiveScore, 2) } else { "--" }
         $scoreRows.Add("| $d | $scoreStr | $($stageScores["deterministic"]) | $($stageScores["section"]) | $($stageScores["document"]) | $($stageScores["cross_domain"]) |") | Out-Null
 
         # findings
@@ -1236,9 +1274,9 @@ function Phase-8-Audit {
         $gatesRows.Add("| $d | $($gateRow["deterministic"]) | $($gateRow["section"]) | $($gateRow["document"]) | $($gateRow["cross_domain"]) |") | Out-Null
     }
 
-    $checks = $checks | jq -c --argjson dc $domainNames.Count '. += [{"Name": "Domain audits", "Status": "pass", "Detail": "\($dc) domains audited"}]'
+    [void]$checks.Add(@{Name = "Domain audits"; Status = "pass"; Detail = "$($domainNames.Count) domains audited"})
     $gd = if ($gateBlocks -gt 0) { "warn" } else { "pass" }
-    $checks = $checks | jq -c --arg gd "$gd" --argjson gp $gatePasses --argjson gt $gateTotal '. += [{"Name": "Stage gates", "Status": $gd, "Detail": "\($gp)/\($gt) passed"}]'
+    [void]$checks.Add(@{Name = "Stage gates"; Status = $gd; Detail = "$gatePasses/$gateTotal passed"})
 
     if ($blockedDetail.Count -eq 0) { $blockedDetail.Add("No blocked gates") | Out-Null }
     if ($scoreRows.Count -eq 0) { $scoreRows.Add("| -- | -- | -- | -- | -- | -- |") | Out-Null }
@@ -1246,48 +1284,64 @@ function Phase-8-Audit {
 
     $duration = [math]::Round(((Get-Date) - $start).TotalSeconds)
     $errorJson = Get-PhaseErrorsJson "06-audit-findings"
-    $errorCount = [int]($errorJson | jq 'length')
+    $errorCount = [int]($errorJson | ConvertFrom-Json).Count
     $status = if ($gateBlocks -gt 0) { "⚠️ PARTIAL" } else { "✅ PASS" }
 
-    $checksTable = (Get-ChecksTable $checks) -join "`n"
+    $checksJson = $checks | ConvertTo-Json -Compress
+    $checksTable = (Get-ChecksTable $checksJson) -join "`n"
     $errorsTable = (Get-ErrorsTable "06-audit-findings") -join "`n"
 
-    # Score: gate pass rate (60%) + audit avg (40%)
+    # Score: gate pass rate (60%) + domain audit avg (40%)
     $score = 0
     if ($gateTotal -gt 0) {
         $gateScore = [int]($gatePasses * 60 / $gateTotal)
         $score = $gateScore
     }
+    # Compute audit avg from domain scores
+    $auditScores = @()
+    foreach ($row in $scoreRows) {
+        # row format: "| domain | overall | det | sec | doc | cross |"
+        $cells = $row -split '\|' | Where-Object { $_.Trim() -ne '' }
+        if ($cells.Count -ge 2) {
+            $ov = $cells[1].Trim()
+            if ($ov -as [double] -is [double]) { $auditScores += [double]$ov }
+        }
+    }
+    if ($auditScores.Count -gt 0) {
+        $auditAvg = ($auditScores | Measure-Object -Average).Average
+        $score += [int]($auditAvg * 0.4)
+    }
+    if ($score -gt 100) { $score = 100 }
 
-    $analysis = Gen-PhaseAnalysis "06-audit-findings" $checks
-    $recommendations = Gen-PhaseRecs "06-audit-findings" $checks
+    $analysis = Gen-PhaseAnalysis "06-audit-findings" $checksJson
+    $recommendations = Gen-PhaseRecs "06-audit-findings" $checksJson
     $prevScore = Get-PrevMetric "06-audit-findings" "score"
     $trend = Trend-Between $score $prevScore
 
-    $reportVals = jq -c -n `
-        --arg TIMESTAMP "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" `
-        --arg DURATION $duration `
-        --arg STATUS "$status" `
-        --arg CHECKS_TABLE "$checksTable" `
-        --arg ERRORS_TABLE "$errorsTable" `
-        --arg AUDIT_SCORES_TABLE "$($scoreRows -join "`n")" `
-        --arg FINDINGS_BY_DOMAIN "$($findingsByDomain -join "`n")" `
-        --arg GATES_TABLE "$($gatesRows -join "`n")" `
-        --arg BLOCKED_GATES_DETAIL "$($blockedDetail -join "`n")" `
-        --arg DOMAIN_COUNT $domainNames.Count `
-        --arg TOTAL_FINDINGS $totalFindings `
-        --arg GATE_PASSES $gatePasses `
-        --arg GATE_TOTAL $gateTotal `
-        --arg GATE_BLOCKS $gateBlocks `
-        --arg SCORE $score `
-        --arg TREND "$trend" `
-        --arg ANALYSIS "$analysis" `
-        --arg RECOMMENDATIONS "$recommendations" `
-        --arg PREV_SCORE "$prevScore" `
-        '{TIMESTAMP: $TIMESTAMP, DURATION: $DURATION, STATUS: $STATUS, CHECKS_TABLE: $CHECKS_TABLE, ERRORS_TABLE: $ERRORS_TABLE, AUDIT_SCORES_TABLE: $AUDIT_SCORES_TABLE, FINDINGS_BY_DOMAIN: $FINDINGS_BY_DOMAIN, GATES_TABLE: $GATES_TABLE, BLOCKED_GATES_DETAIL: $BLOCKED_GATES_DETAIL, DOMAIN_COUNT: $DOMAIN_COUNT, TOTAL_FINDINGS: $TOTAL_FINDINGS, GATE_PASSES: $GATE_PASSES, GATE_TOTAL: $GATE_TOTAL, GATE_BLOCKS: $GATE_BLOCKS, SCORE: $SCORE, TREND: $TREND, ANALYSIS: $ANALYSIS, RECOMMENDATIONS: $RECOMMENDATIONS, PREV_SCORE: $PREV_SCORE}'
+    $reportVals = @{
+        TIMESTAMP = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+        DURATION = $duration
+        STATUS = "$status"
+        CHECKS_TABLE = "$checksTable"
+        ERRORS_TABLE = "$errorsTable"
+        AUDIT_SCORES_TABLE = "$($scoreRows -join "`n")"
+        FINDINGS_BY_DOMAIN = "$($findingsByDomain -join "`n")"
+        GATES_TABLE = "$($gatesRows -join "`n")"
+        BLOCKED_GATES_DETAIL = "$($blockedDetail -join "`n")"
+        DOMAIN_COUNT = $domainNames.Count
+        TOTAL_FINDINGS = $totalFindings
+        GATE_PASSES = $gatePasses
+        GATE_TOTAL = $gateTotal
+        GATE_BLOCKS = $gateBlocks
+        SCORE = $score
+        TREND = "$trend"
+        ANALYSIS = "$analysis"
+        RECOMMENDATIONS = "$recommendations"
+        PREV_SCORE = "$prevScore"
+    } | ConvertTo-Json -Compress
     Write-Report "06-audit-findings.md" "06-audit-findings.md" $reportVals | Out-Null
 
-    $Script:PHASE_RESULTS["06-audit-findings"] = jq -c -n --arg status "$status" --argjson errors $errorCount --argjson duration $duration --arg report "06-audit-findings.md" --argjson score $score '{Status: $status, Errors: $errors, Duration: $duration, ReportFile: $report, Score: $score}'
+    $Script:PHASE_RESULTS["06-audit-findings"] = @{Status = "$status"; Errors = $errorCount; Duration = $duration; ReportFile = "06-audit-findings.md"; Score = $score} | ConvertTo-Json -Compress
     Write-Host "  → Score: $score/100 $trend — $status ($totalFindings findings, $gatePasses/$gateTotal gates)" -ForegroundColor $(if ($status -match "FAIL") { "Red" } else { "Green" })
 }
 
@@ -1297,7 +1351,7 @@ function Phase-9-Gaps {
     $Script:CURRENT_PHASE = "07-coverage-gaps"
     Write-Host "Phase 9: Coverage Gaps..." -ForegroundColor Cyan
     $start = Get-Date
-    $checks = '[]'
+    $checks = New-Object System.Collections.ArrayList
 
     $missingKnowledge = [System.Collections.ArrayList]::new()
     $emptySections = [System.Collections.ArrayList]::new()
@@ -1309,7 +1363,9 @@ function Phase-9-Gaps {
     $lowQCount = 0
     $reqMissingCount = 0
 
-    # Check knowledge coverage: if a section type exists for a domain but no knowledge file
+    # Check knowledge coverage for all (domain, type) pairs
+    # Phase 6 already ran these calls — results are in $Script:AllResults.SectionIds
+    # We re-check here because Phase 9 may run with -NoAudit=false even when Phase 6 was skipped
     foreach ($d in $Script:AllResults.Domains.Keys) {
         $types = $Script:AllResults.Domains[$d].sectionTypes
         foreach ($t in $types.Keys) {
@@ -1332,7 +1388,8 @@ function Phase-9-Gaps {
             foreach ($prop in $doc.body.PSObject.Properties) { $bodyProp = $prop.Value; break }
         }
 
-        $cov = if ($quality -and $quality.coverage -ne $null) { $quality.coverage } else { 1.0 }
+        $rawCov = if ($quality -and $quality.coverage -ne $null) { $quality.coverage } else { 1.0 }
+        $cov = if ($rawCov -as [double] -is [double]) { [double]$rawCov } else { 1.0 }
 
         if ($quality -and $quality.empty_section_count -gt 0) {
             $lowQuality.Add("| $($doc.id) | `"$($doc.title)`" | $($item.domain) | $($quality.empty_section_count) empty, coverage $([math]::Round($cov * 100, 0))% |") | Out-Null
@@ -1363,9 +1420,12 @@ function Phase-9-Gaps {
         }
     }
 
-    $checks = $checks | jq -c --argjson mkc $missingKnCount '. += [{"Name": "Knowledge coverage", "Status": (if $mkc > 0 then "warn" else "pass" end), "Detail": "\($mkc) missing"}]'
-    $checks = $checks | jq -c --argjson ec $emptyCount '. += [{"Name": "Empty sections", "Status": (if $ec > 0 then "warn" else "pass" end), "Detail": "\($ec) empty"}]'
-    $checks = $checks | jq -c --argjson lqc $lowQCount '. += [{"Name": "Low quality docs", "Status": (if $lqc > 0 then "warn" else "pass" end), "Detail": "\($lqc) docs"}]'
+    $knStatus = if ($missingKnCount -gt 0) { "warn" } else { "pass" }
+    [void]$checks.Add(@{Name = "Knowledge coverage"; Status = $knStatus; Detail = "$missingKnCount missing"})
+    $esStatus = if ($emptyCount -gt 0) { "warn" } else { "pass" }
+    [void]$checks.Add(@{Name = "Empty sections"; Status = $esStatus; Detail = "$emptyCount empty"})
+    $lqStatus = if ($lowQCount -gt 0) { "warn" } else { "pass" }
+    [void]$checks.Add(@{Name = "Low quality docs"; Status = $lqStatus; Detail = "$lowQCount docs"})
 
     if ($missingKnowledge.Count -eq 0) { $missingKnowledge.Add("| -- | -- | All covered |") | Out-Null }
     if ($emptySections.Count -eq 0) { $emptySections.Add("| -- | -- | -- |") | Out-Null }
@@ -1379,10 +1439,11 @@ function Phase-9-Gaps {
 
     $duration = [math]::Round(((Get-Date) - $start).TotalSeconds)
     $errorJson = Get-PhaseErrorsJson "07-coverage-gaps"
-    $errorCount = [int]($errorJson | jq 'length')
+    $errorCount = [int]($errorJson | ConvertFrom-Json).Count
     $status = if ($missingKnCount -gt 0 -or $emptyCount -gt 0 -or $lowQCount -gt 0) { "⚠️ PARTIAL" } else { "✅ PASS" }
 
-    $checksTable = (Get-ChecksTable $checks) -join "`n"
+    $checksJson = $checks | ConvertTo-Json -Compress
+    $checksTable = (Get-ChecksTable $checksJson) -join "`n"
     $errorsTable = (Get-ErrorsTable "07-coverage-gaps") -join "`n"
 
     # Score: lower gaps = better; max penalty 100 pts across gap types
@@ -1391,34 +1452,34 @@ function Phase-9-Gaps {
     if ($gapTotal -gt 0) { $score = 100 - $gapTotal * 10 }
     if ($score -lt 0) { $score = 0 }
 
-    $analysis = Gen-PhaseAnalysis "07-coverage-gaps" $checks
-    $recommendations = Gen-PhaseRecs "07-coverage-gaps" $checks
+    $analysis = Gen-PhaseAnalysis "07-coverage-gaps" $checksJson
+    $recommendations = Gen-PhaseRecs "07-coverage-gaps" $checksJson
     $prevScore = Get-PrevMetric "07-coverage-gaps" "score"
     $trend = Trend-Between $score $prevScore
 
-    $reportVals = jq -c -n `
-        --arg TIMESTAMP "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" `
-        --arg DURATION $duration `
-        --arg STATUS "$status" `
-        --arg CHECKS_TABLE "$checksTable" `
-        --arg ERRORS_TABLE "$errorsTable" `
-        --arg MISSING_KNOWLEDGE_TABLE "$mkTable" `
-        --arg EMPTY_SECTIONS_TABLE "$esTable" `
-        --arg LOW_QUALITY_TABLE "$lqTable" `
-        --arg REQUIRED_MISSING_TABLE "$rmTable" `
-        --arg MISSING_KNOWLEDGE_COUNT $missingKnCount `
-        --arg EMPTY_SECTION_COUNT $emptyCount `
-        --arg LOW_QUALITY_COUNT $lowQCount `
-        --arg REQUIRED_MISSING_COUNT $reqMissingCount `
-        --arg SCORE $score `
-        --arg TREND "$trend" `
-        --arg ANALYSIS "$analysis" `
-        --arg RECOMMENDATIONS "$recommendations" `
-        --arg PREV_SCORE "$prevScore" `
-        '{TIMESTAMP: $TIMESTAMP, DURATION: $DURATION, STATUS: $STATUS, CHECKS_TABLE: $CHECKS_TABLE, ERRORS_TABLE: $ERRORS_TABLE, MISSING_KNOWLEDGE_TABLE: $MISSING_KNOWLEDGE_TABLE, EMPTY_SECTIONS_TABLE: $EMPTY_SECTIONS_TABLE, LOW_QUALITY_TABLE: $LOW_QUALITY_TABLE, REQUIRED_MISSING_TABLE: $REQUIRED_MISSING_TABLE, MISSING_KNOWLEDGE_COUNT: $MISSING_KNOWLEDGE_COUNT, EMPTY_SECTION_COUNT: $EMPTY_SECTION_COUNT, LOW_QUALITY_COUNT: $LOW_QUALITY_COUNT, REQUIRED_MISSING_COUNT: $REQUIRED_MISSING_COUNT, SCORE: $SCORE, TREND: $TREND, ANALYSIS: $ANALYSIS, RECOMMENDATIONS: $RECOMMENDATIONS, PREV_SCORE: $PREV_SCORE}'
+    $reportVals = @{
+        TIMESTAMP = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+        DURATION = $duration
+        STATUS = "$status"
+        CHECKS_TABLE = "$checksTable"
+        ERRORS_TABLE = "$errorsTable"
+        MISSING_KNOWLEDGE_TABLE = "$mkTable"
+        EMPTY_SECTIONS_TABLE = "$esTable"
+        LOW_QUALITY_TABLE = "$lqTable"
+        REQUIRED_MISSING_TABLE = "$rmTable"
+        MISSING_KNOWLEDGE_COUNT = $missingKnCount
+        EMPTY_SECTION_COUNT = $emptyCount
+        LOW_QUALITY_COUNT = $lowQCount
+        REQUIRED_MISSING_COUNT = $reqMissingCount
+        SCORE = $score
+        TREND = "$trend"
+        ANALYSIS = "$analysis"
+        RECOMMENDATIONS = "$recommendations"
+        PREV_SCORE = "$prevScore"
+    } | ConvertTo-Json -Compress
     Write-Report "07-coverage-gaps.md" "07-coverage-gaps.md" $reportVals | Out-Null
 
-    $Script:PHASE_RESULTS["07-coverage-gaps"] = jq -c -n --arg status "$status" --argjson errors $errorCount --argjson duration $duration --arg report "07-coverage-gaps.md" --argjson score $score '{Status: $status, Errors: $errors, Duration: $duration, ReportFile: $report, Score: $score}'
+    $Script:PHASE_RESULTS["07-coverage-gaps"] = @{Status = "$status"; Errors = $errorCount; Duration = $duration; ReportFile = "07-coverage-gaps.md"; Score = $score} | ConvertTo-Json -Compress
     Write-Host "  → Score: $score/100 $trend — $status ($gapTotal gaps)" -ForegroundColor $(if ($status -match "FAIL") { "Red" } elseif ($gapTotal -gt 0) { "Yellow" } else { "Green" })
 }
 
@@ -1428,12 +1489,12 @@ function Phase-10-Registry {
     $Script:CURRENT_PHASE = "08-registry-state"
     Write-Host "Phase 10: Registry State..." -ForegroundColor Cyan
     $start = Get-Date
-    $checks = '[]'
+    $checks = New-Object System.Collections.ArrayList
 
     # list_repositories
     $reposResult = Invoke-McpTool -Name "list_repositories" -Arguments @{ limit = 50 }
     $repoCount = if ($reposResult -and $reposResult.repositories) { $reposResult.repositories.Count } else { 0 }
-    $checks = $checks | jq -c --argjson rc $repoCount '. += [{"Name": "List repositories", "Status": "pass", "Detail": "\($rc) repos"}]'
+    [void]$checks.Add(@{Name = "List repositories"; Status = "pass"; Detail = "$repoCount repos"})
 
     $reposTableLines = [System.Collections.ArrayList]::new()
     $reposTableLines.Add("| # | ID | UUID | Status |") | Out-Null
@@ -1466,7 +1527,7 @@ function Phase-10-Registry {
     } else {
         $depsTableLines.Add("| -- | -- | -- | -- |") | Out-Null
     }
-    $checks = $checks | jq -c --argjson dc $depCount --argjson uc $unresolvedCount '. += [{"Name": "Resolve dependencies", "Status": "pass", "Detail": "\($dc) deps, \($uc) unresolved"}]'
+    [void]$checks.Add(@{Name = "Resolve dependencies"; Status = "pass"; Detail = "$depCount deps, $unresolvedCount unresolved"})
 
     # workspace_status
     $wsResult = Invoke-McpTool -Name "workspace_status" -Arguments @{}
@@ -1500,7 +1561,9 @@ function Phase-10-Registry {
 
     # synchronize_repository
     $syncResult = Invoke-McpTool -Name "synchronize_repository" -Arguments @{}
-    $checks = $checks | jq -c --arg r ($syncResult -ne $null) '. += [{"Name": "Synchronize repository", "Status": (if $r == "True" then "pass" else "warn" end), "Detail": "done"}]'
+    $syncOk = ($syncResult -ne $null)
+    $syncStatus = if ($syncOk) { "pass" } else { "warn" }
+    [void]$checks.Add(@{Name = "Synchronize repository"; Status = $syncStatus; Detail = "done"})
 
     # ── Write-tool smoke tests ──
     $writeToolLines = [System.Collections.ArrayList]::new()
@@ -1546,53 +1609,57 @@ function Phase-10-Registry {
     else { $writeToolLines.Add("| unregister_repository | bogus UUID | reject not-found | ❌ accepted |") | Out-Null }
 
     $ws = if ($writePass -eq $writeTotal) { "pass" } else { "warn" }
-    $checks = $checks | jq -c --arg ws "$ws" --argjson wp $writePass --argjson wt $writeTotal '. += [{"Name": "Write-tool validation", "Status": $ws, "Detail": "\($wp)/\($wt) pass"}]'
+    [void]$checks.Add(@{Name = "Write-tool validation"; Status = $ws; Detail = "$writePass/$writeTotal pass"})
 
     $duration = [math]::Round(((Get-Date) - $start).TotalSeconds)
     $errorJson = Get-PhaseErrorsJson "08-registry-state"
-    $errorCount = [int]($errorJson | jq 'length')
+    $errorCount = [int]($errorJson | ConvertFrom-Json).Count
     $status = if ($writePass -ne $writeTotal) { "⚠️ PARTIAL" } else { "✅ PASS" }
 
-    $checksTable = (Get-ChecksTable $checks) -join "`n"
+    $checksJson = $checks | ConvertTo-Json -Compress
+    $checksTable = (Get-ChecksTable $checksJson) -join "`n"
     $errorsTable = (Get-ErrorsTable "08-registry-state") -join "`n"
 
     # Score: write-tool pass rate (70%) + dependencies resolved (30%)
     $subScore = [int]($writePass * 70 / [Math]::Max($writeTotal, 1))
-    $depTotal = $depCount + $unresolvedCount
-    $depScore = 0
-    if ($depTotal -gt 0) { $depScore = [int]($depCount * 30 / $depTotal) }
+    $depScore = if ($depCount -eq 0) {
+        30  # no deps declared = no dependency issues = full marks
+    } else {
+        $resolved = $depCount - $unresolvedCount
+        [int]([Math]::Max($resolved, 0) * 30 / $depCount)
+    }
     $score = $subScore + $depScore
 
-    $analysis = Gen-PhaseAnalysis "08-registry-state" $checks
-    $recommendations = Gen-PhaseRecs "08-registry-state" $checks
+    $analysis = Gen-PhaseAnalysis "08-registry-state" $checksJson
+    $recommendations = Gen-PhaseRecs "08-registry-state" $checksJson
     $prevScore = Get-PrevMetric "08-registry-state" "score"
     $trend = Trend-Between $score $prevScore
 
-    $reportVals = jq -c -n `
-        --arg TIMESTAMP "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" `
-        --arg DURATION $duration `
-        --arg STATUS "$status" `
-        --arg CHECKS_TABLE "$checksTable" `
-        --arg ERRORS_TABLE "$errorsTable" `
-        --arg REPOS_TABLE "$($reposTableLines -join "`n")" `
-        --arg DEPS_TABLE "$($depsTableLines -join "`n")" `
-        --arg WORKSPACE_TABLE "$($wsTableLines -join "`n")" `
-        --arg REPO_STATUS_TABLE "$($rsTableLines -join "`n")" `
-        --arg WRITE_TOOL_TABLE "$($writeToolLines -join "`n")" `
-        --arg REPO_COUNT $repoCount `
-        --arg DEP_COUNT $depCount `
-        --arg UNRESOLVED_COUNT $unresolvedCount `
-        --arg WRITE_PASS $writePass `
-        --arg WRITE_TOTAL $writeTotal `
-        --arg SCORE $score `
-        --arg TREND "$trend" `
-        --arg ANALYSIS "$analysis" `
-        --arg RECOMMENDATIONS "$recommendations" `
-        --arg PREV_SCORE "$prevScore" `
-        '{TIMESTAMP: $TIMESTAMP, DURATION: $DURATION, STATUS: $STATUS, CHECKS_TABLE: $CHECKS_TABLE, ERRORS_TABLE: $ERRORS_TABLE, REPOS_TABLE: $REPOS_TABLE, DEPS_TABLE: $DEPS_TABLE, WORKSPACE_TABLE: $WORKSPACE_TABLE, REPO_STATUS_TABLE: $REPO_STATUS_TABLE, WRITE_TOOL_TABLE: $WRITE_TOOL_TABLE, REPO_COUNT: $REPO_COUNT, DEP_COUNT: $DEP_COUNT, UNRESOLVED_COUNT: $UNRESOLVED_COUNT, WRITE_PASS: $WRITE_PASS, WRITE_TOTAL: $WRITE_TOTAL, SCORE: $SCORE, TREND: $TREND, ANALYSIS: $ANALYSIS, RECOMMENDATIONS: $RECOMMENDATIONS, PREV_SCORE: $PREV_SCORE}'
+    $reportVals = @{
+        TIMESTAMP = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+        DURATION = $duration
+        STATUS = "$status"
+        CHECKS_TABLE = "$checksTable"
+        ERRORS_TABLE = "$errorsTable"
+        REPOS_TABLE = "$($reposTableLines -join "`n")"
+        DEPS_TABLE = "$($depsTableLines -join "`n")"
+        WORKSPACE_TABLE = "$($wsTableLines -join "`n")"
+        REPO_STATUS_TABLE = "$($rsTableLines -join "`n")"
+        WRITE_TOOL_TABLE = "$($writeToolLines -join "`n")"
+        REPO_COUNT = $repoCount
+        DEP_COUNT = $depCount
+        UNRESOLVED_COUNT = $unresolvedCount
+        WRITE_PASS = $writePass
+        WRITE_TOTAL = $writeTotal
+        SCORE = $score
+        TREND = "$trend"
+        ANALYSIS = "$analysis"
+        RECOMMENDATIONS = "$recommendations"
+        PREV_SCORE = "$prevScore"
+    } | ConvertTo-Json -Compress
     Write-Report "08-registry-state.md" "08-registry-state.md" $reportVals | Out-Null
 
-    $Script:PHASE_RESULTS["08-registry-state"] = jq -c -n --arg status "$status" --argjson errors $errorCount --argjson duration $duration --arg report "08-registry-state.md" --argjson score $score '{Status: $status, Errors: $errors, Duration: $duration, ReportFile: $report, Score: $score}'
+    $Script:PHASE_RESULTS["08-registry-state"] = @{Status = "$status"; Errors = $errorCount; Duration = $duration; ReportFile = "08-registry-state.md"; Score = $score} | ConvertTo-Json -Compress
     Write-Host "  → Score: $score/100 $trend — $status ($writePass/$writeTotal write-tool)" -ForegroundColor $(if ($status -match "FAIL") { "Red" } else { "Green" })
 }
 
@@ -1621,20 +1688,22 @@ function Phase-11-Summary {
     foreach ($key in $phaseOrder) {
         if (-not $Script:PHASE_RESULTS.ContainsKey($key)) { continue }
         $pr = $Script:PHASE_RESULTS[$key]
-        $reportFile = $pr | jq -r '.ReportFile // ""'
+        $prObj = $pr | ConvertFrom-Json
+        $reportFile = if ($null -ne $prObj.ReportFile) { $prObj.ReportFile } else { "" }
         if ([string]::IsNullOrEmpty($reportFile)) { continue }
         $name = $reportFile -replace '\.md$', ''
-        $status = $pr | jq -r '.Status // "?"'
-        $errors = [int]($pr | jq -r '.Errors // 0')
-        $pDuration = [int]($pr | jq -r '.Duration // 0')
-        $ps = $pr | jq -r '.Score // empty'
-        $phaseRows.Add("| $name | $reportFile | $status | $errors | ${pDuration}s |") | Out-Null
+        $status = if ($null -ne $prObj.Status) { $prObj.Status } else { "?" }
+        $errors = if ($null -ne $prObj.Errors) { [int]$prObj.Errors } else { 0 }
+        $pDuration = if ($null -ne $prObj.Duration) { [int]$prObj.Duration } else { 0 }
+        $ps = if ($null -ne $prObj.Score) { $prObj.Score } else { $null }
+        $scoreStr = if ($null -ne $ps) { "$ps/100" } else { "—" }
+        $phaseRows.Add("| $name | $reportFile | $scoreStr | $status | $errors | ${pDuration}s |") | Out-Null
         $totalErrors += $errors
         $totalDuration += $pDuration
         if ($status -match "FAIL|PARTIAL") {
             $failedPhases.Add("- **$reportFile**: $status ($errors errors)") | Out-Null
         }
-        if (-not [string]::IsNullOrEmpty($ps) -and $ps -ne "null") {
+        if ($null -ne $ps -and $ps -ne "null") {
             $scoreSum += [int]$ps
             $scoreCount++
         }
@@ -1671,8 +1740,9 @@ function Phase-11-Summary {
         foreach ($key in $phaseOrder) {
             if (-not $Script:PHASE_RESULTS.ContainsKey($key)) { continue }
             $pr = $Script:PHASE_RESULTS[$key]
-            $ps = [int]($pr | jq -r '.Score // 0')
-            $rpt = $pr | jq -r '.ReportFile // ""'
+            $prObj = $pr | ConvertFrom-Json
+            $ps = if ($null -ne $prObj.Score) { [int]$prObj.Score } else { 0 }
+            $rpt = if ($null -ne $prObj.ReportFile) { $prObj.ReportFile } else { "" }
             if ($ps -lt $minScore) { $minScore = $ps; $minPhase = $rpt }
             if ($ps -gt $maxScore) { $maxScore = $ps; $maxPhase = $rpt }
         }
@@ -1686,7 +1756,8 @@ function Phase-11-Summary {
         foreach ($key in $phaseOrder) {
             if (-not $Script:PHASE_RESULTS.ContainsKey($key)) { continue }
             $pr = $Script:PHASE_RESULTS[$key]
-            $ps = [int]($pr | jq -r '.Score // 0')
+            $prObj = $pr | ConvertFrom-Json
+            $ps = if ($null -ne $prObj.Score) { [int]$prObj.Score } else { 0 }
             if ($ps -lt 60) { $lowPhases++ }
         }
         if ($lowPhases -gt 0) { $overallRecs += "- Investigate $lowPhases phase(s) scoring below 60.`n" }
@@ -1694,46 +1765,48 @@ function Phase-11-Summary {
         if ([string]::IsNullOrEmpty($overallRecs)) { $overallRecs = "- All phases performing well. Maintain current practices.`n" }
     }
 
-    $reportVals = jq -c -n `
-        --arg TIMESTAMP "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" `
-        --arg TOTAL_DURATION $totalDuration `
-        --arg OVERALL_STATUS "$overallStatus" `
-        --arg PHASE_RESULTS_ROWS "$($phaseRows -join "`n")" `
-        --arg TOOL_COUNT $toolCount `
-        --arg DOMAIN_COUNT $domainCount `
-        --arg DOCUMENT_COUNT $docCount `
-        --arg SECTION_COUNT $sectCount `
-        --arg SECTION_TYPE_COUNT $sectTypeCount `
-        --arg TOTAL_CALLS $Script:TOTAL_CALLS `
-        --arg TOTAL_ERRORS $totalErrors `
-        --arg FAILED_PHASES "$($failedPhases -join "`n")" `
-        --arg ARCHIVE_PATH "$archiveStr" `
-        --arg SCORE $totalScore `
-        --arg TREND "$totalTrend" `
-        --arg PREV_SCORE "$prevTotalScore" `
-        --arg ANALYSIS "$overallAnalysis" `
-        --arg RECOMMENDATIONS "$overallRecs" `
-        '{TIMESTAMP: $TIMESTAMP, TOTAL_DURATION: $TOTAL_DURATION, OVERALL_STATUS: $OVERALL_STATUS, PHASE_RESULTS_ROWS: $PHASE_RESULTS_ROWS, TOOL_COUNT: $TOOL_COUNT, DOMAIN_COUNT: $DOMAIN_COUNT, DOCUMENT_COUNT: $DOCUMENT_COUNT, SECTION_COUNT: $SECTION_COUNT, SECTION_TYPE_COUNT: $SECTION_TYPE_COUNT, TOTAL_CALLS: $TOTAL_CALLS, TOTAL_ERRORS: $TOTAL_ERRORS, FAILED_PHASES: $FAILED_PHASES, ARCHIVE_PATH: $ARCHIVE_PATH, SCORE: $SCORE, TREND: $TREND, PREV_SCORE: $PREV_SCORE, ANALYSIS: $ANALYSIS, RECOMMENDATIONS: $RECOMMENDATIONS}'
+    $reportVals = @{
+        TIMESTAMP = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+        TOTAL_DURATION = $totalDuration
+        OVERALL_STATUS = "$overallStatus"
+        PHASE_RESULTS_ROWS = "$($phaseRows -join "`n")"
+        TOOL_COUNT = $toolCount
+        DOMAIN_COUNT = $domainCount
+        DOCUMENT_COUNT = $docCount
+        SECTION_COUNT = $sectCount
+        SECTION_TYPE_COUNT = $sectTypeCount
+        TOTAL_CALLS = $Script:TOTAL_CALLS
+        TOTAL_ERRORS = $totalErrors
+        FAILED_PHASES = "$($failedPhases -join "`n")"
+        ARCHIVE_PATH = "$archiveStr"
+        SCORE = $totalScore
+        TREND = "$totalTrend"
+        PREV_SCORE = "$prevTotalScore"
+        ANALYSIS = "$overallAnalysis"
+        RECOMMENDATIONS = "$overallRecs"
+    } | ConvertTo-Json -Compress
     Write-Report "00-summary.md" "00-summary.md" $reportVals | Out-Null
 
     # Build and save metrics JSON for next run
     $psJson = Build-PhaseScoresJson
-    $allJq = $Script:AllResults | ConvertTo-Json -Compress -Depth 10 | jq -c 'if type == "object" then . else null end'
-    $metrics = jq -c -n `
-        --arg ts "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" `
-        --argjson ps "$psJson" `
-        --argjson ts_score $totalScore `
-        --argjson tc $toolCount `
-        --argjson dc $docCount `
-        --argjson sc $sectCount `
-        --argjson stc $sectTypeCount `
-        --argjson dmc $domainCount `
-        --argjson ec $totalErrors `
-        --argjson ttl $Script:TOTAL_CALLS `
-        '{timestamp: $ts, phase_scores: $ps, total_score: $ts_score, metrics: {tool_count: $tc, doc_count: $dc, section_count: $sc, section_type_count: $stc, domain_count: $dmc, error_count: $ec, total_calls: $ttl}}'
+    $allJq = $Script:AllResults | ConvertTo-Json -Compress -Depth 10
+    $metrics = @{
+        timestamp = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+        phase_scores = $psJson
+        total_score = $totalScore
+        metrics = @{
+            tool_count = $toolCount
+            doc_count = $docCount
+            section_count = $sectCount
+            section_type_count = $sectTypeCount
+            domain_count = $domainCount
+            error_count = $totalErrors
+            total_calls = $Script:TOTAL_CALLS
+        }
+    } | ConvertTo-Json -Compress
     $metrics | Set-Content -Path (Join-Path $Script:LATEST_DIR "metrics.json") -Encoding UTF8
 
-    $Script:PHASE_RESULTS["00-summary"] = jq -c -n --arg status "✅ DONE" --argjson errors $totalErrors --argjson score $totalScore --argjson duration $totalDuration --arg report "00-summary.md" '{Status: $status, Errors: $errors, Score: $score, Duration: $duration, ReportFile: $report}'
+    $Script:PHASE_RESULTS["00-summary"] = @{Status = "✅ DONE"; Errors = $totalErrors; Score = $totalScore; Duration = $totalDuration; ReportFile = "00-summary.md"} | ConvertTo-Json -Compress
 
     Write-Host "  → Total Score: $totalScore/100 $totalTrend — Done" -ForegroundColor Green
 }

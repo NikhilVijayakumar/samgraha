@@ -1,6 +1,6 @@
 # MCP Adapter — Feature Technical Design
 
-This section details the MCP Adapter — Feature Technical Design.
+The MCP Adapter bridges the Saṃgraha Knowledge Runtime with the Model Context Protocol, exposing compiled engineering knowledge and semantic audit capabilities as MCP tools for AI systems.
 
 ## Purpose
 
@@ -21,7 +21,7 @@ This document applies the architectural principles defined in Component Model, R
 
 ## Participating Components
 
-This section details the Participating Components.
+The Participating Components section identifies the architectural components involved in implementing this feature, their responsibilities, and how they interact to deliver the specified functionality.
 
 ### MCP Adapter
 
@@ -134,7 +134,7 @@ Example: An LLM with remaining context for 10 results passes `"limit": 10, "offs
 
 ## Method Reference
 
-This section details the Method Reference.
+Each MCP tool exposed by the adapter is documented below with its method signature, parameter schema, and expected behavior.
 
 ### `compile`
 
@@ -413,7 +413,7 @@ This pattern lets the LLM:
 
 ## Protocol Details
 
-This section details the Protocol Details.
+The MCP Adapter communicates using JSON-RPC 2.0 over standard I/O, following the Model Context Protocol specification for tool discovery, invocation, and response handling.
 
 ### Transport
 
@@ -512,7 +512,7 @@ On initialization, the adapter publishes its capabilities:
 
 ## Extension Points
 
-This section details the Extension Points.
+Extension Points identify the interfaces and hooks where the feature can be extended with additional functionality, custom providers, or alternative implementations without modifying core code.
 
 ### New Methods
 

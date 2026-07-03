@@ -24,8 +24,8 @@
 
 ### 📉 Phase Results
 
-| Phase | Report | Status | Errors | Duration |
-|-------|--------|--------|--------|----------|
+| Phase | Report | Score | Status | Errors | Duration |
+|-------|--------|-------|--------|--------|----------|
 {{PHASE_RESULTS_ROWS}}
 
 ---

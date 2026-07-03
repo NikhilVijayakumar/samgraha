@@ -1,6 +1,6 @@
 # CLI Interface — Feature Technical Design
 
-This section details the CLI Interface — Feature Technical Design.
+The CLI Interface provides the command-line entry point for all Saṃgraha operations — compilation, registry management, search, audit, and resolution — through a structured subcommand interface.
 
 ## Purpose
 
@@ -21,7 +21,7 @@ This document applies the architectural principles defined in Component Model, R
 
 ## Participating Components
 
-This section details the Participating Components.
+The Participating Components section identifies the architectural components involved in implementing this feature, their responsibilities, and how they interact to deliver the specified functionality.
 
 ### CLI Adapter
 
@@ -257,7 +257,7 @@ Optional: When configured, semantic audit and knowledge enrichment may use local
 
 ## Extension Points
 
-This section details the Extension Points.
+Extension Points identify the interfaces and hooks where the feature can be extended with additional functionality, custom providers, or alternative implementations without modifying core code.
 
 ### Custom Commands
 

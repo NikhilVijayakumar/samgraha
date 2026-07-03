@@ -13,6 +13,7 @@ TEST_TEMP=$(mktemp -d "/tmp/samgraha-test-XXXXXX")
 FULL=false
 WITH_MCP=false
 SKIP_BUILD=false
+ALL=false
 PHASE_ID=""
 PHASE_DURATION=""
 declare -A PHASE_CHECKS
@@ -26,8 +27,9 @@ while [[ $# -gt 0 ]]; do
         --full)     FULL=true; shift ;;
         --with-mcp) WITH_MCP=true; shift ;;
         --skip-build) SKIP_BUILD=true; shift ;;
+        --all)      ALL=true; FULL=true; WITH_MCP=true; shift ;;
         --report-dir) REPORT_DIR="$2"; shift 2 ;;
-        *)          echo "Usage: $0 [--full] [--with-mcp] [--skip-build] [--report-dir <dir>]"; exit 1 ;;
+        *)          echo "Usage: $0 [--full] [--with-mcp] [--all] [--skip-build] [--report-dir <dir>]"; exit 1 ;;
     esac
 done
 

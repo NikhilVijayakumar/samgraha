@@ -1,6 +1,6 @@
 # Semantic Audit Provider — Feature Technical Design
 
-This section details the Semantic Audit Provider — Feature Technical Design.
+The Semantic Audit Provider evaluates documentation quality using configurable criteria — scoring completeness, consistency, clarity, and conformance to documented standards for each section type and domain.
 
 ## Purpose
 
@@ -21,7 +21,7 @@ This document applies the architectural principles defined in Extensibility Arch
 
 ## Participating Components
 
-This section details the Participating Components.
+The Participating Components section identifies the architectural components involved in implementing this feature, their responsibilities, and how they interact to deliver the specified functionality.
 
 ### Semantic Audit Provider
 
@@ -241,7 +241,7 @@ Supported integration patterns:
 
 ## Extension Points
 
-This section details the Extension Points.
+Extension Points identify the interfaces and hooks where the feature can be extended with additional functionality, custom providers, or alternative implementations without modifying core code.
 
 ### Evaluation Profiles
 

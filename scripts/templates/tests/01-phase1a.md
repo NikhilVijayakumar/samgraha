@@ -14,12 +14,6 @@
 | Passes | {{PASSES}} | — |
 | Failures | {{FAILURES}} | — |
 
-## Improvement vs Previous Run
-
-| Metric | Previous | Current | Change |
-|--------|----------|---------|--------|
-| Score | {{PREV_SCORE}} | {{SCORE}} | {{TREND}} |
-
 ## Analysis
 
 {{ANALYSIS}}

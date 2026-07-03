@@ -1,6 +1,6 @@
 # Documentation Standards — Feature Technical Design
 
-This section details the Documentation Standards — Feature Technical Design.
+Documentation Standards define the contract between documentation authors and the Saṃgraha compiler — specifying required sections, content types, metadata, and structural rules that documentation must follow.
 
 ## Purpose
 
@@ -21,7 +21,7 @@ This document applies the architectural principles defined in Component Model, E
 
 ## Participating Components
 
-This section details the Participating Components.
+The Participating Components section identifies the architectural components involved in implementing this feature, their responsibilities, and how they interact to deliver the specified functionality.
 
 ### Documentation Standards
 
@@ -260,7 +260,7 @@ Optional: Future standard libraries and organization templates may introduce net
 
 ## Extension Points
 
-This section details the Extension Points.
+Extension Points identify the interfaces and hooks where the feature can be extended with additional functionality, custom providers, or alternative implementations without modifying core code.
 
 ### Documentation Domains
 

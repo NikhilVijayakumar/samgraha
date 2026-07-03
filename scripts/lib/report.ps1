@@ -1,4 +1,4 @@
-# ─── Shared Report Utilities (dot-sourced by run-tests.ps1, audit-phase1.ps1) ───
+﻿# ─── Shared Report Utilities (dot-sourced by run-tests.ps1, audit-phase1.ps1) ───
 
 function Get-MetricsJsonPath {
     param([string]$Dir)
@@ -13,67 +13,69 @@ function Write-Report {
         Write-Warning "Template missing: $templatePath -- using inline fallback"
         $content = "# $OutputName`n`n**Status:** {{STATUS}}`n`n{{ERRORS_TABLE}}`n`n{{CHECKS_TABLE}}"
     } else {
-        $content = [System.IO.File]::ReadAllText($templatePath)
+        $content = [System.IO.File]::ReadAllText($templatePath, [System.Text.Encoding]::UTF8)
     }
-    $tmpTpl = [System.IO.Path]::GetTempFileName()
-    $tmpVals = [System.IO.Path]::GetTempFileName()
-    [System.IO.File]::WriteAllText($tmpTpl, $content)
-    [System.IO.File]::WriteAllText($tmpVals, $ValuesJson)
-    python3 -c @"
-import sys, json
-with open('$tmpTpl') as f: tpl = f.read()
-with open('$tmpVals') as f: vals = json.load(f)
-for k, v in vals.items():
-    tpl = tpl.replace('{{' + k + '}}', str(v))
-with open('$outputPath', 'w') as f: f.write(tpl)
-"@
-    Remove-Item $tmpTpl, $tmpVals -ErrorAction SilentlyContinue
+    $vals = $ValuesJson | ConvertFrom-Json
+    foreach ($prop in $vals.PSObject.Properties) {
+        $content = $content.Replace("{{$($prop.Name)}}", [string]$prop.Value)
+    }
+    [System.IO.File]::WriteAllText($outputPath, $content, [System.Text.Encoding]::UTF8)
     Write-Output $outputPath
 }
 
 function Get-ChecksTable {
     param([string]$ChecksJson)
-    $count = $ChecksJson | jq 'length'
-    if ($count -eq 0 -or [string]::IsNullOrEmpty($ChecksJson)) { return "| -- | -- | -- | -- |" }
-    return $ChecksJson | jq -r '[
-        "| # | Check | Status | Detail |",
-        "|---|-------|--------|--------|"
-    ] + (to_entries | map(
-        "| " + (.key + 1 | tostring) + " | " +
-        (.value.Name | gsub("\\|"; "\\|")) + " | " +
-        (if .value.Status == "pass" then "✅ " else
-         if .value.Status == "fail" then "❌ " else
-         if .value.Status == "warn" then "⚠️ " else "⬜ " end end end) +
-        (.value.Status) + " | " +
-        (.value.Detail[0:80] | gsub("\\|"; "\\|")) + " |"
-    )) | join("\n")'
+    if ([string]::IsNullOrEmpty($ChecksJson) -or $ChecksJson -eq "null" -or $ChecksJson -eq "[]") { return "| -- | -- | -- | -- |" }
+    $items = $ChecksJson | ConvertFrom-Json
+    if ($items.Count -eq 0) { return "| -- | -- | -- | -- |" }
+    $rows = @("| # | Check | Status | Detail |", "|---|-------|--------|--------|")
+    for ($i = 0; $i -lt $items.Count; $i++) {
+        $item = $items[$i]
+        $icon = if ($item.Status -eq "pass") { "✅ " } elseif ($item.Status -eq "fail") { "❌ " } elseif ($item.Status -eq "warn") { "⚠️ " } else { "⬜ " }
+        $detail = if ($item.Detail -and $item.Detail.Length -gt 80) { $item.Detail.Substring(0,80) } else { $item.Detail }
+        $rows += "| $($i+1) | $($item.Name) | $icon$($item.Status) | $detail |"
+    }
+    return $rows -join "`n"
 }
 
 function Get-ErrorsTable {
     param([string]$Phase)
-    $errs = Get-PhaseErrorsJson $Phase
-    $count = $errs | jq 'length'
-    if ($count -eq 0) { return "✅ No errors" }
-    return $errs | jq -r '[
-        "| Tool Call | Error | Response |",
-        "|-----------|-------|----------|"
-    ] + [.[] | "| " + (.Tool | gsub("\\|"; "\\|")) + " | " +
-        (.Error | gsub("\\|"; "\\|")) + " | " +
-        (.Response[0:120] | gsub("\\|"; "\\|")) + " |"
-    ] | join("\n")'
+    $errsJson = Get-PhaseErrorsJson $Phase
+    if ([string]::IsNullOrEmpty($errsJson) -or $errsJson -eq "null" -or $errsJson -eq "[]") { return "✅ No errors" }
+    $items = $errsJson | ConvertFrom-Json
+    if ($items.Count -eq 0) { return "✅ No errors" }
+    $rows = @("| Tool Call | Error | Response |", "|-----------|-------|----------|")
+    foreach ($item in $items) {
+        $resp = if ($item.Response -and $item.Response.Length -gt 120) { $item.Response.Substring(0,120) } else { $item.Response }
+        $rows += "| $($item.Tool) | $($item.Error) | $resp |"
+    }
+    return $rows -join "`n"
 }
 
 function Add-PhaseError {
     param([string]$Tool, [string]$Err, [string]$Resp)
-    $snippet = $Resp
-    if ($Resp.Length -gt 250) { $snippet = $Resp.Substring(0, 250) + "..." }
-    $prev = $Script:PHASE_ERRORS_JSON
-    $Script:PHASE_ERRORS_JSON = $prev | jq -c --arg phase $Script:CURRENT_PHASE --arg tool $Tool --arg err $Err --arg resp $snippet '.[$phase] += [{"Tool": $tool, "Error": $err, "Response": $resp}]'
+    $snippet = if ($Resp.Length -gt 250) { $Resp.Substring(0, 250) + "..." } else { $Resp }
+    $phase = $Script:CURRENT_PHASE
+    # Always use ordered hashtable to avoid PSCustomObject vs hashtable inconsistency
+    if ([string]::IsNullOrEmpty($Script:PHASE_ERRORS_JSON) -or $Script:PHASE_ERRORS_JSON -eq "{}") {
+        $errs = [ordered]@{}
+    } else {
+        $parsed = $Script:PHASE_ERRORS_JSON | ConvertFrom-Json
+        $errs = [ordered]@{}
+        foreach ($prop in $parsed.PSObject.Properties) { $errs[$prop.Name] = [System.Collections.ArrayList]($prop.Value) }
+    }
+    if (-not $errs.Contains($phase)) { $errs[$phase] = [System.Collections.ArrayList]::new() }
+    $errs[$phase].Add([PSCustomObject]@{Tool = $Tool; Error = $Err; Response = $snippet}) | Out-Null
+    $Script:PHASE_ERRORS_JSON = $errs | ConvertTo-Json -Depth 5 -Compress
 }
 
 function Get-PhaseErrorsJson {
     param([string]$Phase)
-    $Script:PHASE_ERRORS_JSON | jq -c ".[\"$Phase\"] // []"
+    if ([string]::IsNullOrEmpty($Script:PHASE_ERRORS_JSON) -or $Script:PHASE_ERRORS_JSON -eq "{}") { return "[]" }
+    $errs = $Script:PHASE_ERRORS_JSON | ConvertFrom-Json
+    $val = $errs.PSObject.Properties[$Phase]
+    if (-not $val -or $null -eq $val.Value) { return "[]" }
+    return $val.Value | ConvertTo-Json -Compress
 }
 
 function Load-PreviousMetrics {
@@ -91,16 +93,20 @@ function Load-PreviousMetrics {
 function Get-PrevMetric {
     param([string]$Phase, [string]$Metric = "score")
     if ([string]::IsNullOrEmpty($Script:PREV_METRICS) -or $Script:PREV_METRICS -eq "{}") { return "" }
-    $val = $Script:PREV_METRICS | jq -r --arg p $Phase --arg m $Metric '(.phase_scores // []) | .[] | select(.phase == $p) | .[$m] // ""' 2>$null
-    if ([string]::IsNullOrEmpty($val) -or $val -eq "null") { return "" }
-    return $val
+    try {
+        $data = $Script:PREV_METRICS | ConvertFrom-Json
+        $match = $data.phase_scores | Where-Object { $_.phase -eq $Phase } | Select-Object -First 1
+        if (-not $match) { return "" }
+        return $match.$Metric
+    } catch { return "" }
 }
 
 function Trend-Between {
     param([string]$Current, [string]$Previous)
     if ([string]::IsNullOrEmpty($Previous)) { return "—" }
-    $c = [double]::Parse($Current)
-    $p = [double]::Parse($Previous)
+    $c = 0.0; $p = 0.0
+    if (-not [double]::TryParse($Current, [ref]$c)) { return "—" }
+    if (-not [double]::TryParse($Previous, [ref]$p)) { return "—" }
     if ($c -gt $p) { return "↑" }
     elseif ($c -lt $p) { return "↓" }
     else { return "→" }
@@ -116,12 +122,13 @@ function Format-ScoreLine {
 function Gen-PhaseAnalysis {
     param([string]$Phase, [string]$Checks)
     if ([string]::IsNullOrEmpty($Checks) -or $Checks -eq "null") { return "No checks data available." }
-    $total = $Checks | jq 'length // 0'
-    $ok = $Checks | jq '[.[] | select(.Status == "pass")] | length'
-    $fail = $Checks | jq '[.[] | select(.Status == "fail")] | length'
-    $warn = $Checks | jq '[.[] | select(.Status == "warn")] | length'
-    $skip = $Checks | jq '[.[] | select(.Status == "skip")] | length'
-    if ($total -eq 0) { return "No checks performed for this phase." }
+    $items = $Checks | ConvertFrom-Json
+    if ($items.Count -eq 0) { return "No checks performed for this phase." }
+    $total = $items.Count
+    $ok = ($items | Where-Object { $_.Status -eq "pass" }).Count
+    $fail = ($items | Where-Object { $_.Status -eq "fail" }).Count
+    $warn = ($items | Where-Object { $_.Status -eq "warn" }).Count
+    $skip = ($items | Where-Object { $_.Status -eq "skip" }).Count
     if ($fail -gt 0) { $msg = "❌ $fail/$total checks failed. " }
     elseif ($warn -gt 0) { $msg = "⚠️ $warn/$total checks have warnings. " }
     elseif ($skip -gt 0) { $msg = "ℹ️ $skip/$total checks skipped, $ok passed. " }
@@ -134,19 +141,12 @@ function Gen-PhaseAnalysis {
 function Gen-PhaseRecs {
     param([string]$Phase, [string]$Checks)
     if ([string]::IsNullOrEmpty($Checks) -or $Checks -eq "null") { return "- No data to generate recommendations." }
+    $items = $Checks | ConvertFrom-Json
     $recs = ""
-    $failItems = $Checks | jq -r '[.[] | select(.Status == "fail") | .Name] | join("│")'
-    $warnItems = $Checks | jq -r '[.[] | select(.Status == "warn") | .Name] | join("│")'
-    if (-not [string]::IsNullOrEmpty($failItems)) {
-        foreach ($f in ($failItems -split "│")) {
-            $recs += "- 🔴 Fix failing check: $f`n"
-        }
-    }
-    if (-not [string]::IsNullOrEmpty($warnItems)) {
-        foreach ($w in ($warnItems -split "│")) {
-            $recs += "- 🟡 Address warning: $w`n"
-        }
-    }
+    $failItems = $items | Where-Object { $_.Status -eq "fail" }
+    $warnItems = $items | Where-Object { $_.Status -eq "warn" }
+    foreach ($f in $failItems) { $recs += "- 🔴 Fix failing check: $($f.Name)`n" }
+    foreach ($w in $warnItems) { $recs += "- 🟡 Address warning: $($w.Name)`n" }
     if ([string]::IsNullOrEmpty($recs)) { $recs = "- ✅ No action required" }
     return $recs.TrimEnd("`n")
 }

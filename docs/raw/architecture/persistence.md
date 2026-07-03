@@ -1,6 +1,6 @@
 # Persistence Architecture
 
-This section details the Persistence Architecture.
+Saṃgraha's persistence architecture governs how compiled knowledge, registry state, audit reports, and configuration are stored, accessed, and maintained across the platform.
 
 ## Purpose
 

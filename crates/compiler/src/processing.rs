@@ -227,8 +227,9 @@ fn extract_headings(content: &str) -> Vec<ParsedHeading> {
     let mut in_heading = false;
     let mut heading_text = String::new();
     let mut heading_level = 0u32;
+    let mut heading_start = 0usize;
 
-    for event in parser {
+    for (event, range) in parser.into_offset_iter() {
         match event {
             Event::Start(Tag::Heading { level, .. }) => {
                 heading_level = match level {
@@ -238,12 +239,14 @@ fn extract_headings(content: &str) -> Vec<ParsedHeading> {
                 };
                 in_heading = heading_level >= 2;
                 heading_text.clear();
+                heading_start = range.start;
             }
             Event::End(TagEnd::Heading(_)) => {
                 if in_heading {
                     headings.push(ParsedHeading {
                         level: heading_level,
                         text: heading_text.clone(),
+                        byte_start: heading_start,
                     });
                 }
                 in_heading = false;
@@ -263,6 +266,7 @@ fn extract_headings(content: &str) -> Vec<ParsedHeading> {
 struct ParsedHeading {
     level: u32,
     text: String,
+    byte_start: usize,
 }
 
 fn byte_to_line_number(line_starts: &[usize], byte: usize) -> u32 {
@@ -283,26 +287,12 @@ pub fn parse_sections(
         .chain(content.match_indices('\n').map(|(i, _)| i + 1))
         .collect();
 
-    // Find byte positions of each heading by locating their text in order
-    let mut heading_positions: Vec<(usize, &ParsedHeading)> = Vec::new();
-    let mut search_from = 0;
-
-    for h in &headings {
-        let needle = h.text.trim();
-        if needle.is_empty() {
-            continue;
-        }
-        if let Some(rel_pos) = content[search_from..].find(needle) {
-            let abs_pos = search_from + rel_pos;
-            // Walk back to find start of the heading marker line (## or ###)
-            let line_start = content[..abs_pos]
-                .rfind('\n')
-                .map(|i| i + 1)
-                .unwrap_or(0);
-            heading_positions.push((line_start, h));
-            search_from = abs_pos + needle.len();
-        }
-    }
+    // Use byte positions from pulldown-cmark parser directly
+    // (avoids false matches when heading text appears in prose)
+    let heading_positions: Vec<(usize, &ParsedHeading)> = headings
+        .iter()
+        .map(|h| (h.byte_start, h))
+        .collect();
 
     let h2_positions: Vec<(usize, &ParsedHeading)> = heading_positions
         .iter()

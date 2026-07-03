@@ -11,8 +11,8 @@
 | Metric | Previous |
 |--------|---------|
 | Previous Score | {{PREV_SCORE}} |
-| Previous Domains | {{PREV_DOMAINS}} |
-| Previous Docs | {{PREV_DOCS}} |
+| Previous Domains | {{PREV_DOMAIN_COUNT}} |
+| Previous Docs | {{PREV_DOC_COUNT}} |
 
 ## Analysis
 

@@ -16,7 +16,7 @@ The resulting Knowledge Package becomes the foundation for MCP delivery, enginee
 
 ## Functional Requirements
 
-This section details the Functional Requirements.
+Each functional requirement below defines a verifiable capability that the feature must provide. Requirements are independently testable and traceable to the feature's Acceptance Criteria and documented standards.
 
 ## FR1. Repository Discovery
 

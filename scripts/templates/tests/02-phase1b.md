@@ -1,4 +1,4 @@
-# Phase 1b — CLI Integration
+﻿# Phase 1b — CLI Integration
 
 **Timestamp:** {{TIMESTAMP}}
 **Duration:** {{DURATION}}
@@ -13,12 +13,6 @@
 | Score | {{PREV_SCORE}}/100 | {{TREND}} |
 | Passes | {{PASSES}} | — |
 | Failures | {{FAILURES}} | — |
-
-## Improvement vs Previous Run
-
-| Metric | Previous | Current | Change |
-|--------|----------|---------|--------|
-| Score | {{PREV_SCORE}} | {{SCORE}} | {{TREND}} |
 
 ## Analysis
 

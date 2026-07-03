@@ -9,7 +9,7 @@
 
 ## Automated Test Runner
 
-Scripts are provided for both platforms:
+Scripts are provided for both platforms. All scripts produce **template-based markdown reports** with phase scores, trend analysis, and error tables in `docs/report/manual-audit/{tests,mcp,audit}/latest/`.
 
 ### Windows (PowerShell)
 
@@ -25,8 +25,9 @@ Script: `scripts/run-tests.ps1`
 # Full platform + MCP (requires Node.js)
 .\scripts\run-tests.ps1 -WithMCP
 
-# Everything
-.\scripts\run-tests.ps1 -Full -WithMCP
+# Everything (single command)
+.\scripts\run-tests.ps1 -All
+.\scripts\run-tests.ps1 -Full -WithMCP   # same
 
 # Skip build step (already built)
 .\scripts\run-tests.ps1 -SkipBuild
@@ -46,34 +47,87 @@ Script: `scripts/run-tests.sh`
 # Full platform + MCP (requires Node.js)
 ./scripts/run-tests.sh --with-mcp
 
-# Everything
-./scripts/run-tests.sh --full --with-mcp
+# Everything (single command)
+./scripts/run-tests.sh --all
+./scripts/run-tests.sh --full --with-mcp   # same
 
 # Skip build step (already built)
 ./scripts/run-tests.sh --skip-build
+
+# Custom report output directory
+./scripts/run-tests.sh --report-dir docs/report/custom
 ```
 
 Each test prints `OK` or `XX`. Exit code = number of failures.
 
-A markdown report is saved automatically after every run:
+**Report output**: For each run, the previous `latest/` dir is rotated to `archive/{timestamp}/`. Reports include:
+- Per-phase report files: `01-phase1a.md`, `02-phase1b.md`, `03-phase1c.md`, `04-phase2.md`, `05-phase25.md`, `06-phase3.md`
+- Summary: `00-summary.md`
+- Metrics: `metrics.json` (for trend analysis across runs)
 
-```
-docs/report/manual-audit/YYYYMMDD-HHmmss-{mode}.md
-```
-
-The report contains a failure summary table and captured output (stdout + stderr) for each failing test. Feed the report directly to Claude Code or OpenCode to debug failures.
-
-**Windows (PowerShell):**
 ```powershell
-# Example: hand latest report to Claude Code
-claude "here are the failing tests: $(Get-Content (Get-ChildItem docs\report\ | Sort-Object LastWriteTime -Descending | Select-Object -First 1))"
+# Windows: hand latest report to Claude Code
+claude "here are the failing tests: $(Get-Content (Get-ChildItem -Recurse docs/report/manual-audit/tests/latest/00-summary.md | Sort-Object LastWriteTime -Descending | Select-Object -First 1))"
 ```
 
-**Ubuntu (Bash):**
 ```bash
-# Example: hand latest report to Claude Code
-claude "here are the failing tests: $(ls -t docs/report/manual-audit/*.md | head -1 | xargs cat)"
+# Ubuntu: hand latest report to Claude Code
+claude "here are the failing tests: $(ls -t docs/report/manual-audit/tests/latest/*.md | head -1 | xargs cat)"
 ```
+
+---
+
+## MCP Discovery Script
+
+A comprehensive script that walks the full domain-document-section hierarchy through MCP tools and produces detailed phase reports with scoring, trends, and gap analysis. 8 phases with weighted scoring (sum=100):
+
+| Phase | Weight | Description |
+|-------|--------|-------------|
+| 1. Tool Health | 10 | Initialize, tools/list, info |
+| 2. Domain Catalog | 5 | list_domains |
+| 3. Document Discovery | 15 | get_documents_by_domain (paginated) |
+| 4. Document Verification | 15 | Quality checks, coverage, empty/missing sections |
+| 5. Cross-Section | ~ | get_sections by semantic_type per domain |
+| 6. Section Verification | 15 | get_section, get_section_changed, get_audit_knowledge |
+| 7. Search | 5 | Sample queries from doc titles + general terms |
+| 8. Audit | 20 | audit, get_audit_report, check_gate per domain |
+| 9. Coverage Gaps | 10 | Missing knowledge files, empty sections, low quality |
+| 10. Registry State | 20 | list_repositories, resolve_dependencies, write-tool validation |
+
+### Windows (PowerShell)
+
+```powershell
+# Build + full scan with reports printed
+.\scripts\mcp-discover.ps1 -Build -PassThru
+
+# Scan specific domains only, cap docs, skip audit
+.\scripts\mcp-discover.ps1 -Domain engineering,feature -MaxDocs 3 -NoSectionContent -NoAudit
+```
+
+### Ubuntu (Bash)
+
+```bash
+# Build + full scan
+./scripts/mcp-discover.sh --build --pass-thru
+
+# Filtered scan
+./scripts/mcp-discover.sh --domain engineering --domain feature --max-docs 3
+```
+
+Parameters:
+| Flag | Description |
+|------|-------------|
+| `-Build` / `--build` | Run `cargo build --bin mcp` before scanning |
+| `-BinaryPath` / `--binary-path` | Path to pre-built `mcp` binary |
+| `-ReportDir` / `--report-dir` | Output directory (default: `docs/report/manual-audit/mcp`) |
+| `-Domain` / `--domain` | Only scan named domains (repeatable) |
+| `-MaxDocs` / `--max-docs` | Cap docs per domain (0 = unlimited) |
+| `-MaxSections` / `--max-sections` | Cap sections per doc (0 = unlimited) |
+| `-NoSectionContent` | Skip `get_document_section` calls (~400 calls saved) |
+| `-NoAudit` | Skip audit/report/gate calls (~100 calls saved) |
+| `-PassThru` / `--pass-thru` | Print report paths on completion |
+
+Report files: `01-tool-health.md` through `08-registry-state.md` + `00-summary.md` in `docs/report/manual-audit/mcp/latest/`.
 
 ---
 
@@ -116,21 +170,47 @@ Docs: https://modelcontextprotocol.io/docs/tools/inspector
 
 Goal: validate compiler, registry, resolver, search, audit. No MCP, no AI.
 
-Back up config before Phase 1, restore after:
+Workflow: back up `samgraha.toml` → run Phase 1 commands → restore config + generate report.
+
+Both scripts produce template-based reports in `docs/report/manual-audit/audit/latest/`.
 
 **Windows (PowerShell):**
 ```powershell
-.\scripts\audit-phase1.ps1          # backup
-# ... run Phase 1 commands ...
-.\scripts\audit-phase1.ps1 -Restore # restore
+# Back up config + generate report
+.\scripts\audit-phase1.ps1
+
+# ... run Phase 1 commands manually ...
+
+# Restore config + generate final report
+.\scripts\audit-phase1.ps1 -Restore
+
+# Keep backup after restore (no removal)
+.\scripts\audit-phase1.ps1 -Restore -Keep
 ```
 
 **Ubuntu (Bash):**
 ```bash
-./scripts/audit-phase1.sh           # backup
+# Back up config
+./scripts/audit-phase1.sh
+
 # ... run Phase 1 commands ...
-./scripts/audit-phase1.sh --restore # restore
+
+# Restore config + final report
+./scripts/audit-phase1.sh --restore
+
+# Custom report directory (bash only)
+./scripts/audit-phase1.sh --report-dir docs/report/custom
 ```
+
+Parameters:
+
+| Flag | Description |
+|------|-------------|
+| `-Restore` / `--restore` | Restore config from backup + generate final report |
+| `-Keep` / `--keep` | Keep backup file after restore (don't auto-delete) |
+| `--report-dir` | Output directory (bash only, default: `docs/report/manual-audit/audit`) |
+
+Reports include score, trend vs previous run, check/error tables, and recommendations.
 
 Sections 1.4 and 1.5 use `scripts/demo-dependency.ps1` / `scripts/demo-dependency.sh` which handle their own backup.
 
@@ -179,7 +259,7 @@ Expected (text mode):
 
 ```
 Registered repositories (1)
-------------------------------------------------------------------------
+-----------------------------------------------------------------------
   samgraha (abc123..) -- rev 1 | audit: PASS
 ```
 
@@ -714,7 +794,7 @@ Full cycle: write a section report → read it back → update a finding status.
 
 ```bash
 # Write a report
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"store_section_report","arguments":{"report_json":{"domain":"feature","stage":"section","document_id":1,"section_id":1,"strategy":"completeness","score":85,"findings":[{"criterion_id":"C1","passed":true,"severity":"error","confidence":0.95,"evidence":{"section_id":1,"paragraph_index":0,"excerpt":"FR1 exists"},"message":"All requirements present","status":"open"}]}}}}' | cargo run --bin mcp
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"store_section_report","arguments":{"report_json":{"domain":"feature","stage":"Section","document_id":1,"section_id":1,"strategy":"completeness","score":85,"findings":[{"check_id":"C1","severity":"Error","message":"All present","provider":"test","confidence":0.95,"evidence":{"section_id":1,"paragraph_index":0,"excerpt":"test"},"status":"Open"}],"created_at":"2026-01-01T00:00:00Z"}}}}' | cargo run --bin mcp
 
 # Read it back
 echo '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"get_audit_report","arguments":{"domain":"feature","stage":"section","document_id":1}}}' | cargo run --bin mcp
@@ -824,6 +904,7 @@ Test compatibility.
 | Resolve | `cargo run --bin cli -- registry resolve runtime` |
 | Search | `cargo run --bin cli -- search <query>` |
 | Sections | `cargo run --bin cli -- sections <semantic_type>` |
+| Info | `cargo run --bin cli -- info` |
 | Build MCP binary | `cargo build --bin mcp` |
 | Run MCP binary | `cargo run --bin mcp` |
 | MCP Inspector | `npx @modelcontextprotocol/inspector cargo run --bin mcp` |
@@ -838,6 +919,20 @@ Test compatibility.
 | `store_document_report` | `tools/call` with `report_json` |
 | `store_cross_domain_report` | `tools/call` with `report_json` |
 | `update_finding_status` | `tools/call` with `report_id`, `criterion_id`, `status` |
+
+---
+
+## Script Reference
+
+| Script | Purpose | Platforms |
+|--------|---------|-----------|
+| `scripts/run-tests.ps1` / `.sh` | Automated test runner (Phases 1a, 1b, 1c, 2, 2.5, 3) | Windows, Ubuntu |
+| `scripts/audit-phase1.ps1` / `.sh` | Config backup/restore for Phase 1 manual audit | Windows, Ubuntu |
+| `scripts/demo-dependency.ps1` / `.sh` | Dependency fixture create + resolve demo | Windows, Ubuntu |
+| `scripts/mcp-discover.ps1` / `.sh` | Full MCP tool discovery scan (8 phases, weighted scoring) | Windows, Ubuntu |
+| `scripts/lib/report.ps1` / `.sh` | Shared report utilities (templates, metrics, trends) | Windows, Ubuntu |
+
+All scripts produce reports in `docs/report/manual-audit/{tests,mcp,audit}/latest/` with archive rotation and metrics persistence.
 
 ---
 

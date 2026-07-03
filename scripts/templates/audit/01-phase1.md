@@ -8,6 +8,7 @@
 - **Duration:** ⏱️ {{DURATION}}
 - **Score:** 📈 {{SCORE}}/100 (Trend: {{TREND}}, Previous: {{PREV_SCORE}}/100)
 - **Checks:** ✅ {{PASSES}} Passes | ❌ {{FAILURES}} Failures
+- **Config Backup:** `{{BACKUP_PATH}}`
 
 ---
 
@@ -30,3 +31,13 @@
 ### ✅ Phase Checks
 
 {{CHECKS_TABLE}}
+
+---
+
+### 📋 Next Steps
+
+After completing Phase 1 audit tasks, restore config with:
+
+```powershell
+.\scripts\audit-phase1.ps1 -Restore
+```

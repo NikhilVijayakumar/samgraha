@@ -1,6 +1,6 @@
 # Extension Model
 
-This section details the Extension Model.
+Saṃgraha's extensibility architecture allows platform capabilities to be added through registries that discover, validate, and execute extensions using well-defined contracts rather than embedding everything in the core.
 
 ## Purpose
 

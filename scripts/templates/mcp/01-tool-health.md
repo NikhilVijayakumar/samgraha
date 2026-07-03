@@ -1,49 +1,59 @@
-# Tool Health
+# 🔧 Tool Health
 
-**Timestamp:** {{TIMESTAMP}}
-**Duration:** {{DURATION}}s
-**Status:** {{STATUS}}
+> Generated on: {{TIMESTAMP}}
 
-## Score
+### 📋 Overview
 
-**{{SCORE}}/100** {{TREND}}
+- **Status:** {{STATUS}}
+- **Duration:** ⏱️ {{DURATION}}s
+- **Score:** 📈 **{{SCORE}}/100** (Trend: {{TREND}}, Previous: {{PREV_SCORE}})
+- **Protocol Version:** {{PROTOCOL_VERSION}}
+- **Tools:** {{TOOL_COUNT}} healthy, {{TOOL_ERROR_COUNT}} errors
 
-| Metric | Previous |
-|--------|---------|
-| Previous Score | {{PREV_SCORE}} |
+---
 
-## Analysis
+### 🔍 Analysis
 
 {{ANALYSIS}}
 
-## Recommendations
+### 💡 Recommendations
 
 {{RECOMMENDATIONS}}
 
-## Checks
+---
+
+### ✅ Checks
 
 {{CHECKS_TABLE}}
 
-## Errors
+---
+
+### ⚠️ Errors
 
 {{ERRORS_TABLE}}
 
-## Tools
+---
+
+### 🛠️ Tools
 
 | # | Tool | Required Params | Health |
 |---|------|----------------|--------|
 {{TOOLS_TABLE}}
 
-## Runtime Info
+---
 
-| Property | Value |
-|----------|-------|
-| Document Count | {{DOC_COUNT}} |
-| Standards | {{STANDARDS_LIST}} |
-| Standard Count | {{STANDARD_COUNT}} |
-| Registry Path | {{REGISTRY_PATH}} |
-| Repository | {{REPOSITORY}} |
-| Services | {{SERVICES}} |
-| Policy | {{POLICY}} |
-| Tool Count | {{TOOL_COUNT}} |
-| Tool Error Count | {{TOOL_ERROR_COUNT}} |
+### 📊 Runtime Info
+
+| Property | Value | Trend |
+|----------|-------|-------|
+| Document Count | {{DOC_COUNT}} | {{DOC_TREND}} |
+| Previous Doc Count | {{PREV_DOC_COUNT}} | — |
+| Standard Count | {{STANDARD_COUNT}} | — |
+| Registry Path | {{REGISTRY_PATH}} | — |
+| Repository | {{REPOSITORY}} | — |
+| Services | {{SERVICES}} | — |
+| Policy | {{POLICY}} | — |
+
+### Standards
+
+{{STANDARDS_LIST}}

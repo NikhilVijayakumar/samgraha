@@ -1,51 +1,58 @@
-# Audit Findings
+# 🔍 Audit Findings
 
-**Timestamp:** {{TIMESTAMP}}
-**Duration:** {{DURATION}}s
-**Status:** {{STATUS}}
+> Generated on: {{TIMESTAMP}}
 
-## Score
+### 📋 Overview
 
-**{{SCORE}}/100** {{TREND}}
+- **Status:** {{STATUS}}
+- **Duration:** ⏱️ {{DURATION}}s
+- **Score:** 📈 **{{SCORE}}/100** (Trend: {{TREND}}, Previous: {{PREV_SCORE}})
+- **Domains:** {{DOMAIN_COUNT}} | **Total Findings:** {{TOTAL_FINDINGS}} | **Gates:** {{GATE_PASSES}}/{{GATE_TOTAL}} passed, {{GATE_BLOCKS}} blocked
 
-| Metric | Previous |
-|--------|---------|
-| Previous Score | {{PREV_SCORE}} |
+---
 
-## Analysis
+### 🔍 Analysis
 
 {{ANALYSIS}}
 
-## Recommendations
+### 💡 Recommendations
 
 {{RECOMMENDATIONS}}
 
-## Checks
+---
+
+### ✅ Checks
 
 {{CHECKS_TABLE}}
 
-## Errors
+---
+
+### ⚠️ Errors
 
 {{ERRORS_TABLE}}
 
-## Audit Scores
+---
+
+### 📊 Audit Scores by Domain
 
 | Domain | Overall | Deterministic | Section | Document | Cross-Domain |
 |--------|---------|---------------|---------|----------|--------------|
 {{AUDIT_SCORES_TABLE}}
 
-## Findings by Domain
+---
+
+### 🐛 Findings by Domain
 
 {{FINDINGS_BY_DOMAIN}}
 
-## Stage Gates
+---
+
+### 🚦 Stage Gates
 
 | Domain | Deterministic | Section | Document | Cross-Domain |
 |--------|--------------|---------|----------|--------------|
 {{GATES_TABLE}}
 
-## Blocked Gates Detail
+### Blocked Gates Detail
 
 {{BLOCKED_GATES_DETAIL}}
-
-**Totals:** {{DOMAIN_COUNT}} domains, {{TOTAL_FINDINGS}} findings, {{GATE_PASSES}}/{{GATE_TOTAL}} gates passed, {{GATE_BLOCKS}} blocked

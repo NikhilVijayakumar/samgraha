@@ -1,6 +1,6 @@
 # Engineering Principles
 
-This section details the Engineering Principles.
+Engineering principles shape every engineering decision in Saṃgraha — technology selection, code organization, build strategy, testing approach, and operational practices.
 
 ## Purpose
 
@@ -16,7 +16,7 @@ The project is built using Rust as the primary implementation language with a mu
 
 ## Principles
 
-This section details the Principles.
+The following principles guide all implementation decisions in the Saṃgraha platform. Each principle is accompanied by concrete implications for engineering work.
 
 ### Documentation First
 

@@ -1,6 +1,6 @@
 # System Overview
 
-This section details the System Overview.
+Saṃgraha is a Knowledge Engineering Platform that transforms engineering documentation into verified, deterministic engineering knowledge for humans and AI systems.
 
 ## Purpose
 
@@ -54,7 +54,7 @@ Compilation produces two distinct outputs that follow separate, non-intersecting
 
 # Architectural Layers
 
-This section details the Architectural Layers.
+Saṃgraha is organized into architectural layers that separate concerns, enforce dependency direction, and establish clear boundaries between platform capabilities.
 
 ## Documentation Standards
 

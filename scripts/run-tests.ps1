@@ -1,4 +1,4 @@
-param(
+﻿param(
     [switch]$Full,
     [switch]$WithMCP,
     [switch]$SkipBuild
@@ -28,20 +28,21 @@ $Script:ARCHIVE_DIR = ""
 Initialize-ReportDirs "tests"
 
 function Write-PhaseReport {
-    param([string]$PId)
+    param([string]$PhaseId)
     $end = Get-Date
     $duration = [math]::Round(($end - $Script:PHASE_DURATION).TotalSeconds)
-    $phaseChecks = if ($Script:PHASE_CHECKS.ContainsKey($PId)) { $Script:PHASE_CHECKS[$PId] } else { '[]' }
-    $checksTable = Get-ChecksTable $phaseChecks
-    $errorsTable = Get-ErrorsTable $PId
-    $analysis = Gen-PhaseAnalysis $PId $phaseChecks
-    $recs = Gen-PhaseRecs $PId $phaseChecks
-    $total = $phaseChecks | jq 'length // 0'
-    $ok = $phaseChecks | jq '[.[] | select(.Status == "pass")] | length'
-    $fail = $phaseChecks | jq '[.[] | select(.Status == "fail")] | length'
+    $phaseCheckList = if ($Script:PHASE_CHECKS.ContainsKey($PhaseId)) { $Script:PHASE_CHECKS[$PhaseId] } else { New-Object System.Collections.ArrayList }
+    $phaseChecksJson = $phaseCheckList | ConvertTo-Json -Compress
+    $checksTable = Get-ChecksTable $phaseChecksJson
+    $errorsTable = Get-ErrorsTable $PhaseId
+    $analysis = Gen-PhaseAnalysis $PhaseId $phaseChecksJson
+    $recs = Gen-PhaseRecs $PhaseId $phaseChecksJson
+    $total = $phaseCheckList.Count
+    $ok = ($phaseCheckList | Where-Object { $_.Status -eq "pass" }).Count
+    $fail = ($phaseCheckList | Where-Object { $_.Status -eq "fail" }).Count
     $score = if ($total -gt 0) { [math]::Floor($ok * 100 / $total) } else { 0 }
     $status = if ($fail -gt 0) { "❌ FAIL" } else { "✅ PASS" }
-    $prevScore = Get-PrevMetric $PId "score"
+    $prevScore = Get-PrevMetric $PhaseId "score"
     $trend = Trend-Between $score $prevScore
     $reportVals = @{
         TIMESTAMP        = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
@@ -58,8 +59,8 @@ function Write-PhaseReport {
         FAILURES         = $fail
     }
     $reportValsJson = $reportVals | ConvertTo-Json -Depth 5
-    Write-Report "${PId}.md" "${PId}.md" $reportValsJson | Out-Null
-    $Script:PHASE_RESULTS[$PId] = @{
+    Write-Report "${PhaseId}.md" "${PhaseId}.md" $reportValsJson | Out-Null
+    $Script:PHASE_RESULTS[$PhaseId] = @{
         Status = $status; Score = $score; Errors = $fail; Duration = $duration
     } | ConvertTo-Json -Compress
 }
@@ -68,9 +69,9 @@ function Write-Pass {
     Write-Host "  OK $($args -join ' ')" -ForegroundColor Green
     $Global:Passes++
     $msg = $args -join ' '
-    $pid = $Script:PHASE_ID
-    $pc = if ($Script:PHASE_CHECKS.ContainsKey($pid)) { $Script:PHASE_CHECKS[$pid] } else { '[]' }
-    $Script:PHASE_CHECKS[$pid] = $pc | jq --arg n "$msg" '. += [{"Name": $n, "Status": "pass", "Detail": ""}]'
+    $phaseId = $Script:PHASE_ID
+    if (-not $Script:PHASE_CHECKS.ContainsKey($phaseId)) { $Script:PHASE_CHECKS[$phaseId] = New-Object System.Collections.ArrayList }
+    [void]$Script:PHASE_CHECKS[$phaseId].Add(@{Name = $msg; Status = "pass"; Detail = ""})
 }
 
 function Write-Fail {
@@ -82,9 +83,9 @@ function Write-Fail {
         Test   = $msg
         Output = ($Global:LastOutput -join "`n").Trim()
     })
-    $pid = $Script:PHASE_ID
-    $pc = if ($Script:PHASE_CHECKS.ContainsKey($pid)) { $Script:PHASE_CHECKS[$pid] } else { '[]' }
-    $Script:PHASE_CHECKS[$pid] = $pc | jq --arg n "$msg" '. += [{"Name": $n, "Status": "fail", "Detail": ""}]'
+    $phaseId = $Script:PHASE_ID
+    if (-not $Script:PHASE_CHECKS.ContainsKey($phaseId)) { $Script:PHASE_CHECKS[$phaseId] = New-Object System.Collections.ArrayList }
+    [void]$Script:PHASE_CHECKS[$phaseId].Add(@{Name = $msg; Status = "fail"; Detail = ""})
 }
 
 function Write-Step {
@@ -114,17 +115,22 @@ function Run-Cli {
 
 function New-TestFixture {
     param([string]$Path, [string]$RepoId = "test-repo")
-    [System.IO.Directory]::CreateDirectory("$Path\docs\architecture") | Out-Null
-    [System.IO.Directory]::CreateDirectory("$Path\docs\feature") | Out-Null
-    [System.IO.Directory]::CreateDirectory("$Path\docs\engineering") | Out-Null
-    [System.IO.File]::WriteAllText("$Path\samgraha.toml",
-        "[repository]`nid = `"$RepoId`"`nname = `"$RepoId test`"")
-    [System.IO.File]::WriteAllText("$Path\docs\architecture\system-overview.md",
-        "# System Overview`n`n## Purpose`n`nText.`n`n## Constraints`n`n- Offline`n- Deterministic")
-    [System.IO.File]::WriteAllText("$Path\docs\feature\knowledge-compilation.md",
-        "# Compilation`n`n## Purpose`n`nTransform docs.`n`n## Requirements`n`n- FTS`n- Progressive")
-    [System.IO.File]::WriteAllText("$Path\docs\engineering\build-system.md",
-        "# Build`n`n## Purpose`n`nBuild workflows.`n`n## Toolchain`n`n- Cargo`n- Rust analyzer")
+    try {
+        [System.IO.Directory]::CreateDirectory("$Path\docs\architecture") | Out-Null
+        [System.IO.Directory]::CreateDirectory("$Path\docs\feature") | Out-Null
+        [System.IO.Directory]::CreateDirectory("$Path\docs\engineering") | Out-Null
+        [System.IO.File]::WriteAllText("$Path\samgraha.toml",
+            "[repository]`nid = `"$RepoId`"`nname = `"$RepoId test`"")
+        [System.IO.File]::WriteAllText("$Path\docs\architecture\system-overview.md",
+            "# System Overview`n`n## Purpose`n`nText.`n`n## Constraints`n`n- Offline`n- Deterministic")
+        [System.IO.File]::WriteAllText("$Path\docs\feature\knowledge-compilation.md",
+            "# Compilation`n`n## Purpose`n`nTransform docs.`n`n## Requirements`n`n- FTS`n- Progressive")
+        [System.IO.File]::WriteAllText("$Path\docs\engineering\build-system.md",
+            "# Build`n`n## Purpose`n`nBuild workflows.`n`n## Toolchain`n`n- Cargo`n- Rust analyzer")
+    } catch {
+        Write-Fail "New-TestFixture '$RepoId' failed: $_"
+        throw
+    }
 }
 
 function Remove-TestFixture {
@@ -438,7 +444,8 @@ $s = "{0:F1}s" -f $sw.Elapsed.TotalSeconds
 Write-Host "Passed: $Global:Passes  Failed: $Global:Failures  Time: $s" -ForegroundColor Cyan
 
 # --- Summary + metrics ---
-$buildChecks = if ($SkipBuild) { '[]' | jq '. += [{"Name": "Build", "Status": "skip", "Detail": "Skipped via -SkipBuild"}]' } else { '[]' | jq '. += [{"Name": "Build", "Status": "pass", "Detail": "Binaries built"}]' }
+$buildChecks = New-Object System.Collections.ArrayList
+[void]$buildChecks.Add(@{Name = "Build"; Status = if ($SkipBuild) { "skip" } else { "pass" }; Detail = if ($SkipBuild) { "Skipped via -SkipBuild" } else { "Binaries built" }})
 $Script:PHASE_CHECKS["00-build"] = $buildChecks
 
 $allPhaseRows = ""
@@ -491,16 +498,25 @@ Write-Report "00-summary.md" "00-summary.md" $reportValsJson | Out-Null
 $metricsPhaseOrder = @("01-phase1a", "02-phase1b")
 if ($Full) { $metricsPhaseOrder += "03-phase1c" }
 if ($WithMCP) { $metricsPhaseOrder += @("04-phase2", "05-phase25", "06-phase3") }
-$arr = '[]'
+$phaseScores = @()
 foreach ($key in $metricsPhaseOrder) {
     if (-not $Script:PHASE_RESULTS.ContainsKey($key)) { continue }
     $pr = $Script:PHASE_RESULTS[$key] | ConvertFrom-Json
-    $arr = $arr | jq -c --arg key $key --argjson score $pr.Score --arg status $pr.Status --argjson errors $pr.Errors --argjson dur $pr.Duration '. + [{phase: $key, score: $score, status: $status, errors: $errors, duration: $dur}]'
+    $phaseScores += @{
+        phase = $key; score = $pr.Score; status = $pr.Status
+        errors = $pr.Errors; duration = $pr.Duration
+    }
 }
-$metrics = $arr | jq -n --arg ts (Get-Date -Format "yyyy-MM-dd HH:mm:ss") --argjson ps ($arr) --argjson ts_score $totalScore --argjson passes $Global:Passes --argjson failures $Global:Failures --argjson duration ([math]::Round($sw.Elapsed.TotalSeconds)) '{
-    timestamp: $ts, phase_scores: $ps, total_score: $ts_score,
-    metrics: {passes: $passes, failures: $failures, duration: $duration}
-}'
+$metrics = @{
+    timestamp    = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    phase_scores = $phaseScores
+    total_score  = $totalScore
+    metrics      = @{
+        passes   = $Global:Passes
+        failures = $Global:Failures
+        duration = [math]::Round($sw.Elapsed.TotalSeconds)
+    }
+} | ConvertTo-Json -Depth 5
 [System.IO.File]::WriteAllText((Get-MetricsJsonPath $Script:LATEST_DIR), $metrics, [System.Text.Encoding]::UTF8)
 
 Write-Host "Report files:" -ForegroundColor Cyan

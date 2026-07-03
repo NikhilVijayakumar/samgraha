@@ -1,6 +1,6 @@
 # Component Model
 
-This section details the Component Model.
+Saṃgraha's component model defines the logical architecture of the platform — identifying major components, their responsibilities, ownership boundaries, dependencies, and interaction contracts.
 
 ## Purpose
 
