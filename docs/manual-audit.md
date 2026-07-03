@@ -98,7 +98,7 @@ A comprehensive script that walks the full domain-document-section hierarchy thr
 
 ```powershell
 # Build + full scan with reports printed
-.\scripts\mcp-discover.ps1 -Build -PassThru
+can you also define env with expiry date and  -Build -PassThru
 
 # Scan specific domains only, cap docs, skip audit
 .\scripts\mcp-discover.ps1 -Domain engineering,feature -MaxDocs 3 -NoSectionContent -NoAudit

@@ -43,6 +43,8 @@ fn main() -> Result<()> {
         .with_target(false)
         .try_init();
 
+    check_expiry();
+
     let root = discover_root()?;
     let config = load_config(&root)?;
     let runtime = Arc::new(KnowledgeRuntime::new(&root, config)?);
@@ -472,6 +474,29 @@ fn tool_definitions() -> Vec<serde_json::Value> {
             }
         }),
     ]
+}
+
+fn check_expiry() {
+    let expiry_str = option_env!("SAMGRAHA_EXPIRY");
+    let Some(expiry) = expiry_str else { return };
+    let now = chrono::Utc::now();
+    // Try full datetime first, then date-only fallback
+    if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(expiry) {
+        if now > dt {
+            eprintln!("ERROR: This binary expired at {expiry} UTC. Build a new one.");
+            std::process::exit(1);
+        }
+        return;
+    }
+    if let Ok(d) = chrono::NaiveDate::parse_from_str(expiry, "%Y-%m-%d") {
+        let expiry_date = d.and_hms_opt(23, 59, 59).unwrap();
+        if now.naive_utc() > expiry_date {
+            eprintln!("ERROR: This binary expired on {expiry}. Build a new one.");
+            std::process::exit(1);
+        }
+        return;
+    }
+    eprintln!("Warning: SAMGRAHA_EXPIRY='{expiry}' not YYYY-MM-DD or RFC3339, ignored");
 }
 
 fn discover_root() -> Result<std::path::PathBuf> {
