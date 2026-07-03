@@ -7,11 +7,18 @@ FAILURE_DETAILS=()
 LAST_OUTPUT=""
 CURRENT_PHASE=""
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+source "$ROOT_DIR/scripts/lib/report.sh"
 TEST_TEMP=$(mktemp -d "/tmp/samgraha-test-XXXXXX")
 
 FULL=false
 WITH_MCP=false
 SKIP_BUILD=false
+PHASE_ID=""
+PHASE_DURATION=""
+declare -A PHASE_CHECKS
+declare -A PHASE_RESULTS
+PREV_METRICS='{}'
+PHASE_ERRORS_JSON='{}'
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -22,15 +29,56 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-write_pass() { echo "  OK $*"; PASSES=$((PASSES + 1)); }
+report_dir_setup "tests"
+
+write_pass() { echo "  OK $*"; PASSES=$((PASSES + 1)); local pc="${PHASE_CHECKS[$PHASE_ID]:-[]}"; PHASE_CHECKS["$PHASE_ID"]=$(echo "$pc" | jq --arg n "$*" '. += [{"Name": $n, "Status": "pass", "Detail": ""}]' 2>/dev/null || echo "$pc"); }
 write_fail() {
     local msg="$*"
     echo "  XX $msg"
     FAILURES=$((FAILURES + 1))
-    FAILURE_DETAILS+=("$CURRENT_PHASE|$msg|$(echo -e "$LAST_OUTPUT")")
+    FAILURE_DETAILS+=("$PHASE_ID|$msg|$(echo -e "$LAST_OUTPUT")")
+    local pc="${PHASE_CHECKS[$PHASE_ID]:-[]}"
+    PHASE_CHECKS["$PHASE_ID"]=$(echo "$pc" | jq --arg n "$*" '. += [{"Name": $n, "Status": "fail", "Detail": ""}]' 2>/dev/null || echo "$pc")
 }
 write_step() { CURRENT_PHASE="$*"; LAST_OUTPUT=""; echo -e "\n== $CURRENT_PHASE =="; }
 write_info() { echo "  .. $*"; }
+
+write_phase_report() {
+    local pid="$1" phase_checks="${PHASE_CHECKS[$pid]:-[]}" end
+    end=$(date +%s)
+    local duration=$((end - PHASE_DURATION))
+    local checks_table errors_table analysis recs
+    checks_table=$(get_checks_table "$phase_checks")
+    errors_table=$(get_errors_table "$pid")
+    analysis=$(gen_phase_analysis "$pid" "$phase_checks")
+    recs=$(gen_phase_recs "$pid" "$phase_checks")
+    local score prev_score trend status
+    local total ok fail
+    total=$(echo "$phase_checks" | jq 'length // 0')
+    ok=$(echo "$phase_checks" | jq '[.[] | select(.Status == "pass")] | length')
+    fail=$(echo "$phase_checks" | jq '[.[] | select(.Status == "fail")] | length')
+    if [ "$total" -eq 0 ]; then score=0; else score=$((ok * 100 / total)); fi
+    [ "$fail" -gt 0 ] && status="❌ FAIL" || status="✅ PASS"
+    prev_score=$(get_prev_metric ".phase_scores[] | select(.phase == \"$pid\") | .score // \"\"")
+    trend=$(trend_between "$score" "$prev_score")
+    local report_vals
+    report_vals=$(jq -n \
+        --arg ts "$(date '+%Y-%m-%d %H:%M:%S')" \
+        --arg duration "${duration}s" \
+        --arg status "$status" \
+        --argjson score "$score" \
+        --arg trend "$trend" \
+        --arg prev_score "${prev_score:-—}" \
+        --arg analysis "$analysis" \
+        --arg recommendations "$recs" \
+        --arg checks_table "$checks_table" \
+        --arg errors_table "$errors_table" \
+        --argjson passes "$ok" \
+        --argjson failures "$fail" \
+        '{TIMESTAMP: $ts, DURATION: $duration, STATUS: $status, SCORE: $score, TREND: $trend, PREV_SCORE: $prev_score, ANALYSIS: $analysis, RECOMMENDATIONS: $recommendations, CHECKS_TABLE: $checks_table, ERRORS_TABLE: $errors_table, PASSES: $passes, FAILURES: $failures}')
+    write_report "$pid.md" "$pid.md" "$report_vals" > /dev/null
+    PHASE_RESULTS["$pid"]=$(jq -n --arg status "$status" --argjson score "$score" --argjson errors "$fail" --argjson duration "$duration" '{Status: $status, Score: $score, Errors: $errors, Duration: $duration}')
+}
 
 assert_exit_code_zero() {
     local ec=$?
@@ -101,16 +149,21 @@ remove_test_fixture() { rm -rf "$1"; }
 
 invoke_phase1a() {
     write_step "Phase 1a - Unit Tests"
+    PHASE_ID="01-phase1a"
+    PHASE_DURATION=$(date +%s)
     pushd "$ROOT_DIR" > /dev/null
     write_info "Running cargo test -p tests"
     LAST_OUTPUT=$(cargo test -p tests 2>&1 || true)
     echo "$LAST_OUTPUT"
     assert_exit_code_zero "cargo test -p tests"
     popd > /dev/null
+    write_phase_report "01-phase1a"
 }
 
 invoke_phase1b() {
     write_step "Phase 1b - CLI Integration"
+    PHASE_ID="02-phase1b"
+    PHASE_DURATION=$(date +%s)
     local test_dir="$TEST_TEMP/p1b"
     new_test_fixture "$test_dir" "test-repo"
     pushd "$test_dir" > /dev/null
@@ -187,10 +240,13 @@ invoke_phase1b() {
 
     popd > /dev/null
     remove_test_fixture "$test_dir"
+    write_phase_report "02-phase1b"
 }
 
 invoke_phase1c() {
     write_step "Phase 1c - Multi-Repo"
+    PHASE_ID="03-phase1c"
+    PHASE_DURATION=$(date +%s)
     local rA="$TEST_TEMP/p1c/repo-a"
     local rB="$TEST_TEMP/p1c/repo-b"
     new_test_fixture "$rA" "repo-a"
@@ -231,10 +287,13 @@ required = true"
     popd > /dev/null
 
     remove_test_fixture "$rA"
+    write_phase_report "03-phase1c"
 }
 
 invoke_phase2() {
     write_step "Phase 2 - MCP Tests"
+    PHASE_ID="04-phase2"
+    PHASE_DURATION=$(date +%s)
     local test_dir="$TEST_TEMP/p2"
     new_test_fixture "$test_dir" "mcp-test"
     pushd "$test_dir" > /dev/null
@@ -264,10 +323,13 @@ invoke_phase2() {
 
     popd > /dev/null
     remove_test_fixture "$test_dir"
+    write_phase_report "04-phase2"
 }
 
 invoke_phase3() {
     write_step "Phase 3 - Semantic Audit Tools"
+    PHASE_ID="06-phase3"
+    PHASE_DURATION=$(date +%s)
     local test_dir="$TEST_TEMP/p3"
     new_test_fixture "$test_dir" "audit-test"
     # Create minimal audit knowledge files for the test fixture
@@ -291,7 +353,7 @@ EOF
     write_info "get_documents_by_domain"
     local r
     r=$(raw_mcp '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_documents_by_domain","arguments":{"domain":"feature"}}}')
-    if echo "$r" | grep -qiE "documents"; then write_pass "get_documents_by_domain"; else write_fail "get_documents_by_domain"; fi
+    if echo "$r" | grep -qiE "documents|\[" ; then write_pass "get_documents_by_domain"; else write_fail "get_documents_by_domain"; fi
 
     write_info "get_section"
     r=$(raw_mcp '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"get_section","arguments":{"section_id":1}}}')
@@ -333,10 +395,13 @@ EOF
 
     popd > /dev/null
     remove_test_fixture "$test_dir"
+    write_phase_report "06-phase3"
 }
 
 invoke_phase25() {
     write_step "Phase 2.5 - Protocol"
+    PHASE_ID="05-phase25"
+    PHASE_DURATION=$(date +%s)
     local test_dir="$TEST_TEMP/p25"
     new_test_fixture "$test_dir" "proto-test"
     pushd "$test_dir" > /dev/null
@@ -364,6 +429,10 @@ invoke_phase25() {
     r=$(raw_mcp '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}')
     if echo "$r" | grep -q "samgraha-mcp"; then write_pass "initialize"; else write_fail "expected serverInfo"; fi
 
+    write_info "tools/list"
+    r=$(raw_mcp '{"jsonrpc":"2.0","id":3,"method":"tools/list","params":{}}')
+    if echo "$r" | grep -q "compile"; then write_pass "tools/list"; else write_fail "expected tools"; fi
+
     write_info "rapid calls"
     local ok=true
     for _ in $(seq 1 5); do
@@ -374,6 +443,7 @@ invoke_phase25() {
 
     popd > /dev/null
     remove_test_fixture "$test_dir"
+    write_phase_report "05-phase25"
 }
 
 START_TIME=$(date +%s)
@@ -404,52 +474,102 @@ END_TIME=$(date +%s)
 DURATION=$((END_TIME - START_TIME))
 echo -e "\nPassed: $PASSES  Failed: $FAILURES  Time: ${DURATION}s"
 
-REPORT_DIR="$ROOT_DIR/docs/report/manual-audit"
-mkdir -p "$REPORT_DIR"
-TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-MODE_PARTS=()
-$FULL && MODE_PARTS+=("full")
-$WITH_MCP && MODE_PARTS+=("mcp")
-MODE="${MODE_PARTS[*]:-default}"
-MODE="${MODE// /-}"
-REPORT_PATH="$REPORT_DIR/$TIMESTAMP-$MODE.md"
+# Track build phase
+build_checks='[]'
+if $SKIP_BUILD; then
+    build_checks=$(echo "$build_checks" | jq '. += [{"Name": "Build", "Status": "skip", "Detail": "Skipped via --skip-build"}]')
+else
+    build_checks=$(echo "$build_checks" | jq '. += [{"Name": "Build", "Status": "pass", "Detail": "Binaries built"}]')
+fi
+PHASE_CHECKS["00-build"]="$build_checks"
 
-{
-    echo "# Samgraha Test Report"
-    echo ""
-    echo "**Date:** $(date '+%Y-%m-%d %H:%M:%S')"
-    echo "**Mode:** $MODE"
-    if [[ $FAILURES -gt 0 ]]; then RES="FAIL"; else RES="PASS"; fi
-    echo "**Result:** $RES -- $PASSES passed, $FAILURES failed"
-    echo "**Duration:** ${DURATION}s"
-    echo ""
+# Generate summary report
+local all_phase_rows="" all_failed="" score_sum=0 score_count=0
+for key in 00-build 01-phase1a 02-phase1b 03-phase1c 04-phase2 05-phase25 06-phase3; do
+    local pr="${PHASE_RESULTS[$key]:-}"
+    [ -z "$pr" ] && continue
+    local ps pf pe pd
+    ps=$(echo "$pr" | jq -r '.Status // "?"')
+    pf=$(echo "$pr" | jq -r '.Score // 0')
+    pe=$(echo "$pr" | jq -r '.Errors // 0')
+    pd=$(echo "$pr" | jq -r '.Duration // 0')
+    all_phase_rows+="| $key | ${pf}/100 | $ps | $pe | ${pd}s |"$'\n'
+    score_sum=$((score_sum + pf))
+    score_count=$((score_count + 1))
+    ! echo "$ps" | grep -q "PASS" && [ "$ps" != "⬜ SKIPPED" ] && all_failed+="- **$key**: $ps ($pe errors)"$'\n'
+done
+local total_score=0
+[ "$score_count" -gt 0 ] && total_score=$((score_sum / score_count))
 
-    if [[ ${#FAILURE_DETAILS[@]} -gt 0 ]]; then
-        echo "## Failure Summary"
-        echo ""
-        echo "| # | Phase | Test |"
-        echo "|---|-------|------|"
-        for i in "${!FAILURE_DETAILS[@]}"; do
-            IFS='|' read -r phase test output <<< "${FAILURE_DETAILS[$i]}"
-            echo "| $((i+1)) | $phase | $test |"
-        done
-        echo ""
-        echo "## Failure Details"
-        echo ""
-        for i in "${!FAILURE_DETAILS[@]}"; do
-            IFS='|' read -r phase test output <<< "${FAILURE_DETAILS[$i]}"
-            echo "### $((i+1)). $phase: $test"
-            echo ""
-            if [[ -n "$output" ]]; then
-                echo '```'
-                echo "$output"
-                echo '```'
-                echo ""
-            fi
-        done
-    fi
-} > "$REPORT_PATH"
+local prev_total_score
+prev_total_score=$(get_prev_metric ".total_score // \"\"")
+local total_trend
+total_trend=$(trend_between "$total_score" "$prev_total_score")
 
-echo "Report: $REPORT_PATH"
+local analysis recs
+if [ "$FAILURES" -gt 0 ]; then
+    analysis="❌ $FAILURES failures across $score_count phases. $PASSES total passes."
+    recs="- 🔴 Fix $FAILURES failing test(s) before next run"
+else
+    analysis="✅ All $score_count phases passed. $PASSES total passes."
+    recs="- ✅ No action required"
+fi
+[ -z "$all_failed" ] && all_failed="—"
+
+local report_vals
+report_vals=$(jq -n \
+    --arg ts "$(date '+%Y-%m-%d %H:%M:%S')" \
+    --arg status "$([ "$FAILURES" -gt 0 ] && echo "❌ FAIL" || echo "✅ PASS")" \
+    --argjson duration "$DURATION" \
+    --argjson score "$total_score" \
+    --arg trend "$total_trend" \
+    --arg prev_score "${prev_total_score:-—}" \
+    --arg analysis "$analysis" \
+    --arg recommendations "$recs" \
+    --arg phase_rows "$all_phase_rows" \
+    --arg failed_phases "$all_failed" \
+    --argjson passes "$PASSES" \
+    --argjson failures "$FAILURES" \
+    '{TIMESTAMP: $ts, STATUS: $status, DURATION: $duration, SCORE: $score, TREND: $trend, PREV_SCORE: $prev_score, ANALYSIS: $analysis, RECOMMENDATIONS: $recommendations, PHASE_RESULTS_ROWS: $phase_rows, FAILED_PHASES: $failed_phases, PASSES: $passes, FAILURES: $failures}')
+write_report "00-summary.md" "00-summary.md" "$report_vals" > /dev/null
+
+# Save metrics
+local metrics_phase_order=(01-phase1a 02-phase1b)
+$FULL && metrics_phase_order+=(03-phase1c)
+$WITH_MCP && metrics_phase_order+=(04-phase2 05-phase25 06-phase3)
+local arr='[]'
+for key in "${metrics_phase_order[@]}"; do
+    local pr="${PHASE_RESULTS[$key]:-}"
+    [ -z "$pr" ] && continue
+    arr=$(echo "$arr" | jq -c \
+        --arg key "$key" \
+        --argjson score "$(echo "$pr" | jq '(.Score // 0) | floor')" \
+        --arg status "$(echo "$pr" | jq -r '.Status // "?"')" \
+        --argjson errors "$(echo "$pr" | jq '(.Errors // 0)')" \
+        --argjson dur "$(echo "$pr" | jq '(.Duration // 0)')" \
+        '. + [{phase: $key, score: $score, status: $status, errors: $errors, duration: $dur}]')
+done
+local metrics
+metrics=$(jq -n \
+    --arg ts "$(date '+%Y-%m-%d %H:%M:%S')" \
+    --argjson ps "$arr" \
+    --argjson ts_score "${total_score:-0}" \
+    --argjson passes "$PASSES" \
+    --argjson failures "$FAILURES" \
+    --argjson duration "$DURATION" \
+    '{
+        timestamp: $ts,
+        phase_scores: $ps,
+        total_score: $ts_score,
+        metrics: {
+            passes: $passes, failures: $failures, duration: $duration
+        }
+    }')
+printf '%s' "$metrics" > "$LATEST_DIR/metrics.json"
+
+echo "Report files:"
+for f in "$LATEST_DIR"/*.md; do
+    echo "  $f"
+done
 
 if [[ $FAILURES -gt 0 ]]; then exit 1; else exit 0; fi

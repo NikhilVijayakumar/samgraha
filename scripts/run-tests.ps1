@@ -13,7 +13,66 @@ $Global:CurrentPhase   = ""
 $RootDir  = Split-Path -Parent $PSScriptRoot
 $TestTemp = Join-Path $env:TEMP "samgraha-test-$([System.IO.Path]::GetRandomFileName())"
 
-function Write-Pass { Write-Host "  OK $($args -join ' ')" -ForegroundColor Green; $Global:Passes++ }
+. "$RootDir\scripts\lib\report.ps1"
+
+$Script:PHASE_ID = ""
+$Script:PHASE_DURATION = $null
+$Script:PHASE_CHECKS = @{}
+$Script:PHASE_RESULTS = @{}
+$Script:PREV_METRICS = "{}"
+$Script:PHASE_ERRORS_JSON = "{}"
+$Script:TEMPLATE_DIR = ""
+$Script:LATEST_DIR = ""
+$Script:ARCHIVE_DIR = ""
+
+Initialize-ReportDirs "tests"
+
+function Write-PhaseReport {
+    param([string]$PId)
+    $end = Get-Date
+    $duration = [math]::Round(($end - $Script:PHASE_DURATION).TotalSeconds)
+    $phaseChecks = if ($Script:PHASE_CHECKS.ContainsKey($PId)) { $Script:PHASE_CHECKS[$PId] } else { '[]' }
+    $checksTable = Get-ChecksTable $phaseChecks
+    $errorsTable = Get-ErrorsTable $PId
+    $analysis = Gen-PhaseAnalysis $PId $phaseChecks
+    $recs = Gen-PhaseRecs $PId $phaseChecks
+    $total = $phaseChecks | jq 'length // 0'
+    $ok = $phaseChecks | jq '[.[] | select(.Status == "pass")] | length'
+    $fail = $phaseChecks | jq '[.[] | select(.Status == "fail")] | length'
+    $score = if ($total -gt 0) { [math]::Floor($ok * 100 / $total) } else { 0 }
+    $status = if ($fail -gt 0) { "❌ FAIL" } else { "✅ PASS" }
+    $prevScore = Get-PrevMetric $PId "score"
+    $trend = Trend-Between $score $prevScore
+    $reportVals = @{
+        TIMESTAMP        = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        DURATION         = "${duration}s"
+        STATUS           = $status
+        SCORE            = $score
+        TREND            = $trend
+        PREV_SCORE       = if ([string]::IsNullOrEmpty($prevScore)) { "—" } else { $prevScore }
+        ANALYSIS         = $analysis
+        RECOMMENDATIONS  = $recs
+        CHECKS_TABLE     = $checksTable
+        ERRORS_TABLE     = $errorsTable
+        PASSES           = $ok
+        FAILURES         = $fail
+    }
+    $reportValsJson = $reportVals | ConvertTo-Json -Depth 5
+    Write-Report "${PId}.md" "${PId}.md" $reportValsJson | Out-Null
+    $Script:PHASE_RESULTS[$PId] = @{
+        Status = $status; Score = $score; Errors = $fail; Duration = $duration
+    } | ConvertTo-Json -Compress
+}
+
+function Write-Pass {
+    Write-Host "  OK $($args -join ' ')" -ForegroundColor Green
+    $Global:Passes++
+    $msg = $args -join ' '
+    $pid = $Script:PHASE_ID
+    $pc = if ($Script:PHASE_CHECKS.ContainsKey($pid)) { $Script:PHASE_CHECKS[$pid] } else { '[]' }
+    $Script:PHASE_CHECKS[$pid] = $pc | jq --arg n "$msg" '. += [{"Name": $n, "Status": "pass", "Detail": ""}]'
+}
+
 function Write-Fail {
     $msg = $args -join ' '
     Write-Host "  XX $msg" -ForegroundColor Red
@@ -23,7 +82,11 @@ function Write-Fail {
         Test   = $msg
         Output = ($Global:LastOutput -join "`n").Trim()
     })
+    $pid = $Script:PHASE_ID
+    $pc = if ($Script:PHASE_CHECKS.ContainsKey($pid)) { $Script:PHASE_CHECKS[$pid] } else { '[]' }
+    $Script:PHASE_CHECKS[$pid] = $pc | jq --arg n "$msg" '. += [{"Name": $n, "Status": "fail", "Detail": ""}]'
 }
+
 function Write-Step {
     $Global:CurrentPhase = $args -join ' '
     $Global:LastOutput   = @()
@@ -34,20 +97,12 @@ function Write-Info { Write-Host "  .. $($args -join ' ')" -ForegroundColor Dark
 function Assert-ExitCodeZero {
     param($Message)
     $ec = $global:LASTEXITCODE
-    if ($ec -ne 0) {
-        Write-Fail "$Message (exit $ec)"
-    } else {
-        Write-Pass "$Message"
-    }
+    if ($ec -ne 0) { Write-Fail "$Message (exit $ec)" } else { Write-Pass "$Message" }
 }
 
 function Assert-FileExists {
     param($Path, $Message)
-    if (-not (Test-Path $Path)) {
-        Write-Fail "$Message -- file not found: $Path"
-    } else {
-        Write-Pass "$Message"
-    }
+    if (-not (Test-Path $Path)) { Write-Fail "$Message -- file not found: $Path" } else { Write-Pass "$Message" }
 }
 
 function Run-Cli {
@@ -79,17 +134,24 @@ function Remove-TestFixture {
 
 function Invoke-Phase1a {
     Write-Step "Phase 1a - Unit Tests"
+    $Script:PHASE_ID = "01-phase1a"
+    $Script:PHASE_DURATION = Get-Date
     Push-Location $RootDir
     try {
         Write-Info "Running cargo test -p tests"
         $Global:LastOutput = & cargo test -p tests 2>&1
         $Global:LastOutput | ForEach-Object { Write-Host $_ }
         Assert-ExitCodeZero "cargo test -p tests"
-    } finally { Pop-Location }
+    } finally {
+        Pop-Location
+        Write-PhaseReport "01-phase1a"
+    }
 }
 
 function Invoke-Phase1b {
     Write-Step "Phase 1b - CLI Integration"
+    $Script:PHASE_ID = "02-phase1b"
+    $Script:PHASE_DURATION = Get-Date
     $testDir = Join-Path $TestTemp "p1b"
     New-TestFixture $testDir "test-repo"
     Push-Location $testDir
@@ -149,11 +211,14 @@ function Invoke-Phase1b {
     } finally {
         Pop-Location
         Remove-TestFixture $testDir
+        Write-PhaseReport "02-phase1b"
     }
 }
 
 function Invoke-Phase1c {
     Write-Step "Phase 1c - Multi-Repo"
+    $Script:PHASE_ID = "03-phase1c"
+    $Script:PHASE_DURATION = Get-Date
     $rA = Join-Path (Join-Path $TestTemp "p1c") "repo-a"
     $rB = Join-Path (Join-Path $TestTemp "p1c") "repo-b"
     New-TestFixture $rA "repo-a"
@@ -185,11 +250,14 @@ function Invoke-Phase1c {
     } finally {
         Remove-TestFixture $rA
         Remove-TestFixture $rB
+        Write-PhaseReport "03-phase1c"
     }
 }
 
 function Invoke-Phase2 {
     Write-Step "Phase 2 - MCP Tests"
+    $Script:PHASE_ID = "04-phase2"
+    $Script:PHASE_DURATION = Get-Date
     $testDir = Join-Path $TestTemp "p2"
     New-TestFixture $testDir "mcp-test"
     Push-Location $testDir
@@ -205,24 +273,26 @@ function Invoke-Phase2 {
         if ($r -match "compile") { Write-Pass "tools/list" } else { Write-Fail "tools/list" }
         Write-Info "tools/call search"
         $r = RawMcp '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"search","arguments":{"query":"compilation"}}}'
-        if ($LASTEXITCODE -eq 0) { Write-Pass "search" } else { Write-Fail "search" }
+        if ($r -match "error|not found") { Write-Fail "search" } else { Write-Pass "search" }
         Write-Info "tools/call get_document"
         $r = RawMcp '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_document","arguments":{"id":"1"}}}'
-        if ($LASTEXITCODE -eq 0) { Write-Pass "get_document" } else { Write-Fail "get_document" }
+        if ($r -match "error|not found") { Write-Fail "get_document" } else { Write-Pass "get_document" }
         Write-Info "tools/call nonexistent"
         $r = RawMcp '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"nonexistent"}}'
         if ($r -match "error" -or $r -match "not found") { Write-Pass "nonexistent => error" } else { Write-Fail "nonexistent should error" }
     } finally {
         Pop-Location
         Remove-TestFixture $testDir
+        Write-PhaseReport "04-phase2"
     }
 }
 
 function Invoke-Phase3 {
     Write-Step "Phase 3 - Semantic Audit Tools"
+    $Script:PHASE_ID = "06-phase3"
+    $Script:PHASE_DURATION = Get-Date
     $testDir = Join-Path $TestTemp "p3"
     New-TestFixture $testDir "audit-test"
-    # Create minimal audit knowledge files for the test fixture
     $auditDir = Join-Path $testDir "docs\raw\audit-standards\feature"
     New-Item -ItemType Directory -Force $auditDir | Out-Null
     @"
@@ -284,11 +354,14 @@ function Invoke-Phase3 {
     } finally {
         Pop-Location
         Remove-TestFixture $testDir
+        Write-PhaseReport "06-phase3"
     }
 }
 
 function Invoke-Phase25 {
     Write-Step "Phase 2.5 - Protocol"
+    $Script:PHASE_ID = "05-phase25"
+    $Script:PHASE_DURATION = Get-Date
     $testDir = Join-Path $TestTemp "p25"
     New-TestFixture $testDir "proto-test"
     Push-Location $testDir
@@ -329,6 +402,7 @@ function Invoke-Phase25 {
     } finally {
         Pop-Location
         Remove-TestFixture $testDir
+        Write-PhaseReport "05-phase25"
     }
 }
 
@@ -363,51 +437,75 @@ $sw.Stop()
 $s = "{0:F1}s" -f $sw.Elapsed.TotalSeconds
 Write-Host "Passed: $Global:Passes  Failed: $Global:Failures  Time: $s" -ForegroundColor Cyan
 
-# Save report to docs/report/ (gitignored)
-$reportDir = Join-Path $RootDir "docs\report\manual-audit"
-if (-not (Test-Path $reportDir)) { New-Item -ItemType Directory -Force $reportDir | Out-Null }
-$ts        = Get-Date -Format "yyyyMMdd-HHmmss"
-$modeParts = @(); if ($Full) { $modeParts += "full" }; if ($WithMCP) { $modeParts += "mcp" }
-$mode      = if ($modeParts.Count) { $modeParts -join "-" } else { "default" }
-$reportPath = Join-Path $reportDir "$ts-$mode.md"
+# --- Summary + metrics ---
+$buildChecks = if ($SkipBuild) { '[]' | jq '. += [{"Name": "Build", "Status": "skip", "Detail": "Skipped via -SkipBuild"}]' } else { '[]' | jq '. += [{"Name": "Build", "Status": "pass", "Detail": "Binaries built"}]' }
+$Script:PHASE_CHECKS["00-build"] = $buildChecks
 
-$sb = [System.Text.StringBuilder]::new()
-[void]$sb.AppendLine("# Samgraha Test Report")
-[void]$sb.AppendLine("")
-[void]$sb.AppendLine("**Date:** $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')")
-[void]$sb.AppendLine("**Mode:** $mode")
-[void]$sb.AppendLine("**Result:** $(if ($Global:Failures) { 'FAIL' } else { 'PASS' }) -- $Global:Passes passed, $Global:Failures failed")
-[void]$sb.AppendLine("**Duration:** $s")
-[void]$sb.AppendLine("")
-
-if ($Global:FailureDetails.Count) {
-    [void]$sb.AppendLine("## Failure Summary")
-    [void]$sb.AppendLine("")
-    [void]$sb.AppendLine("| # | Phase | Test |")
-    [void]$sb.AppendLine("|---|-------|------|")
-    $i = 1
-    foreach ($f in $Global:FailureDetails) {
-        [void]$sb.AppendLine("| $i | $($f.Phase) | $($f.Test) |")
-        $i++
-    }
-    [void]$sb.AppendLine("")
-    [void]$sb.AppendLine("## Failure Details")
-    [void]$sb.AppendLine("")
-    $i = 1
-    foreach ($f in $Global:FailureDetails) {
-        [void]$sb.AppendLine("### $i. $($f.Phase): $($f.Test)")
-        [void]$sb.AppendLine("")
-        if ($f.Output) {
-            [void]$sb.AppendLine('```')
-            [void]$sb.AppendLine($f.Output)
-            [void]$sb.AppendLine('```')
-            [void]$sb.AppendLine("")
-        }
-        $i++
+$allPhaseRows = ""
+$allFailed = ""
+$scoreSum = 0; $scoreCount = 0
+$phaseOrder = @("00-build", "01-phase1a", "02-phase1b", "03-phase1c", "04-phase2", "05-phase25", "06-phase3")
+foreach ($key in $phaseOrder) {
+    if (-not $Script:PHASE_RESULTS.ContainsKey($key)) { continue }
+    $pr = $Script:PHASE_RESULTS[$key] | ConvertFrom-Json
+    $allPhaseRows += "| $key | $($pr.Score)/100 | $($pr.Status) | $($pr.Errors) | $($pr.Duration)s |`n"
+    $scoreSum += $pr.Score
+    $scoreCount++
+    if (-not ($pr.Status -match "PASS") -and $pr.Status -ne "⬜ SKIPPED") {
+        $allFailed += "- **$key**: $($pr.Status) ($($pr.Errors) errors)`n"
     }
 }
+$totalScore = if ($scoreCount -gt 0) { [math]::Floor($scoreSum / $scoreCount) } else { 0 }
 
-[System.IO.File]::WriteAllText($reportPath, $sb.ToString(), [System.Text.Encoding]::UTF8)
-Write-Host "Report: $reportPath" -ForegroundColor Cyan
+$prevTotalScore = Get-PrevMetric "total_score" "total_score"
+$totalTrend = Trend-Between $totalScore $prevTotalScore
+if ([string]::IsNullOrEmpty($prevTotalScore)) { $prevTotalScore = "—" }
+
+if ($Global:Failures -gt 0) {
+    $analysis = "❌ $($Global:Failures) failures across $scoreCount phases. $($Global:Passes) total passes."
+    $recs = "- 🔴 Fix $($Global:Failures) failing test(s) before next run"
+} else {
+    $analysis = "✅ All $scoreCount phases passed. $($Global:Passes) total passes."
+    $recs = "- ✅ No action required"
+}
+if ([string]::IsNullOrEmpty($allFailed)) { $allFailed = "—" }
+
+$reportVals = @{
+    TIMESTAMP          = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    STATUS             = if ($Global:Failures -gt 0) { "❌ FAIL" } else { "✅ PASS" }
+    DURATION           = $s
+    SCORE              = $totalScore
+    TREND              = $totalTrend
+    PREV_SCORE         = $prevTotalScore
+    ANALYSIS           = $analysis
+    RECOMMENDATIONS    = $recs
+    PHASE_RESULTS_ROWS = $allPhaseRows
+    FAILED_PHASES      = $allFailed
+    PASSES             = $Global:Passes
+    FAILURES           = $Global:Failures
+}
+$reportValsJson = $reportVals | ConvertTo-Json -Depth 5
+Write-Report "00-summary.md" "00-summary.md" $reportValsJson | Out-Null
+
+# Metrics
+$metricsPhaseOrder = @("01-phase1a", "02-phase1b")
+if ($Full) { $metricsPhaseOrder += "03-phase1c" }
+if ($WithMCP) { $metricsPhaseOrder += @("04-phase2", "05-phase25", "06-phase3") }
+$arr = '[]'
+foreach ($key in $metricsPhaseOrder) {
+    if (-not $Script:PHASE_RESULTS.ContainsKey($key)) { continue }
+    $pr = $Script:PHASE_RESULTS[$key] | ConvertFrom-Json
+    $arr = $arr | jq -c --arg key $key --argjson score $pr.Score --arg status $pr.Status --argjson errors $pr.Errors --argjson dur $pr.Duration '. + [{phase: $key, score: $score, status: $status, errors: $errors, duration: $dur}]'
+}
+$metrics = $arr | jq -n --arg ts (Get-Date -Format "yyyy-MM-dd HH:mm:ss") --argjson ps ($arr) --argjson ts_score $totalScore --argjson passes $Global:Passes --argjson failures $Global:Failures --argjson duration ([math]::Round($sw.Elapsed.TotalSeconds)) '{
+    timestamp: $ts, phase_scores: $ps, total_score: $ts_score,
+    metrics: {passes: $passes, failures: $failures, duration: $duration}
+}'
+[System.IO.File]::WriteAllText((Get-MetricsJsonPath $Script:LATEST_DIR), $metrics, [System.Text.Encoding]::UTF8)
+
+Write-Host "Report files:" -ForegroundColor Cyan
+foreach ($f in (Get-ChildItem "$($Script:LATEST_DIR)\*.md" | Sort-Object Name)) {
+    Write-Host "  $($f.FullName)"
+}
 
 if ($Global:Failures -gt 0) { exit 1 } else { exit 0 }
