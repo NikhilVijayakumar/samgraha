@@ -506,8 +506,10 @@ impl McpAdapter {
             _ => return Err(anyhow::anyhow!("Invalid stage: {}", stage_str)),
         };
 
-        let report = self.runtime.get_audit_report(domain, document_id, section_id, stage)?;
-        Ok(serde_json::to_value(&report)?)
+        match self.runtime.get_audit_report(domain, document_id, section_id, stage)? {
+            Some(r) => Ok(serde_json::to_value(&r)?),
+            None => Ok(serde_json::json!({"report": null, "domain": domain, "stage": stage_str})),
+        }
     }
 
     fn handle_get_section_changed(&self, req: &McpRequest) -> Result<serde_json::Value> {
