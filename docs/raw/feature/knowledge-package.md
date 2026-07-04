@@ -4,13 +4,25 @@ This section details the Knowledge Package.
 
 ## Purpose
 
-A Knowledge Package is the deployable representation of compiled engineering knowledge.
+A Knowledge Package exists in two forms: a Runtime Knowledge Package (in-memory struct held by the Knowledge Context) and a Distribution Package (portable file artifact for sharing compiled knowledge across machines or builds).
 
-It encapsulates all engineering knowledge required by a consumer into a single, portable, deterministic package. A Knowledge Package is produced by the Knowledge Resolution process and consumed by the Knowledge Runtime.
+The Runtime Knowledge Package is produced by the Resolver at context creation time and held in the Knowledge Context. It is never written to disk.
+
+The Distribution Package encapsulates all engineering knowledge required by a consumer into a single, portable, deterministic artifact. It is produced by the Knowledge Resolution process and consumed by the Knowledge Runtime.
 
 Rather than exposing repositories directly, Saṃgraha delivers Knowledge Packages. This allows consumers to receive only the engineering knowledge relevant to their context while preserving repository boundaries, ownership, and audit integrity.
 
 Knowledge Packages are generated artifacts and can always be regenerated from source documentation.
+
+---
+
+## Knowledge Package Concepts
+
+The term "Knowledge Package" refers to two distinct forms in the Saṃgraha platform:
+
+**Runtime Knowledge Package** — An in-memory assembly of multiple per-repo `knowledge.db` stores, produced by the Resolver at Knowledge Context creation. Held by the Knowledge Context. Never written to disk. Contains repository set, dependency graph, loaded stores, priority map, provenance map, and assembly timestamp.
+
+**Distribution Package** — A file-based artifact (Physical or Virtual layout) described in the functional requirements below. Used for distributing compiled knowledge across machines or sharing builds.
 
 ---
 

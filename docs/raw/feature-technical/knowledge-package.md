@@ -2,11 +2,37 @@
 
 This section details the Knowledge Package — Feature Technical Design.
 
+## Concepts
+
+The term "Knowledge Package" refers to two distinct concepts in this platform:
+
+### Knowledge Package (Runtime)
+
+An in-memory struct produced by the Knowledge Resolver. Contains the assembled set of repositories, loaded stores, dependency graph, priority map, provenance map, and assembly timestamp. This is what the Knowledge Context holds. Never persisted to disk.
+
+```rust
+pub struct KnowledgePackage {
+    pub repository_set: Vec<RepoRef>,
+    pub current_repository: RepoRef,
+    pub dependency_graph: DependencyGraph,
+    pub loaded_stores: Vec<(RepoRef, Store)>,
+    pub priority: PriorityMap,
+    pub provenance: ProvenanceMap,
+    pub assembly_time: Instant,
+}
+```
+
+### Knowledge Package (Distribution)
+
+The file-based artifact described in the rest of this document. Used for distributing compiled knowledge across machines or sharing builds. Supports Physical (portable) and Virtual (workspace-local) layouts.
+
+---
+
 ## Purpose
 
 This document describes the architectural realization of the Knowledge Package feature.
 
-A Knowledge Package is the deployable representation of compiled engineering knowledge. It encapsulates all engineering knowledge required by a consumer into a single, portable, deterministic package produced by Knowledge Resolution and consumed by the Knowledge Runtime.
+A Knowledge Package exists in two forms: the Runtime Knowledge Package (in-memory struct held by the Knowledge Context) and the Distribution Knowledge Package (deployable file artifact produced by Knowledge Resolution for sharing compiled knowledge). This document addresses both forms — the Runtime struct above and the Distribution artifact described in the sections below.
 
 This document applies the architectural principles defined in Component Model, Workspace Architecture, Persistence Architecture, Deployment Architecture, and Knowledge Flow.
 

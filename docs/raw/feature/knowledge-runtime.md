@@ -115,7 +115,18 @@ The runtime shall support multiple concurrent consumers.
 
 Each consumer operates independently without affecting other consumers.
 
-The runtime remains stateless between requests unless explicitly configured otherwise.
+## FR6a. Knowledge Context
+
+The runtime shall maintain a Knowledge Context that holds the assembled Knowledge Package. The context lifetime is independent of any MCP connection.
+
+Knowledge Context lifecycle:
+
+1. **Create** — ContextManager creates a Knowledge Context: Planner runs (config + .meta → KnowledgePlan), Resolver opens planned stores (KnowledgePlan → Knowledge Package), Context wraps package + caches. State: Active.
+2. **Connect** — MCP client or CLI connects; ContextManager hands reference to active context. Connection count +1.
+3. **Serve** — All requests check `is_valid()` (local TTL + revision diff, no registry query) and serve from the cached Knowledge Package. If invalid, rebuild.
+4. **Disconnect** — Connection count -1. If count == 0, context transitions to Inactive. TTL countdown begins.
+5. **Reconnect** — If revision unchanged and within TTL: reuse context (no rebuild). If revision changed: rebuild. If TTL expired: rebuild.
+6. **Dispose** — TTL expires while Inactive, or explicit close. Handles closed, caches dropped.
 
 ---
 

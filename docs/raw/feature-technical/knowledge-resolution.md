@@ -23,9 +23,13 @@ This document applies the architectural principles defined in Component Model, W
 
 This section details the Participating Components.
 
+### Knowledge Planner
+
+The Knowledge Planner produces the Knowledge Plan — the ordered list of `knowledge.db` paths to open. The Planner is deterministic: it reads `samgraha.toml [knowledge]` config + `.meta` files + the current repository manifest. The Planner takes no query context. The Planner is invoked before the Resolver opens any databases.
+
 ### Knowledge Runtime
 
-The Knowledge Runtime owns resolution execution. Resolution is a Knowledge Service invoked during package generation or runtime context preparation.
+The Knowledge Runtime owns resolution execution. Resolution is a Knowledge Service invoked during Knowledge Context creation (once per context lifetime, reused across reconnects).
 
 ### Knowledge Registry
 
@@ -57,11 +61,12 @@ The Repository Registry manages repository lifecycle and synchronization. It is 
 
 | Component | Responsibility |
 |---|---|
+| Knowledge Planner | Produce deterministic Knowledge Plan from config + .meta + manifest | Knowledge Plan (ordered Vec<PathBuf>) |
 | Knowledge Runtime | Coordinate resolution, invoke resolver, enforce repository boundaries |
 | Knowledge Registry | Provide compiled knowledge, metadata, and dependency information |
 | Metadata Cache | Provide per-dependency repository metadata, enforce TTL |
 | Workspace Management | Define workspace scope, repository membership, dependency declarations |
-| Knowledge Resolution Service | Identify relevant knowledge, resolve dependencies, compose package contents |
+| Knowledge Resolution Service | Open planned stores, resolve dependencies, compose package contents |
 | Knowledge Package | Package resolved content into deployable format |
 | Repository Registry | Synchronize repository metadata (compile-time only, never at runtime) |
 
@@ -76,6 +81,9 @@ Consumer Request
 Knowledge Runtime
         │
         ▼
+Knowledge Planner (read config + .meta + manifest → Knowledge Plan)
+        │
+        ▼
 Workspace Management (resolve workspace context)
         │
         ▼
@@ -85,7 +93,7 @@ Metadata Cache (lookup dependency metadata, enforce TTL)
         └── miss → Degrade gracefully, report missing dependency
         │
         ▼
-Knowledge Resolution Service
+Knowledge Resolution Service (open only planned knowledge.db files)
         │
         ├── Dependency Resolution (with cycle detection via DFS)
         ├── Repository Location (path resolution from cached metadata)
@@ -101,10 +109,11 @@ Knowledge Runtime (return result)
 
 ### Resolution Request Flow
 
-1. Consumer initiates resolution through the Knowledge Runtime.
+1. ContextManager creates a Knowledge Context (triggered at startup or on reconnect after rebuild).
 2. Runtime identifies the active workspace and target repository.
-3. Runtime invokes the Knowledge Resolution service.
-4. Resolver reads workspace configuration to determine participating repositories and their dependencies.
+3. Runtime invokes the Knowledge Planner: reads `samgraha.toml [knowledge]` + `.meta` files + current manifest → produces ordered Knowledge Plan (which repos to open in which priority order). No query context used.
+3.5. Runtime invokes the Knowledge Resolution service with the Knowledge Plan.
+4. Resolver opens only the planned `knowledge.db` files from the Knowledge Plan. Resolver reads workspace configuration to determine participating repositories and their dependencies.
 5. Resolver queries the Metadata Cache for each declared dependency by ID:
    - Cache hit with valid TTL: read `knowledge_db` path, revision, exports.
    - Cache hit with expired TTL: use cached metadata (graceful degradation), report stale status.
@@ -200,6 +209,10 @@ On cycle detection, resolution aborts immediately. No partial package is produce
 ## Communication Paths
 
 This section details the Communication Paths.
+
+### Knowledge Planner → Knowledge Resolution Service
+
+The Planner passes the Knowledge Plan (ordered list of `knowledge.db` paths with priorities) to the Resolver. The Resolver opens only the planned stores. The Resolver never queries the Registry.
 
 ### Knowledge Runtime → Workspace Management
 

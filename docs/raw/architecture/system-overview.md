@@ -167,12 +167,25 @@ Compiler       Enrichment
      ▼             ▼
 Knowledge     Repository
  Registry      Registry
-(Knownledge   (Metadata
+(Knowledge    (Metadata
   Track)        Track)
+     │             │
+     │        (sync only)
+     │             ▼
+     │      Dependency Cache
+     │             │
+     │             ▼
+     │      Knowledge Planner
      │             │
      └──────┬──────┘
             ▼
    Knowledge Runtime
+            │
+            ▼
+   Context Manager
+            │
+            ▼
+  Knowledge Context
             │
      ┌──────┴────────────┐
      ▼                   ▼
@@ -216,14 +229,23 @@ Knowledge     Repository
 (Knowledge   (Metadata
   Track)       Track)
      │             │
+     │        (sync only)
      │             ▼
-     │     Registry Sync
+     │      Dependency Cache
      │             │
-     ▼             │
-Knowledge          │
- Runtime           │
+     │             ▼
+     │      Knowledge Planner
      │             │
      └─────┬───────┘
+           ▼
+   Knowledge Runtime
+           │
+           ▼
+   Context Manager
+           │
+           ▼
+  Knowledge Context
+           │
            ▼
    Development Tools
 ```
@@ -244,7 +266,11 @@ Runtime services consume compiled knowledge only.
 | Knowledge Enrichment    | Generate optional summaries, keywords, embeddings, and derived metadata |
 | Knowledge Registry      | Persist and query compiled knowledge                                    |
 | Repository Registry     | Repository registration, discovery, manifest storage, sync history      |
+| Dependency Cache        | Per-repo metadata cache (.meta files); synced from Registry; never queried at runtime |
+| Knowledge Planner       | Deterministic Knowledge Plan from config + .meta files; no query context; no registry access |
 | Knowledge Runtime       | Expose compiled knowledge and orchestrate Knowledge Services            |
+| Context Manager         | Own Knowledge Context lifecycle; track connection count; Active↔Inactive transitions; TTL-based dispose |
+| Knowledge Context       | Knowledge Package lifetime manager; independent of MCP connection lifetime; local validity checks only |
 | CLI Adapter             | Command-line access to the runtime                                      |
 | MCP Adapter             | Model Context Protocol interface for AI engineering tools               |
 | Provider Integrations   | Optional integrations with AI providers                                 |

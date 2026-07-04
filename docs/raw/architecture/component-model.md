@@ -58,9 +58,22 @@ The platform consists of the following logical components.
           Knowledge Registry    Repository Registry
            (Knowledge Track)    (Metadata Track)
                     │                   │
+                    │             (sync only)
+                    │                   ▼
+                    │          Dependency Cache
+                    │                   │
+                    │                   ▼
+                    │          Knowledge Planner
+                    │                   │
                     └─────────┬─────────┘
                               ▼
                      Knowledge Runtime
+                              │
+                              ▼
+                     Context Manager
+                              │
+                              ▼
+                    Knowledge Context
                               │
           ┌───────────────────┴───────────────────┐
           ▼                                       ▼
@@ -220,7 +233,49 @@ The Repository Registry is the authoritative catalog of repository metadata.
 
 The Repository Registry reads only Repository Manifests. It never opens or reads compiled knowledge databases.
 
-The Registry is a compile-time and synchronization artifact. It is never in the runtime query path.
+The Registry is a write-path artifact used only during sync. It is never consulted at runtime.
+
+---
+
+## Dependency Cache
+
+The Dependency Cache stores per-repository dependency metadata as local `.meta` files.
+
+### Responsibilities
+
+* Cache dependency repository metadata for local resolution
+* Store `knowledge.db` paths, revisions, and exports per dependency
+* Serve as the fast-path metadata source for the Knowledge Planner
+
+### Dependencies
+
+* Repository Registry (sync only)
+
+### Boundary
+
+`.meta` files in `.samgraha/dependencies/`; never consulted by the Resolver directly; refreshed only during sync operations. The Dependency Cache bridges compile-time registry updates and runtime resolution without exposing the Registry to the runtime path.
+
+---
+
+## Knowledge Planner
+
+The Knowledge Planner produces a deterministic candidate list from configuration and cached metadata.
+
+### Responsibilities
+
+* Read `samgraha.toml [knowledge]` configuration (`dependencies` and `interests`)
+* Read `.meta` files from the Dependency Cache
+* Read the current repository `manifest.json`
+* Produce an ordered Knowledge Plan (list of `knowledge.db` paths with priorities)
+
+### Dependencies
+
+* Dependency Cache (`.meta` files)
+* Repository (manifest.json)
+
+### Boundary
+
+The Planner takes no query context. The same inputs always produce the same plan. The Planner never queries the Repository Registry. It answers "which repos are candidates" — Search, Audit, and Retrieve answer "what within those."
 
 ---
 
@@ -242,6 +297,50 @@ The Knowledge Runtime orchestrates engineering operations.
 * Knowledge Services
 
 The Knowledge Runtime is the single execution entry point for engineering knowledge.
+
+---
+
+## Knowledge Context
+
+The Knowledge Context manages the lifetime of an assembled Knowledge Package. Its lifetime is INDEPENDENT of any MCP connection. A context is Active while clients are connected, Inactive while no clients are connected (TTL countdown), and reused on reconnect if revision unchanged.
+
+### Responsibilities
+
+* Hold the assembled Knowledge Package for the duration of an MCP client connection
+* Create the context on client connect (triggers Planner + Resolver once)
+* Validate context via local TTL and revision diff against `.meta` files
+* Transition to Inactive state when the last client disconnects
+
+### Dependencies
+
+* Knowledge Runtime (creates the package via Planner + Resolver)
+
+### Boundary
+
+One context per workspace (Phase 8). ContextManager owns the context. Transport adapters are consumers, not owners. `is_valid()` is a local TTL + revision check — no registry query.
+
+---
+
+## Context Manager
+
+The Context Manager owns the Knowledge Context lifecycle.
+
+### Responsibilities
+
+* Own the Knowledge Context lifecycle
+* Track connection count
+* Transition context Active↔Inactive on connect/disconnect
+* Rebuild context on revision change
+* Dispose context on TTL expiry while Inactive
+
+### Dependencies
+
+* Knowledge Runtime
+* Knowledge Context
+
+### Boundary
+
+McpAdapter holds ContextManager. ContextManager holds KnowledgeContext. Phase 8: single context. Phase 9: named contexts (HashMap<String, KnowledgeContext>). Interface stable across phases.
 
 ---
 
@@ -316,9 +415,22 @@ Knowledge     Repository
 (Knowledge    (Metadata
   Track)        Track)
       │             │
+      │        (sync only)
+      │             ▼
+      │      Dependency Cache
+      │             │
+      │             ▼
+      │      Knowledge Planner
+      │             │
       └──────┬──────┘
              ▼
      Knowledge Runtime
+             │
+             ▼
+     Context Manager
+             │
+             ▼
+    Knowledge Context
              │
              ▼
      Transport Adapters
@@ -354,16 +466,20 @@ Components interact through documented contracts.
 
 Typical interactions include:
 
-| Provider                | Consumer             | Purpose               |
-| ----------------------- | -------------------- | --------------------- |
-| Documentation Standards | Knowledge Services   | Engineering contracts |
-| Knowledge Services      | Knowledge Compiler   | Compilation workflows |
-| Knowledge Compiler      | Knowledge Registry   | Compiled knowledge    |
-| Knowledge Compiler      | Repository Registry  | Repository manifests  |
-| Repository Registry     | Knowledge Runtime    | Metadata cache        |
-| Knowledge Registry      | Knowledge Runtime    | Retrieval             |
-| Knowledge Runtime       | Transport Adapters   | Runtime operations    |
-| Provider Integrations   | Knowledge Enrichment | Optional enrichment   |
+| Provider                | Consumer             | Purpose                                    |
+| ----------------------- | -------------------- | ------------------------------------------ |
+| Documentation Standards | Knowledge Services   | Engineering contracts                      |
+| Knowledge Services      | Knowledge Compiler   | Compilation workflows                      |
+| Knowledge Compiler      | Knowledge Registry   | Compiled knowledge                         |
+| Knowledge Compiler      | Repository Registry  | Repository manifests                       |
+| Repository Registry     | Dependency Cache     | Metadata (sync time only)                  |
+| Dependency Cache        | Knowledge Planner    | Per-dependency metadata (.meta files)      |
+| Knowledge Planner       | Knowledge Runtime    | Knowledge Plan (ordered knowledge.db paths)|
+| Knowledge Registry      | Knowledge Runtime    | Retrieval                                  |
+| Knowledge Runtime       | Context Manager      | Assembled Knowledge Package                |
+| Context Manager         | Knowledge Context    | Context lifecycle (Active/Inactive/Dispose)|
+| Knowledge Context       | Transport Adapters   | Cached, valid Knowledge Package            |
+| Provider Integrations   | Knowledge Enrichment | Optional enrichment                        |
 
 Components should never communicate through undocumented interfaces.
 

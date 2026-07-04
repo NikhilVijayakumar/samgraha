@@ -43,9 +43,21 @@ Transport adapters (CLI, MCP, future REST/SDK) expose runtime capabilities to ex
 
 The Audit Framework provides audit metadata that the runtime uses for quality gating. The runtime enforces audit policies during knowledge delivery.
 
+### Knowledge Planner
+
+The Knowledge Planner reads `samgraha.toml [knowledge]` and `.meta` files to produce a deterministic Knowledge Plan. Invoked once per Knowledge Context creation. The Planner takes no query context and never queries the Registry.
+
+### Knowledge Context
+
+The Knowledge Context holds the assembled Knowledge Package. Its lifetime is independent of any MCP connection. ContextManager owns it. Planner and Resolver run at context creation, not per-request. `is_valid()` performs a local TTL check and revision diff against `.meta` files — no registry query. The context transitions to Inactive when the last client disconnects, and is disposed when TTL expires while Inactive.
+
+### Context Manager
+
+ContextManager owns the Knowledge Context lifecycle. McpAdapter calls `context_manager.active()` for all requests. ContextManager transitions the context Active↔Inactive on connect/disconnect, triggers rebuilds on revision change, and disposes on TTL expiry.
+
 ### Knowledge Resolution
 
-Knowledge Resolution prepares Knowledge Packages for delivery. The runtime invokes resolution when a consumer requires a scoped knowledge context.
+Knowledge Resolution prepares Knowledge Packages for delivery. The runtime invokes resolution when a Knowledge Context is created (once per context lifetime, reused across reconnects).
 
 ---
 
@@ -58,7 +70,10 @@ Knowledge Resolution prepares Knowledge Packages for delivery. The runtime invok
 | Knowledge Services | Implement engineering operations (search, retrieval, audit, resolution) |
 | Transport Adapters | Translate external protocols into runtime operations |
 | Audit Framework | Provide audit metadata for quality gating |
-| Knowledge Resolution | Compose Knowledge Packages for delivery |
+| Knowledge Planner | Produce deterministic Knowledge Plan from config + .meta + manifest |
+| Knowledge Context | Hold assembled Knowledge Package; local validity checks; Active/Inactive lifecycle |
+| Context Manager | Own context lifecycle; track connection count; manage TTL; trigger rebuild on revision change |
+| Knowledge Resolution | Compose Knowledge Packages for delivery (runs at context creation) |
 
 ---
 
@@ -87,10 +102,10 @@ Consumer
 
 ### Request Flow
 
-1. Consumer sends a request through a transport adapter.
+1. Consumer sends a request through a transport adapter to the active Knowledge Context.
 2. Adapter translates protocol-specific format into a runtime operation.
-3. Runtime validates the request against runtime policy.
-4. Runtime resolves the active repository or workspace context.
+3. Runtime checks Knowledge Context validity (`is_valid()` — local TTL + revision check).
+4. Runtime serves from the context's assembled Knowledge Package (re-assembles if context invalid).
 5. Runtime determines the operation type:
    - **Document operations**: search, retrieve, navigate.
    - **Section-type operations**: retrieve all sections of a given semantic type across documents or workspace.
@@ -132,15 +147,36 @@ Register Services
 Start Transport Adapters
         │
         ▼
-Accept Requests (continuous)
+MCP/CLI Client Connects
+        │
+        ▼
+ContextManager.on_connect()
+        │
+        ├── Context Active? → serve requests
+        └── Context Inactive? → revision check → reuse or rebuild
+        │
+        ▼
+Accept Requests (check is_valid() each request)
+        │   ├── valid → serve from cached Knowledge Package
+        │   └── invalid → rebuild (Planner + Resolver), continue
+        │
+        ▼
+MCP/CLI Client Disconnects → ContextManager.on_disconnect()
+        │
+        ├── connection_count > 0 → still Active
+        └── connection_count == 0 → Inactive (TTL countdown)
+                │
+                ├── Reconnect within TTL + revision unchanged → Active (reuse)
+                ├── Reconnect + revision changed → Rebuilding → Active
+                └── TTL expires while Inactive → Dispose
         │
         ▼
 Shutdown
 ```
 
-### Stateless Requests
+### Context-Based Requests
 
-Each request executes independently. The runtime maintains only transient execution state — active repository context, request scope, and service execution context. No request depends on state from previous requests.
+ContextManager holds one Knowledge Context (Phase 8). The context survives client disconnects. On reconnect, ContextManager checks revision and TTL — reuses if both valid, rebuilds if not. The rebuild is transparent to callers: `context_manager.on_connect()` returns with a valid context. Requests are served from the cached Knowledge Package after a local `is_valid()` check (TTL + revision diff against `.meta` files — no registry query).
 
 ### Deterministic Execution
 
@@ -180,6 +216,7 @@ The runtime invokes services by operation type. Services implement specific engi
 | Request Context | Knowledge Runtime | Transient |
 | Audit Metadata | Knowledge Registry | Read |
 | Consumer Session | Transport Adapter | Transient |
+| Knowledge Context | ContextManager    | holds KnowledgePackage; Active/Inactive lifecycle |
 
 ---
 
@@ -247,7 +284,10 @@ Optional: When configured, the runtime may integrate with AI providers through K
 
 ## Performance Considerations
 
-- Request routing must complete within 1ms.
+- Knowledge Context creation (Planner + Resolver) must complete within 2 seconds for typical workspaces (10 repos). This is a cold-start cost; the context is reused on reconnect within TTL.
+- Context reuse on reconnect must complete within 10ms (revision check only — no Planner + Resolver run). Cold-start cost amortizes across all requests in a context lifetime.
+- Per-request serving from Knowledge Context must complete within 1ms for routing overhead (context is pre-assembled).
+- Context validity check (`is_valid()`) must complete within 1ms.
 - Registry queries must complete within 10ms for known identifiers.
 - Progressive delivery minimizes response size — metadata first, content on demand.
 - Concurrent consumers must not experience mutual degradation.
@@ -264,6 +304,9 @@ Optional: When configured, the runtime may integrate with AI providers through K
 | Configuration error | Log error, fail initialization |
 | Resource exhaustion | Reject new requests, return resource exhaustion error |
 | Transport adapter failure | Isolate adapter failure, continue serving other adapters |
+| Knowledge Context creation fails | Log error, return initialization failure to caller |
+| Knowledge Context rebuild fails | Log error, retain existing context if still within TTL; surface error on next request if TTL expired |
+| TTL expires with no clients | Dispose Knowledge Context; rebuild on next on_connect() |
 
 ---
 

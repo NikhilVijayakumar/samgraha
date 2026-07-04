@@ -57,6 +57,14 @@ Targets apply to the full compilation pipeline: discovery, parsing, metadata ext
 | Single document insert | < 10ms | 50ms |
 | Batch insert (100 docs) | < 100ms | 500ms |
 
+### Knowledge Context
+
+| Operation | Target Time | Degradation Threshold |
+|---|---|---|
+| Context creation — Planner + Resolver (up to 20 repos) | < 2 seconds | 5 seconds (one-time cost; reused on reconnect within TTL) |
+| Per-request routing from Knowledge Context | < 1ms | 5ms |
+| Context validity check (`is_valid()`) | < 1ms | 5ms |
+
 ---
 
 ## Measurement Standards

@@ -64,15 +64,25 @@ Knowledge  Repository
   Track)    Track)
 (Stage 5a) (Stage 5b)
      │         │
+     │    (sync only)
      │         ▼
-     │   Registry Sync
+     │   Dependency Cache
+     │    (Stage 5c)
      │         │
-     ▼         │
-Knowledge      │
- Runtime       │
+     │         ▼
+     │   Knowledge Planner
+     │    (Stage 5d)
      │         │
-     └──┬──────┘
-        ▼
+     └────┬────┘
+          ▼
+   Knowledge Runtime
+    (Stage 6)
+          │
+          ▼
+   Knowledge Context
+    (Stage 6b)
+          │
+          ▼
 Transport Adapters
         │
         ▼
@@ -155,8 +165,10 @@ Every successful compilation produces two explicit outputs:
 
 | Output | Destination |
 |---|---|
-| Compiled knowledge database | Knowledge Registry |
-| Repository manifest | Repository Registry |
+| Compiled knowledge database | Target repository's `.samgraha/knowledge.db` (per-repo ownership) |
+| Repository manifest | Target repository's `.samgraha/manifest.json` |
+
+Sync reads manifests and updates the Repository Registry. Compile is decoupled from registry upsert.
 
 Compilation includes:
 
@@ -213,6 +225,28 @@ The Registry is a compile-time and synchronization artifact. It is never consult
 
 ---
 
+# Stage 5c — Dependency Cache
+
+Sync operations read manifests and update `.samgraha/dependencies/*.meta` files (the Dependency Cache).
+
+The Dependency Cache is the per-repo fast-path metadata cache a repo uses to plan resolution without querying the global Registry. Each `.meta` file stores the `knowledge_db` path, revision, and exports for one dependency.
+
+The Dependency Cache is written only during sync. It is never written at runtime.
+
+---
+
+# Stage 5d — Knowledge Planner
+
+The Knowledge Planner reads `samgraha.toml [knowledge]` + `.meta` files + the current repository `manifest.json`.
+
+The Planner is deterministic: the same inputs always produce the same plan. It takes no query context.
+
+Output: an ordered list of `knowledge.db` paths with priorities (Knowledge Plan).
+
+The Registry is never consulted by the Planner.
+
+---
+
 # Stage 6 — Knowledge Runtime
 
 The Knowledge Runtime exposes engineering knowledge.
@@ -225,7 +259,15 @@ Responsibilities include:
 * repository isolation
 * runtime policy
 
+The Knowledge Resolver opens only the planned `knowledge.db` files from the Knowledge Plan, merges results, and preserves provenance. The result is a Knowledge Package (in-memory struct, not a file). The Knowledge Package is cached in a Knowledge Context.
+
 Runtime execution consumes compiled knowledge only.
+
+---
+
+# Stage 6b — Knowledge Context
+
+The Knowledge Context holds an assembled Knowledge Package. Its lifetime is independent of any MCP connection. The ContextManager owns it. It is Active while clients are connected, Inactive while no clients are connected. On reconnect within TTL with unchanged revision, the same context is reused — no replanning or reassembly. On reconnect after TTL or after revision change, the context is rebuilt. The context is disposed only when TTL expires while Inactive.
 
 ---
 
@@ -303,7 +345,7 @@ Ownership changes as knowledge progresses.
 | Knowledge Services      | Runtime Execution       |
 | Compiled Knowledge      | Knowledge Registry      |
 | Repository Manifest     | Repository Registry     |
-| Runtime Context         | Knowledge Runtime       |
+| Knowledge Context       | ContextManager          |
 | Client Response         | Transport Adapter       |
 
 Ownership should always remain explicit.

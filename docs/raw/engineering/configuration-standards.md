@@ -102,6 +102,28 @@ This section details the endpoint = "http://localhost:11434".
 This section details the endpoint = "https://api.openai.com/v1".
 # model = "gpt-4o"
 
+[knowledge]
+# Repositories always loaded at high priority (direct dependencies)
+# Type: Vec<String> (repository IDs or names)
+# Default: []
+# dependencies = ["astra", "samgraha"]
+
+# Repositories always loaded at lower priority (contextual interests)
+# Type: Vec<String> (repository IDs or names)
+# Default: []
+# interests = ["prana", "tantra"]
+
+[resolver]
+# Governs .meta file refresh (Dependency Cache TTL)
+# Type: duration string (e.g. "24h", "1h", "30m")
+# Default: "24h"
+# metadata_ttl = "24h"
+
+# Governs Knowledge Context validity (Active → Inactive TTL)
+# Type: duration string (e.g. "720h", "24h")
+# Default: "720h"
+# knowledge_ttl = "720h"
+
 [audit]
 # Default severity for audit issues
 
