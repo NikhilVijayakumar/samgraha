@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+
+# Read .env — single source of truth, no CLI overrides
+EXPIRY_DAYS=30
+EXPIRY_HOURS=0
+OUTPUT_DIR=""
+
+ENV_FILE="$ROOT_DIR/.env"
+if [[ -f "$ENV_FILE" ]]; then
+    while IFS='=' read -r key val; do
+        key="${key#"${key%%[![:space:]]*}"}"; key="${key%"${key##*[![:space:]]}"}"
+        val="${val#"${val%%[![:space:]]*}"}"; val="${val%"${val##*[![:space:]]}"}"
+        val="${val#\"}"; val="${val%\"}"
+        val="${val#\'}"; val="${val%\'}"
+        [[ -z "$key" || "$key" =~ ^# ]] && continue
+        case "$key" in
+            SAMGRAHA_EXPIRY_DAYS)  EXPIRY_DAYS="$val" ;;
+            SAMGRAHA_EXPIRY_HOURS) EXPIRY_HOURS="$val" ;;
+            OUTPUT_DIR)            OUTPUT_DIR="$val" ;;
+        esac
+    done < <(grep -v '^\s*#' "$ENV_FILE" | grep '=')
+fi
+
+# Resolve output dir — prefer absolute path from .env
+if [[ -z "$OUTPUT_DIR" ]]; then
+    echo "WARNING: OUTPUT_DIR not set in .env — falling back to ./release. Set an absolute path in .env." >&2
+    OUTPUT_DIR="./release"
+fi
+OUTPUT_DIR="${OUTPUT_DIR//\\//}"
+if [[ "$OUTPUT_DIR" != /* ]]; then
+    echo "WARNING: OUTPUT_DIR '$OUTPUT_DIR' is relative — resolving from project root. Use an absolute path in .env." >&2
+    OUTPUT_DIR="$ROOT_DIR/${OUTPUT_DIR#./}"
+fi
+mkdir -p "$OUTPUT_DIR"
+OUTPUT_DIR="$(cd "$OUTPUT_DIR" && pwd)"
+
+# Compute expiry label for display and launcher comment
+# build.rs owns baking this into the binary — scripts just show the same value
+if [[ "$EXPIRY_DAYS" == "-1" ]]; then
+    EXPIRY_LABEL="never"
+    EXPIRY_COMMENT="no expiry"
+else
+    HRS=$(( EXPIRY_HOURS == -1 ? 0 : EXPIRY_HOURS ))
+    TOTAL_MINS=$(( EXPIRY_DAYS * 1440 + HRS * 60 ))
+    EXPIRY_RFC=$(date -u -d "+${TOTAL_MINS} minutes" '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \
+        || date -u -v+${TOTAL_MINS}M '+%Y-%m-%dT%H:%M:%SZ')
+    EXPIRY_LABEL="$EXPIRY_RFC"
+    EXPIRY_COMMENT="expires $EXPIRY_RFC"
+fi
+echo "Expiry: $EXPIRY_LABEL  (days=$EXPIRY_DAYS, hours=$EXPIRY_HOURS)"
+
+# Build — build.rs reads .env and bakes SAMGRAHA_EXPIRY into the binary
+echo "Building mcp + cli (release)..."
+cargo build --release --bin mcp --bin cli --manifest-path "$ROOT_DIR/Cargo.toml"
+
+# Package directory
+PKG_DIR="$OUTPUT_DIR/samgraha"
+rm -rf "$PKG_DIR"
+mkdir -p "$PKG_DIR/bin" "$PKG_DIR/docs/raw" "$PKG_DIR/.samgraha"
+
+# Copy binaries
+cp "$ROOT_DIR/target/release/mcp" "$PKG_DIR/bin/"
+cp "$ROOT_DIR/target/release/cli" "$PKG_DIR/bin/"
+
+# Strip debug info to reduce size
+if command -v strip &>/dev/null; then
+    strip "$PKG_DIR/bin/mcp" "$PKG_DIR/bin/cli"
+fi
+
+# Copy config + docs
+cp "$ROOT_DIR/samgraha.toml" "$PKG_DIR/"
+cp -r "$ROOT_DIR/docs/raw/." "$PKG_DIR/docs/raw/"
+
+# Pre-compile knowledge base
+echo "Pre-compiling knowledge base..."
+pushd "$PKG_DIR" > /dev/null
+"./bin/cli" compile --force
+popd > /dev/null
+
+# Launcher scripts (Linux build: binaries have no .exe)
+cat > "$PKG_DIR/run-mcp.sh" <<SHEOF
+#!/usr/bin/env sh
+# Samgraha MCP — $EXPIRY_COMMENT
+exec "\$(dirname "\$0")/bin/mcp" "\$@"
+SHEOF
+chmod +x "$PKG_DIR/run-mcp.sh"
+
+cat > "$PKG_DIR/run-mcp.cmd" <<CMDEOF
+@echo off
+rem Samgraha MCP — $EXPIRY_COMMENT
+"%~dp0bin\mcp" %*
+CMDEOF
+
+# Checksums
+if command -v sha256sum &>/dev/null; then
+    sha256sum "$PKG_DIR/bin/mcp" "$PKG_DIR/bin/cli" \
+        | sed "s|$PKG_DIR/||" > "$PKG_DIR/SHA256SUMS"
+elif command -v shasum &>/dev/null; then
+    shasum -a 256 "$PKG_DIR/bin/mcp" "$PKG_DIR/bin/cli" \
+        | sed "s|$PKG_DIR/||" > "$PKG_DIR/SHA256SUMS"
+fi
+
+MCP_SIZE=$(wc -c < "$PKG_DIR/bin/mcp"); MCP_SIZE=$((MCP_SIZE / 1024))
+CLI_SIZE=$(wc -c < "$PKG_DIR/bin/cli"); CLI_SIZE=$((CLI_SIZE / 1024))
+MCP_HASH=$(awk 'NR==1{print $1}' "$PKG_DIR/SHA256SUMS" 2>/dev/null || echo "n/a")
+CLI_HASH=$(awk 'NR==2{print $1}' "$PKG_DIR/SHA256SUMS" 2>/dev/null || echo "n/a")
+
+echo ""
+echo "=== Release packaged ==="
+echo "  Location: $PKG_DIR"
+echo "  mcp:      ${MCP_SIZE}KB  ($MCP_HASH)"
+echo "  cli:      ${CLI_SIZE}KB  ($CLI_HASH)"
+echo "  Expiry:   $EXPIRY_LABEL"
+echo "  Use:      echo '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{}}' | ./run-mcp.sh"
