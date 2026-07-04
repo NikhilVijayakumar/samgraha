@@ -1,10 +1,10 @@
-#!/usr/bin/env bash
+﻿#!/usr/bin/env bash
 set -uo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 source "$ROOT_DIR/scripts/lib/report.sh"
 
-# ─── Defaults ──────────────────────────────────────────────────────────────────
+# â”€â”€â”€ Defaults â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 BUILD=false
 BINARY_PATH=""
 REPORT_DIR="docs/report/manual-audit"
@@ -15,7 +15,7 @@ NO_SECTION_CONTENT=false
 NO_AUDIT=false
 PASS_THRU=false
 
-# ─── Argument Parsing ──────────────────────────────────────────────────────────
+# â”€â”€â”€ Argument Parsing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --build) BUILD=true; shift ;;
@@ -35,14 +35,14 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# ─── Scoring Config ─────────────────────────────────────────────────────────────
+# â”€â”€â”€ Scoring Config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 SCORE_WEIGHTS=(10 5 15 15 5 20 10 20)  # phases 1-8, sum=100
 
-# ─── Requirement Checks ────────────────────────────────────────────────────────
+# â”€â”€â”€ Requirement Checks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 if ! command -v jq &>/dev/null; then echo "ERROR: jq is required" >&2; exit 1; fi
 if ! command -v python3 &>/dev/null; then echo "ERROR: python3 is required" >&2; exit 1; fi
 
-# ─── Binary Resolution ─────────────────────────────────────────────────────────
+# â”€â”€â”€ Binary Resolution â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 if $BUILD; then
     echo "Building mcp binary..."
     pushd "$ROOT_DIR" > /dev/null
@@ -70,11 +70,11 @@ if [ ! -f "$BINARY_PATH" ]; then
 fi
 echo "MCP binary: $BINARY_PATH"
 
-# ─── Report Directory Setup ────────────────────────────────────────────────────
+# â”€â”€â”€ Report Directory Setup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 report_dir_setup "mcp"
 ARCHIVE_PATH="${ARCHIVE_PATH:-}"
 
-# ─── Global State ──────────────────────────────────────────────────────────────
+# â”€â”€â”€ Global State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 NEXT_ID=1
 TOTAL_CALLS=0
 CURRENT_PHASE=""
@@ -84,7 +84,7 @@ declare -A PHASE_RESULTS
 PREV_METRICS='{}'
 PREV_ERRORS=0
 
-# ─── Core Functions ────────────────────────────────────────────────────────────
+# â”€â”€â”€ Core Functions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 get_id() {
     local id=$NEXT_ID
@@ -109,7 +109,7 @@ invoke_mcp_direct() {
         add_phase_error "$request" "Empty response" ""
         return 1
     fi
-    local err
+    local er
     err=$(echo "$raw" | jq -r '.error // empty')
     if [ -n "$err" ] && [ "$err" != "null" ]; then
         local code msg
@@ -144,7 +144,7 @@ invoke_mcp_tool() {
         fi
         return 1
     fi
-    local err
+    local er
     err=$(echo "$raw" | jq -r '.error // empty')
     if [ -n "$err" ] && [ "$err" != "null" ]; then
         if [ "$quiet" != "true" ]; then
@@ -191,7 +191,7 @@ invoke_mcp_tool_all() {
     echo "$all"
 }
 
-# ─── Scoring / Trend / Analysis Helpers ────────────────────────────────────────
+# â”€â”€â”€ Scoring / Trend / Analysis Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 save_metrics_json() {
     local all_jq
@@ -243,7 +243,7 @@ build_phase_scores_json() {
 
 # (load_previous_metrics, compute_trend, get_prev_metric, trend_between, format_score_line, gen_phase_analysis, gen_phase_recs sourced from scripts/lib/report.sh)
 
-# ─── Phase 1: Bootstrap ────────────────────────────────────────────────────────
+# â”€â”€â”€ Phase 1: Bootstrap â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 phase_1_bootstrap() {
     CURRENT_PHASE="01-tool-health"
@@ -306,8 +306,8 @@ phase_1_bootstrap() {
 
     local has_fail
     has_fail=$(echo "$checks" | jq '[.[] | select(.Status == "fail")] | length')
-    local status="✅ PASS"
-    [ "$has_fail" -gt 0 ] && status="❌ FAIL"
+    local status="âœ… PASS"
+    [ "$has_fail" -gt 0 ] && status="âŒ FAIL"
 
     # Build tool table
     local tool_rows
@@ -315,7 +315,7 @@ phase_1_bootstrap() {
         [to_entries[] | "| \(.key + 1) | \"\(.value.name)\" | " +
         (if .value.inputSchema and .value.inputSchema.required
          then (.value.inputSchema.required | join(", "))
-         else "none" end) + " | ✅ |"
+         else "none" end) + " | âœ… |"
         ] | join("\n")')
 
     local standards_list="--"
@@ -416,10 +416,10 @@ phase_1_bootstrap() {
         --arg report "01-tool-health.md" \
         --argjson score "$score" \
         '{Status: $status, Errors: $errors, Duration: $duration, ReportFile: $report, Score: $score}')
-    echo "  → Score: $score/100 $trend — $status (${duration}s)"
+    echo "  â†’ Score: $score/100 $trend â€” $status (${duration}s)"
 }
 
-# ─── Phase 2: Domain Catalog ───────────────────────────────────────────────────
+# â”€â”€â”€ Phase 2: Domain Catalog â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 phase_2_domain_scan() {
     CURRENT_PHASE="02-domain-catalog"
@@ -471,8 +471,8 @@ phase_2_domain_scan() {
     local error_count
     error_count=$(echo "$errors_json" | jq 'length')
 
-    local status="❌ FAIL"
-    if [ ${#all_domain_names[@]} -gt 0 ]; then status="✅ PASS"; fi
+    local status="âŒ FAIL"
+    if [ ${#all_domain_names[@]} -gt 0 ]; then status="âœ… PASS"; fi
 
     # Score: 100 if any domains found, proportional to count, min 20 per domain
     local score=0
@@ -493,10 +493,10 @@ phase_2_domain_scan() {
         --arg report "02-domain-catalog.md" \
         --argjson score "$score" \
         '{Status: $status, Errors: $errors, Duration: $duration, ReportFile: $report, Score: $score}')
-    echo "  → Score: $score/100 $trend — $status (${duration}s)"
+    echo "  â†’ Score: $score/100 $trend â€” $status (${duration}s)"
 }
 
-# ─── Phase 3: Document Discovery ───────────────────────────────────────────────
+# â”€â”€â”€ Phase 3: Document Discovery â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 phase_3_doc_discover() {
     CURRENT_PHASE="03-document-audit"
@@ -548,11 +548,11 @@ phase_3_doc_discover() {
     local error_count
     error_count=$(echo "$errors_json" | jq 'length')
 
-    local status="❌ FAIL"
-    if [ "$all_doc_count" -gt 0 ]; then status="✅ PASS"; fi
+    local status="âŒ FAIL"
+    if [ "$all_doc_count" -gt 0 ]; then status="âœ… PASS"; fi
     local has_fail_checks
     has_fail_checks=$(echo "$checks" | jq '[.[] | select(.Status == "fail")] | length')
-    [ "$has_fail_checks" -gt 0 ] && status="⚠️ PARTIAL"
+    [ "$has_fail_checks" -gt 0 ] && status="âš ï¸ PARTIAL"
 
     # Domain catalog report
     local dc_domain_rows=""
@@ -622,7 +622,7 @@ phase_3_doc_discover() {
     report_vals=$(jq -n \
         --arg TIMESTAMP "$(date '+%Y-%m-%d %H:%M:%S')" \
         --arg DURATION "$duration" \
-        --arg STATUS "✅ PASS" \
+        --arg STATUS "âœ… PASS" \
         --arg CHECKS_TABLE "$all_checks_table" \
         --arg ERRORS_TABLE "$p2_error_rows" \
         --arg DOMAINS_TABLE "$dc_domain_rows" \
@@ -676,10 +676,10 @@ phase_3_doc_discover() {
         --argjson score "$score" \
         '{Status: $status, Errors: $errors, Duration: $duration, Score: $score}')
 
-    echo "  → Score: $score/100 $trend — $status ($all_doc_count docs discovered)"
+    echo "  â†’ Score: $score/100 $trend â€” $status ($all_doc_count docs discovered)"
 }
 
-# ─── Phase 4: Document Verification ────────────────────────────────────────────
+# â”€â”€â”€ Phase 4: Document Verification â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 phase_4_doc_verify() {
     CURRENT_PHASE="03-document-audit"
@@ -749,7 +749,7 @@ phase_4_doc_verify() {
                 local body_val
                 body_val=$(echo "$body" | jq -c 'to_entries | first | .value // null')
                 if [ "$body_val" != "null" ]; then
-                    local sections_arr
+                    local sections_ar
                     sections_arr=$(echo "$body_val" | jq -c '.sections // []')
                     local sc
                     sc=$(echo "$sections_arr" | jq 'length')
@@ -782,13 +782,13 @@ phase_4_doc_verify() {
                 issue_count=$((issue_count + 1))
             fi
 
-            local issue_str
+            local issue_st
             if [ ${#doc_issues[@]} -gt 0 ]; then
                 local IFS='; '
                 issue_str="${doc_issues[*]}"
                 unset IFS
             else
-                issue_str="✅"
+                issue_str="âœ…"
             fi
 
             local cov_pct
@@ -839,8 +839,8 @@ phase_4_doc_verify() {
     local error_count
     error_count=$(echo "$errors_json" | jq 'length')
 
-    local status="✅ PASS"
-    [ "$issue_count" -gt 0 ] && status="⚠️ PARTIAL"
+    local status="âœ… PASS"
+    [ "$issue_count" -gt 0 ] && status="âš ï¸ PARTIAL"
 
     local checks_table
     checks_table=$(get_checks_table "$checks")
@@ -930,10 +930,10 @@ phase_4_doc_verify() {
         --arg report "03-document-audit.md" \
         --argjson score "$score" \
         '{Status: $status, Errors: $errors, Duration: $duration, ReportFile: $report, Score: $score}')
-    echo "  → Score: $score/100 $trend — $status ($issue_count issues)"
+    echo "  â†’ Score: $score/100 $trend â€” $status ($issue_count issues)"
 }
 
-# ─── Phase 5: Cross-Section ────────────────────────────────────────────────────
+# â”€â”€â”€ Phase 5: Cross-Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 phase_5_cross_section() {
     CURRENT_PHASE="04-section-integrity"
@@ -955,7 +955,7 @@ phase_5_cross_section() {
     local total_sections=0
 
     for pi in $(seq 0 $((pair_count - 1))); do
-        local pair
+        local pai
         pair=$(echo "$pairs_json" | jq -c ".[$pi]")
         local d t
         d=$(echo "$pair" | jq -r '.domain')
@@ -992,8 +992,8 @@ phase_5_cross_section() {
     local error_count
     error_count=$(echo "$errors_json" | jq 'length')
 
-    local status="⚠️ PARTIAL"
-    [ "$total_sections" -gt 0 ] && status="✅ PASS"
+    local status="âš ï¸ PARTIAL"
+    [ "$total_sections" -gt 0 ] && status="âœ… PASS"
 
     # Score: retrieval rate
     local score=0
@@ -1015,10 +1015,10 @@ phase_5_cross_section() {
         --arg duration "$duration" \
         --argjson score "$score" \
         '{Status: $status, Errors: $errors, Duration: $duration, Score: $score}')
-    echo "  → $total_sections sections from $pair_count type-domain pairs"
+    echo "  â†’ Score: $score/100 $trend â€” $total_sections sections from $pair_count type-domain pairs"
 }
 
-# ─── Phase 6: Section Verification ─────────────────────────────────────────────
+# â”€â”€â”€ Phase 6: Section Verification â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 phase_6_section_verify() {
     CURRENT_PHASE="04-section-integrity"
@@ -1032,7 +1032,7 @@ phase_6_section_verify() {
     local knowledge_rows=""
     local change_track_rows=""
     local total_sections=0
-    local stale_count=0
+    local stale_count=0 fail_count=0
     local knowledge_count=0
     local knowledge_missing=0
 
@@ -1054,7 +1054,7 @@ phase_6_section_verify() {
     # Verify each section_id
     verify_lines+="| Domain | Section ID | Type | get_section | changed |"$'\n'
     verify_lines+="|--------|-----------|------|-------------|---------|"$'\n'
-    local verify_count=0 max_verify=500
+    local verify_count=0 max_verify=2147483647
     local all_unique_types_json
     all_unique_types_json=$(echo "$ALL_RESULTS" | jq -c '[.SectionIds | .. | objects | select(.type?) // empty]')
 
@@ -1068,7 +1068,7 @@ phase_6_section_verify() {
     pair_count=$(echo "$pairs_json" | jq 'length')
 
     for pi in $(seq 0 $((pair_count - 1))); do
-        local pair
+        local pai
         pair=$(echo "$pairs_json" | jq -c ".[$pi]")
         local d t ids_json
         d=$(echo "$pair" | jq -r '.domain')
@@ -1088,12 +1088,13 @@ phase_6_section_verify() {
             sect_args=$(jq -nc --arg sid "$sid" '{section_id: $sid}')
             local sect_result
             sect_result=$(invoke_mcp_tool "get_section" "$sect_args")
-            local sect_ok="❌"
+            local sect_ok="âŒ"
             if [ -n "$sect_result" ]; then
                 local rid
                 rid=$(echo "$sect_result" | jq -r '.id // ""')
-                [ "$rid" = "$sid" ] && sect_ok="✅"
+                [ "$rid" = "$sid" ] && sect_ok="âœ…"
             fi
+            [ "$sect_ok" = "âŒ" ] && fail_count=$((fail_count + 1))
 
             # get_section_changed
             local changed_args
@@ -1110,7 +1111,7 @@ phase_6_section_verify() {
             total_sections=$((total_sections + 1))
         done
 
-        # Audit knowledge per (domain, type) pair
+        # Audit knowledge per (domain, type) pai
         if ! $NO_AUDIT; then
             local kn_args
             kn_args=$(jq -nc --arg d "$d" --arg t "$t" '{domain: $d, section_type: $t}')
@@ -1122,14 +1123,14 @@ phase_6_section_verify() {
                 if [ -n "$kn_content" ]; then
                     knowledge_count=$((knowledge_count + 1))
                     local kn_len=${#kn_content}
-                    knowledge_rows+="| $d | $t | ✅ $kn_len chars |"$'\n'
+                    knowledge_rows+="| $d | $t | âœ… $kn_len chars |"$'\n'
                 else
                     knowledge_missing=$((knowledge_missing + 1))
-                    knowledge_rows+="| $d | $t | ❌ Missing |"$'\n'
+                    knowledge_rows+="| $d | $t | âŒ Missing |"$'\n'
                 fi
             else
                 knowledge_missing=$((knowledge_missing + 1))
-                knowledge_rows+="| $d | $t | ❌ Missing |"$'\n'
+                knowledge_rows+="| $d | $t | âŒ Missing |"$'\n'
             fi
         fi
 
@@ -1173,8 +1174,8 @@ phase_6_section_verify() {
                 s_body=$(echo "$sections" | jq -r ".[$si].body // \"\"")
 
                 if $NO_SECTION_CONTENT; then
-                    local content_ok="❌ empty"
-                    [ -n "$s_body" ] && content_ok="✅"
+                    local content_ok="âŒ empty"
+                    [ -n "$s_body" ] && content_ok="âœ…"
                     verify_lines+="| $doc_id | $si | $heading | $content_ok |"$'\n'
                 else
                     local ds_args
@@ -1183,10 +1184,10 @@ phase_6_section_verify() {
                     ds_result=$(invoke_mcp_tool "get_document_section" "$ds_args")
                     local ds_content=""
                     [ -n "$ds_result" ] && ds_content=$(echo "$ds_result" | jq -r '.content // ""')
-                    local content_ok="❌"
+                    local content_ok="âŒ"
                     if [ -n "$ds_content" ]; then
                         local ds_len=${#ds_content}
-                        content_ok="✅ ($ds_len chars)"
+                        content_ok="âœ… ($ds_len chars)"
                     fi
                     verify_lines+="| $doc_id | $si | $heading | $content_ok |"$'\n'
                     total_sections=$((total_sections + 1))
@@ -1219,7 +1220,7 @@ phase_6_section_verify() {
     errors_json=$(get_phase_errors_json "04-section-integrity")
     local error_count
     error_count=$(echo "$errors_json" | jq 'length')
-    local status="✅ PASS"
+    local status="âœ… PASS"
 
     local checks_table
     checks_table=$(get_checks_table "$checks")
@@ -1227,14 +1228,15 @@ phase_6_section_verify() {
     errors_table=$(get_errors_table "04-section-integrity")
     [ -z "$section_type_rows" ] && section_type_rows="| -- | -- |"$'\n'
 
-    # Score: verification success rate + knowledge coverage
+    # Score: section retrieval success (70%) + knowledge coverage (30%)
+    # Freshness/staleness tracked separately â€” not part of scoring.
     local score=0
     if [ "$total_sections" -gt 0 ]; then
-        local ver_ok=$((total_sections - stale_count))
-        local ver_rate=$((ver_ok * 50 / total_sections))
+        local ver_ok=$((total_sections - fail_count))
+        local ver_rate=$((ver_ok * 70 / total_sections))
         local kn_rate=0
         local kn_total=$((knowledge_count + knowledge_missing))
-        [ "$kn_total" -gt 0 ] && kn_rate=$((knowledge_count * 50 / kn_total))
+        [ "$kn_total" -gt 0 ] && kn_rate=$((knowledge_count * 30 / kn_total))
         score=$((ver_rate + kn_rate))
     fi
     [ "$error_count" -gt 0 ] && score=$((score - error_count * 3))
@@ -1300,10 +1302,10 @@ phase_6_section_verify() {
         --argjson score "$score" \
         --argjson stale "$stale_count" \
         '{Status: $status, Errors: $errors, Duration: $duration, ReportFile: $report, Score: $score, Stale: $stale}')
-    echo "  → Score: $score/100 $trend — $status ($total_sections sections)"
+    echo "  â†’ Score: $score/100 $trend â€” $status ($total_sections sections)"
 }
 
-# ─── Phase 7: Search ───────────────────────────────────────────────────────────
+# â”€â”€â”€ Phase 7: Search â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 phase_7_search() {
     CURRENT_PHASE="05-search-results"
@@ -1371,7 +1373,7 @@ phase_7_search() {
                 '. += [{"Name": "Search \"\($q)\"", "Status": "pass", "Detail": "\($hc) results"}]')
         else
             search_errors=$((search_errors + 1))
-            query_result_parts+="### Query: \"$q\""$'\n\n'"❌ No results or error"$'\n\n'
+            query_result_parts+="### Query: \"$q\""$'\n\n'"âŒ No results or error"$'\n\n'
             checks=$(echo "$checks" | jq --arg q "$q" \
                 '. += [{"Name": "Search \"\($q)\"", "Status": "warn", "Detail": "No results"}]')
         fi
@@ -1385,8 +1387,8 @@ phase_7_search() {
     local error_count
     error_count=$(echo "$errors_json" | jq 'length')
 
-    local status="✅ PASS"
-    [ "$search_errors" -gt 0 ] && status="⚠️ PARTIAL"
+    local status="âœ… PASS"
+    [ "$search_errors" -gt 0 ] && status="âš ï¸ PARTIAL"
 
     local checks_table
     checks_table=$(get_checks_table "$checks")
@@ -1440,10 +1442,10 @@ phase_7_search() {
         --arg report "05-search-results.md" \
         --argjson score "$score" \
         '{Status: $status, Errors: $errors, Duration: $duration, ReportFile: $report, Score: $score}')
-    echo "  → Score: $score/100 $trend — $status ($expected_found/$expected_total queries OK)"
+    echo "  â†’ Score: $score/100 $trend â€” $status ($expected_found/$expected_total queries OK)"
 }
 
-# ─── Phase 8: Audit ────────────────────────────────────────────────────────────
+# â”€â”€â”€ Phase 8: Audit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 phase_8_audit() {
     CURRENT_PHASE="06-audit-findings"
@@ -1459,9 +1461,9 @@ phase_8_audit() {
         report_vals=$(jq -n \
             --arg TIMESTAMP "$(date '+%Y-%m-%d %H:%M:%S')" \
             --arg DURATION "0" \
-            --arg STATUS "⬜ SKIPPED" \
-            --arg CHECKS_TABLE "| - | Audit | ⬜ | Skipped via --no-audit |" \
-            --arg ERRORS_TABLE "✅ No errors" \
+            --arg STATUS "â¬œ SKIPPED" \
+            --arg CHECKS_TABLE "| - | Audit | â¬œ | Skipped via --no-audit |" \
+            --arg ERRORS_TABLE "âœ… No errors" \
             --arg AUDIT_SCORES_TABLE "| -- | -- | -- | -- | -- | -- |" \
             --arg FINDINGS_BY_DOMAIN "--" \
             --arg GATES_TABLE "| -- | -- | -- | -- | -- |" \
@@ -1472,7 +1474,7 @@ phase_8_audit() {
             --arg GATE_TOTAL "0" \
             --arg GATE_BLOCKS "0" \
             --arg SCORE "0" \
-            --arg TREND "—" \
+            --arg TREND "â€”" \
             --arg ANALYSIS "Audit phase was skipped via --no-audit flag." \
             --arg RECOMMENDATIONS "Run without --no-audit to assess audit health." \
             --arg PREV_SCORE "" \
@@ -1491,7 +1493,7 @@ phase_8_audit() {
         write_report "06-audit-findings.md" "06-audit-findings.md" "$report_vals" > /dev/null
 
         PHASE_RESULTS["06-audit-findings"]=$(jq -n \
-            --arg status "⬜ SKIPPED" \
+            --arg status "â¬œ SKIPPED" \
             --argjson errors 0 \
             --arg duration "0" \
             --arg report "06-audit-findings.md" \
@@ -1573,7 +1575,7 @@ phase_8_audit() {
         fi
 
         # Gates
-        local det_gate="⚠️" sec_gate="⚠️" doc_gate="⚠️" cd_gate="⚠️"
+        local det_gate="âš ï¸" sec_gate="âš ï¸" doc_gate="âš ï¸" cd_gate="âš ï¸"
         for stage in deterministic section document cross_domain; do
             local gate_args
             gate_args=$(jq -nc --arg stage "$stage" '{stage: $stage}')
@@ -1585,12 +1587,12 @@ phase_8_audit() {
                 blocked=$(echo "$gate_result" | jq -r '.blocked // false')
                 if [ "$blocked" = "false" ]; then
                     gate_passes=$((gate_passes + 1))
-                    case "$stage" in deterministic) det_gate="✅" ;; section) sec_gate="✅" ;; document) doc_gate="✅" ;; cross_domain) cd_gate="✅" ;; esac
+                    case "$stage" in deterministic) det_gate="âœ…" ;; section) sec_gate="âœ…" ;; document) doc_gate="âœ…" ;; cross_domain) cd_gate="âœ…" ;; esac
                 elif [ "$blocked" = "true" ]; then
                     gate_blocks=$((gate_blocks + 1))
                     local reason
                     reason=$(echo "$gate_result" | jq -r '.reason // "blocked"')
-                    case "$stage" in deterministic) det_gate="❌" ;; section) sec_gate="❌" ;; document) doc_gate="❌" ;; cross_domain) cd_gate="❌" ;; esac
+                    case "$stage" in deterministic) det_gate="âŒ" ;; section) sec_gate="âŒ" ;; document) doc_gate="âŒ" ;; cross_domain) cd_gate="âŒ" ;; esac
                     blocked_detail+="| $d | $stage | $reason |"$'\n'
                 fi
             fi
@@ -1613,8 +1615,8 @@ phase_8_audit() {
     local error_count
     error_count=$(echo "$errors_json" | jq 'length')
 
-    local status="✅ PASS"
-    [ "$gate_blocks" -gt 0 ] && status="⚠️ PARTIAL"
+    local status="âœ… PASS"
+    [ "$gate_blocks" -gt 0 ] && status="âš ï¸ PARTIAL"
 
     local checks_table
     checks_table=$(get_checks_table "$checks")
@@ -1682,10 +1684,10 @@ phase_8_audit() {
         --arg report "06-audit-findings.md" \
         --argjson score "$score" \
         '{Status: $status, Errors: $errors, Duration: $duration, ReportFile: $report, Score: $score}')
-    echo "  → Score: $score/100 $trend — $status ($total_findings findings, $gate_passes/$gate_total gates)"
+    echo "  â†’ Score: $score/100 $trend â€” $status ($total_findings findings, $gate_passes/$gate_total gates)"
 }
 
-# ─── Phase 9: Coverage Gaps ────────────────────────────────────────────────────
+# â”€â”€â”€ Phase 9: Coverage Gaps â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 phase_9_gaps() {
     CURRENT_PHASE="07-coverage-gaps"
@@ -1707,7 +1709,7 @@ phase_9_gaps() {
     pc=$(echo "$pairs_json" | jq 'length')
 
     for pi in $(seq 0 $((pc - 1))); do
-        local pair
+        local pai
         pair=$(echo "$pairs_json" | jq -c ".[$pi]")
         local d t
         d=$(echo "$pair" | jq -r '.domain')
@@ -1719,7 +1721,7 @@ phase_9_gaps() {
             local kn_result
             kn_result=$(invoke_mcp_tool "get_audit_knowledge" "$kn_args" "true")
             if [ -z "$kn_result" ] || [ "$(echo "$kn_result" | jq -r '.content // ""')" = "" ]; then
-                missing_knowledge_rows+="| $d | $t | ❌ Missing |"$'\n'
+                missing_knowledge_rows+="| $d | $t | âŒ Missing |"$'\n'
                 missing_kn_count=$((missing_kn_count + 1))
             fi
         fi
@@ -1817,8 +1819,8 @@ phase_9_gaps() {
     local error_count
     error_count=$(echo "$errors_json" | jq 'length')
 
-    local status="✅ PASS"
-    [ "$missing_kn_count" -gt 0 ] || [ "$empty_count" -gt 0 ] || [ "$low_q_count" -gt 0 ] && status="⚠️ PARTIAL"
+    local status="âœ… PASS"
+    [ "$missing_kn_count" -gt 0 ] || [ "$empty_count" -gt 0 ] || [ "$low_q_count" -gt 0 ] && status="âš ï¸ PARTIAL"
 
     local checks_table
     checks_table=$(get_checks_table "$checks")
@@ -1882,10 +1884,10 @@ phase_9_gaps() {
         --arg report "07-coverage-gaps.md" \
         --argjson score "$score" \
         '{Status: $status, Errors: $errors, Duration: $duration, ReportFile: $report, Score: $score}')
-    echo "  → Score: $score/100 $trend — $status ($gap_total gaps)"
+    echo "  â†’ Score: $score/100 $trend â€” $status ($gap_total gaps)"
 }
 
-# ─── Phase 10: Registry State ──────────────────────────────────────────────────
+# â”€â”€â”€ Phase 10: Registry State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 phase_10_registry() {
     CURRENT_PHASE="08-registry-state"
@@ -1902,7 +1904,7 @@ phase_10_registry() {
     repos_table+="| # | ID | UUID | Status |"$'\n'
     repos_table+="|---|----|------|--------|"$'\n'
     if [ -n "$repos_result" ]; then
-        local repos_arr
+        local repos_ar
         repos_arr=$(echo "$repos_result" | jq -c '.repositories // []')
         repo_count=$(echo "$repos_arr" | jq 'length')
         for ri in $(seq 0 $((repo_count - 1))); do
@@ -1926,14 +1928,14 @@ phase_10_registry() {
     deps_table+="| Name | Path | Available | Required |"$'\n'
     deps_table+="|------|------|-----------|----------|"$'\n'
     if [ -n "$deps_result" ]; then
-        local deps_arr
+        local deps_ar
         deps_arr=$(echo "$deps_result" | jq -c '.dependencies // []')
         dep_count=$(echo "$deps_arr" | jq 'length')
         for di in $(seq 0 $((dep_count - 1))); do
             local dep_name dep_path dep_avail dep_req
             dep_name=$(echo "$deps_arr" | jq -r ".[$di].name // \"--\"")
             dep_path=$(echo "$deps_arr" | jq -r ".[$di].path // \"--\"")
-            dep_avail=$(echo "$deps_arr" | jq -r 'if .['"$di"'].available then "✅" else "❌" end')
+            dep_avail=$(echo "$deps_arr" | jq -r 'if .['"$di"'].available then "âœ…" else "âŒ" end')
             dep_req=$(echo "$deps_arr" | jq -r 'if .['"$di"'].required then "yes" else "no" end')
             deps_table+="| $dep_name | $dep_path | $dep_avail | $dep_req |"$'\n'
             local avail_bool
@@ -2008,9 +2010,9 @@ phase_10_registry() {
     sr_result=$(invoke_mcp_tool "store_section_report" '{"report_json":{}}' "true")
     if [ -z "$sr_result" ]; then
         write_pass=$((write_pass + 1))
-        write_tool_lines+="| store_section_report | \`{}\` | reject bad input | ✅ rejected |"$'\n'
+        write_tool_lines+="| store_section_report | \`{}\` | reject bad input | âœ… rejected |"$'\n'
     else
-        write_tool_lines+="| store_section_report | \`{}\` | reject bad input | ❌ accepted |"$'\n'
+        write_tool_lines+="| store_section_report | \`{}\` | reject bad input | âŒ accepted |"$'\n'
     fi
 
     # store_document_report with empty
@@ -2019,9 +2021,9 @@ phase_10_registry() {
     dr_result=$(invoke_mcp_tool "store_document_report" '{"report_json":{}}' "true")
     if [ -z "$dr_result" ]; then
         write_pass=$((write_pass + 1))
-        write_tool_lines+="| store_document_report | \`{}\` | reject bad input | ✅ rejected |"$'\n'
+        write_tool_lines+="| store_document_report | \`{}\` | reject bad input | âœ… rejected |"$'\n'
     else
-        write_tool_lines+="| store_document_report | \`{}\` | reject bad input | ❌ accepted |"$'\n'
+        write_tool_lines+="| store_document_report | \`{}\` | reject bad input | âŒ accepted |"$'\n'
     fi
 
     # store_cross_domain_report with empty
@@ -2030,9 +2032,9 @@ phase_10_registry() {
     cr_result=$(invoke_mcp_tool "store_cross_domain_report" '{"report_json":{}}' "true")
     if [ -z "$cr_result" ]; then
         write_pass=$((write_pass + 1))
-        write_tool_lines+="| store_cross_domain_report | \`{}\` | reject bad input | ✅ rejected |"$'\n'
+        write_tool_lines+="| store_cross_domain_report | \`{}\` | reject bad input | âœ… rejected |"$'\n'
     else
-        write_tool_lines+="| store_cross_domain_report | \`{}\` | reject bad input | ❌ accepted |"$'\n'
+        write_tool_lines+="| store_cross_domain_report | \`{}\` | reject bad input | âŒ accepted |"$'\n'
     fi
 
     # update_finding_status with invalid
@@ -2041,9 +2043,9 @@ phase_10_registry() {
     uf_result=$(invoke_mcp_tool "update_finding_status" '{"report_id":0,"criterion_id":"","status":"invalid"}' "true")
     if [ -z "$uf_result" ]; then
         write_pass=$((write_pass + 1))
-        write_tool_lines+="| update_finding_status | invalid data | reject bad input | ✅ rejected |"$'\n'
+        write_tool_lines+="| update_finding_status | invalid data | reject bad input | âœ… rejected |"$'\n'
     else
-        write_tool_lines+="| update_finding_status | invalid data | reject bad input | ❌ accepted |"$'\n'
+        write_tool_lines+="| update_finding_status | invalid data | reject bad input | âŒ accepted |"$'\n'
     fi
 
     # register_repository with empty manifest
@@ -2052,9 +2054,9 @@ phase_10_registry() {
     rg_result=$(invoke_mcp_tool "register_repository" '{"manifest":"{}"}' "true")
     if [ -z "$rg_result" ]; then
         write_pass=$((write_pass + 1))
-        write_tool_lines+="| register_repository | \`{}\` manifest | reject bad input | ✅ rejected |"$'\n'
+        write_tool_lines+="| register_repository | \`{}\` manifest | reject bad input | âœ… rejected |"$'\n'
     else
-        write_tool_lines+="| register_repository | \`{}\` manifest | reject bad input | ❌ accepted |"$'\n'
+        write_tool_lines+="| register_repository | \`{}\` manifest | reject bad input | âŒ accepted |"$'\n'
     fi
 
     # unregister_repository with bogus UUID
@@ -2063,9 +2065,9 @@ phase_10_registry() {
     ur_result=$(invoke_mcp_tool "unregister_repository" '{"uuid":"00000000-0000-0000-0000-000000000000"}' "true")
     if [ -z "$ur_result" ]; then
         write_pass=$((write_pass + 1))
-        write_tool_lines+="| unregister_repository | bogus UUID | reject not-found | ✅ rejected |"$'\n'
+        write_tool_lines+="| unregister_repository | bogus UUID | reject not-found | âœ… rejected |"$'\n'
     else
-        write_tool_lines+="| unregister_repository | bogus UUID | reject not-found | ❌ accepted |"$'\n'
+        write_tool_lines+="| unregister_repository | bogus UUID | reject not-found | âŒ accepted |"$'\n'
     fi
 
     local ws_status="pass"
@@ -2081,8 +2083,8 @@ phase_10_registry() {
     local error_count
     error_count=$(echo "$errors_json" | jq 'length')
 
-    local status="✅ PASS"
-    [ "$write_pass" -ne "$write_total" ] && status="⚠️ PARTIAL"
+    local status="âœ… PASS"
+    [ "$write_pass" -ne "$write_total" ] && status="âš ï¸ PARTIAL"
 
     local checks_table
     checks_table=$(get_checks_table "$checks")
@@ -2149,10 +2151,10 @@ phase_10_registry() {
         --arg report "08-registry-state.md" \
         --argjson score "$score" \
         '{Status: $status, Errors: $errors, Duration: $duration, ReportFile: $report, Score: $score}')
-    echo "  → Score: $score/100 $trend — $status ($write_pass/$write_total write-tool)"
+    echo "  â†’ Score: $score/100 $trend â€” $status ($write_pass/$write_total write-tool)"
 }
 
-# ─── Phase 11: Summary ─────────────────────────────────────────────────────────
+# â”€â”€â”€ Phase 11: Summary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 phase_11_summary() {
     CURRENT_PHASE="00-summary"
@@ -2190,12 +2192,12 @@ phase_11_summary() {
     sect_count=$(echo "$ALL_RESULTS" | jq -r '.TotalSections // 0')
     sect_type_count=$(echo "$ALL_RESULTS" | jq -r '(.SectionsByType | length) // 0')
 
-    local overall_status="✅ CLEAN"
-    [ "$total_errors" -gt 0 ] && overall_status="⚠️ WITH ERRORS"
+    local overall_status="âœ… CLEAN"
+    [ "$total_errors" -gt 0 ] && overall_status="âš ï¸ WITH ERRORS"
 
     # Compute total score = floor of average of all phase scores
     local score_sum=0 score_count=0
-    local -A phase_scores_arr
+    local -A phase_scores_ar
     for key in "${phase_order[@]}"; do
         local pr="${PHASE_RESULTS[$key]:-}"
         [ -z "$pr" ] && continue
@@ -2207,7 +2209,7 @@ phase_11_summary() {
     [ "$score_count" -gt 0 ] && total_score=$((score_sum / score_count))
 
     [ -z "$phase_rows" ] && phase_rows="| -- | -- | -- | -- | -- |"$'\n'
-    [ -z "$failed_phases" ] && failed_phases="✅ All phases passed"$'\n'
+    [ -z "$failed_phases" ] && failed_phases="âœ… All phases passed"$'\n'
 
     local archive_str="${ARCHIVE_PATH:-No previous run}"
 
@@ -2293,29 +2295,29 @@ phase_11_summary() {
     save_metrics_json "$total_score" "$phase_scores_json"
 
     PHASE_RESULTS["00-summary"]=$(jq -n \
-        --arg status "✅ DONE" \
+        --arg status "âœ… DONE" \
         --argjson errors "$total_errors" \
         --argjson score "$total_score" \
         --arg duration "$(( $(date +%s) - start ))" \
         --arg report "00-summary.md" \
         '{Status: $status, Errors: $errors, Score: $score, Duration: $duration, ReportFile: $report}')
-    echo "  → Total Score: $total_score/100 $total_trend — Done"
+    echo "  â†’ Total Score: $total_score/100 $total_trend â€” Done"
 }
 
-# ─── Main ──────────────────────────────────────────────────────────────────────
+# â”€â”€â”€ Main â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 echo ""
-echo "╔═══════════════════════════════════════════╗"
-echo "║    Samgraha MCP Discovery                ║"
-echo "║    $(date '+%Y-%m-%d %H:%M:%S')              ║"
-echo "╚═══════════════════════════════════════════╝"
+echo "â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—"
+echo "â•‘    Samgraha MCP Discovery                â•‘"
+echo "â•‘    $(date '+%Y-%m-%d %H:%M:%S')              â•‘"
+echo "â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•"
 echo ""
 
 MAIN_START=$(date +%s)
 
 phase_1_bootstrap
 phase_2_domain_scan
-phase_3_doc_discover
+phase_3_doc_discove
 phase_4_doc_verify
 
 ts=$(echo "$ALL_RESULTS" | jq -r '.TotalSections // 0')
@@ -2336,10 +2338,10 @@ MAIN_END=$(date +%s)
 MAIN_DURATION=$((MAIN_END - MAIN_START))
 
 echo ""
-echo "╔═══════════════════════════════════════════╗"
-echo "║  Complete: ${MAIN_DURATION}s                          ║"
-echo "║  Reports: $LATEST_DIR"
-echo "╚═══════════════════════════════════════════╝"
+echo "â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—"
+echo "â•‘  Complete: ${MAIN_DURATION}s                          â•‘"
+echo "â•‘  Reports: $LATEST_DIR"
+echo "â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•"
 echo ""
 
 if $PASS_THRU; then

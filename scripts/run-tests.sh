@@ -319,7 +319,7 @@ invoke_phase2() {
     if echo "$r" | grep -qiE "error|not found"; then write_fail "search"; else write_pass "search"; fi
 
     write_info "tools/call get_document"
-    r=$(raw_mcp '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_document","arguments":{"id":"1"}}}')
+    r=$(raw_mcp '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_document","arguments":{"id":1}}}')
     if echo "$r" | grep -qiE "error|not found"; then write_fail "get_document"; else write_pass "get_document"; fi
 
     write_info "tools/call nonexistent"

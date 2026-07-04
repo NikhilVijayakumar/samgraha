@@ -851,7 +851,7 @@ function Phase-5-CrossSection {
     $trend = Trend-Between $score $prevScore
 
     $Script:PHASE_RESULTS["04-section-integrity"] = @{Status = "$status"; Errors = $errorCount; Duration = $duration; Score = $score} | ConvertTo-Json -Compress
-    Write-Host "  → $totalSections sections from $pairCount type-domain pairs" -ForegroundColor Green
+    Write-Host "  → Score: $score/100 $trend — $totalSections sections from $pairCount type-domain pairs" -ForegroundColor Green
 }
 
 # ─── Phase 6: Section Verification ───────────────────────────────────────────
@@ -868,6 +868,7 @@ function Phase-6-SectionVerify {
     $changeTrackRows = [System.Collections.ArrayList]::new()
     $knowledgeRows = [System.Collections.ArrayList]::new()
     $totalSections = 0
+    $failCount = 0
     $staleCount = 0
     $knowledgeCount = 0
     $knowledgeMissing = 0
@@ -888,7 +889,7 @@ function Phase-6-SectionVerify {
     $verifyLines.Add("| Domain | Section ID | Type | get_section | changed |") | Out-Null
     $verifyLines.Add("|--------|-----------|------|-------------|---------|") | Out-Null
     $verifyCount = 0
-    $maxVerify = 500  # cap to prevent excessive calls
+    $maxVerify = [int]::MaxValue
 
     $allUniqueTypes = @{}
 
@@ -903,6 +904,7 @@ function Phase-6-SectionVerify {
 
                 $sectResult = Invoke-McpTool -Name "get_section" -Arguments @{ section_id = $sid }
                 $sectOk = if ($sectResult -and $sectResult.id -eq $sid) { "✅" } else { "❌" }
+                if ($sectOk -eq "❌") { $failCount++ }
 
                 $changedResult = Invoke-McpTool -Name "get_section_changed" -Arguments @{ section_id = $sid }
                 $changed = if ($changedResult) { $changedResult.changed } else { "?" }
@@ -998,22 +1000,16 @@ function Phase-6-SectionVerify {
     $checksTable = (Get-ChecksTable $checksJson) -join "`n"
     $errorsTable = (Get-ErrorsTable "04-section-integrity") -join "`n"
 
-    # Score: section freshness (primary) + knowledge coverage (secondary bonus)
-    # Knowledge gaps are tracked separately in Phase 9 (coverage-gaps) — don't let them
-    # tank a perfect section verification result.
+    # Score: section retrieval success (70%) + knowledge coverage (30%)
+    # Freshness/staleness tracked separately — not part of scoring.
     $score = 0
     if ($totalSections -gt 0) {
-        $verOk = $totalSections - $staleCount
+        $verOk = $totalSections - $failCount
+        $verRate = [int]($verOk * 70 / $totalSections)
+        $knRate = 0
         $knTotal = $knowledgeCount + $knowledgeMissing
-        if ($knTotal -gt 0) {
-            # Both dimensions available: 70% freshness, 30% knowledge
-            $verRate  = [int]($verOk * 70 / $totalSections)
-            $knRate   = [int]($knowledgeCount * 30 / $knTotal)
-            $score    = $verRate + $knRate
-        } else {
-            # No knowledge data — score on freshness alone (full 100)
-            $score = [int]($verOk * 100 / $totalSections)
-        }
+        if ($knTotal -gt 0) { $knRate = [int]($knowledgeCount * 30 / $knTotal) }
+        $score = $verRate + $knRate
     }
     if ($errorCount -gt 0) { $score = $score - $errorCount * 3 }
     if ($score -lt 0) { $score = 0 }
