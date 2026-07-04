@@ -12,11 +12,25 @@ pub struct SamgrahaConfig {
     #[serde(default)]
     pub resolver: ResolverConfig,
     #[serde(default)]
+    pub knowledge: KnowledgeConfig,
+    #[serde(default)]
     pub ai: AiConfigSection,
     #[serde(default)]
     pub audit: AuditConfigSection,
     #[serde(default)]
     pub output: OutputConfigSection,
+}
+
+/// Which repositories to load into the Knowledge Package for this repo.
+/// Planner reads this alongside .meta files to produce a deterministic Knowledge Plan.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct KnowledgeConfig {
+    /// Always loaded, high priority (required dependencies).
+    #[serde(default)]
+    pub dependencies: Vec<String>,
+    /// Always loaded, lower priority (adjacent repos to consult).
+    #[serde(default)]
+    pub interests: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -106,6 +120,7 @@ impl Default for IgnoreConfig {
                 "**/node_modules/**".to_string(),
                 "**/target/**".to_string(),
                 "**/.git/**".to_string(),
+                "**/audit-standards/**".to_string(),
             ],
         }
     }
@@ -174,8 +189,12 @@ impl Default for DocumentationCompilationConfig {
 pub struct ResolverConfig {
     #[serde(default = "default_metadata_cache")]
     pub metadata_cache: bool,
+    /// How long .meta files are valid before sync is needed (~1 day).
     #[serde(default = "default_metadata_ttl")]
     pub metadata_ttl: String,
+    /// How long a Knowledge Session (assembled Knowledge Package) is valid (~30 days).
+    #[serde(default = "default_knowledge_ttl")]
+    pub knowledge_ttl: String,
     #[serde(default = "default_auto_refresh")]
     pub auto_refresh: bool,
     #[serde(default)]
@@ -192,6 +211,10 @@ fn default_metadata_ttl() -> String {
     "24h".to_string()
 }
 
+fn default_knowledge_ttl() -> String {
+    "720h".to_string()
+}
+
 fn default_auto_refresh() -> bool {
     true
 }
@@ -201,6 +224,7 @@ impl Default for ResolverConfig {
         Self {
             metadata_cache: true,
             metadata_ttl: "24h".to_string(),
+            knowledge_ttl: "720h".to_string(),
             auto_refresh: true,
             registry_type: RegistryType::File,
             registry_url: None,
@@ -325,6 +349,7 @@ impl Default for SamgrahaConfig {
             repository: RepositoryConfig::default(),
             compilation: CompilationConfigSection::default(),
             resolver: ResolverConfig::default(),
+            knowledge: KnowledgeConfig::default(),
             ai: AiConfigSection::default(),
             audit: AuditConfigSection::default(),
             output: OutputConfigSection::default(),
