@@ -104,7 +104,10 @@ fn collect_markdown_files(
 
         if path.is_dir() {
             let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
-            if !exclude.iter().any(|p| name.contains(p.trim_matches('*'))) {
+            if !exclude.iter().any(|p| {
+                let normalized = p.trim_matches(|c: char| c == '*' || c == '/');
+                !normalized.is_empty() && name.contains(normalized)
+            }) {
                 collect_markdown_files(root, &path, _include, exclude, documents)?;
             }
         } else if path.extension().map_or(false, |e| e == "md") {

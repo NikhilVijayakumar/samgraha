@@ -29,6 +29,7 @@ impl CompilationPipeline {
         standards: &[StandardDefinition],
         scope: Option<&[String]>,
         known_hashes: &std::collections::HashMap<String, String>,
+        ignore_patterns: &[String],
     ) -> Result<CompilationOutput> {
         let root = root.as_ref();
         let start = std::time::Instant::now();
@@ -36,12 +37,7 @@ impl CompilationPipeline {
         let discovered = DiscoveryEngine::discover(
             root,
             &[],
-            &[
-                "node_modules".to_string(),
-                "target".to_string(),
-                ".git".to_string(),
-                "audit-standards".to_string(),
-            ],
+            ignore_patterns,
         )?;
 
         let filtered: Vec<DiscoveredDocument> = match scope {
