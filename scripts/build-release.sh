@@ -70,15 +70,13 @@ if command -v strip &>/dev/null; then
     strip "$PKG_DIR/bin/mcp" "$PKG_DIR/bin/cli"
 fi
 
-# Copy config + docs
+# Copy config + universal standards only (samgraha-specific docs stay in the source repo)
 cp "$ROOT_DIR/samgraha.toml" "$PKG_DIR/"
-cp -r "$ROOT_DIR/docs/raw/." "$PKG_DIR/docs/raw/"
-
-# Pre-compile knowledge base
-echo "Pre-compiling knowledge base..."
-pushd "$PKG_DIR" > /dev/null
-"./bin/cli" compile --force
-popd > /dev/null
+for dir in standards audit audit-standards; do
+    if [[ -d "$ROOT_DIR/docs/raw/$dir" ]]; then
+        cp -r "$ROOT_DIR/docs/raw/$dir" "$PKG_DIR/docs/raw/"
+    fi
+done
 
 # Launcher scripts (Linux build: binaries have no .exe)
 cat > "$PKG_DIR/run-mcp.sh" <<SHEOF

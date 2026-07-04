@@ -64,15 +64,13 @@ foreach ($d in @("$pkgDir\bin", "$pkgDir\docs\raw", "$pkgDir\.samgraha")) {
 Copy-Item "$root\target\release\mcp.exe" "$pkgDir\bin\"
 Copy-Item "$root\target\release\cli.exe" "$pkgDir\bin\"
 
-# Copy config + docs
+# Copy config + universal standards only (samgraha-specific docs stay in the source repo)
 Copy-Item "$root\samgraha.toml" "$pkgDir\"
-Copy-Item -Recurse "$root\docs\raw\*" "$pkgDir\docs\raw\" -Force
-
-# Pre-compile knowledge base
-Write-Host "Pre-compiling knowledge base..." -ForegroundColor Yellow
-Push-Location $pkgDir
-& ".\bin\cli.exe" compile --force
-Pop-Location
+foreach ($dir in @("standards", "audit", "audit-standards")) {
+    if (Test-Path "$root\docs\raw\$dir") {
+        Copy-Item -Recurse "$root\docs\raw\$dir" "$pkgDir\docs\raw\" -Force
+    }
+}
 
 # Launcher scripts
 @"
