@@ -8,62 +8,94 @@ A Release is a standalone, portable distribution of Samgraha that runs on any Wi
 
 Releases are time-locked: the MCP binary embeds an expiry date at build time and refuses to serve requests past that date. This ensures consumers rebuild periodically and do not operate on stale knowledge bases.
 
+## Configuration
+
+All build settings live in `.env` at project root. The build scripts accept no CLI arguments — `.env` is the single source of truth.
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `SAMGRAHA_EXPIRY_DAYS` | `30` | Days from build time until binary expires. `-1` = no expiry. |
+| `SAMGRAHA_EXPIRY_HOURS` | `0` | Additional hours on top of `EXPIRY_DAYS`. `-1` = treat as 0. |
+| `OUTPUT_DIR` | *(required)* | Absolute path for the release package. Use absolute — `.env` is machine-specific. |
+
+Example `.env`:
+
+```env
+# 30 days and 12 hours from build time
+SAMGRAHA_EXPIRY_DAYS=30
+SAMGRAHA_EXPIRY_HOURS=12
+OUTPUT_DIR=C:\releases\samgraha
+```
+
+```env
+# Build that never expires
+SAMGRAHA_EXPIRY_DAYS=-1
+OUTPUT_DIR=C:\releases\samgraha
+```
+
+See `.env.example` for a template.
+
+### Expiry arithmetic
+
+Expiry = build timestamp + (`EXPIRY_DAYS` × 24h) + max(`EXPIRY_HOURS`, 0) × 1h
+
+| `EXPIRY_DAYS` | `EXPIRY_HOURS` | Result |
+|---------------|----------------|--------|
+| `30` | `0` | 30 days from build |
+| `30` | `12` | 30 days 12 hours from build |
+| `30` | `-1` | 30 days from build (hours ignored) |
+| `-1` | *(any)* | No expiry — binary never expires |
+
 ## Build
 
-`scripts\build-release.ps1` produces the release directory:
+Two build scripts, same logic, no arguments:
 
+| Platform | Script |
+|----------|--------|
+| Windows  | `scripts\build-release.ps1` |
+| Linux    | `scripts/build-release.sh` |
+
+```powershell
+# Windows — edit .env first, then run:
+.\scripts\build-release.ps1
 ```
-.\scripts\build-release.ps1 [-ExpiryDays <int>] [-OutputDir <path>]
-```
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| ExpiryDays | 30 | Days from build date until binary expires |
-| OutputDir | .\release | Output path (absolute or relative to project root) |
-
-Examples:
-
-```
-scripts/build-release.ps1                                          # 30-day expiry, .\release\
-scripts/build-release.ps1 -ExpiryDays 90                           # 90-day expiry, .\release\
-scripts/build-release.ps1 -ExpiryDays 60 -OutputDir D:\releases    # Custom output dir
+```sh
+# Linux — edit .env first, then run:
+./scripts/build-release.sh
 ```
 
 ## Time Lock
 
-The expiry is baked into the binary at compile time via the `SAMGRAHA_EXPIRY` environment variable.
+`crates/mcp/build.rs` reads `SAMGRAHA_EXPIRY_DAYS` and `SAMGRAHA_EXPIRY_HOURS` from `.env` at compile time, computes the RFC 3339 expiry timestamp, and bakes it into the binary via `cargo:rustc-env=SAMGRAHA_EXPIRY=<value>`. It also emits `cargo:rerun-if-changed` for `.env`, so cargo re-runs the build script whenever `.env` is modified — without this, a changed expiry would be silently ignored.
 
-**`crates/mcp/src/main.rs` (check_expiry):**
+`cargo build --release` outside the scripts works the same way — `build.rs` handles it entirely.
 
-The binary accepts two formats:
+If `SAMGRAHA_EXPIRY_DAYS=-1`, `build.rs` emits nothing and `option_env!("SAMGRAHA_EXPIRY")` returns `None`, making `check_expiry()` a no-op.
 
-| Format | Example | Precision |
-|--------|---------|-----------|
-| RFC 3339 | 2026-10-01T23:59:59Z | Second precision, UTC |
-| Date only | 2026-10-01 | End of day (23:59:59 UTC) |
-
-At startup, `check_expiry()` compares current UTC time against the baked-in expiry. If past expiry, it prints an error to stderr and exits with code 1:
+At startup, `check_expiry()` (`crates/mcp/src/main.rs`) compares current UTC time against the baked-in expiry. If past expiry, it prints an error to stderr and exits with code 1:
 
 ```
 ERROR: This binary expired at 2026-10-01T23:59:59Z UTC. Build a new one.
 ```
 
-To extend, rebuild with `build-release.ps1` and redistribute the new directory.
+To extend, update `.env` and rebuild.
 
 ## Output Structure
 
 ```
-release/
+<OUTPUT_DIR>/
   samgraha/
     bin/
-      mcp.exe          # MCP JSON-RPC 2.0 stdio server
-      cli.exe          # CLI tool (compile, search, audit, etc.)
-    docs/raw/           # Documentation corpus + 91 audit knowledge files
+      mcp.exe          # MCP JSON-RPC 2.0 stdio server (mcp on Linux)
+      cli.exe          # CLI tool — compile, search, audit, etc. (cli on Linux)
+    docs/raw/           # Documentation corpus + audit knowledge files
     .samgraha/
       knowledge.db     # Pre-compiled knowledge base (SQLite)
     samgraha.toml       # Project configuration
     run-mcp.cmd         # Windows launcher
     run-mcp.sh          # Linux launcher
+    SHA256SUMS          # SHA-256 hashes of bin/mcp and bin/cli
 ```
 
 ## Requirements
@@ -88,4 +120,16 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | .\run-mcp.cm
 echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | ./run-mcp.sh
 ```
 
-The launcher forwards stdin to `bin/mcp.exe` and prints the JSON response line to stdout.
+## Verifying Checksums
+
+```sh
+# Linux
+sha256sum -c SHA256SUMS
+
+# Windows (PowerShell)
+Get-Content SHA256SUMS | ForEach-Object {
+    $hash, $file = $_ -split '\s+', 2
+    $actual = (Get-FileHash $file -Algorithm SHA256).Hash.ToLower()
+    if ($actual -eq $hash) { "OK: $file" } else { "FAIL: $file" }
+}
+```
