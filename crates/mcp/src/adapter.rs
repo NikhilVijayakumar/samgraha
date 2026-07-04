@@ -1,10 +1,16 @@
 use crate::protocol::{McpCapabilities, McpError, McpMessage, McpRequest, McpResponse};
 use anyhow::Result;
+use common::config::{parse_ttl_duration, SamgrahaConfig};
+use registry::RegistryStore;
 use schemas::audit::{AuditStage, FindingStatus, SemanticReport};
 use schemas::compilation::{CompilationRequest, CompilationScope};
+use schemas::manifest::CachedRepoMetadata;
 use schemas::search::{RetrievalLevel, SearchQuery, SectionQuery};
+use services::compilation::CompilationService;
+use services::planner::write_meta_file;
 use services::registry_client::RegistryClient;
 use services::resolution::KnowledgeResolver;
+use services::session::KnowledgeSession;
 use services::KnowledgeRuntime;
 use std::sync::Arc;
 
@@ -12,10 +18,18 @@ pub struct McpAdapter {
     runtime: Arc<KnowledgeRuntime>,
     registry: Arc<dyn RegistryClient>,
     capabilities: McpCapabilities,
+    session: Option<KnowledgeSession>,
 }
 
 impl McpAdapter {
     pub fn new(runtime: Arc<KnowledgeRuntime>, registry: Arc<dyn RegistryClient>) -> Self {
+        let session = KnowledgeSession::create(
+            &runtime.context.repository_root,
+            &runtime.context.config,
+        ).ok();
+        if let Some(ref s) = session {
+            tracing::info!("Knowledge session assembled: {} store(s)", s.store_count());
+        }
         let mut caps = McpCapabilities::default_capabilities();
         caps.methods.push("list_repositories".to_string());
         caps.methods.push("register_repository".to_string());
@@ -34,10 +48,13 @@ impl McpAdapter {
         caps.methods.push("store_document_report".to_string());
         caps.methods.push("store_cross_domain_report".to_string());
         caps.methods.push("update_finding_status".to_string());
+        caps.methods.push("sync".to_string());
+        caps.methods.push("get_plan".to_string());
         Self {
             runtime,
             registry,
             capabilities: caps,
+            session,
         }
     }
 
@@ -90,6 +107,8 @@ impl McpAdapter {
             "store_document_report"   => self.handle_store_document_report(&req),
             "store_cross_domain_report" => self.handle_store_cross_domain_report(&req),
             "update_finding_status"   => self.handle_update_finding_status(&req),
+            "sync"                    => self.handle_sync(&req),
+            "get_plan"                => self.handle_get_plan(),
             _                         => Err(anyhow::anyhow!("Unknown method: {}", req.method)),
         };
 
@@ -165,15 +184,82 @@ impl McpAdapter {
             .and_then(|v| v.as_array())
             .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect::<Vec<_>>())
             .unwrap_or_default();
-
         let scope = if domains.is_empty() {
             CompilationScope::Repository
         } else {
             CompilationScope::Domains(domains)
         };
+        let request = CompilationRequest { scope, force, watch: false };
 
-        let result = self.runtime.compile(&CompilationRequest { scope, force, watch: false })?;
+        if let Some(path_str) = req.params.get("path").and_then(|v| v.as_str()) {
+            let root = std::path::PathBuf::from(path_str);
+            // Load target repo's own config if present, else use defaults.
+            let target_config: SamgrahaConfig = root.join("samgraha.toml")
+                .to_str()
+                .and_then(|p| std::fs::read_to_string(p).ok())
+                .and_then(|s| toml::from_str(&s).ok())
+                .unwrap_or_default();
+            // Compile into target repo's own knowledge.db — not Samgraha's.
+            let db_path = root.join(".samgraha").join("knowledge.db");
+            std::fs::create_dir_all(root.join(".samgraha"))?;
+            let ext_registry = Arc::new(RegistryStore::open(&db_path)?);
+            let result = CompilationService::execute(
+                &root,
+                &target_config,
+                &request,
+                &self.runtime.standard_registry,
+                ext_registry,
+            )?;
+            return Ok(serde_json::to_value(&result)?);
+        }
+
+        let result = self.runtime.compile(&request)?;
         Ok(serde_json::to_value(&result)?)
+    }
+
+    /// Sync: read a compiled repo's manifest.json, register it in the local registry,
+    /// and write a .meta file so the Planner can resolve this dep offline.
+    fn handle_sync(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let path_str = req.params.get("path")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'path' parameter"))?;
+        let root = std::path::Path::new(path_str);
+        let manifest_path = root.join(".samgraha").join("manifest.json");
+        let content = std::fs::read_to_string(&manifest_path)
+            .map_err(|e| anyhow::anyhow!("Cannot read {}: {}", manifest_path.display(), e))?;
+        let manifest: schemas::manifest::RepositoryManifest = serde_json::from_str(&content)
+            .map_err(|e| anyhow::anyhow!("Invalid manifest.json: {}", e))?;
+
+        // Registry upsert.
+        self.registry.register(&manifest)?;
+
+        // Write .meta file → Planner reads this offline for path + cached metadata.
+        let ttl_secs = parse_ttl_duration(&self.runtime.context.config.resolver.metadata_ttl)
+            .unwrap_or(86400);
+        let now = chrono::Utc::now();
+        let meta = CachedRepoMetadata {
+            repository: manifest.repository.clone(),
+            revision: manifest.revision,
+            repository_root: manifest.repository_root.clone(),
+            knowledge: manifest.knowledge.clone(),
+            exports: manifest.exports.clone(),
+            audit: manifest.audit.status.clone(),
+            last_sync: now.to_rfc3339(),
+            expires: (now + chrono::Duration::seconds(ttl_secs)).to_rfc3339(),
+            dependencies: manifest.dependencies.clone(),
+        };
+        let local_root = &self.runtime.context.repository_root;
+        if let Err(e) = write_meta_file(local_root, &meta) {
+            tracing::warn!("Cannot write .meta for '{}': {}", manifest.repository.id, e);
+        }
+
+        Ok(serde_json::json!({
+            "success": true,
+            "action": "sync",
+            "repository": manifest.repository.id,
+            "uuid": manifest.repository.uuid.to_string(),
+            "revision": manifest.revision,
+        }))
     }
 
     fn handle_search(&self, req: &McpRequest) -> Result<serde_json::Value> {
@@ -202,7 +288,10 @@ impl McpAdapter {
             ..Default::default()
         };
 
-        let results = self.runtime.search(&search_query)?;
+        let results = match &self.session {
+            Some(s) if s.is_valid() => s.search(&search_query)?,
+            _ => self.runtime.search(&search_query)?,
+        };
         let mut out = Self::paginate(results.results, offset, limit, "results");
         out["query"] = serde_json::Value::String(query.to_string());
         Ok(out)
@@ -241,7 +330,28 @@ impl McpAdapter {
     }
 
     fn handle_info(&self, _req: &McpRequest) -> Result<serde_json::Value> {
-        Ok(serde_json::to_value(&self.runtime.info())?)
+        let mut info = serde_json::to_value(&self.runtime.info())?;
+        if let Some(ref s) = self.session {
+            info["session_stores"] = serde_json::json!(s.store_count());
+            info["session_valid"] = serde_json::json!(s.is_valid());
+        }
+        Ok(info)
+    }
+
+    /// Return the current Knowledge Plan so the client can inspect repo status.
+    fn handle_get_plan(&self) -> Result<serde_json::Value> {
+        match &self.session {
+            Some(s) => Ok(serde_json::json!({
+                "session_valid": s.is_valid(),
+                "store_count": s.store_count(),
+                "entries": serde_json::to_value(&s.plan.entries)?,
+            })),
+            None => Ok(serde_json::json!({
+                "session_valid": false,
+                "store_count": 0,
+                "entries": [],
+            })),
+        }
     }
 
     /// Returns document metadata and section TOC only — no body content.

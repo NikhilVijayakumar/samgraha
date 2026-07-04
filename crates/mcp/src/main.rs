@@ -204,14 +204,31 @@ fn tool_definitions() -> Vec<serde_json::Value> {
     vec![
         serde_json::json!({
             "name": "compile",
-            "description": "Compile documentation into knowledge database",
+            "description": "Compile documentation into knowledge database. Omit 'path' to compile Samgraha itself; provide 'path' to compile an external repository into its own knowledge.db.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "force": { "type": "boolean", "description": "Force recompile all" },
-                    "domains": { "type": "array", "items": { "type": "string" }, "description": "Domains to compile" }
+                    "domains": { "type": "array", "items": { "type": "string" }, "description": "Domains to compile" },
+                    "path": { "type": "string", "description": "Absolute path to an external repository to compile into its own .samgraha/knowledge.db" }
                 }
             }
+        }),
+        serde_json::json!({
+            "name": "sync",
+            "description": "Read a compiled repository's manifest.json, register it in the local registry, and write a .meta file so the Planner can resolve it offline. Run after compile when integrating an external repo.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "path": { "type": "string", "description": "Absolute path to the repository root (must contain .samgraha/manifest.json)" }
+                },
+                "required": ["path"]
+            }
+        }),
+        serde_json::json!({
+            "name": "get_plan",
+            "description": "Return the current Knowledge Plan — shows which repositories are loaded, their priority, status (loaded/stale/missing/unresolved/required_missing), and revision.",
+            "inputSchema": { "type": "object", "properties": {} }
         }),
         serde_json::json!({
             "name": "search",
