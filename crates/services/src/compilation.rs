@@ -16,9 +16,31 @@ use tracing::info;
 use uuid::Uuid;
 
 use crate::enrichment::EnrichmentService;
-use crate::registry_client::{FileRegistryClient, RegistryClient};
 
 pub struct CompilationService;
+
+fn merge_ignore_patterns(root: &Path, config: &SamgrahaConfig) -> Vec<String> {
+    let mut patterns = common::config::IgnoreConfig::default().patterns;
+    patterns.extend(config.repository.ignore.patterns.iter().cloned());
+    if let Ok(content) = std::fs::read_to_string(root.join(".samagraignore")) {
+        for line in content.lines() {
+            let line = line.trim();
+            if !line.is_empty() && !line.starts_with('#') {
+                patterns.push(line.to_string());
+            }
+        }
+    }
+    patterns.sort();
+    patterns.dedup();
+    patterns
+}
+
+fn matches_any_ignore_pattern(rel_path: &str, patterns: &[String]) -> bool {
+    patterns.iter().any(|p| {
+        let normalized = p.trim_matches(|c: char| c == '*' || c == '/');
+        !normalized.is_empty() && rel_path.contains(normalized)
+    })
+}
 
 /// Read existing manifest audit fields. Returns (status, last_audit) or defaults.
 pub fn read_existing_audit(root: &Path) -> (String, Option<String>) {
@@ -190,17 +212,6 @@ impl CompilationService {
                 Err(e) => tracing::warn!("Cannot serialize manifest.json: {}", e),
             }
 
-            // Auto-refresh: if enabled, update local registry after successful compile.
-            if config.resolver.auto_refresh {
-                if let Ok(json) = std::fs::read_to_string(&manifest_path) {
-                    if let Ok(manifest) = serde_json::from_str::<RepositoryManifest>(&json) {
-                        let client = FileRegistryClient::with_config(root, &config.resolver);
-                        if let Err(e) = client.register(&manifest) {
-                            tracing::warn!("Auto-refresh registry update failed: {}", e);
-                        }
-                    }
-                }
-            }
         }
 
         // Enrich newly compiled documents (not skipped ones — their enrichment is still valid).
