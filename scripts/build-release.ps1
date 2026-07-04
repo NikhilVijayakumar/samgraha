@@ -1,31 +1,60 @@
-﻿param(
-    [int]$ExpiryDays = 30,
-    [string]$OutputDir = ".\release"
-)
-
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $root = (Resolve-Path $root).Path
 
-# Resolve output dir relative to project root
-if (-not [System.IO.Path]::IsPathRooted($OutputDir)) {
-    $OutputDir = Join-Path $root $OutputDir
+# Read .env — single source of truth, no CLI overrides
+$expiryDays  = 30
+$expiryHours = 0
+$outputDir   = ""
+
+$envFile = Join-Path $root ".env"
+if (Test-Path $envFile) {
+    Get-Content $envFile | ForEach-Object {
+        $line = $_.Trim()
+        if ($line -and $line -notlike '#*' -and $line -like '*=*') {
+            $kv = $line.Split('=', 2)
+            $k  = $kv[0].Trim()
+            $v  = $kv[1].Trim().Trim('"', "'")
+            switch ($k) {
+                "SAMGRAHA_EXPIRY_DAYS"  { $expiryDays  = [int]$v }
+                "SAMGRAHA_EXPIRY_HOURS" { $expiryHours = [int]$v }
+                "OUTPUT_DIR"            { $outputDir   = $v }
+            }
+        }
+    }
 }
-$OutputDir = (New-Item -ItemType Directory -Force $OutputDir).FullName
 
-# Calculate expiry at end of day (23:59:59 UTC)
-$expiry = (Get-Date).AddDays($ExpiryDays).ToUniversalTime()
-$expiryRfc = $expiry.ToString("yyyy-MM-ddTHH:mm:ssZ")
-Write-Host "Building with expiry: $expiryRfc (+${ExpiryDays}d at 23:59:59 UTC)" -ForegroundColor Cyan
+# Resolve output dir — prefer absolute path from .env
+if (-not $outputDir) {
+    Write-Warning "OUTPUT_DIR not set in .env — falling back to .\release. Set an absolute path in .env."
+    $outputDir = ".\release"
+}
+if (-not [System.IO.Path]::IsPathRooted($outputDir)) {
+    Write-Warning "OUTPUT_DIR '$outputDir' is relative — resolving from project root. Use an absolute path in .env."
+    $outputDir = Join-Path $root $outputDir
+}
+$outputDir = (New-Item -ItemType Directory -Force $outputDir).FullName
 
-# Build release binaries with expiry baked in
+# Compute expiry label for display and launcher comment
+# build.rs owns baking this into the binary — scripts just show the same value
+if ($expiryDays -eq -1) {
+    $expiryLabel   = "never"
+    $expiryComment = "no expiry"
+} else {
+    $hrs = if ($expiryHours -eq -1) { 0 } else { $expiryHours }
+    $expiry = (Get-Date).ToUniversalTime().AddDays($expiryDays).AddHours($hrs)
+    $expiryLabel   = $expiry.ToString("yyyy-MM-ddTHH:mm:ssZ")
+    $expiryComment = "expires $expiryLabel"
+}
+Write-Host "Expiry: $expiryLabel  (days=$expiryDays, hours=$expiryHours)" -ForegroundColor Cyan
+
+# Build — build.rs reads .env and bakes SAMGRAHA_EXPIRY into the binary
 Write-Host "Building mcp.exe + cli.exe (release)..." -ForegroundColor Yellow
-$env:SAMGRAHA_EXPIRY = $expiryRfc
 & cargo build --release --bin mcp --bin cli --manifest-path "$root\Cargo.toml"
 if ($LASTEXITCODE -ne 0) { throw "Build failed" }
 
 # Package directory
-$pkgDir = Join-Path $OutputDir "samgraha"
+$pkgDir = Join-Path $outputDir "samgraha"
 if (Test-Path $pkgDir) { Remove-Item -Recurse -Force $pkgDir }
 foreach ($d in @("$pkgDir\bin", "$pkgDir\docs\raw", "$pkgDir\.samgraha")) {
     New-Item -ItemType Directory -Force $d | Out-Null
@@ -39,7 +68,7 @@ Copy-Item "$root\target\release\cli.exe" "$pkgDir\bin\"
 Copy-Item "$root\samgraha.toml" "$pkgDir\"
 Copy-Item -Recurse "$root\docs\raw\*" "$pkgDir\docs\raw\" -Force
 
-# Pre-compile knowledge base so target machine skips cargo
+# Pre-compile knowledge base
 Write-Host "Pre-compiling knowledge base..." -ForegroundColor Yellow
 Push-Location $pkgDir
 & ".\bin\cli.exe" compile --force
@@ -48,23 +77,30 @@ Pop-Location
 # Launcher scripts
 @"
 @echo off
-rem Samgraha MCP — expires $expiryRfc
+rem Samgraha MCP — $expiryComment
+"%~dp0bin\mcp.exe" %*
 "@ | Set-Content -Path "$pkgDir\run-mcp.cmd" -Encoding ASCII
 
 @"
 #!/usr/bin/env sh
-# Samgraha MCP — expires $expiryRfc
-exec "`$(dirname `"`$0`")/bin/mcp" `"`$@`"
+# Samgraha MCP — $expiryComment
+exec "`$(dirname `"`$0`")/bin/mcp.exe" `"`$@`"
 "@ | Set-Content -Path "$pkgDir\run-mcp.sh" -Encoding ASCII
+
+# Checksums
+$mcpHash = (Get-FileHash "$pkgDir\bin\mcp.exe" -Algorithm SHA256).Hash.ToLower()
+$cliHash = (Get-FileHash "$pkgDir\bin\cli.exe" -Algorithm SHA256).Hash.ToLower()
+@"
+$mcpHash  bin/mcp.exe
+$cliHash  bin/cli.exe
+"@ | Set-Content -Path "$pkgDir\SHA256SUMS" -Encoding ASCII
 
 $mcpSize = [int]((Get-Item "$pkgDir\bin\mcp.exe").Length / 1KB)
 $cliSize = [int]((Get-Item "$pkgDir\bin\cli.exe").Length / 1KB)
 
 Write-Host "`n=== Release packaged ===" -ForegroundColor Green
 Write-Host "  Location: $pkgDir" -ForegroundColor Cyan
-Write-Host "  mcp.exe:  ${mcpSize}KB" -ForegroundColor Cyan
-Write-Host "  cli.exe:  ${cliSize}KB" -ForegroundColor Cyan
-Write-Host "  Expires:  $expiryRfc" -ForegroundColor Yellow
+Write-Host "  mcp.exe:  ${mcpSize}KB  ($mcpHash)" -ForegroundColor Cyan
+Write-Host "  cli.exe:  ${cliSize}KB  ($cliHash)" -ForegroundColor Cyan
+Write-Host "  Expiry:   $expiryLabel" -ForegroundColor Yellow
 Write-Host "  Use:      Get-Content input.json | .\run-mcp.cmd" -ForegroundColor Gray
-Write-Host ""
-Write-Host "  To extend: .\scripts\build-release.ps1 -ExpiryDays 60 -OutputDir D:\releases" -ForegroundColor Gray
