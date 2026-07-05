@@ -34,6 +34,7 @@ struct JsonRpcError {
 }
 
 fn main() -> Result<()> {
+    common::load_dotenv();
     let _ = tracing_subscriber::fmt()
         .with_writer(std::io::stderr)
         .with_env_filter(
@@ -107,7 +108,7 @@ fn handle(adapter: &McpAdapter, req: &JsonRpcRequest) -> JsonRpcResponse {
                     "capabilities": { "tools": {} },
                     "serverInfo": {
                         "name": "samgraha-mcp",
-                        "version": "0.1.0"
+                        "version": env!("CARGO_PKG_VERSION")
                     }
                 })),
                 error: None,
@@ -169,26 +170,20 @@ fn handle(adapter: &McpAdapter, req: &JsonRpcRequest) -> JsonRpcResponse {
                 McpMessage::Response(resp) => JsonRpcResponse {
                     jsonrpc: "2.0".to_string(),
                     id: req.id.clone(),
-                    result: Some(resp.result),
+                    result: Some(tool_result(&resp.result, false)),
                     error: None,
                 },
                 McpMessage::Error(err) => JsonRpcResponse {
                     jsonrpc: "2.0".to_string(),
                     id: req.id.clone(),
-                    result: None,
-                    error: Some(JsonRpcError {
-                        code: err.code,
-                        message: err.message,
-                    }),
+                    result: Some(tool_result(&serde_json::json!({ "error": err.message }), true)),
+                    error: None,
                 },
                 _ => JsonRpcResponse {
                     jsonrpc: "2.0".to_string(),
                     id: req.id.clone(),
-                    result: None,
-                    error: Some(JsonRpcError {
-                        code: -32603,
-                        message: "Internal error".to_string(),
-                    }),
+                    result: Some(tool_result(&serde_json::json!({ "error": "Internal error" }), true)),
+                    error: None,
                 },
             }
         }
@@ -202,6 +197,20 @@ fn handle(adapter: &McpAdapter, req: &JsonRpcRequest) -> JsonRpcResponse {
             }),
         },
     }
+}
+
+/// Wrap a handler's raw JSON payload into the MCP `tools/call` result shape
+/// (`content` text blocks + `isError`), which is what MCP clients (Claude Code,
+/// opencode, etc.) actually read. Returning bare JSON-RPC `result` without this
+/// wrapper renders as empty output in every client, regardless of what the
+/// handler produced.
+fn tool_result(payload: &serde_json::Value, is_error: bool) -> serde_json::Value {
+    let text = serde_json::to_string_pretty(payload).unwrap_or_else(|_| payload.to_string());
+    serde_json::json!({
+        "content": [{ "type": "text", "text": text }],
+        "structuredContent": payload,
+        "isError": is_error,
+    })
 }
 
 fn tool_definitions() -> Vec<serde_json::Value> {
@@ -524,12 +533,15 @@ fn discover_root() -> Result<std::path::PathBuf> {
     let cwd = std::env::current_dir()?;
     let mut current = Some(cwd.as_path());
     while let Some(dir) = current {
-        if dir.join("samgraha.toml").exists() || dir.join(".git").exists() {
+        if dir.join(".samgraha").is_dir() || dir.join("samgraha.toml").exists() {
             return Ok(dir.to_path_buf());
         }
         current = dir.parent();
     }
-    Ok(cwd)
+    anyhow::bail!(
+        "fatal: not a samgraha repository (or any of the parent directories). \
+         Run 'samgraha init' first to initialize, or start the MCP server from a samgraha repo."
+    );
 }
 
 fn load_config(root: &Path) -> Result<SamgrahaConfig> {
@@ -540,4 +552,26 @@ fn load_config(root: &Path) -> Result<SamgrahaConfig> {
         return Ok(config);
     }
     Ok(SamgrahaConfig::default())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tool_result_wraps_payload_as_text_content() {
+        let payload = serde_json::json!({ "domains": ["architecture"], "count": 1 });
+        let wrapped = tool_result(&payload, false);
+        assert_eq!(wrapped["isError"], false);
+        let text = wrapped["content"][0]["text"].as_str().unwrap();
+        assert!(text.contains("architecture"));
+        assert_eq!(wrapped["structuredContent"], payload);
+    }
+
+    #[test]
+    fn tool_result_marks_errors() {
+        let wrapped = tool_result(&serde_json::json!({ "error": "boom" }), true);
+        assert_eq!(wrapped["isError"], true);
+        assert!(wrapped["content"][0]["text"].as_str().unwrap().contains("boom"));
+    }
 }

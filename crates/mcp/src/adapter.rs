@@ -211,28 +211,45 @@ impl McpAdapter {
 
         if let Some(path_str) = req.params.get("path").and_then(|v| v.as_str()) {
             let root = std::path::PathBuf::from(path_str);
-            // Load target repo's own config if present, else use defaults.
-            let target_config: SamgrahaConfig = root.join("samgraha.toml")
-                .to_str()
-                .and_then(|p| std::fs::read_to_string(p).ok())
-                .and_then(|s| toml::from_str(&s).ok())
-                .unwrap_or_default();
-            // Compile into target repo's own knowledge.db — not Samgraha's.
-            let db_path = root.join(".samgraha").join("knowledge.db");
-            std::fs::create_dir_all(root.join(".samgraha"))?;
-            let ext_registry = Arc::new(RegistryStore::open(&db_path)?);
-            let result = CompilationService::execute(
-                &root,
-                &target_config,
-                &request,
-                &self.runtime.standard_registry,
-                ext_registry,
-            )?;
+            let result = Self::compile_external(&self, &root, &request)?;
             return Ok(serde_json::to_value(&result)?);
         }
 
         let result = self.runtime.compile(&request)?;
+        if result.success && self.runtime.context.config.resolver.auto_refresh {
+            // Hybrid auto-registration: keep declared dependencies/interests
+            // registered without requiring an explicit `sync` call. Manual
+            // register/sync remain available at any time; failures here are
+            // logged, not fatal — a registry hiccup shouldn't fail a compile.
+            if let Err(e) = self.registry.sync(&self.runtime.context.config) {
+                tracing::warn!("Registry sync after compile failed: {e}");
+            }
+        }
         Ok(serde_json::to_value(&result)?)
+    }
+
+    /// Compile a repository at `root` into its own `.samgraha/knowledge.db` — not Samgraha's.
+    fn compile_external(
+        &self,
+        root: &std::path::Path,
+        request: &CompilationRequest,
+    ) -> Result<schemas::compilation::CompilationResult> {
+        // Load target repo's own config if present, else use defaults.
+        let target_config: SamgrahaConfig = root.join("samgraha.toml")
+            .to_str()
+            .and_then(|p| std::fs::read_to_string(p).ok())
+            .and_then(|s| toml::from_str(&s).ok())
+            .unwrap_or_default();
+        let db_path = root.join(".samgraha").join("knowledge.db");
+        std::fs::create_dir_all(root.join(".samgraha"))?;
+        let ext_registry = Arc::new(RegistryStore::open(&db_path)?);
+        CompilationService::execute(
+            root,
+            &target_config,
+            request,
+            &self.runtime.standard_registry,
+            ext_registry,
+        )
     }
 
     /// Sync: read a compiled repo's manifest.json, register it in the local registry,
@@ -489,11 +506,15 @@ impl McpAdapter {
     }
 
     fn handle_list_domains(&self) -> Result<serde_json::Value> {
-        let domains: Vec<String> = self.runtime.standard_registry
-            .domains()
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
+        let domains = self.runtime.get_domains()?;
+
+        if domains.is_empty() {
+            return Ok(serde_json::json!({
+                "domains": domains,
+                "count": 0,
+                "message": "No documents compiled yet. Run 'compile' on this repository first, then call list_domains again.",
+            }));
+        }
 
         Ok(serde_json::json!({
             "domains": domains,
@@ -506,6 +527,13 @@ impl McpAdapter {
     fn handle_list_repositories(&self, req: &McpRequest) -> Result<serde_json::Value> {
         let (limit, offset) = Self::page_params(req, 50);
         let entries = self.registry.list()?;
+        if entries.is_empty() {
+            let mut out = Self::paginate(entries, offset, limit, "repositories");
+            out["message"] = serde_json::json!(
+                "No repositories registered. Call register_repository with a manifest (see .samgraha/manifest.json after running 'compile') to register this repo."
+            );
+            return Ok(out);
+        }
         Ok(Self::paginate(entries, offset, limit, "repositories"))
     }
 
@@ -515,11 +543,25 @@ impl McpAdapter {
             .ok_or_else(|| anyhow::anyhow!("Missing 'manifest' parameter (JSON string)"))?;
         let manifest: schemas::manifest::RepositoryManifest = serde_json::from_str(manifest_str)?;
         self.registry.register(&manifest)?;
+
+        // Auto-compile if the repo's knowledge.db is missing — the manifest can be
+        // handed to register_repository before the repo has ever been compiled.
+        let root = std::path::Path::new(&manifest.repository_root);
+        let db_path = root.join(&manifest.knowledge.location);
+        let auto_compiled = if !db_path.exists() {
+            let request = CompilationRequest { scope: CompilationScope::Repository, force: false, watch: false };
+            self.compile_external(root, &request)?;
+            true
+        } else {
+            false
+        };
+
         Ok(serde_json::json!({
             "success": true,
             "action": "register",
             "repository": manifest.repository.id,
             "uuid": manifest.repository.uuid.to_string(),
+            "auto_compiled": auto_compiled,
         }))
     }
 
@@ -592,6 +634,13 @@ impl McpAdapter {
                 "exports": e.exports,
             }))
             .collect();
+        if statuses.is_empty() {
+            let mut out = Self::paginate(statuses, offset, limit, "repositories");
+            out["message"] = serde_json::json!(
+                "No repositories registered. Call register_repository with a manifest to register this repo before checking status."
+            );
+            return Ok(out);
+        }
         Ok(Self::paginate(statuses, offset, limit, "repositories"))
     }
 
@@ -619,6 +668,14 @@ impl McpAdapter {
             .ok_or_else(|| anyhow::anyhow!("Missing 'domain' parameter"))?;
         let (limit, offset) = Self::page_params(req, 50);
         let docs = self.runtime.get_documents_by_domain(domain)?;
+        if docs.is_empty() {
+            let mut out = Self::paginate(docs, offset, limit, "documents");
+            out["message"] = serde_json::json!(format!(
+                "No documents found for domain '{}'. Call list_domains to see available domains, or run 'compile' if none exist yet.",
+                domain
+            ));
+            return Ok(out);
+        }
         Ok(Self::paginate(docs, offset, limit, "documents"))
     }
 

@@ -57,7 +57,7 @@ pub struct McpCapabilities {
 impl McpCapabilities {
     pub fn default_capabilities() -> Self {
         Self {
-            version: "0.1.0".to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
             methods: vec![
                 "compile".to_string(),
                 "search".to_string(),
