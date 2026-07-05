@@ -13,6 +13,7 @@ pub mod reporting;
 pub mod runtime;
 pub mod search;
 pub mod context;
+pub mod context_manager;
 pub mod workspace;
 
 pub use audit::*;
@@ -26,4 +27,5 @@ pub use resolution::*;
 pub use runtime::*;
 pub use search::*;
 pub use context::*;
+pub use context_manager::*;
 pub use workspace::*;

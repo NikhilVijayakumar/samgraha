@@ -91,24 +91,28 @@ fn main() -> Result<()> {
         let _ = stdout.flush();
     }
 
+    adapter.notify_disconnect();
     Ok(())
 }
 
 fn handle(adapter: &McpAdapter, req: &JsonRpcRequest) -> JsonRpcResponse {
     match req.method.as_str() {
-        "initialize" => JsonRpcResponse {
-            jsonrpc: "2.0".to_string(),
-            id: req.id.clone(),
-            result: Some(serde_json::json!({
-                "protocolVersion": "2025-03-26",
-                "capabilities": { "tools": {} },
-                "serverInfo": {
-                    "name": "samgraha-mcp",
-                    "version": "0.1.0"
-                }
-            })),
-            error: None,
-        },
+        "initialize" => {
+            adapter.notify_connect();
+            JsonRpcResponse {
+                jsonrpc: "2.0".to_string(),
+                id: req.id.clone(),
+                result: Some(serde_json::json!({
+                    "protocolVersion": "2025-03-26",
+                    "capabilities": { "tools": {} },
+                    "serverInfo": {
+                        "name": "samgraha-mcp",
+                        "version": "0.1.0"
+                    }
+                })),
+                error: None,
+            }
+        }
         "notifications/initialized" => {
             // Handled upstream — loop skips when id.is_none().
             unreachable!()
