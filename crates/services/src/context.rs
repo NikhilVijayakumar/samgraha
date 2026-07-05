@@ -47,6 +47,13 @@ impl RuntimePackage {
     }
 }
 
+fn revision_on_disk(root: &Path) -> Option<u64> {
+    let path = root.join(".samgraha").join("manifest.json");
+    std::fs::read_to_string(path).ok()
+        .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+        .and_then(|v| v["revision"].as_u64())
+}
+
 /// Multi-repo knowledge context. Survives MCP disconnects; disposed on TTL expiry or explicit drop.
 /// Lifecycle: create → serve → (reuse on reconnect | dispose on TTL).
 pub struct KnowledgeContext {
@@ -72,9 +79,14 @@ impl KnowledgeContext {
         Ok(Self { package, plan, assembly_time: Instant::now(), ttl_secs })
     }
 
-    /// False when age exceeds knowledge_ttl — caller should rebuild.
+    /// False when TTL exceeded or any available repo's on-disk revision changed since assembly.
     pub fn is_valid(&self) -> bool {
-        self.assembly_time.elapsed().as_secs() < self.ttl_secs
+        if self.assembly_time.elapsed().as_secs() >= self.ttl_secs {
+            return false;
+        }
+        self.plan.entries.iter().filter(|e| e.available).all(|e| {
+            revision_on_disk(&e.root).map_or(true, |r| r == e.revision)
+        })
     }
 
     /// Search across all loaded stores (primary + deps + interests).
