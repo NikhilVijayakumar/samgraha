@@ -136,4 +136,6 @@ pub const BUILTIN_DOMAINS: &[&str] = &[
     "engineering",
     "external-context",
     "prototype",
+    "help",
+    "standards",
 ];

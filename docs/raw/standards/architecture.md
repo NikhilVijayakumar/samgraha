@@ -18,6 +18,27 @@ It does not explain implementation details.
 
 ---
 
+# Required Sections
+
+Every Architecture document must contain the following sections.
+Sections are identified by heading text; the compiler maps each to a semantic type.
+
+| Section | semantic_type | Required | Aliases |
+|---------|--------------|----------|---------|
+| System Overview | `system_overview` | ✓ | Overview, Architecture Overview |
+| Component Model | `component_model` | ✓ | Components, Component Architecture |
+| Communication | `communication_paths` | ✓ | Communication Paths, Component Communication |
+| Data Flow | `data_flow` | ✓ | Data Movement, Information Flow |
+| Security | `security_considerations` | ✓ | Security Architecture, Security Model |
+| Purpose | `purpose` | | Overview, Summary |
+| Rationale | `rationale` | | Decision Rationale, Architectural Decisions, Why |
+| Constraints | `constraints` | | Limitations, Non-Functional Requirements |
+| Traceability | `traceability` | | Traces To, Derived From |
+
+Section headings are case-insensitive. Sections not listed here are stored as `generic` type — preserved but not queryable by type.
+
+---
+
 # Responsibilities
 
 Architecture Documentation is responsible for describing:
@@ -419,3 +440,15 @@ Architecture documents live under:
 ```text
 docs/raw/architecture/
 ```
+
+---
+
+## Usage
+
+Written by architects/senior engineers when a system's structure changes; read by anyone writing Feature Technical Design (which constrains itself to what Architecture permits). Use `samgraha compile --domain architecture` after adding a new architecture document, and `samgraha audit --domain architecture` to catch missing System Overview / Component Model / Security sections before review.
+
+## Related
+
+- [Feature Technical Standard](feature-technical.md) — constrained by Architecture
+- [Engineering Standard](engineering.md) — guided by Architecture
+- [Standards Reference Standard](standards.md) — how this standard itself is documented

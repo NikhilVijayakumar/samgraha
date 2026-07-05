@@ -18,6 +18,23 @@ Projects may contain zero, one, or many External Context documents depending on 
 
 ---
 
+# Required Sections
+
+Every External Context document must contain the following sections.
+Sections are identified by heading text; the compiler maps each to a semantic type.
+
+| Section | semantic_type | Required | Aliases |
+|---------|--------------|----------|---------|
+| Purpose | `purpose` | ✓ | Overview, Summary |
+| Integration Contract | `integration_contract` | ✓ | Contract, API Contract, Interface |
+| Constraints | `constraints` | | Limitations, Non-Functional Requirements |
+| Dependencies | `dependencies` | | Dependency, Depends On |
+| Traceability | `traceability` | | Traces To, Derived From |
+
+Section headings are case-insensitive. Sections not listed here are stored as `generic` type — preserved but not queryable by type.
+
+---
+
 # Responsibilities
 
 External Context Documentation is responsible for describing:
@@ -461,3 +478,15 @@ External Context documents live under:
 ```text
 docs/raw/external-context/
 ```
+
+---
+
+## Usage
+
+Written by whoever integrates a new external dependency, one document per dependency, only when the dependency materially influences implementation. Use `samgraha search --domain external-context` to check whether a dependency is already documented before writing a new one, avoiding duplicate External Context files for the same system.
+
+## Related
+
+- [Feature Technical Standard](feature-technical.md) — frequently references External Context
+- [Engineering Standard](engineering.md) — frequently references technology rationale
+- [Standards Reference Standard](standards.md) — how this standard itself is documented

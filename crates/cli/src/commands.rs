@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 use crate::output::{format_output, render_audit, render_audit_report, render_compile, render_info, render_registry_list, render_search, render_sections, render_workspace_compile, OutputFormat};
 use common::config::{resolve_configured_dir, SamgrahaConfig};
-use services::{KnowledgeRuntime, WorkspaceService};
+use services::{CompilationService, KnowledgeRuntime, WorkspaceService};
 
 #[derive(Parser)]
 #[command(
@@ -303,6 +303,7 @@ impl Cli {
         let config = crate::config::load_config(self.config.as_ref())?;
         let debounce_ms = config.compilation.debounce_ms;
         let runtime = KnowledgeRuntime::new(&root, config)?;
+        CompilationService::validate_config(&runtime.context.config, &runtime.standard_registry)?;
 
         let scope = if domains.is_empty() {
             CompilationScope::Repository

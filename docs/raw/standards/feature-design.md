@@ -20,6 +20,25 @@ It does not define implementation, architecture, or engineering decisions.
 
 ---
 
+# Required Sections
+
+Every Feature Design document must contain the following sections.
+Sections are identified by heading text; the compiler maps each to a semantic type.
+
+| Section | semantic_type | Required | Aliases |
+|---------|--------------|----------|---------|
+| User Experience | `user_experience` | ✓ | UX, User Flow |
+| Workflow | `workflow` | ✓ | User Workflow, Flow |
+| States | `states` | ✓ | UI States, Application States, State Transitions |
+| Purpose | `purpose` | | Overview, Summary |
+| Non-Goals | `non_goals` | | Non Goals, Out of Scope, Not In Scope |
+| Constraints | `constraints` | | Limitations, Non-Functional Requirements |
+| Traceability | `traceability` | | Traces To, Derived From |
+
+Section headings are case-insensitive. Sections not listed here are stored as `generic` type — preserved but not queryable by type.
+
+---
+
 # Responsibilities
 
 Feature Design is responsible for defining:
@@ -418,3 +437,16 @@ Feature Design documents live under:
 ```text
 docs/raw/feature-design/
 ```
+
+---
+
+## Usage
+
+Written one-to-one with a Feature, by whoever owns UX for that feature, after the Feature spec exists and before Feature Technical Design starts. Use `samgraha audit --domain feature-design` to confirm every Feature has a matching Feature Design and that shared Design principles were applied rather than redefined.
+
+## Related
+
+- [Feature Standard](feature.md) — one-to-one mapping
+- [Design Standard](design.md) — shared principles this standard applies
+- [Feature Technical Standard](feature-technical.md) — technical realization of this design
+- [Standards Reference Standard](standards.md) — how this standard itself is documented

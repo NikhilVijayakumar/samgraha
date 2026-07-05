@@ -20,6 +20,35 @@ It does not describe implementation details or source code.
 
 ---
 
+# Required Sections
+
+Every Feature Technical Design document must contain the following sections.
+Sections are identified by heading text; the compiler maps each to a semantic type.
+
+| Section | semantic_type | Required | Aliases |
+|---------|--------------|----------|---------|
+| Purpose | `purpose` | ✓ | Overview, Summary |
+| Participating Components | `participating_components` | ✓ | Components, Involved Components |
+| Component Interactions | `component_interactions` | ✓ | Interactions, Communication Flows |
+| Data Ownership | `data_ownership` | ✓ | Ownership, Data Responsibilities |
+| Feature Specification | `feature_specification` | | Feature Spec, Specification |
+| Component Responsibilities | `component_responsibilities` | | Responsibilities, Component Roles |
+| Runtime Behavior | `runtime_behavior` | | Behavior, Execution Model |
+| Communication Paths | `communication_paths` | | Communication, Message Flows |
+| Integration Points | `integration_points` | | Integration, External Integration |
+| External Dependency Integration | `external_dependencies` | | External Dependencies, External Systems |
+| Runtime Constraints | `runtime_constraints` | | Constraints, Operational Constraints |
+| Architectural Constraints | `architectural_constraints` | | Architecture Constraints |
+| Security Considerations | `security_considerations` | | Security |
+| Performance Considerations | `performance_considerations` | | Performance |
+| Failure Handling | `failure_handling` | | Error Handling, Failures, Fault Handling |
+| Extension Points | `extension_points` | | Extensions, Extension, Extensibility |
+| Traceability | `traceability` | | Traces To, Derived From |
+
+Section headings are case-insensitive. Sections not listed here are stored as `generic` type — preserved but not queryable by type.
+
+---
+
 # Responsibilities
 
 Feature Technical Design is responsible for defining:
@@ -451,3 +480,16 @@ Feature Technical Design documents live under:
 ```text
 docs/raw/feature-technical/
 ```
+
+---
+
+## Usage
+
+Written by the engineer implementing a Feature, applying Architecture's shared principles to that one feature before code is written. Use `samgraha audit --domain feature-technical` to check that Participating Components, Component Interactions, and Data Ownership are all documented before implementation starts.
+
+## Related
+
+- [Feature Standard](feature.md) — one-to-one mapping
+- [Architecture Standard](architecture.md) — shared principles this standard applies
+- [Engineering Standard](engineering.md) — technology rationale used to implement this design
+- [Standards Reference Standard](standards.md) — how this standard itself is documented

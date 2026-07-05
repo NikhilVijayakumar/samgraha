@@ -1,6 +1,7 @@
 extern crate audit as audit_crate;
 
 pub mod audit;
+pub mod builtin;
 pub mod compilation;
 pub mod enrichment;
 pub mod metadata_cache;
@@ -18,6 +19,7 @@ pub mod workspace;
 
 pub use audit::*;
 pub use audit_crate::{AuditFramework, DeterministicAuditProvider};
+pub use builtin::*;
 pub use compilation::*;
 pub use enrichment::*;
 pub use package::*;

@@ -13,6 +13,8 @@ pub fn all_builtin_standards() -> Vec<StandardDefinition> {
         engineering_standard(),
         external_context_standard(),
         prototype_standard(),
+        help_standard(),
+        standards_standard(),
     ]
 }
 
@@ -497,6 +499,59 @@ fn prototype_standard() -> StandardDefinition {
             rule("proto-001", "Has scope", "Prototype must define scope", "error", "has_section", "Scope"),
             rule("proto-002", "Has mock APIs", "Prototype must document mock APIs", "warning", "has_section", "Mock APIs"),
             rule("proto-003", "Disposable", "Prototype must be disposable (not production code)", "warning", "no_implementation", ""),
+        ],
+        profiles: vec![],
+    }
+}
+
+fn help_standard() -> StandardDefinition {
+    StandardDefinition {
+        id: "help".into(),
+        name: "Help Standard".into(),
+        version: "1.0.0".into(),
+        domain: "help".into(),
+        description: "How to use Samgraha — product docs for end users.".into(),
+        required_sections: vec![
+            sec("Title", "title", &["Title"], true, "Topic title"),
+            sec("Purpose", "purpose", &["Purpose", "Overview"], false, "What this topic covers"),
+            sec("Content", "body", &["Content", "Body", "Details"], true, "Main body"),
+            sec("Related", "related", &["Related", "See Also", "References"], false, "Cross-refs"),
+        ],
+        prohibited_content: vec![],
+        relationships: vec![],
+        audit_rules: vec![
+            rule("help-001", "Has title", "Help topic must have a title", "error", "has_title", ""),
+            rule("help-002", "Has purpose", "Help topic should explain purpose", "suggestion", "has_section", "Purpose"),
+            rule("help-003", "Has content", "Help topic must have body content", "error", "has_section", "Content"),
+        ],
+        profiles: vec![
+            schemas::standard::profile_def("quickref", "Title + body", &["title", "body"]),
+            schemas::standard::profile_def("full", "All sections", &["title", "purpose", "body", "related"]),
+        ],
+    }
+}
+
+fn standards_standard() -> StandardDefinition {
+    StandardDefinition {
+        id: "standards".into(),
+        name: "Standards Reference Standard".into(),
+        version: "1.0.0".into(),
+        domain: "standards".into(),
+        description: "Reference docs for every Samgraha documentation standard.".into(),
+        required_sections: vec![
+            sec("Title", "title", &["Title"], true, "Standard name"),
+            sec("Purpose", "purpose", &["Purpose"], true, "What this standard defines"),
+            sec("Sections", "sections", &["Required Sections", "Section Schema"], true, "Required + optional sections"),
+            sec("Audit Rules", "audit_rules", &["Rules", "Checks"], false, "Audit rules"),
+            sec("Usage", "usage", &["Usage", "Best Practices"], false, "How to use"),
+            sec("Related", "related", &["Related", "See Also"], false, "Related standards"),
+        ],
+        prohibited_content: vec![],
+        relationships: vec![],
+        audit_rules: vec![
+            rule("std-001", "Has title", "Standard doc must have a title", "error", "has_title", ""),
+            rule("std-002", "Has sections", "Standard doc must list its sections", "error", "has_section", "Sections"),
+            rule("std-003", "Has purpose", "Standard doc must explain its purpose", "warning", "has_section", "Purpose"),
         ],
         profiles: vec![],
     }

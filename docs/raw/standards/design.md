@@ -18,6 +18,24 @@ It does not describe how individual features behave.
 
 ---
 
+# Required Sections
+
+Every Design document must contain the following sections.
+Sections are identified by heading text; the compiler maps each to a semantic type.
+
+| Section | semantic_type | Required | Aliases |
+|---------|--------------|----------|---------|
+| Design Principles | `design_principles` | ✓ | Principles, Core Design |
+| UX Principles | `ux_principles` | ✓ | User Experience Principles, UX Guidelines |
+| Accessibility | `accessibility` | ✓ | A11y, Accessibility Standards |
+| Purpose | `purpose` | | Overview, Summary |
+| Constraints | `constraints` | | Limitations, Non-Functional Requirements |
+| Traceability | `traceability` | | Traces To, Derived From |
+
+Section headings are case-insensitive. Sections not listed here are stored as `generic` type — preserved but not queryable by type.
+
+---
+
 # Responsibilities
 
 Design Documentation is responsible for defining:
@@ -450,3 +468,15 @@ Design documents live under:
 ```text
 docs/raw/design/
 ```
+
+---
+
+## Usage
+
+Written once and shared across every feature — designers/UX leads author it, Feature Design authors reference it rather than redefine it. Use `samgraha search --domain design` to pull shared design principles into a Feature Design writing session, and `samgraha audit --domain design` to catch feature-specific content that leaked in.
+
+## Related
+
+- [Feature Design Standard](feature-design.md) — applies these principles to one feature
+- [Philosophy Standard](philosophy.md) — guides Design's principles
+- [Standards Reference Standard](standards.md) — how this standard itself is documented

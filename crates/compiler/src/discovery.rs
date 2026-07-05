@@ -31,6 +31,20 @@ impl DiscoveryEngine {
             &mut documents,
         )?;
 
+        // When the compile root itself is a built-in knowledge directory (e.g. compiling
+        // `docs/raw/help` or `docs/raw/standards` directly, as the release build does), every
+        // file under it belongs to that one domain regardless of nesting — per-file inference
+        // by immediate parent directory name (below) can't see "help"/"standards" in this case
+        // since the root itself is stripped from every relative path before inference runs.
+        let root_name = root.file_name().and_then(|s| s.to_str()).map(|s| s.to_lowercase());
+        if let Some(name) = root_name {
+            if name == "help" || name == "standards" {
+                for doc in &mut documents {
+                    doc.standard = name.clone();
+                }
+            }
+        }
+
         Ok(documents)
     }
 
@@ -49,7 +63,7 @@ impl DiscoveryEngine {
             .unwrap_or_default();
 
         if parent == "standards" {
-            return "standard-definition".to_string();
+            return "standards".to_string();
         }
 
         let domain_map = [
@@ -104,10 +118,7 @@ fn collect_markdown_files(
 
         if path.is_dir() {
             let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
-            if !exclude.iter().any(|p| {
-                let normalized = p.trim_matches(|c: char| c == '*' || c == '/');
-                !normalized.is_empty() && name.contains(normalized)
-            }) {
+            if !exclude.iter().any(|p| common::glob::matches_glob(p, name)) {
                 collect_markdown_files(root, &path, _include, exclude, documents)?;
             }
         } else if path.extension().map_or(false, |e| e == "md") {
@@ -149,6 +160,6 @@ mod tests {
     #[test]
     fn test_infer_standard_definition() {
         let p = Path::new("docs/raw/standards/feature-design.md");
-        assert_eq!(DiscoveryEngine::infer_standard(p), "standard-definition");
+        assert_eq!(DiscoveryEngine::infer_standard(p), "standards");
     }
 }

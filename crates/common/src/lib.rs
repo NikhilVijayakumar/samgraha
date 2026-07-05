@@ -2,6 +2,7 @@ pub mod config;
 pub mod env;
 pub mod error;
 pub mod fs;
+pub mod glob;
 pub mod id;
 pub mod traits;
 

@@ -238,6 +238,9 @@ pub fn render_info(info: &RuntimeInfo, format: &OutputFormat) -> String {
     if !info.standards.is_empty() {
         out.push_str(&format!("Standards:   {}\n", info.standards.join(", ")));
     }
+    if !info.builtin_stores.is_empty() {
+        out.push_str(&format!("Built-in:    {}\n", info.builtin_stores.join(", ")));
+    }
     out
 }
 

@@ -16,6 +16,28 @@ All downstream documentation ultimately derives from the Vision.
 
 ---
 
+# Required Sections
+
+Every Vision document must contain the following sections.
+Sections are identified by heading text; the compiler maps each to a semantic type.
+
+| Section | semantic_type | Required | Aliases |
+|---------|--------------|----------|---------|
+| Purpose | `purpose` | ✓ | Overview, Summary |
+| Vision | `vision_statement` | ✓ | Long-Term Vision, The Vision |
+| Problem | `problem` | ✓ | Problem Statement, The Problem |
+| Solution | `solution` | ✓ | The Solution, Our Solution |
+| Target Audience | `target_audience` | ✓ | Audience, Who Is This For |
+| Platform Pillars | `pillars` | | Pillars, Foundations, Core Pillars |
+| Philosophy | `philosophy` | | Product Philosophy, Design Philosophy |
+| Guiding Principles | `guiding_principles` | | Principles, Core Principles |
+| Success Criteria | `success_criteria` | | Acceptance Criteria, Definition of Done |
+| Traceability | `traceability` | | Traces To, Derived From |
+
+Section headings are case-insensitive. Sections not listed here are stored as `generic` type — preserved but not queryable by type.
+
+---
+
 # Responsibilities
 
 A Vision document is responsible for defining:
@@ -348,3 +370,15 @@ Vision documents live under:
 ```text
 docs/raw/vision/
 ```
+
+---
+
+## Usage
+
+Vision is written once per product and revised rarely — product owners author it; everyone else reads it before writing Features, since every Feature must trace back to the Vision. Use `samgraha compile --domain vision` to validate structure, and `samgraha search --domain vision` (or the MCP `search` tool) to pull Vision context into an AI-assisted feature-writing session.
+
+## Related
+
+- [Feature Standard](feature.md) — every Feature derives from Vision
+- [Philosophy Standard](philosophy.md) — inspires Vision's guiding principles
+- [Standards Reference Standard](standards.md) — how this standard itself is documented

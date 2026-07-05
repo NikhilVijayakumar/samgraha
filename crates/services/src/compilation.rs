@@ -36,10 +36,7 @@ fn merge_ignore_patterns(root: &Path, config: &SamgrahaConfig) -> Vec<String> {
 }
 
 fn matches_any_ignore_pattern(rel_path: &str, patterns: &[String]) -> bool {
-    patterns.iter().any(|p| {
-        let normalized = p.trim_matches(|c: char| c == '*' || c == '/');
-        !normalized.is_empty() && rel_path.contains(normalized)
-    })
+    patterns.iter().any(|p| common::glob::matches_glob(p, rel_path))
 }
 
 /// Read existing manifest audit fields. Returns (status, last_audit) or defaults.
@@ -272,11 +269,27 @@ impl CompilationService {
         Ok(result)
     }
 
+    /// Domains reserved for built-in knowledge, shipped as standards.db/help.db
+    /// next to the binary. A repo may reference them in `domain` (e.g. to show
+    /// them in `samgraha info`) only if also listed in `domain_exclusion` —
+    /// otherwise the repo would try to compile its own docs under a domain
+    /// name that collides with built-in content.
+    const RESERVED_DOMAINS: &[&str] = &["help", "standards"];
+
     pub fn validate_config(config: &SamgrahaConfig, registry: &StandardRegistry) -> Result<()> {
         let decls = &config.repository.documentation.domain;
+        let excluded = &config.repository.documentation.domain_exclusion;
         for decl in decls {
             if !registry.has_standard(decl) {
                 anyhow::bail!("Standard '{}' not found in registry", decl);
+            }
+            if Self::RESERVED_DOMAINS.contains(&decl.as_str()) && !excluded.contains(decl) {
+                anyhow::bail!(
+                    "Domain '{}' is reserved for built-in knowledge. Add it to \
+                     domain_exclusion if you only want it listed in `samgraha info`, \
+                     or pick a different domain name for your own docs.",
+                    decl
+                );
             }
         }
         Ok(())

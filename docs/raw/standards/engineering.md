@@ -18,6 +18,26 @@ It does not describe feature implementations.
 
 ---
 
+# Required Sections
+
+Every Engineering document must contain the following sections.
+Sections are identified by heading text; the compiler maps each to a semantic type.
+
+| Section | semantic_type | Required | Aliases |
+|---------|--------------|----------|---------|
+| Engineering Principles | `guiding_principles` | ✓ | Principles, Core Principles |
+| Technology Selection | `rationale` | ✓ | Technology Choices, Technology Rationale, Why |
+| Build Standards | `build_standards` | ✓ | Build, Build Process, CI/CD |
+| Testing Standards | `testing_standards` | ✓ | Testing, Test Strategy |
+| Purpose | `purpose` | | Overview, Summary |
+| Code Standards | `code_standards` | | Coding Standards, Code Style |
+| Constraints | `constraints` | | Limitations, Non-Functional Requirements |
+| Traceability | `traceability` | | Traces To, Derived From |
+
+Section headings are case-insensitive. Sections not listed here are stored as `generic` type — preserved but not queryable by type.
+
+---
+
 # Responsibilities
 
 Engineering Documentation is responsible for defining:
@@ -467,3 +487,15 @@ Top-level modules:
 ```
 
 The implementation folder name and rationale must be kept current whenever the source layout changes.
+
+---
+
+## Usage
+
+Written and maintained by senior engineers/tech leads as repository-wide decisions are made; read by every contributor before touching build, test, or deployment tooling. Use `samgraha audit --domain engineering` to confirm Technology Selection includes rationale (not just a list of choices) and that the Repository Structure declaration required by the `implementation-audit` is present and current.
+
+## Related
+
+- [Architecture Standard](architecture.md) — engineering practices apply architectural decisions
+- [Feature Technical Standard](feature-technical.md) — feature-specific engineering context
+- [Standards Reference Standard](standards.md) — how this standard itself is documented

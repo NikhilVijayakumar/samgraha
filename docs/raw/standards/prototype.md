@@ -18,6 +18,24 @@ Prototype Documentation explains **how the complete application can be validated
 
 ---
 
+# Required Sections
+
+Every Prototype document must contain the following sections.
+Sections are identified by heading text; the compiler maps each to a semantic type.
+
+| Section | semantic_type | Required | Aliases |
+|---------|--------------|----------|---------|
+| Scope | `scope` | ✓ | Coverage, What Is Covered |
+| Mock APIs | `mock_apis` | ✓ | Mocked APIs, API Contracts, Simulated APIs |
+| Data Model | `data_model` | ✓ | Data Structures, Schema |
+| Purpose | `purpose` | | Overview, Summary |
+| Constraints | `constraints` | | Limitations, Non-Functional Requirements |
+| Traceability | `traceability` | | Traces To, Derived From |
+
+Section headings are case-insensitive. Sections not listed here are stored as `generic` type — preserved but not queryable by type.
+
+---
+
 # Responsibilities
 
 Prototype Documentation is responsible for defining:
@@ -502,3 +520,15 @@ Prototype documents live under:
 ```text
 docs/raw/prototype/
 ```
+
+---
+
+## Usage
+
+Written before production implementation begins, once Feature/Feature Design/Feature Technical Design exist for the capability being validated. Use `samgraha audit --domain prototype` to confirm Scope, Mock APIs, and Data Model are all documented before treating the prototype as validated.
+
+## Related
+
+- [Feature Design Standard](feature-design.md) — prototype realizes the user experience
+- [Feature Technical Standard](feature-technical.md) — prototype validates technical workflows and API contracts
+- [Standards Reference Standard](standards.md) — how this standard itself is documented

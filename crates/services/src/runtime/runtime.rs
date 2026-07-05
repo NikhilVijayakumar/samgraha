@@ -29,6 +29,8 @@ pub struct KnowledgeRuntime {
     pub standard_registry: Arc<StandardRegistry>,
     pub audit_framework: AuditFramework,
     pub policy: RuntimePolicy,
+    /// Read-only built-in knowledge stores (help, standards) shipped next to the binary.
+    pub builtin: Vec<(String, Arc<RegistryStore>)>,
 }
 
 impl KnowledgeRuntime {
@@ -54,6 +56,7 @@ impl KnowledgeRuntime {
         let policy = RuntimePolicy::default();
 
         let context = RuntimeContext::new(root, registry_path, config);
+        let builtin = crate::builtin::load_builtin_stores();
 
         Ok(Self {
             context,
@@ -62,7 +65,16 @@ impl KnowledgeRuntime {
             standard_registry,
             audit_framework,
             policy,
+            builtin,
         })
+    }
+
+    /// All documents from built-in stores (help, standards), flattened.
+    fn builtin_documents(&self) -> Vec<Document> {
+        self.builtin
+            .iter()
+            .flat_map(|(_, store)| store.get_all_documents().unwrap_or_default())
+            .collect()
     }
 
     pub fn register_service(&mut self, service: BoxedService) {
@@ -119,7 +131,7 @@ impl KnowledgeRuntime {
     }
 
     pub fn search(&self, query: &SearchQuery) -> Result<SearchResponse> {
-        let docs = self.registry.get_all_documents()?;
+        let docs = self.get_all_documents()?;
         SearchService::search(&docs, query)
     }
 
@@ -174,26 +186,57 @@ impl KnowledgeRuntime {
         Ok(result)
     }
 
+    /// Checks the primary store first; falls back to built-in stores.
+    /// Note: ids are only unique per-store, so an id collision across a
+    /// primary store and a built-in store would resolve to the primary's
+    /// document — acceptable since built-in stores are a distinct, small,
+    /// non-user-facing id space.
     pub fn get_document(&self, id: i64) -> Result<Option<Document>> {
-        self.registry.get_document(id)
+        if let Some(doc) = self.registry.get_document(id)? {
+            return Ok(Some(doc));
+        }
+        for (_, store) in &self.builtin {
+            if let Some(doc) = store.get_document(id)? {
+                return Ok(Some(doc));
+            }
+        }
+        Ok(None)
     }
 
     pub fn get_document_by_path(&self, path: &str) -> Result<Option<Document>> {
-        self.registry.get_document_by_path(path)
+        if let Some(doc) = self.registry.get_document_by_path(path)? {
+            return Ok(Some(doc));
+        }
+        for (_, store) in &self.builtin {
+            if let Some(doc) = store.get_document_by_path(path)? {
+                return Ok(Some(doc));
+            }
+        }
+        Ok(None)
     }
 
     pub fn get_all_documents(&self) -> Result<Vec<Document>> {
-        self.registry.get_all_documents()
+        let mut docs = self.registry.get_all_documents()?;
+        docs.extend(self.builtin_documents());
+        Ok(docs)
     }
 
     // ── Semantic Audit Pass-Throughs ────────────────────────────────────────
 
     pub fn get_domains(&self) -> Result<Vec<String>> {
-        self.registry.get_domains()
+        let mut domains = self.registry.get_domains()?;
+        domains.extend(self.builtin.iter().map(|(d, _)| d.clone()));
+        domains.sort();
+        domains.dedup();
+        Ok(domains)
     }
 
     pub fn get_documents_by_domain(&self, domain: &str) -> Result<Vec<Document>> {
-        self.registry.get_documents_by_domain(domain)
+        let mut docs = self.registry.get_documents_by_domain(domain)?;
+        if let Some((_, store)) = self.builtin.iter().find(|(d, _)| d == domain) {
+            docs.extend(store.get_all_documents()?);
+        }
+        Ok(docs)
     }
 
     pub fn get_section_by_id(&self, section_id: i64) -> Result<Option<schemas::search::SemanticSection>> {
@@ -242,7 +285,6 @@ impl KnowledgeRuntime {
 
     pub fn documents_by_standard(&self, standard: &str) -> Result<Vec<Document>> {
         Ok(self
-            .registry
             .get_all_documents()?
             .into_iter()
             .filter(|d| d.standard == standard)
@@ -339,6 +381,13 @@ impl KnowledgeRuntime {
                 .map(|s| s.name().to_string())
                 .collect(),
             policy: self.policy.clone(),
+            builtin_stores: crate::builtin::BUILTIN_DOMAINS
+                .iter()
+                .map(|(domain, _)| {
+                    let loaded = self.builtin.iter().any(|(d, _)| d == domain);
+                    format!("{} ({})", domain, if loaded { "loaded" } else { "missing" })
+                })
+                .collect(),
         }
     }
 }
@@ -377,4 +426,6 @@ pub struct RuntimeInfo {
     pub standards: Vec<String>,
     pub services: Vec<String>,
     pub policy: RuntimePolicy,
+    /// Built-in knowledge store status, e.g. "help (loaded)", "standards (missing)".
+    pub builtin_stores: Vec<String>,
 }

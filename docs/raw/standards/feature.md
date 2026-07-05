@@ -463,3 +463,16 @@ Feature documents live under:
 ```text
 docs/raw/feature/
 ```
+
+---
+
+## Usage
+
+Written by product owners/engineers before design or implementation starts — one file per capability. Use `samgraha audit --domain feature` to confirm every feature has Functional Requirements and Acceptance Criteria before it moves to Feature Design.
+
+## Related
+
+- [Vision Standard](vision.md) — every feature derives from Vision
+- [Feature Design Standard](feature-design.md) — user-centered design for this feature
+- [Feature Technical Standard](feature-technical.md) — architectural realization of this feature
+- [Standards Reference Standard](standards.md) — how this standard itself is documented

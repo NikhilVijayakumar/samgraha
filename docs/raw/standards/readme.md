@@ -383,3 +383,14 @@ README.md
 ```
 
 There is exactly one README per repository. It is not placed under `docs/raw/`.
+
+---
+
+## Usage
+
+Written once at repository creation, updated whenever the repository's purpose, structure, or getting-started steps change. Use `samgraha audit --domain readme` to check the README has a title and a getting-started section before merging.
+
+## Related
+
+- [Vision Standard](vision.md) — README summarizes project purpose from Vision
+- [Standards Reference Standard](standards.md) — how this standard itself is documented

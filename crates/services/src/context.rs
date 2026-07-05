@@ -18,6 +18,8 @@ pub struct RuntimePackage {
     /// Interest entries — store opened on first all_stores() call.
     // ponytail: lazy open; interests are optional and may never be queried
     interests: Mutex<Vec<(KnowledgePlanEntry, Option<Arc<RegistryStore>>)>>,
+    /// Read-only built-in knowledge stores (help, standards) shipped next to the binary.
+    builtin: Vec<(String, Arc<RegistryStore>)>,
 }
 
 impl RuntimePackage {
@@ -35,10 +37,11 @@ impl RuntimePackage {
                 }
             }
         }
-        Ok(Self { eager, interests: Mutex::new(pending) })
+        let builtin = crate::builtin::load_builtin_stores();
+        Ok(Self { eager, interests: Mutex::new(pending), builtin })
     }
 
-    /// All stores in priority order; opens interest stores on first call.
+    /// All stores in priority order (primary, deps, interests, built-in); opens interest stores on first call.
     fn all_stores(&self) -> Vec<Arc<RegistryStore>> {
         let mut stores: Vec<Arc<RegistryStore>> = self.eager.iter().map(|(_, s)| Arc::clone(s)).collect();
         let mut interests = self.interests.lock().unwrap();
@@ -53,6 +56,7 @@ impl RuntimePackage {
                 stores.push(Arc::clone(s));
             }
         }
+        stores.extend(self.builtin.iter().map(|(_, s)| Arc::clone(s)));
         stores
     }
 

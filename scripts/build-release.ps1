@@ -1,8 +1,8 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $root = (Resolve-Path $root).Path
 
-# Read .env — single source of truth, no CLI overrides
+# Read .env -- single source of truth, no CLI overrides
 $expiryDays  = 30
 $expiryHours = 0
 $outputDir   = ""
@@ -24,19 +24,19 @@ if (Test-Path $envFile) {
     }
 }
 
-# Resolve output dir — prefer absolute path from .env
+# Resolve output dir -- prefer absolute path from .env
 if (-not $outputDir) {
-    Write-Warning "OUTPUT_DIR not set in .env — falling back to .\release. Set an absolute path in .env."
+    Write-Warning "OUTPUT_DIR not set in .env -- falling back to .\release. Set an absolute path in .env."
     $outputDir = ".\release"
 }
 if (-not [System.IO.Path]::IsPathRooted($outputDir)) {
-    Write-Warning "OUTPUT_DIR '$outputDir' is relative — resolving from project root. Use an absolute path in .env."
+    Write-Warning "OUTPUT_DIR '$outputDir' is relative -- resolving from project root. Use an absolute path in .env."
     $outputDir = Join-Path $root $outputDir
 }
 $outputDir = (New-Item -ItemType Directory -Force $outputDir).FullName
 
 # Compute expiry label for display and launcher comment
-# build.rs owns baking this into the binary — scripts just show the same value
+# build.rs owns baking this into the binary -- scripts just show the same value
 if ($expiryDays -eq -1) {
     $expiryLabel   = "never"
     $expiryComment = "no expiry"
@@ -48,7 +48,7 @@ if ($expiryDays -eq -1) {
 }
 Write-Host "Expiry: $expiryLabel  (days=$expiryDays, hours=$expiryHours)" -ForegroundColor Cyan
 
-# Build — build.rs reads .env and bakes SAMGRAHA_EXPIRY into the binary
+# Build -- build.rs reads .env and bakes SAMGRAHA_EXPIRY into the binary
 Write-Host "Building mcp.exe + cli.exe (release)..." -ForegroundColor Yellow
 & cargo build --release --bin mcp --bin cli --manifest-path "$root\Cargo.toml"
 if ($LASTEXITCODE -ne 0) { throw "Build failed" }
@@ -72,33 +72,66 @@ foreach ($dir in @("standards", "audit", "audit-standards")) {
     }
 }
 
-# Launcher scripts
-@"
-@echo off
-rem Samgraha MCP — $expiryComment
-"%~dp0bin\mcp.exe" %*
-"@ | Set-Content -Path "$pkgDir\run-mcp.cmd" -Encoding ASCII
+# === Built-in Knowledge Sources ===
+$builtinSources = @(
+    @{ name = "standards"; path = "docs/raw/standards" },
+    @{ name = "help"; path = "docs/raw/help" }
+)
 
-@"
-#!/usr/bin/env sh
-# Samgraha MCP — $expiryComment
-exec "`$(dirname `"`$0`")/bin/mcp.exe" `"`$@`"
-"@ | Set-Content -Path "$pkgDir\run-mcp.sh" -Encoding ASCII
+foreach ($src in $builtinSources) {
+    $rawPath = Join-Path $root $src.path
+    if (-not (Test-Path $rawPath)) {
+        Write-Warning "$($src.name) source not found at $rawPath -- skipping"
+        continue
+    }
+    Write-Host "==> Compiling $($src.name) documentation..." -ForegroundColor Yellow
+    & "$pkgDir\bin\cli.exe" compile --config "$root\samgraha.toml" $rawPath --domain $($src.name) --force
+    if ($LASTEXITCODE -ne 0) {
+        throw "$($src.name) compile failed (exit $LASTEXITCODE)"
+    }
+    $dbSource = Join-Path $rawPath ".samgraha\knowledge.db"
+    $dbTarget = Join-Path $pkgDir "$($src.name).db"
+    if (Test-Path $dbSource) {
+        Copy-Item $dbSource $dbTarget -Force
+        Write-Host "  -> $dbTarget" -ForegroundColor Cyan
+    } else {
+        throw "$($src.name) compile produced no knowledge.db at $dbSource"
+    }
+}
+
+# Launcher scripts
+$runCmdLines = @(
+    '@echo off',
+    "rem Samgraha MCP - $expiryComment",
+    '"%~dp0bin\mcp.exe" %*'
+)
+$runCmd = $runCmdLines -join "`r`n"
+Set-Content -Path "$pkgDir\run-mcp.cmd" -Value $runCmd -Encoding ASCII
+
+$runShLines = @(
+    '#!/usr/bin/env sh',
+    "# Samgraha MCP - $expiryComment",
+    'exec "$(dirname "$0")/bin/mcp.exe" "$@"'
+)
+$runSh = $runShLines -join "`n"
+Set-Content -Path "$pkgDir\run-mcp.sh" -Value $runSh -Encoding ASCII
 
 # Checksums
 $mcpHash = (Get-FileHash "$pkgDir\bin\mcp.exe" -Algorithm SHA256).Hash.ToLower()
 $cliHash = (Get-FileHash "$pkgDir\bin\cli.exe" -Algorithm SHA256).Hash.ToLower()
-@"
-$mcpHash  bin/mcp.exe
-$cliHash  bin/cli.exe
-"@ | Set-Content -Path "$pkgDir\SHA256SUMS" -Encoding ASCII
+$sumsLines = @(
+    "$mcpHash  bin/mcp.exe",
+    "$cliHash  bin/cli.exe"
+)
+$sums = $sumsLines -join "`r`n"
+Set-Content -Path "$pkgDir\SHA256SUMS" -Value $sums -Encoding ASCII
 
 $mcpSize = [int]((Get-Item "$pkgDir\bin\mcp.exe").Length / 1KB)
 $cliSize = [int]((Get-Item "$pkgDir\bin\cli.exe").Length / 1KB)
 
 Write-Host "`n=== Release packaged ===" -ForegroundColor Green
 Write-Host "  Location: $pkgDir" -ForegroundColor Cyan
-Write-Host "  mcp.exe:  ${mcpSize}KB  ($mcpHash)" -ForegroundColor Cyan
-Write-Host "  cli.exe:  ${cliSize}KB  ($cliHash)" -ForegroundColor Cyan
+Write-Host ("  mcp.exe:  {0}KB  ({1})" -f $mcpSize, $mcpHash) -ForegroundColor Cyan
+Write-Host ("  cli.exe:  {0}KB  ({1})" -f $cliSize, $cliHash) -ForegroundColor Cyan
 Write-Host "  Expiry:   $expiryLabel" -ForegroundColor Yellow
-Write-Host "  Use:      Get-Content input.json | .\run-mcp.cmd" -ForegroundColor Gray
+Write-Host '  Use:      Get-Content input.json | .\run-mcp.cmd' -ForegroundColor Gray
