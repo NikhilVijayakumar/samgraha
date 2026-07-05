@@ -647,6 +647,18 @@ impl RegistryStore {
 
     // ── Semantic Audit: Read Methods ────────────────────────────────────────
 
+    pub fn get_domains(&self) -> Result<Vec<String>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT DISTINCT standard FROM documents ORDER BY standard",
+        )?;
+        let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+        let mut domains = Vec::new();
+        for row in rows {
+            domains.push(row?);
+        }
+        Ok(domains)
+    }
+
     pub fn get_documents_by_domain(&self, domain: &str) -> Result<Vec<Document>> {
         let mut stmt = self.conn.prepare(
             "SELECT id, path, hash, standard, title, body, metadata, quality, created_at, updated_at
@@ -1049,5 +1061,19 @@ mod tests {
         store.insert_document(&create_test_doc(2)).unwrap();
         let docs = store.get_all_documents().unwrap();
         assert_eq!(docs.len(), 2);
+    }
+
+    #[test]
+    fn test_get_domains_reflects_actual_documents() {
+        let store = RegistryStore::open_in_memory().unwrap();
+        assert_eq!(store.get_domains().unwrap(), Vec::<String>::new());
+
+        let mut doc = create_test_doc(1);
+        doc.standard = "audit".into();
+        store.insert_document(&doc).unwrap();
+        store.insert_document(&create_test_doc(2)).unwrap(); // standard: "architecture"
+
+        let domains = store.get_domains().unwrap();
+        assert_eq!(domains, vec!["architecture".to_string(), "audit".to_string()]);
     }
 }

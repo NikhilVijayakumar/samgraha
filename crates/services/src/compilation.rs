@@ -273,7 +273,7 @@ impl CompilationService {
     }
 
     pub fn validate_config(config: &SamgrahaConfig, registry: &StandardRegistry) -> Result<()> {
-        let decls = &config.repository.documentation.standards;
+        let decls = &config.repository.documentation.domain;
         for decl in decls {
             if !registry.has_standard(decl) {
                 anyhow::bail!("Standard '{}' not found in registry", decl);

@@ -188,6 +188,10 @@ impl KnowledgeRuntime {
 
     // ── Semantic Audit Pass-Throughs ────────────────────────────────────────
 
+    pub fn get_domains(&self) -> Result<Vec<String>> {
+        self.registry.get_domains()
+    }
+
     pub fn get_documents_by_domain(&self, domain: &str) -> Result<Vec<Document>> {
         self.registry.get_documents_by_domain(domain)
     }
@@ -315,6 +319,8 @@ impl KnowledgeRuntime {
     pub fn info(&self) -> RuntimeInfo {
         let repo_name = self.context.repository_name();
         let doc_count = self.registry.document_count().unwrap_or(0);
+        let declared = &self.context.config.repository.documentation.domain;
+        let excluded = &self.context.config.repository.documentation.domain_exclusion;
         RuntimeInfo {
             repository: repo_name,
             registry_path: self.context.registry_path.display().to_string(),
@@ -324,6 +330,7 @@ impl KnowledgeRuntime {
                 .domains()
                 .into_iter()
                 .map(|s| s.to_string())
+                .filter(|d| (declared.is_empty() || declared.contains(d)) && !excluded.contains(d))
                 .collect(),
             services: self
                 .services
