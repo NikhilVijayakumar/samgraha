@@ -26,7 +26,7 @@ pub struct McpAdapter {
 impl McpAdapter {
     pub fn new(runtime: Arc<KnowledgeRuntime>, registry: Arc<dyn RegistryClient>) -> Self {
         let context_manager = ContextManager::new(Duration::from_secs(300));
-        context_manager.ensure(&runtime.context.repository_root, &runtime.context.config);
+        context_manager.ensure("primary", &runtime.context.repository_root, &runtime.context.config);
         let mut caps = McpCapabilities::default_capabilities();
         caps.methods.push("list_repositories".to_string());
         caps.methods.push("register_repository".to_string());
@@ -47,6 +47,8 @@ impl McpAdapter {
         caps.methods.push("update_finding_status".to_string());
         caps.methods.push("sync".to_string());
         caps.methods.push("get_plan".to_string());
+        caps.methods.push("switch_context".to_string());
+        caps.methods.push("list_contexts".to_string());
         Self {
             runtime,
             registry,
@@ -61,6 +63,7 @@ impl McpAdapter {
 
     fn ensure_context(&self) {
         self.context_manager.ensure(
+            "primary",
             &self.runtime.context.repository_root,
             &self.runtime.context.config,
         );
@@ -123,6 +126,8 @@ impl McpAdapter {
             "update_finding_status"   => self.handle_update_finding_status(&req),
             "sync"                    => self.handle_sync(&req),
             "get_plan"                => self.handle_get_plan(),
+            "switch_context"          => self.handle_switch_context(&req),
+            "list_contexts"           => self.handle_list_contexts(),
             _                         => Err(anyhow::anyhow!("Unknown method: {}", req.method)),
         };
 
@@ -375,6 +380,23 @@ impl McpAdapter {
                 "entries": [],
             })),
         }
+    }
+
+    fn handle_switch_context(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let name = req.params.get("name")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'name' parameter"))?;
+        if self.context_manager.activate(name) {
+            Ok(serde_json::json!({ "active": name }))
+        } else {
+            Err(anyhow::anyhow!("Context '{}' not loaded — call ensure or sync first", name))
+        }
+    }
+
+    fn handle_list_contexts(&self) -> Result<serde_json::Value> {
+        let names = self.context_manager.context_names();
+        let active = self.context_manager.active_name();
+        Ok(serde_json::json!({ "contexts": names, "active": active }))
     }
 
     /// Returns document metadata and section TOC only — no body content.
