@@ -7,43 +7,71 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Instant;
 
-use crate::planner::{KnowledgePlan, KnowledgePlanEntry, Planner};
+use crate::planner::{KnowledgePlan, KnowledgePlanEntry, Planner, Priority};
+use std::sync::Mutex;
 use crate::search::SearchService;
 
 /// In-memory multi-repo knowledge package assembled from a KnowledgePlan.
 pub struct RuntimePackage {
-    /// Available entries with their open stores, in plan order (primary first).
-    pub repos: Vec<(KnowledgePlanEntry, Arc<RegistryStore>)>,
+    /// Primary + dependency stores — opened eagerly (always needed).
+    eager: Vec<(KnowledgePlanEntry, Arc<RegistryStore>)>,
+    /// Interest entries — store opened on first all_stores() call.
+    // ponytail: lazy open; interests are optional and may never be queried
+    interests: Mutex<Vec<(KnowledgePlanEntry, Option<Arc<RegistryStore>>)>>,
 }
 
 impl RuntimePackage {
-    /// Open RegistryStore for every available entry in the plan.
+    /// Open primary + dependency stores eagerly; defer interest stores.
     pub fn from_plan(plan: &KnowledgePlan) -> Result<Self> {
-        let mut repos = Vec::new();
+        let mut eager = Vec::new();
+        let mut pending = Vec::new();
         for entry in plan.available() {
-            match RegistryStore::open(&entry.root.join(".samgraha").join("knowledge.db")) {
-                Ok(store) => repos.push((entry.clone(), Arc::new(store))),
-                Err(e) => tracing::warn!("Cannot open store for '{}': {}", entry.name, e),
+            if entry.priority == Priority::Interest {
+                pending.push((entry.clone(), None));
+            } else {
+                match RegistryStore::open(&entry.root.join(".samgraha").join("knowledge.db")) {
+                    Ok(store) => eager.push((entry.clone(), Arc::new(store))),
+                    Err(e) => tracing::warn!("Cannot open store for '{}': {}", entry.name, e),
+                }
             }
         }
-        Ok(Self { repos })
+        Ok(Self { eager, interests: Mutex::new(pending) })
+    }
+
+    /// All stores in priority order; opens interest stores on first call.
+    fn all_stores(&self) -> Vec<Arc<RegistryStore>> {
+        let mut stores: Vec<Arc<RegistryStore>> = self.eager.iter().map(|(_, s)| Arc::clone(s)).collect();
+        let mut interests = self.interests.lock().unwrap();
+        for (entry, slot) in interests.iter_mut() {
+            if slot.is_none() {
+                match RegistryStore::open(&entry.root.join(".samgraha").join("knowledge.db")) {
+                    Ok(s) => *slot = Some(Arc::new(s)),
+                    Err(e) => tracing::warn!("Cannot open interest store for '{}': {}", entry.name, e),
+                }
+            }
+            if let Some(s) = slot {
+                stores.push(Arc::clone(s));
+            }
+        }
+        stores
     }
 
     pub fn all_documents(&self) -> Result<Vec<Document>> {
         let mut docs = Vec::new();
-        for (_, store) in &self.repos {
+        for store in self.all_stores() {
             docs.extend(store.get_all_documents()?);
         }
         Ok(docs)
     }
 
+    /// Count of eagerly-open stores (primary + deps loaded at create time).
     pub fn store_count(&self) -> usize {
-        self.repos.len()
+        self.eager.len()
     }
 
-    /// Loaded repo names in priority order.
+    /// Eagerly-loaded repo names in priority order.
     pub fn repo_names(&self) -> Vec<&str> {
-        self.repos.iter().map(|(e, _)| e.name.as_str()).collect()
+        self.eager.iter().map(|(e, _)| e.name.as_str()).collect()
     }
 }
 
@@ -93,7 +121,7 @@ impl KnowledgeContext {
     pub fn get_sections(&self, query: &SectionQuery) -> Result<SectionQueryResponse> {
         let mut sections = Vec::new();
         let mut duration_ms = 0u64;
-        for (_, store) in &self.package.repos {
+        for store in self.package.all_stores() {
             let resp = store.get_sections_by_type(query)?;
             sections.extend(resp.sections);
             duration_ms = duration_ms.max(resp.duration_ms);
