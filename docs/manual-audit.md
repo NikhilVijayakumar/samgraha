@@ -834,7 +834,7 @@ Only when Phases 1, 2, 2.5, and 3 pass.
 
 ### 4.1 — Claude Code
 
-Configure MCP server in Claude Code's `mcp.json`:
+**Development (source repo, any platform):**
 
 ```json
 {
@@ -847,6 +847,72 @@ Configure MCP server in Claude Code's `mcp.json`:
 }
 ```
 
+**Windows — release binary** (built with `scripts/build-release.ps1`):
+
+Set `OUTPUT_DIR` in `.env`, then build:
+
+```powershell
+# .env
+OUTPUT_DIR=E:\MCP\Samgraha\release
+
+# Build
+.\scripts\build-release.ps1
+```
+
+The script prints the output location on completion:
+
+```
+Location: E:\MCP\Samgraha\release\samgraha
+```
+
+The binary is always at `<Location>\bin\mcp.exe`. Point Claude Code at it:
+
+```json
+{
+  "mcpServers": {
+    "samgraha": {
+      "command": "E:\\MCP\\Samgraha\\release\\samgraha\\bin\\mcp.exe"
+    }
+  }
+}
+```
+
+Replace `E:\\MCP\\Samgraha\\release\\samgraha` with the actual `Location` path printed by the script (which is `OUTPUT_DIR\samgraha` from your `.env`). Use double backslashes in JSON.
+
+**Linux / Ubuntu — release binary** (built with `scripts/build-release.sh`):
+
+Set `OUTPUT_DIR` in `.env`, then build:
+
+```bash
+# .env
+OUTPUT_DIR=/home/user/mcp/samgraha/release
+
+# Build
+bash scripts/build-release.sh
+```
+
+The script prints the output location on completion:
+
+```
+Location: /home/user/mcp/samgraha/release/samgraha
+```
+
+The binary is always at `<Location>/bin/mcp`. Point Claude Code at it:
+
+```json
+{
+  "mcpServers": {
+    "samgraha": {
+      "command": "/home/user/mcp/samgraha/release/samgraha/bin/mcp"
+    }
+  }
+}
+```
+
+Replace `/home/user/mcp/samgraha/release/samgraha` with the actual `Location` path printed by the script (which is `OUTPUT_DIR/samgraha` from your `.env`).
+
+The binary is self-contained — `samgraha.toml` and `docs/raw/` sit alongside it in the package directory, so no working directory configuration is needed.
+
 Test prompts:
 
 - "How does Knowledge Resolution work?"
@@ -854,6 +920,8 @@ Test prompts:
 - "What documents are available?"
 
 ### 4.2 — OpenCode
+
+**Development (source repo, any platform):**
 
 Configure MCP server in `opencode.json` (project root or global config):
 
@@ -878,6 +946,76 @@ opencode mcp list
 ```
 
 Expected: `samgraha` listed with status.
+
+**Windows — release binary** (built with `scripts/build-release.ps1`):
+
+Set `OUTPUT_DIR` in `.env`, then build:
+
+```powershell
+# .env
+OUTPUT_DIR=E:\MCP\Samgraha\release
+
+# Build
+.\scripts\build-release.ps1
+```
+
+The script prints the output location on completion:
+
+```
+Location: E:\MCP\Samgraha\release\samgraha
+```
+
+The binary is always at `<Location>\bin\mcp.exe`. Configure in `opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "samgraha": {
+      "type": "local",
+      "command": ["E:\\MCP\\Samgraha\\release\\samgraha\\bin\\mcp.exe"]
+    }
+  }
+}
+```
+
+Replace `E:\\MCP\\Samgraha\\release\\samgraha` with the actual `Location` path printed by the script (which is `OUTPUT_DIR\samgraha` from your `.env`). Use double backslashes in JSON.
+
+**Linux / Ubuntu — release binary** (built with `scripts/build-release.sh`):
+
+Set `OUTPUT_DIR` in `.env`, then build:
+
+```bash
+# .env
+OUTPUT_DIR=/home/user/mcp/samgraha/release
+
+# Build
+bash scripts/build-release.sh
+```
+
+The script prints the output location on completion:
+
+```
+Location: /home/user/mcp/samgraha/release/samgraha
+```
+
+The binary is always at `<Location>/bin/mcp`. Configure in `opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "samgraha": {
+      "type": "local",
+      "command": ["/home/user/mcp/samgraha/release/samgraha/bin/mcp"]
+    }
+  }
+}
+```
+
+Replace `/home/user/mcp/samgraha/release/samgraha` with the actual `Location` path printed by the script (which is `OUTPUT_DIR/samgraha` from your `.env`).
+
+The binary is self-contained — `samgraha.toml` and `docs/raw/` sit alongside it in the package directory, so no working directory configuration is needed.
 
 Test prompts:
 

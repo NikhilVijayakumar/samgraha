@@ -75,7 +75,7 @@ if (-not (Get-Command $Script:PyCmd -ErrorAction SilentlyContinue)) { throw "pyt
 if ($Build) {
     Write-Host "Building mcp binary..." -ForegroundColor Cyan
     Push-Location $Script:RootDir
-    cargo build --bin mcp 2>&1 | Out-Host
+    cargo build --bin mcp
     if ($LASTEXITCODE -ne 0) { throw "cargo build failed" }
     Pop-Location
     $Script:BinaryPath = Join-Path $Script:RootDir "target\debug\mcp.exe"
