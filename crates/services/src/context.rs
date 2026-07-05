@@ -47,16 +47,16 @@ impl RuntimePackage {
     }
 }
 
-/// Session scoped to one MCP client connection.
-/// Lifecycle: connect → Planner::plan → RuntimePackage::from_plan → serve → dispose.
-pub struct KnowledgeSession {
+/// Multi-repo knowledge context. Survives MCP disconnects; disposed on TTL expiry or explicit drop.
+/// Lifecycle: create → serve → (reuse on reconnect | dispose on TTL).
+pub struct KnowledgeContext {
     pub package: RuntimePackage,
     pub plan: KnowledgePlan,
     assembly_time: Instant,
     ttl_secs: u64,
 }
 
-impl KnowledgeSession {
+impl KnowledgeContext {
     pub fn create(root: &Path, config: &SamgrahaConfig) -> Result<Self> {
         let plan = Planner::plan(root, config);
         let package = RuntimePackage::from_plan(&plan)?;

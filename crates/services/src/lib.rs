@@ -12,7 +12,7 @@ pub mod resolution;
 pub mod reporting;
 pub mod runtime;
 pub mod search;
-pub mod session;
+pub mod context;
 pub mod workspace;
 
 pub use audit::*;
@@ -25,5 +25,5 @@ pub use registry::*;
 pub use resolution::*;
 pub use runtime::*;
 pub use search::*;
-pub use session::*;
+pub use context::*;
 pub use workspace::*;

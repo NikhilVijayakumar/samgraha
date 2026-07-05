@@ -10,7 +10,7 @@ use services::compilation::CompilationService;
 use services::planner::write_meta_file;
 use services::registry_client::RegistryClient;
 use services::resolution::KnowledgeResolver;
-use services::session::KnowledgeSession;
+use services::context::KnowledgeContext;
 use services::KnowledgeRuntime;
 use std::sync::Arc;
 
@@ -18,17 +18,17 @@ pub struct McpAdapter {
     runtime: Arc<KnowledgeRuntime>,
     registry: Arc<dyn RegistryClient>,
     capabilities: McpCapabilities,
-    session: Option<KnowledgeSession>,
+    context: Option<KnowledgeContext>,
 }
 
 impl McpAdapter {
     pub fn new(runtime: Arc<KnowledgeRuntime>, registry: Arc<dyn RegistryClient>) -> Self {
-        let session = KnowledgeSession::create(
+        let context = KnowledgeContext::create(
             &runtime.context.repository_root,
             &runtime.context.config,
         ).ok();
-        if let Some(ref s) = session {
-            tracing::info!("Knowledge session assembled: {} store(s)", s.store_count());
+        if let Some(ref s) = context {
+            tracing::info!("Knowledge context assembled: {} store(s)", s.store_count());
         }
         let mut caps = McpCapabilities::default_capabilities();
         caps.methods.push("list_repositories".to_string());
@@ -54,7 +54,7 @@ impl McpAdapter {
             runtime,
             registry,
             capabilities: caps,
-            session,
+            context,
         }
     }
 
@@ -288,7 +288,7 @@ impl McpAdapter {
             ..Default::default()
         };
 
-        let results = match &self.session {
+        let results = match &self.context {
             Some(s) if s.is_valid() => s.search(&search_query)?,
             _ => self.runtime.search(&search_query)?,
         };
@@ -331,23 +331,23 @@ impl McpAdapter {
 
     fn handle_info(&self, _req: &McpRequest) -> Result<serde_json::Value> {
         let mut info = serde_json::to_value(&self.runtime.info())?;
-        if let Some(ref s) = self.session {
-            info["session_stores"] = serde_json::json!(s.store_count());
-            info["session_valid"] = serde_json::json!(s.is_valid());
+        if let Some(ref s) = self.context {
+            info["context_stores"] = serde_json::json!(s.store_count());
+            info["context_valid"] = serde_json::json!(s.is_valid());
         }
         Ok(info)
     }
 
     /// Return the current Knowledge Plan so the client can inspect repo status.
     fn handle_get_plan(&self) -> Result<serde_json::Value> {
-        match &self.session {
+        match &self.context {
             Some(s) => Ok(serde_json::json!({
-                "session_valid": s.is_valid(),
+                "context_valid": s.is_valid(),
                 "store_count": s.store_count(),
                 "entries": serde_json::to_value(&s.plan.entries)?,
             })),
             None => Ok(serde_json::json!({
-                "session_valid": false,
+                "context_valid": false,
                 "store_count": 0,
                 "entries": [],
             })),
