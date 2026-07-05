@@ -1,6 +1,6 @@
 use anyhow::Result;
 use chrono::Utc;
-use common::config::SamgrahaConfig;
+use common::config::{IgnoreConfig, SamgrahaConfig};
 use compiler::CompilationPipeline;
 use providers::traits::EnrichmentProvider;
 use providers::RuleBasedProvider;
@@ -20,7 +20,7 @@ use crate::enrichment::EnrichmentService;
 pub struct CompilationService;
 
 fn merge_ignore_patterns(root: &Path, config: &SamgrahaConfig) -> Vec<String> {
-    let mut patterns = common::config::IgnoreConfig::default().patterns;
+    let mut patterns = IgnoreConfig::default().patterns;
     patterns.extend(config.repository.ignore.patterns.iter().cloned());
     if let Ok(content) = std::fs::read_to_string(root.join(".samagraignore")) {
         for line in content.lines() {
@@ -64,6 +64,7 @@ impl CompilationService {
         let root = root.as_ref();
         info!("Compilation started for {:?}", root);
 
+        let ignore_patterns = merge_ignore_patterns(root, config);
         let standards: Vec<_> = standard_registry.all().into_iter().cloned().collect();
 
         let scope = match &request.scope {
@@ -84,7 +85,7 @@ impl CompilationService {
         };
 
         let output =
-            CompilationPipeline::compile(root, &standards, scope.as_deref(), &known_hashes)?;
+            CompilationPipeline::compile(root, &standards, scope.as_deref(), &known_hashes, &ignore_patterns)?;
 
         // Persist newly compiled documents and their semantic sections to registry.
         for doc in &output.documents {
@@ -104,7 +105,7 @@ impl CompilationService {
         for stored in &all_docs {
             let abs = root.join(&stored.path.0);
             let rel = stored.path.0.to_string_lossy().replace('\\', "/");
-            if !abs.exists() || rel.contains("audit-standards") {
+            if !abs.exists() || matches_any_ignore_pattern(&rel, &ignore_patterns) {
                 registry.delete_document(stored.id)?;
             }
         }
