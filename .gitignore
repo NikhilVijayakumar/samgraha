@@ -28,4 +28,3 @@ tests/.samgraha/
 /.samgraha/
 /samgraha.toml.phase1bak
 .env
-/docs/raw/reports/

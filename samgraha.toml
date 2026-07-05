@@ -1,8 +1,39 @@
 [repository]
 
+[repository.ignore]
+patterns = [
+    "**/node_modules/**",
+    "**/target/**",
+    "**/.git/**",
+    "**/audit-standards/**",
+    "**/report/**",
+    "**/test.md",
+    "**/manual-audit.md",
+    "**/standards/**",
+    "**/release/**",
+    "**/philosophy/**",
+]
 
 [repository.documentation]
-standards = ["readme", "vision", "philosophy", "architecture", "feature", "feature-design", "feature-technical", "design", "engineering", "external-context", "prototype"]
+# Absolute path resolved from SAMGRAHA_DOCS_DIR (see .env) — falls back to
+# <repo>/docs if unset. Absolute avoids relative-path ambiguity across
+# multiple developer machines and multi-repo MCP sessions.
+root_dir = "${SAMGRAHA_DOCS_DIR}"
+domain = ["readme", "vision", "philosophy", "architecture", "feature", "feature-design", "feature-technical", "design", "engineering", "external-context", "prototype"]
+# This repo doesn't have docs for these builtin standards — see FR5a in
+# docs/raw/feature/cli-interface.md and the Domain Exclusions section in
+# docs/raw/feature-technical/cli-interface.md.
+domain_exclusion = ["design", "feature-design", "external-context", "prototype"]
+
+[repository.implementation]
+# Reserved for future traceability checks; not yet consumed by any tool.
+dir = "${SAMGRAHA_IMPLEMENTATION_DIR}"
+
+[repository.scripts]
+dir = "${SAMGRAHA_SCRIPTS_DIR}"
+
+[repository.tests]
+dir = "${SAMGRAHA_TESTS_DIR}"
 
 [compilation]
 watch = false
@@ -12,3 +43,8 @@ default-severity = "suggestion"
 
 [output]
 format = "text"
+
+[report]
+# Base dir for generated reports (e.g. `samgraha audit --report`).
+# Falls back to docs/raw/reports if SAMGRAHA_REPORT_DIR is unset.
+dir = "${SAMGRAHA_REPORT_DIR}"
