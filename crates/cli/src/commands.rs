@@ -7,13 +7,13 @@ use schemas::search::{RetrievalLevel, SearchQuery, SectionQuery};
 use std::path::PathBuf;
 
 use crate::output::{format_output, render_audit, render_audit_report, render_compile, render_info, render_registry_list, render_search, render_sections, render_workspace_compile, OutputFormat};
-use common::config::SamgrahaConfig;
+use common::config::{resolve_configured_dir, SamgrahaConfig};
 use services::{KnowledgeRuntime, WorkspaceService};
 
 #[derive(Parser)]
 #[command(
     name = "samgraha",
-    version = "0.1.0",
+    version = env!("CARGO_PKG_VERSION"),
     about = "Knowledge Engineering Platform"
 )]
 pub struct Cli {
@@ -104,7 +104,7 @@ pub enum Commands {
         )]
         gate: Option<f64>,
 
-        #[arg(long = "report", help = "Save markdown report to docs/report/audit/")]
+        #[arg(long = "report", help = "Save markdown report under [report].dir/audit/{latest,archive}/")]
         report: bool,
     },
 
@@ -142,6 +142,12 @@ pub enum Commands {
     Registry {
         #[command(subcommand)]
         action: RegistryAction,
+    },
+
+    #[command(about = "Generate .env.example with all env keys samgraha reads")]
+    Env {
+        #[arg(help = "Path to repository")]
+        path: Option<PathBuf>,
     },
 
     #[command(about = "Workspace multi-repository operations")]
@@ -215,6 +221,14 @@ impl Cli {
             OutputFormat::Text
         };
 
+        // Skip repo guard for commands that don't need an initialized repo.
+        let skip_guard = matches!(&self.command,
+            Commands::Init { .. } | Commands::Version { .. }
+        );
+        if !skip_guard {
+            ensure_samgraha_repo()?;
+        }
+
         match &self.command {
             Commands::Compile {
                 path,
@@ -247,6 +261,7 @@ impl Cli {
                 self.execute_package(output.as_ref(), profile.as_deref(), *json, &format)
             }
             Commands::Registry { action } => self.execute_registry(action, &format),
+            Commands::Env { path } => self.execute_env(path.as_ref(), &format),
             Commands::Workspace { action } => self.execute_workspace(action, &format),
             Commands::Version => self.execute_version(&format),
         }
@@ -302,6 +317,10 @@ impl Cli {
         };
         let result = runtime.compile(&initial_request)?;
         println!("{}", render_compile(&result, format));
+
+        if result.success {
+            sync_registry_best_effort(&root, &runtime.context.config);
+        }
 
         if watch {
             self.watch_compile(&runtime, &root, &scope, debounce_ms, format)?;
@@ -381,6 +400,7 @@ impl Cli {
     ) -> Result<ExitCode> {
         let root = crate::config::discover_repository_root()?;
         let config = crate::config::load_config(self.config.as_ref())?;
+        ensure_compiled(&root, &config)?;
         let runtime = KnowledgeRuntime::new(&root, config)?;
 
         let level = match level {
@@ -417,6 +437,7 @@ impl Cli {
     ) -> Result<ExitCode> {
         let root = crate::config::discover_repository_root()?;
         let config = crate::config::load_config(self.config.as_ref())?;
+        ensure_compiled(&root, &config)?;
         let runtime = KnowledgeRuntime::new(&root, config)?;
 
         let query = SectionQuery {
@@ -447,6 +468,7 @@ impl Cli {
     ) -> Result<ExitCode> {
         let root = crate::config::discover_repository_root()?;
         let config = crate::config::load_config(self.config.as_ref())?;
+        ensure_compiled(&root, &config)?;
         let mut runtime = KnowledgeRuntime::new(&root, config)?;
 
         runtime.register_audit_provider("deterministic", |docs, rules| {
@@ -467,17 +489,25 @@ impl Cli {
         println!("{}", render_audit(&audit_report, format));
 
         if report {
-            let report_dir = root.join("docs").join("report").join("audit");
-            std::fs::create_dir_all(&report_dir)?;
-            let now = chrono::Local::now();
-            let filename = format!("{}.md", now.format("%Y%m%d-%H%M%S"));
-            let path = report_dir.join(&filename);
-            let md = render_audit_report(&audit_report);
-            std::fs::write(&path, md)?;
-            println!(
-                "Report saved: {}",
-                path.to_string_lossy()
+            let reports_base = resolve_configured_dir(
+                &runtime.context.config.report.dir,
+                &root,
+                "docs/raw/reports",
             );
+            let latest_dir = reports_base.join("audit").join("latest");
+            let archive_dir = reports_base.join("audit").join("archive");
+            std::fs::create_dir_all(&latest_dir)?;
+            std::fs::create_dir_all(&archive_dir)?;
+
+            let md = render_audit_report(&audit_report);
+            let now = chrono::Local::now();
+            let archive_path = archive_dir.join(format!("{}.md", now.format("%Y%m%d-%H%M%S")));
+            std::fs::write(&archive_path, &md)?;
+            let latest_path = latest_dir.join("report.md");
+            std::fs::write(&latest_path, &md)?;
+
+            println!("Report saved: {}", latest_path.display());
+            println!("Archived:     {}", archive_path.display());
         }
 
         if let Some(min_score) = gate {
@@ -516,34 +546,87 @@ impl Cli {
             .cloned()
             .unwrap_or_else(|| std::env::current_dir().unwrap());
         let config_path = root.join("samgraha.toml");
+        let samgraha_dir = root.join(".samgraha");
 
-        if config_path.exists() && !force {
-            anyhow::bail!(
-                "Configuration already exists at {}. Use --force to overwrite.",
-                config_path.display()
-            );
-        }
+        std::fs::create_dir_all(&samgraha_dir).context(format!(
+            "Failed to create {}",
+            samgraha_dir.display()
+        ))?;
 
-        let mut config = SamgrahaConfig::default();
+        // Full-schema template: what a fresh samgraha.toml would contain.
+        // Used as-is on first init, or as the source of missing keys/sections
+        // to backfill into an existing samgraha.toml (never overwrites a key
+        // that's already there — see `merge_missing_keys`).
+        let mut template = SamgrahaConfig::default();
         let dir_name = root
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("repository")
             .to_string();
-        config.repository.id = Some(dir_name.clone());
-        config.repository.name = Some(dir_name);
-        config.repository.uuid = Some(uuid::Uuid::new_v4());
-        let content = toml::to_string_pretty(&config)?;
-        std::fs::write(&config_path, content).context(format!(
-            "Failed to write config to {}",
-            config_path.display()
-        ))?;
+        template.repository.id = Some(dir_name.clone());
+        template.repository.name = Some(dir_name);
+        template.repository.uuid = Some(uuid::Uuid::new_v4());
+        // Declare every builtin standard by default; repos that don't use one
+        // (e.g. no `prototype` docs) add it to `domain_exclusion` instead of
+        // deleting it here, so the full catalog stays visible in the toml.
+        template.repository.documentation.domain = standards::all_builtin_standards()
+            .into_iter()
+            .map(|s| s.domain)
+            .collect();
 
-        println!(
-            "Initialized samgraha configuration at {}",
-            config_path.display()
-        );
+        let (config, status) = if config_path.exists() && !force {
+            let existing = std::fs::read_to_string(&config_path)
+                .context(format!("Failed to read {}", config_path.display()))?;
+            let mut doc: toml_edit::DocumentMut = existing
+                .parse()
+                .context(format!("Failed to parse {}", config_path.display()))?;
+            let template_content = toml::to_string_pretty(&template)?;
+            let template_doc: toml_edit::DocumentMut = template_content
+                .parse()
+                .context("Failed to parse generated template config")?;
+
+            let added = merge_missing_keys(doc.as_table_mut(), template_doc.as_table());
+            if added > 0 {
+                std::fs::write(&config_path, doc.to_string()).context(format!(
+                    "Failed to write config to {}",
+                    config_path.display()
+                ))?;
+            }
+
+            let merged: SamgrahaConfig = toml::from_str(&doc.to_string())
+                .context("Merged samgraha.toml failed to parse back as valid config")?;
+            let status = if added > 0 {
+                format!(
+                    "Updated {} — added {added} missing key(s), left the rest untouched",
+                    config_path.display()
+                )
+            } else {
+                format!("{} already covers every known key — nothing to add", config_path.display())
+            };
+            (merged, status)
+        } else {
+            let content = toml::to_string_pretty(&template)?;
+            std::fs::write(&config_path, content).context(format!(
+                "Failed to write config to {}",
+                config_path.display()
+            ))?;
+            (template, format!("Initialized samgraha repository at {}", root.display()))
+        };
+
+        let env_path = write_env_example(&root)?;
+
+        println!("{status}");
+        println!("Generated {}", env_path.display());
         println!("{}", format_output(&config, format));
+        Ok(ExitCode::Success)
+    }
+
+    fn execute_env(&self, path: Option<&PathBuf>, _format: &OutputFormat) -> Result<ExitCode> {
+        let root = path
+            .cloned()
+            .unwrap_or_else(|| crate::config::discover_repository_root().unwrap());
+        let env_path = write_env_example(&root)?;
+        println!("Generated {}", env_path.display());
         Ok(ExitCode::Success)
     }
 
@@ -556,6 +639,7 @@ impl Cli {
     ) -> Result<ExitCode> {
         let root = crate::config::discover_repository_root()?;
         let config = crate::config::load_config(self.config.as_ref())?;
+        ensure_compiled(&root, &config)?;
         let runtime = KnowledgeRuntime::new(&root, config)?;
 
         let pkg_profile = match profile.unwrap_or("full") {
@@ -719,6 +803,7 @@ impl Cli {
                 if mode != "runtime" {
                     anyhow::bail!("Unsupported resolve mode: {}. Use 'runtime'.", mode);
                 }
+                ensure_compiled(&root, &config)?;
                 let runtime = KnowledgeRuntime::new(&root, config)?;
                 let output_path = root.join(".samgraha").join("resolved");
                 let result = runtime.resolve(
@@ -799,6 +884,152 @@ impl Cli {
 
         Ok(ExitCode::Success)
     }
+}
+
+/// Automatically compile if the knowledge database is empty or missing.
+fn ensure_compiled(root: &PathBuf, config: &SamgrahaConfig) -> Result<()> {
+    let runtime = KnowledgeRuntime::new(root, config.clone())?;
+    let info = runtime.info();
+    if info.document_count == 0 {
+        let request = CompilationRequest {
+            scope: schemas::compilation::CompilationScope::Repository,
+            force: false,
+            watch: false,
+        };
+        let result = runtime.compile(&request)?;
+        if !result.success {
+            tracing::warn!("Auto-compile produced errors: {} failures", result.documents_failed);
+        }
+    }
+    Ok(())
+}
+
+/// Auto-register/refresh declared dependencies and interests in the local
+/// registry after a successful compile — the "automatic" half of the hybrid
+/// registration model. `registry sync`/`registry register` remain available
+/// as an explicit, manual path at any time; this just means a repo's
+/// dependencies don't go stale (or missing) just because nobody remembered
+/// to run `sync` by hand. Failures are logged, not fatal — a registry hiccup
+/// shouldn't fail an otherwise-successful compile.
+fn sync_registry_best_effort(root: &std::path::Path, config: &SamgrahaConfig) {
+    if !config.resolver.auto_refresh {
+        return;
+    }
+    use services::registry_client::{FileRegistryClient, RegistryClient};
+    let client = FileRegistryClient::with_config(root, &config.resolver);
+    if let Err(e) = client.sync(config) {
+        tracing::warn!("Registry sync after compile failed: {e}");
+    }
+}
+
+/// Recursively insert keys present in `defaults` but absent from `existing`,
+/// at any table depth. Never touches a key `existing` already has, even if
+/// its value differs from the default (a scalar/array already present wins
+/// outright; a table already present is recursed into for its own missing
+/// sub-keys, never replaced wholesale). Returns the number of keys added.
+///
+/// This is what lets `samgraha init` be re-run safely on an existing
+/// samgraha.toml: schema growth (a new section/field in a later samgraha
+/// version) gets backfilled, while every existing customization — including
+/// comments and formatting, since this operates on a `toml_edit` document —
+/// survives untouched.
+fn merge_missing_keys(existing: &mut toml_edit::Table, defaults: &toml_edit::Table) -> usize {
+    let mut added = 0;
+    for (key, default_item) in defaults.iter() {
+        if !existing.contains_key(key) {
+            existing.insert(key, default_item.clone());
+            added += 1;
+        } else if let Some(default_tbl) = default_item.as_table() {
+            if let Some(existing_tbl) = existing.get_mut(key).and_then(|i| i.as_table_mut()) {
+                added += merge_missing_keys(existing_tbl, default_tbl);
+            }
+        }
+    }
+    added
+}
+
+/// Ensure `.env.example` documents every env key samgraha reads for `${VAR}`
+/// placeholders in samgraha.toml (see `resolve_configured_dir`), values left
+/// blank/commented for the user to fill in per machine.
+///
+/// Additive, not overwriting: a repo may already have an `.env.example` with
+/// unrelated keys (e.g. this repo's own release-build settings). Only keys
+/// not already present get appended, so regenerating never clobbers existing
+/// content.
+fn write_env_example(root: &std::path::Path) -> Result<PathBuf> {
+    const KEYS: &[(&str, &str)] = &[
+        (
+            "SAMGRAHA_REPORT_DIR",
+            "# Absolute path for generated reports (e.g. `samgraha audit --report`).\n\
+             # Unset falls back to <repo>/docs/raw/reports.\n\
+             # SAMGRAHA_REPORT_DIR=\n",
+        ),
+        (
+            "SAMGRAHA_DOCS_DIR",
+            "# Absolute path to this repository's documentation root.\n\
+             # Unset falls back to <repo>/docs.\n\
+             # SAMGRAHA_DOCS_DIR=\n",
+        ),
+        (
+            "SAMGRAHA_IMPLEMENTATION_DIR",
+            "# Absolute path to this repository's implementation/source directory.\n\
+             # Reserved for future traceability checks; unset falls back to <repo>/src.\n\
+             # SAMGRAHA_IMPLEMENTATION_DIR=\n",
+        ),
+        (
+            "SAMGRAHA_SCRIPTS_DIR",
+            "# Absolute path to this repository's external scripts directory.\n\
+             # Only relevant if [repository.scripts] is set in samgraha.toml.\n\
+             # SAMGRAHA_SCRIPTS_DIR=\n",
+        ),
+        (
+            "SAMGRAHA_TESTS_DIR",
+            "# Absolute path to this repository's test directory, if kept outside\n\
+             # implementation.dir. Only relevant if [repository.tests] is set.\n\
+             # SAMGRAHA_TESTS_DIR=\n",
+        ),
+    ];
+
+    let path = root.join(".env.example");
+    let existing = std::fs::read_to_string(&path).unwrap_or_default();
+
+    let mut appended = String::new();
+    for (key, block) in KEYS {
+        if !existing.contains(key) {
+            if !appended.is_empty() || !existing.is_empty() {
+                appended.push('\n');
+            }
+            appended.push_str(block);
+        }
+    }
+
+    if appended.is_empty() {
+        return Ok(path);
+    }
+
+    let mut content = existing;
+    content.push_str(&appended);
+    if !content.contains("cp .env.example .env") {
+        content.push_str("\n# Copy this file to .env and uncomment the values to configure:\n#   cp .env.example .env\n");
+    }
+    std::fs::write(&path, content).context(format!("Failed to write {}", path.display()))?;
+    Ok(path)
+}
+
+/// Check that we are inside a samgraha repository (has `.samgraha/` dir or `samgraha.toml`).
+fn ensure_samgraha_repo() -> Result<()> {
+    let cwd = std::env::current_dir()?;
+    let mut current = Some(cwd.as_path());
+    while let Some(dir) = current {
+        if dir.join(".samgraha").is_dir() || dir.join("samgraha.toml").exists() {
+            return Ok(());
+        }
+        current = dir.parent();
+    }
+    anyhow::bail!(
+        "fatal: not a samgraha repository (or any of the parent directories). \
+         Run 'samgraha init' first to initialize."
+    );
 }
 
 fn is_relevant_event(ev: &notify::Result<notify::Event>) -> bool {

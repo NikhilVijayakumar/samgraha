@@ -34,11 +34,14 @@ pub fn discover_repository_root() -> Result<PathBuf> {
     let mut current = Some(cwd.as_path());
 
     while let Some(dir) = current {
-        if dir.join("samgraha.toml").exists() || dir.join(".git").exists() {
+        if dir.join(".samgraha").is_dir() || dir.join("samgraha.toml").exists() {
             return Ok(dir.to_path_buf());
         }
         current = dir.parent();
     }
 
-    Ok(cwd)
+    anyhow::bail!(
+        "fatal: not a samgraha repository (or any of the parent directories). \
+         Run 'samgraha init' first to initialize."
+    );
 }

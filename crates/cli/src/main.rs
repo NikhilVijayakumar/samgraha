@@ -3,6 +3,7 @@ use clap::Parser;
 use cli::commands::Cli;
 
 fn main() -> Result<()> {
+    common::load_dotenv();
     let cli = Cli::parse();
 
     let _ = tracing_subscriber::fmt()
