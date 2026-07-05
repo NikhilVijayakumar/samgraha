@@ -84,7 +84,9 @@ Return the current Knowledge Plan — which repos are loaded, their priority (pr
 
 ### Audit workflow tools
 
-`audit`, `get_documents_by_domain`, `get_section`, `get_audit_knowledge`, `get_audit_report`, `get_section_changed`, `check_gate`, `store_section_report`, `store_document_report`, `store_cross_domain_report`, `update_finding_status` — support an AI agent driving a semantic audit pass and recording findings.
+`audit` — supports `pipeline` (string, default `"doc"`), `inspect_artifact` (boolean, Build Audit only), and `runtime` (boolean, Security Audit only) parameters in addition to existing domain/provider/all/gate/report parameters.
+
+`get_documents_by_domain`, `get_section`, `get_audit_knowledge`, `get_audit_report`, `get_section_changed`, `check_gate`, `store_section_report`, `store_document_report`, `store_cross_domain_report`, `update_finding_status` — support an AI agent driving a semantic audit pass and recording findings.
 
 ### Session tools
 

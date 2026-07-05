@@ -2,24 +2,36 @@
 
 ## Purpose
 
-How audit scores are calculated and what readiness levels mean.
+How audit scores are calculated across different audit types.
 
 ## Content
 
-### Score Calculation
+### Documentation Audit
 
-There is no per-document percentage. A document counts as "passed" only if it has zero error-severity findings; scores are the passed-document ratio:
+Score is the passed-document ratio:
 
 ```
-Domain Score  = (documents in domain − error-severity findings in domain) / documents in domain × 100
+Domain Score  = (documents in domain − error-severity findings) / documents in domain × 100
 Overall Score = (total documents − total error-severity findings) / total documents × 100
 ```
 
-Overall score is computed independently across all documents — it is not an average of the per-domain scores. Warning and suggestion findings never affect the score, only errors do.
+Warning and suggestion findings never affect the score, only errors do.
 
-### Readiness Levels
+### Other Audit Types
 
-Readiness is derived from the overall score (and whether any errors exist):
+Each audit defines its own scoring:
+
+| Audit | Scoring Model |
+|---|---|
+| Build Audit | Engineering Strategy (25%) + Doc Quality (20%) + Engineering Readiness (25%) + Conformance (30%) |
+| Security Audit | Security Strategy (25%) + Doc Quality (20%) + Security Readiness (25%) + Conformance (30%) |
+| Consistency Audit | Layer Alignment (50%) + Cross-Layer Integrity (50%) |
+| Coverage Audit | `(forward_score + reverse_score) / 2`. Zero denominator → 100%. |
+| Dependency Governance | Justification (40%) + Version Policy (25%) + Health (25%) + Cross-References (10%) |
+
+### Readiness Levels (Documentation Audit)
+
+Readiness is derived from the overall score:
 
 | Condition | Readiness |
 |-----------|-----------|
@@ -30,17 +42,16 @@ Readiness is derived from the overall score (and whether any errors exist):
 | score ≥ 50 | Architecture |
 | below 50 | Product |
 
-(A `None` readiness value also exists in the schema but is not produced by the current scoring logic.)
-
 ### Quality Gates
 
-Gates enforce a minimum overall score via the CLI flag — there is currently no `samgraha.toml` config key for it (an `[audit.gates.<name>]` section with `min_score`/`min_readiness` exists in the config schema, but it isn't wired into `samgraha audit` yet):
+Gates enforce a minimum overall score:
 
 ```bash
-samgraha audit --gate 80
+samgraha audit --gate 80           # Documentation Audit
+samgraha audit --pipeline build --gate 80  # Build Audit
 ```
 
-Fails with exit code 2 (`AuditFailure`) if the overall score is below 80. This is designed for CI/CD pipelines.
+Fails with exit code 2 (`AuditFailure`) if the overall score is below the threshold.
 
 ## Related
 

@@ -2,27 +2,38 @@
 
 ## Purpose
 
-The four audit stages (`AuditStage`: Deterministic, Section, Document, CrossDomain) — what each one represents and who produces its findings.
+The four documentation audit stages (`AuditStage`: Deterministic, Section, Document, CrossDomain) and how custom pipelines differ.
 
 ## Content
 
-### Not a Sequential Pipeline
+### Documentation Audit Stages
 
-These four stages are not run in sequence by `samgraha audit`, and stages 2–4 are not computed automatically by any built-in heuristic engine. They are a classification used to store and gate findings at different granularities, mainly for AI coding agents doing semantic review over MCP.
+These four stages are a classification used to store and gate findings at different granularities, mainly for AI coding agents doing semantic review over MCP.
 
-### Stage: Deterministic
+#### Stage: Deterministic
 
 Produced by `samgraha audit` (the `DeterministicAuditProvider`/`SemanticAuditProvider`). Findings land in the `audit_results` table, one row per document, keyed off each standard's `audit_rules`.
 
-### Stages: Section / Document / Cross-Domain
+#### Stages: Section / Document / Cross-Domain
 
-These are populated by external callers — typically an AI agent connected over MCP — via the `store_section_report`, `store_document_report`, and `store_cross_domain_report` tools. Each submits a `SemanticReport` (a `score` 0–100 plus a findings list) that is stored in the `semantic_reports` table:
+These are populated by external callers — typically an AI agent connected over MCP — via the `store_section_report`, `store_document_report`, and `store_cross_domain_report` tools.
 
-- **Section** — a report about one section of one document.
-- **Document** — a report about a whole document.
-- **Cross-Domain** — a report spanning multiple documents/domains (e.g. checking a Feature traces to its Vision).
+- **Section** — a report about one section of one document
+- **Document** — a report about a whole document
+- **Cross-Domain** — a report spanning multiple documents/domains
 
-An agent typically calls `get_audit_knowledge(domain, section_type)` first (reads `docs/raw/audit-standards/<domain>/<section_type>.md`) for guidance on what to check, then `get_section_changed(section_id)` to skip re-analysis of unchanged sections, before submitting a report.
+An agent typically calls `get_audit_knowledge(domain, section_type)` first for guidance, then `get_section_changed(section_id)` to skip re-analysis of unchanged sections, before submitting a report.
+
+### Custom Pipelines (Other Audits)
+
+Build, Security, Consistency, Coverage, and Dependency Governance audits use **custom pipelines** with their own evidence collection and verification stages. These are not the 4-stage Documentation Audit pipeline. They define their own procedure in their spec file.
+
+| Pipeline | Stages |
+|---|---|
+| Build | Evidence collection (config) → (artifact inspection) → verification → findings → report |
+| Security | Evidence collection (static + config) → (runtime) → verification → findings → report |
+| Consistency | Layer inventory → pairwise compare → trace check → contradiction scan → terminology check → report |
+| Coverage | Doc inventory → code inventory → forward match → reverse match → orphan report → score → report |
 
 ### Gating by Stage
 

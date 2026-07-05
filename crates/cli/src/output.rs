@@ -1,6 +1,6 @@
 use schemas::manifest::CachedRepoMetadata;
 use serde::Serialize;
-use schemas::audit::AuditReport;
+use schemas::audit::{AuditReport, PipelineReport};
 use schemas::compilation::CompilationResult;
 use schemas::search::{SearchResponse, SectionQueryResponse};
 use services::runtime::runtime::RuntimeInfo;
@@ -352,6 +352,74 @@ pub fn render_registry_list(entries: &[CachedRepoMetadata], format: &OutputForma
             entry.audit,
         ));
     }
+    out
+}
+
+pub fn render_pipeline_report(report: &PipelineReport) -> String {
+    use std::collections::BTreeMap;
+
+    let errors: Vec<_> = report
+        .findings
+        .iter()
+        .filter(|f| matches!(f.severity, schemas::audit::Severity::Error))
+        .collect();
+    let warnings: Vec<_> = report
+        .findings
+        .iter()
+        .filter(|f| matches!(f.severity, schemas::audit::Severity::Warning))
+        .collect();
+    let suggestions: Vec<_> = report
+        .findings
+        .iter()
+        .filter(|f| matches!(f.severity, schemas::audit::Severity::Suggestion))
+        .collect();
+
+    let mut out = String::new();
+    out.push_str("# Saṃgraha Pipeline Report\n\n");
+    out.push_str(&format!("**Date:** {}\n", chrono::Local::now().format("%Y-%m-%d %H:%M:%S")));
+    out.push_str(&format!("**Pipeline:** {}\n", report.pipeline.as_str()));
+    out.push_str(&format!("**Score:** {:.1}%\n\n", report.score));
+
+    if !report.categories.is_empty() {
+        out.push_str("## Category Scores\n\n");
+        out.push_str("| Category | Score |\n");
+        out.push_str("|---|---|\n");
+        let sorted: BTreeMap<_, _> = report.categories.iter().collect();
+        for (cat, score) in &sorted {
+            out.push_str(&format!("| {} | {:.1}% |\n", cat, score));
+        }
+    }
+
+    if !errors.is_empty() {
+        out.push_str("\n## Errors\n\n");
+        out.push_str("| Check | Location | Message |\n");
+        out.push_str("|---|---|---|\n");
+        for f in &errors {
+            let loc = f.location.as_deref().unwrap_or("-");
+            out.push_str(&format!("| {} | {} | {} |\n", f.check_id, loc, f.message));
+        }
+    }
+
+    if !warnings.is_empty() {
+        out.push_str("\n## Warnings\n\n");
+        out.push_str("| Check | Location | Message |\n");
+        out.push_str("|---|---|---|\n");
+        for f in &warnings {
+            let loc = f.location.as_deref().unwrap_or("-");
+            out.push_str(&format!("| {} | {} | {} |\n", f.check_id, loc, f.message));
+        }
+    }
+
+    if !suggestions.is_empty() {
+        out.push_str("\n## Suggestions\n\n");
+        out.push_str("| Check | Location | Message |\n");
+        out.push_str("|---|---|---|\n");
+        for f in &suggestions {
+            let loc = f.location.as_deref().unwrap_or("-");
+            out.push_str(&format!("| {} | {} | {} |\n", f.check_id, loc, f.message));
+        }
+    }
+
     out
 }
 

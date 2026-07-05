@@ -3,6 +3,51 @@ use serde::{Deserialize, Serialize};
 pub type AuditCheckId = String;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum PipelineKind {
+    Doc,
+    Build,
+    Security,
+    Consistency,
+    Coverage,
+    Dependency,
+}
+
+impl PipelineKind {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Doc => "doc",
+            Self::Build => "build",
+            Self::Security => "security",
+            Self::Consistency => "consistency",
+            Self::Coverage => "coverage",
+            Self::Dependency => "dependency",
+        }
+    }
+
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "doc" => Some(Self::Doc),
+            "build" => Some(Self::Build),
+            "security" => Some(Self::Security),
+            "consistency" => Some(Self::Consistency),
+            "coverage" => Some(Self::Coverage),
+            "dependency" => Some(Self::Dependency),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PipelineReport {
+    pub pipeline: PipelineKind,
+    pub score: f64,
+    pub categories: std::collections::HashMap<String, f64>,
+    pub findings: Vec<AuditFinding>,
+    pub timestamp: String,
+    pub metadata: std::collections::HashMap<String, String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Severity {
     Error,
     Warning,

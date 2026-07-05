@@ -9,45 +9,43 @@ How audit reports are generated, their format, and how to interpret findings.
 ### Generating a Report
 
 ```bash
-samgraha audit --report
+samgraha audit --report                           # Documentation Audit
+samgraha audit --pipeline build --report          # Build Audit
+samgraha audit --pipeline coverage --report       # Coverage Audit
 ```
 
-This produces a Markdown report — there is no HTML or JSON report format.
+This produces a Markdown report.
 
 ### Report Contents
 
-The Markdown report includes a header (date, domain, provider, overall score, readiness), a summary table (documents checked/passed, error/warning/suggestion counts), a per-standard category score table, and the full findings list, e.g.:
+The Markdown report includes a header (date, pipeline, provider, overall score), a summary table, category scores, and the full findings list.
+
+### Finding Format
+
+Every finding references:
 
 ```
-# Saṃgraha Audit Report
+Producer:   <source artifact + path>
+Consumer:   <target artifact + path>
+Contract:   <audit check ID + description>
+Evidence:   <specific evidence collected>
+Severity:   error | warning | suggestion
+Status:     open | fixed | accepted | ignored | false_positive
+```
 
-**Date:** 2026-07-05 14:30:22
-**Domain:** all
-**Provider:** deterministic
-**Score:** 85.0%
-**Readiness:** engineering
+Example:
 
-## Summary
-
-| Metric | Value |
-|---|---|
-| Documents Checked | 20 |
-| Documents Passed | 18 |
-| Errors | 2 |
-| Warnings | 5 |
-| Suggestions | 5 |
-
-## Category Scores
-
-| Standard | Score |
-|---|---|
-| feature | 92.0 |
-| architecture | 78.0 |
+```
+Producer:   feature/offline-mode.md:42  (Feature Documentation)
+Consumer:   src/offline.rs:15            (Implementation)
+Contract:   CV1 — Documented Features Implemented
+Evidence:   Feature declares offline mode capability. No implementation found.
+Severity:   error
 ```
 
 ### Report Location
 
-`samgraha audit --report` writes to `[report].dir/audit/latest/report.md` and archives a timestamped copy under `[report].dir/audit/archive/`. `[report].dir` defaults to `${SAMGRAHA_REPORT_DIR}`, which resolves to `<repo>/docs/raw/reports` if that environment variable isn't set.
+`samgraha audit --report` writes to `[report].dir/{pipeline}/latest/report.md` and archives a timestamped copy under `[report].dir/{pipeline}/archive/`. `[report].dir` defaults to `${SAMGRAHA_REPORT_DIR}`, which resolves to `<repo>/docs/raw/reports` if unset.
 
 ## Related
 

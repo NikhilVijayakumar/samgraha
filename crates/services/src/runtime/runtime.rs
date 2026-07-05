@@ -8,10 +8,12 @@ use crate::runtime::policy::RuntimePolicy;
 use crate::search::SearchService;
 use crate::workspace::{WorkspaceBuildResult, WorkspaceService};
 use anyhow::{Context, Result};
+use audit_crate::pipeline::PipelineContext;
+use audit_crate::pipelines::{build::BuildPipeline, consistency::ConsistencyPipeline, coverage::CoveragePipeline, security::SecurityPipeline};
 use audit_crate::AuditFramework;
 use common::config::SamgrahaConfig;
 use registry::RegistryStore;
-use schemas::audit::{AuditReport, AuditStage, FindingStatus, GateResult, SectionChangedResult, SemanticReport};
+use schemas::audit::{AuditReport, AuditStage, FindingStatus, GateResult, PipelineKind, PipelineReport, SectionChangedResult, SemanticReport};
 use schemas::compilation::{CompilationRequest, CompilationResult};
 use schemas::document::Document;
 use schemas::manifest::RepositoryManifest;
@@ -137,6 +139,58 @@ impl KnowledgeRuntime {
 
     pub fn get_sections(&self, query: &SectionQuery) -> Result<SectionQueryResponse> {
         self.registry.get_sections_by_type(query)
+    }
+
+    pub fn run_pipeline(
+        &self,
+        kind: &PipelineKind,
+        inspect_artifact: bool,
+        runtime_mode: bool,
+    ) -> Result<PipelineReport> {
+        let ctx = PipelineContext::new(
+            self.context.repository_root.clone(),
+            self.context.config.clone(),
+        )
+        .with_inspect_artifact(inspect_artifact)
+        .with_runtime(runtime_mode);
+
+        let report = match kind {
+            PipelineKind::Build => AuditService::run_pipeline(&BuildPipeline, &ctx),
+            PipelineKind::Security => AuditService::run_pipeline(&SecurityPipeline, &ctx),
+            PipelineKind::Consistency => AuditService::run_pipeline(&ConsistencyPipeline, &ctx),
+            PipelineKind::Coverage => AuditService::run_pipeline(&CoveragePipeline, &ctx),
+            PipelineKind::Dependency => {
+                let mut findings = Vec::new();
+                let mut cats = std::collections::HashMap::new();
+                findings.push(schemas::audit::AuditFinding {
+                    check_id: "D0".into(),
+                    severity: schemas::audit::Severity::Suggestion,
+                    message: "Dependency Governance is specification only — automated checks not yet implemented".into(),
+                    location: None,
+                    document_id: None,
+                    provider: "pipeline".into(),
+                    stage: None,
+                    section_id: None,
+                    confidence: None,
+                    evidence: None,
+                    status: None,
+                    strategy: None,
+                });
+                cats.insert("Governance".into(), 100.0);
+                schemas::audit::PipelineReport {
+                    pipeline: PipelineKind::Dependency,
+                    score: 100.0,
+                    categories: cats,
+                    findings,
+                    timestamp: chrono::Utc::now().to_rfc3339(),
+                    metadata: std::collections::HashMap::new(),
+                }
+            }
+            PipelineKind::Doc => {
+                anyhow::bail!("Use the standard audit() method for Documentation Audit");
+            }
+        };
+        Ok(report)
     }
 
     pub fn audit(

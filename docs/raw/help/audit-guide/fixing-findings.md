@@ -6,52 +6,70 @@ How to respond to each type of audit finding with practical fixes.
 
 ## Content
 
-Deterministic findings always read as `{rule description}: '{document path}'` — they name the document, not a line or heading. There is no fuzzy "did you mean" suggestion and no per-section word-count check; keep that in mind when interpreting messages below.
+### Documentation Audit Findings
 
-### Missing Section (error, `has_section`)
+Deterministic findings always read as `{rule description}: '{document path}'` — they name the document, not a line or heading.
+
+#### Missing Section (error, `has_section`)
 
 **Finding**: `feat-001: Feature must document its purpose: 'docs/raw/feature/authentication.md'`
 
-**Fix**: Add the missing section with the canonical heading (or one of its aliases):
+**Fix**: Add the missing section with the canonical heading:
 
 ```markdown
 ## Purpose
 Handle user authentication for the application.
 ```
 
-### Empty Title (error, `has_title`)
+#### Empty Title (error, `has_title`)
 
 **Finding**: `readme-002: README must have a top-level title: 'README.md'`
 
-**Fix**: Add a non-empty `# Title` as the document's first H1 — the parser takes its text as the document title.
+**Fix**: Add a non-empty `# Title` as the document's first H1.
 
-### No Documents At All (error, `corpus_exists`)
+#### No Documents At All (error, `corpus_exists`)
 
 **Finding**: `readme-001: Repository must have a README.md`
 
-**Fix**: This only fires when zero documents exist in the domain — add at least one document of that standard.
+**Fix**: Add at least one document of that standard.
 
-### Implementation Leakage (warning, `no_implementation`)
+#### Implementation Leakage (warning, `no_implementation`)
 
 **Finding**: `feat-004: Feature must not specify technology: 'docs/raw/feature/authentication.md'`
 
-This check flags code fences (```` ```rust ````, ```` ```python ````, etc.) and keywords like `fn `, `impl `, `struct `, `pub `, `let `, `cargo install`, `npm install`, `pip install`.
-
-**Fix**: Move implementation details to the Feature Technical document. Keep the Feature doc focused on requirements.
+**Fix**: Move implementation details to the Feature Technical document.
 
 ### Semantic Heuristic Findings
 
-The semantic provider (see [Semantic Audit](semantic.md)) adds its own findings when run with `--provider semantic`:
+The semantic provider (`--provider semantic`) adds its own findings:
 
 - **sem-001** (warning) — document body under 50 words. Fix: add more context.
-- **sem-002** (suggestion) — placeholder text like `TBD`/`TODO`/`FIXME`/`coming soon`. Fix: replace with real content.
-- **sem-003** (suggestion) — a `vision`/`feature`/`design` doc names a specific technology (React, PostgreSQL, Rust, ...). Fix: describe the capability instead.
-- **sem-004** (suggestion) — a `vision` doc uses requirement-level language (`SHALL`, `MUST`, `FR1`, `API`, `endpoint`). Fix: move that language into a Feature document.
-- **sem-005** (suggestion) — an `engineering`/`architecture` doc has no rationale/decision language. Fix: add a sentence explaining why the approach was chosen.
+- **sem-002** (suggestion) — placeholder text (`TBD`/`TODO`/`FIXME`). Fix: replace with real content.
+- **sem-003** (suggestion) — vision/feature/design doc names specific technology. Fix: describe capability instead.
+- **sem-004** (suggestion) — vision doc uses requirement language. Fix: move to Feature doc.
+- **sem-005** (suggestion) — engineering/architecture doc missing rationale. Fix: add explanation.
+
+### Coverage Audit Findings
+
+Forward coverage (doc→code) errors: documented capability not implemented. Fix: implement the capability.
+
+Orphan findings (code→doc) are always **Warning**, never Error. Three valid resolutions:
+
+| Resolution | When to use |
+|---|---|
+| **Document** | The orphan is intentional — document it in the appropriate domain |
+| **Remove** | The orphan is dead code or experimental — delete it |
+| **Suppress** | The orphan is acceptable as-is — suppress via `[audit.suppress]` config |
+
+### Build & Security Audit Findings
+
+Config-level findings indicate a mismatch between documentation and configuration. Fix: update either the doc or the config to match.
+
+Artifact-level findings require a built binary. Fix: rebuild with correct configuration.
 
 ### Fix Workflow
 
-1. Run `samgraha audit --report` to see all findings.
+1. Run `samgraha audit --report` (or `samgraha audit --pipeline <name> --report`) to see all findings.
 2. Fix findings starting with errors (highest severity).
 3. Rerun audit to verify fixes.
 4. Repeat until the gate passes.
@@ -61,3 +79,4 @@ The semantic provider (see [Semantic Audit](semantic.md)) adds its own findings 
 - [Audit Overview](overview.md)
 - [Deterministic Audit](deterministic.md)
 - [Semantic Audit](semantic.md)
+- [Coverage Audit](../concepts/coverage.md)

@@ -4,7 +4,7 @@ This section details the Implementation Audit.
 
 ## Purpose
 
-Verifies that the source code faithfully implements the documented system.
+Verifies that the source code faithfully implements the documented system. Orphan detection (undocumented code or unimplemented features) is handled by **Coverage Audit**.
 
 This audit evaluates the **implementation against the documentation**, ensuring that Architecture, Feature Technical Design, Engineering, and External Context are consistently realized in source code.
 
@@ -230,7 +230,7 @@ Documentation should remain authoritative.
 
 Every major implementation module should trace to documented Architecture or Feature Technical Design.
 
-Orphan implementations should be identified.
+Orphan detection is handled by Coverage Audit (CV8, CV14).
 
 ---
 

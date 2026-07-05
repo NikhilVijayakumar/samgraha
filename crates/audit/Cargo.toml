@@ -13,3 +13,4 @@ thiserror.workspace = true
 anyhow.workspace = true
 serde.workspace = true
 rayon.workspace = true
+chrono.workspace = true

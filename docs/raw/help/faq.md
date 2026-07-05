@@ -10,7 +10,19 @@ Common questions about Samgraha and their answers.
 
 **Q: What is Samgraha?**
 
-A: A knowledge compilation and audit tool for engineering documentation. It compiles structured markdown into a searchable SQLite database, validates it against defined standards, and serves it via CLI and MCP for AI-assisted development.
+A: A knowledge compilation and audit tool for engineering documentation. It compiles structured markdown into a searchable SQLite database, validates it against defined standards, verifies artifacts against contracts, and serves knowledge via CLI and MCP for AI-assisted development.
+
+**Q: What is an audit?**
+
+A: The process of verifying artifacts against declared contracts. Samgraha supports multiple audit types: Documentation Audit (docs against standards), Implementation Audit (docs vs code), Build Audit (build docs vs config vs artifacts), Security Audit (security docs vs config vs code vs runtime), Consistency Audit (layer alignment), Coverage Audit (bidirectional doc↔code coverage + orphan detection), and Dependency Governance (dependency justification and health).
+
+**Q: What is an orphan finding?**
+
+A: An orphan is code that exists without corresponding documentation. Coverage Audit detects all orphans. Orphans are always Warning severity, never Error. Resolution: document the orphan, remove the orphan, or suppress the finding.
+
+**Q: How is Build Audit different from Documentation Audit?**
+
+A: Documentation Audit checks that build documentation is well-formed and complete (B1-B12). Build Audit additionally verifies that the documented build strategy is faithfully realized in configuration files and produced artifacts (BC1-BC10), optionally inspecting the binary via `--inspect-artifact`.
 
 **Q: How is Samgraha different from a wiki or Confluence?**
 

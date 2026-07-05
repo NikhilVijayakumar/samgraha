@@ -16,8 +16,11 @@ A quality gate is a minimum score threshold. If the audit score falls below the 
 # Gate at 80 (fail if overall score < 80)
 samgraha audit --gate 80
 
-# Gate per domain (domain is a positional argument)
+# Gate per domain (Documentation Audit only)
 samgraha audit feature --gate 90
+
+# Gate for Build Audit
+samgraha audit --pipeline build --gate 80
 
 # --gate with no value defaults to 100.0
 samgraha audit --gate
@@ -47,6 +50,10 @@ When a gate fails:
 | Pull Request | 70 (catch major issues) |
 | Main branch | 85 (production quality) |
 | Release | 90 (ship quality) |
+
+### Orphan Warnings Never Fail Gates
+
+Coverage Audit orphan findings are always **Warning**, never Error. They do not affect scores and cannot fail gates regardless of gate threshold.
 
 ### MCP Gate (Per Stage)
 

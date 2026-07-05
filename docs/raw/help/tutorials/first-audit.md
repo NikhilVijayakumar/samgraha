@@ -65,15 +65,27 @@ All errors should now be resolved.
 samgraha audit --gate 80
 ```
 
+### Optional: Coverage Audit
+
+If you have implementation code, run Coverage Audit to check for orphans:
+
+```bash
+samgraha audit --pipeline coverage
+```
+
+This detects undocumented code (warnings) and unimplemented features (errors).
+
 ### What You Learned
 
 - How to audit documents
 - How to interpret findings
 - How to fix common issues
 - How to use quality gates
+- How to run a coverage audit
 
 ## Related
 
 - [First Repository](first-repository.md)
 - [Audit Guide: Overview](../audit-guide/overview.md)
 - [Audit Guide: Fixing Findings](../audit-guide/fixing-findings.md)
+- [Coverage Audit Concept](../concepts/coverage.md)

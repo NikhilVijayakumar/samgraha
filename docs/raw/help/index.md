@@ -11,7 +11,7 @@ Samgraha compiles structured markdown documentation into a searchable SQLite kno
 This help is organized into:
 
 - **Getting Started** — Installation, initialization, environment setup, first project walkthrough
-- **Concepts** — Architecture and terminology: repositories, workspaces, knowledge DB, registry, standards, domains, audit
+- **Concepts** — Architecture and terminology: repositories, workspaces, knowledge DB, registry, standards, domains, audit, build audit, security audit, consistency audit, coverage audit, dependency governance
 - **Commands** — Complete CLI reference for every Samgraha command
 - **Configuration** — `samgraha.toml` reference covering every configuration section
 - **Documentation Guide** — How to write documentation for each Samgraha standard domain

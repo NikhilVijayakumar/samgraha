@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Audit defaults — severity thresholds, provider selection, and gating behavior.
+Audit defaults — severity thresholds, provider selection, gating behavior, and pipeline configuration.
 
 ## Content
 
@@ -17,25 +17,48 @@ providers = ["deterministic"]
 enabled = true
 min_score = 80.0
 min_readiness = "implementation"
-```
 
-Note the key is `default_severity` (underscore, not `default-severity`), and `providers` is plural — a list, not a single `provider` string. There is no scalar `gate` field; quality gates are a `gates` table keyed by domain name.
+[audit.pipelines.build]
+enabled = true
+artifact_inspection = "optional"
+
+[audit.pipelines.security]
+enabled = true
+runtime_verification = "optional"
+
+[audit.pipelines.consistency]
+enabled = true
+
+[audit.pipelines.coverage]
+enabled = true
+scanner = "simple"        # "simple" | "treesitter" (future)
+
+[audit.pipelines.dependency]
+enabled = false            # spec only
+```
 
 ### `default_severity`
 
-Default: `"suggestion"`. Documented as the minimum severity level; the CLI's own `--gate` behavior is driven purely by the numeric score (see below), not by this field directly.
+Default: `"suggestion"`. The minimum severity level for reporting.
 
 ### `providers`
 
-Default: `["deterministic"]`. List of audit providers to run when `samgraha audit` is invoked without `--provider`. `--provider` on the CLI can be repeated to override this per-invocation. The two providers currently registered are `deterministic` and `semantic` (see [Configuration: ai](ai.md) for `semantic`'s actual current implementation).
+Default: `["deterministic"]`. List of audit providers for Documentation Audit only.
 
 ### `gates`
 
-`HashMap<String, {enabled, min_score, min_readiness}>`, keyed by domain name. This configures per-domain quality gates (distinct from the CLI's own `--gate [<score>]` flag, which applies a single overall-score threshold for the invocation, defaulting to 100.0 if passed with no value). Fields:
+`HashMap<String, {enabled, min_score, min_readiness}>`, keyed by domain name. Applies to Documentation Audit only.
 
-- `enabled: bool`
-- `min_score: Option<f64>`
-- `min_readiness: Option<String>`
+### `pipelines`
+
+Pipeline-specific settings:
+
+| Pipeline | Key | Values |
+|---|---|---|
+| build | `artifact_inspection` | `"optional"` (default), `"always"`, `"never"` |
+| security | `runtime_verification` | `"optional"` (default), `"always"`, `"never"` |
+| coverage | `scanner` | `"simple"` (default, grep-based), `"treesitter"` (future) |
+| dependency | `enabled` | `false` (default, spec only) |
 
 ## Related
 

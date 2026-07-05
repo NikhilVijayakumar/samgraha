@@ -6,7 +6,7 @@ use services::package::PackageFormat;
 use schemas::search::{RetrievalLevel, SearchQuery, SectionQuery};
 use std::path::PathBuf;
 
-use crate::output::{format_output, render_audit, render_audit_report, render_compile, render_info, render_registry_list, render_search, render_sections, render_workspace_compile, OutputFormat};
+use crate::output::{format_output, render_audit, render_audit_report, render_compile, render_info, render_pipeline_report, render_registry_list, render_search, render_sections, render_workspace_compile, OutputFormat};
 use common::config::{resolve_configured_dir, SamgrahaConfig};
 use services::{CompilationService, KnowledgeRuntime, WorkspaceService};
 
@@ -82,17 +82,23 @@ pub enum Commands {
 
     #[command(about = "Run audit checks")]
     Audit {
-        #[arg(help = "Domain to audit (default: all)")]
+        #[arg(help = "Domain to audit (default: all) — Documentation Audit only")]
         domain: Option<String>,
 
         #[arg(
+            long = "pipeline",
+            help = "Audit pipeline to run (doc, build, security, consistency, coverage, dependency)"
+        )]
+        pipeline: Option<String>,
+
+        #[arg(
             long = "provider",
-            help = "Audit provider(s)",
+            help = "Audit provider(s) — Documentation Audit only",
             default_value = "deterministic"
         )]
         provider: Vec<String>,
 
-        #[arg(long = "all", help = "Audit all domains")]
+        #[arg(long = "all", help = "Audit all domains — Documentation Audit only")]
         all: bool,
 
         #[arg(
@@ -104,8 +110,14 @@ pub enum Commands {
         )]
         gate: Option<f64>,
 
-        #[arg(long = "report", help = "Save markdown report under [report].dir/audit/{latest,archive}/")]
+        #[arg(long = "report", help = "Save markdown report under [report].dir/{pipeline}/{latest,archive}/")]
         report: bool,
+
+        #[arg(long = "inspect-artifact", help = "Enable artifact-level checks (Build Audit only)")]
+        inspect_artifact: bool,
+
+        #[arg(long = "runtime", help = "Enable runtime-level checks (Security Audit only)")]
+        runtime: bool,
     },
 
     #[command(about = "Display repository information")]
@@ -250,11 +262,24 @@ impl Cli {
             } => self.execute_sections(semantic_type, domain.as_deref(), *max, &format),
             Commands::Audit {
                 domain,
+                pipeline,
                 provider,
                 all,
                 gate,
                 report,
-            } => self.execute_audit(domain.as_deref(), provider, *all, *gate, *report, &format),
+                inspect_artifact,
+                runtime,
+            } => self.execute_audit(
+                domain.as_deref(),
+                pipeline.as_deref(),
+                provider,
+                *all,
+                *gate,
+                *report,
+                *inspect_artifact,
+                *runtime,
+                &format,
+            ),
             Commands::Info { path } => self.execute_info(path.as_ref(), &format),
             Commands::Init { path, force } => self.execute_init(path.as_ref(), *force, &format),
             Commands::Package { output, profile, json } => {
@@ -458,70 +483,160 @@ impl Cli {
         Ok(ExitCode::Success)
     }
 
+    #[allow(clippy::too_many_arguments)] // ponytail: mirrors the Audit CLI's own flag surface 1:1, one flag per param
     fn execute_audit(
         &self,
         domain: Option<&str>,
+        pipeline: Option<&str>,
         providers: &[String],
         _all: bool,
         gate: Option<f64>,
         report: bool,
+        inspect_artifact: bool,
+        runtime: bool,
         format: &OutputFormat,
     ) -> Result<ExitCode> {
         let root = crate::config::discover_repository_root()?;
         let config = crate::config::load_config(self.config.as_ref())?;
-        ensure_compiled(&root, &config)?;
-        let mut runtime = KnowledgeRuntime::new(&root, config)?;
 
-        runtime.register_audit_provider("deterministic", |docs, rules| {
-            services::DeterministicAuditProvider::execute(docs, rules)
-        });
-        runtime.register_audit_provider("semantic", |docs, rules| {
-            providers::SemanticAuditProvider::execute(docs, rules)
-        });
-
-        let audit_domain = if _all { None } else { domain };
-        let provider_names: Vec<String> = if providers.is_empty() {
-            vec!["deterministic".to_string()]
-        } else {
-            providers.to_vec()
+        // Determine pipeline kind
+        let pipeline_kind = match pipeline {
+            Some(name) => match schemas::audit::PipelineKind::from_str(name) {
+                Some(k) => k,
+                None => anyhow::bail!(
+                    "Unknown pipeline '{}'. Valid values: doc, build, security, consistency, coverage, dependency",
+                    name
+                ),
+            },
+            None => schemas::audit::PipelineKind::Doc,
         };
 
-        let audit_report = runtime.audit(audit_domain, &provider_names, None)?;
-        println!("{}", render_audit(&audit_report, format));
-
-        if report {
-            let reports_base = resolve_configured_dir(
-                &runtime.context.config.report.dir,
-                &root,
-                "docs/raw/reports",
-            );
-            let latest_dir = reports_base.join("audit").join("latest");
-            let archive_dir = reports_base.join("audit").join("archive");
-            std::fs::create_dir_all(&latest_dir)?;
-            std::fs::create_dir_all(&archive_dir)?;
-
-            let md = render_audit_report(&audit_report);
-            let now = chrono::Local::now();
-            let archive_path = archive_dir.join(format!("{}.md", now.format("%Y%m%d-%H%M%S")));
-            std::fs::write(&archive_path, &md)?;
-            let latest_path = latest_dir.join("report.md");
-            std::fs::write(&latest_path, &md)?;
-
-            println!("Report saved: {}", latest_path.display());
-            println!("Archived:     {}", archive_path.display());
-        }
-
-        if let Some(min_score) = gate {
-            if audit_report.score.overall < min_score {
-                eprintln!(
-                    "Quality gate failed: score {:.1}% < minimum {:.1}%",
-                    audit_report.score.overall, min_score
+        if pipeline_kind != schemas::audit::PipelineKind::Doc {
+            let non_default_provider = !providers.is_empty() && providers != ["deterministic".to_string()];
+            if domain.is_some() || _all || non_default_provider {
+                anyhow::bail!(
+                    "--provider, --all, and the domain argument only apply to the doc pipeline (default). \
+                     '{}' does not accept them.",
+                    pipeline_kind.as_str()
                 );
-                return Ok(ExitCode::AuditFailure);
             }
         }
 
-        Ok(ExitCode::Success)
+        if pipeline_kind == schemas::audit::PipelineKind::Doc {
+            // Standard Documentation Audit path
+            ensure_compiled(&root, &config)?;
+            let mut runtime = KnowledgeRuntime::new(&root, config)?;
+
+            runtime.register_audit_provider("deterministic", |docs, rules| {
+                services::DeterministicAuditProvider::execute(docs, rules)
+            });
+            runtime.register_audit_provider("semantic", |docs, rules| {
+                providers::SemanticAuditProvider::execute(docs, rules)
+            });
+
+            let audit_domain = if _all { None } else { domain };
+            let provider_names: Vec<String> = if providers.is_empty() {
+                vec!["deterministic".to_string()]
+            } else {
+                providers.to_vec()
+            };
+
+            let audit_report = runtime.audit(audit_domain, &provider_names, None)?;
+            println!("{}", render_audit(&audit_report, format));
+
+            if report {
+                let reports_base = resolve_configured_dir(
+                    &runtime.context.config.report.dir,
+                    &root,
+                    "docs/raw/reports",
+                );
+                let latest_dir = reports_base.join("audit").join("latest");
+                let archive_dir = reports_base.join("audit").join("archive");
+                std::fs::create_dir_all(&latest_dir)?;
+                std::fs::create_dir_all(&archive_dir)?;
+
+                let md = render_audit_report(&audit_report);
+                let now = chrono::Local::now();
+                let archive_path = archive_dir.join(format!("{}.md", now.format("%Y%m%d-%H%M%S")));
+                std::fs::write(&archive_path, &md)?;
+                let latest_path = latest_dir.join("report.md");
+                std::fs::write(&latest_path, &md)?;
+
+                println!("Report saved: {}", latest_path.display());
+                println!("Archived:     {}", archive_path.display());
+            }
+
+            if let Some(min_score) = gate {
+                if audit_report.score.overall < min_score {
+                    eprintln!(
+                        "Quality gate failed: score {:.1}% < minimum {:.1}%",
+                        audit_report.score.overall, min_score
+                    );
+                    return Ok(ExitCode::AuditFailure);
+                }
+            }
+
+            Ok(ExitCode::Success)
+        } else {
+            // Pipeline audit path (Build, Security, Consistency, Coverage, Dependency)
+            let rt = KnowledgeRuntime::new(&root, config)?;
+            let pipeline_report = rt.run_pipeline(&pipeline_kind, inspect_artifact, runtime)?;
+
+            // Render pipeline report
+            println!("Pipeline: {}", pipeline_kind.as_str());
+            println!("Score: {:.1}%", pipeline_report.score);
+            if !pipeline_report.categories.is_empty() {
+                println!("Categories:");
+                for (name, score) in &pipeline_report.categories {
+                    println!("  {}: {:.1}%", name, score);
+                }
+            }
+            println!();
+            for f in &pipeline_report.findings {
+                let sev = match f.severity {
+                    schemas::audit::Severity::Error => "ERROR",
+                    schemas::audit::Severity::Warning => "WARN ",
+                    schemas::audit::Severity::Suggestion => "SUGG ",
+                };
+                let loc = f.location.as_deref().unwrap_or("");
+                println!("  [{}] {} {} — {}", sev, f.check_id, loc, f.message);
+            }
+
+            if report {
+                let reports_base = resolve_configured_dir(
+                    &rt.context.config.report.dir,
+                    &root,
+                    "docs/raw/reports",
+                );
+                let pipeline_name = pipeline_kind.as_str();
+                let latest_dir = reports_base.join(pipeline_name).join("latest");
+                let archive_dir = reports_base.join(pipeline_name).join("archive");
+                std::fs::create_dir_all(&latest_dir)?;
+                std::fs::create_dir_all(&archive_dir)?;
+
+                let md = render_pipeline_report(&pipeline_report);
+                let now = chrono::Local::now();
+                let archive_path = archive_dir.join(format!("{}.md", now.format("%Y%m%d-%H%M%S")));
+                std::fs::write(&archive_path, &md)?;
+                let latest_path = latest_dir.join("report.md");
+                std::fs::write(&latest_path, &md)?;
+
+                println!("Report saved: {}", latest_path.display());
+                println!("Archived:     {}", archive_path.display());
+            }
+
+            if let Some(min_score) = gate {
+                if pipeline_report.score < min_score {
+                    eprintln!(
+                        "Quality gate failed: score {:.1}% < minimum {:.1}%",
+                        pipeline_report.score, min_score
+                    );
+                    return Ok(ExitCode::AuditFailure);
+                }
+            }
+
+            Ok(ExitCode::Success)
+        }
     }
 
     fn execute_info(&self, path: Option<&PathBuf>, format: &OutputFormat) -> Result<ExitCode> {

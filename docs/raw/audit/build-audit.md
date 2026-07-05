@@ -4,17 +4,17 @@ This section details the Build Audit.
 
 ## Purpose
 
-Verifies that the Build Engineering documentation defines a complete, consistent, maintainable, and implementation-ready build strategy for the repository.
+Verifies that the Build Engineering documentation defines a complete, consistent, maintainable, and implementation-ready build strategy for the repository, **and** that Build Configuration and produced artifacts conform to that strategy.
 
 This audit evaluates the **build documentation as an integrated engineering collection**, ensuring that build decisions, technology choices, packaging, automation, reproducibility, and deployment preparation are fully documented and aligned with the Architecture.
 
-Build documentation describes **engineering strategy**, not implementation scripts or configuration file contents.
+Build documentation describes **engineering strategy**. The audit then verifies that strategy is faithfully realized in configuration and artifacts.
 
 ---
 
 # Authority
 
-Audit rules are defined by the validation checks in this document (B1–B12).
+Audit rules are defined by the validation checks in this document (B1–B12) for documentation quality, and (BC1–BC10) for build conformance.
 
 ---
 
@@ -247,6 +247,119 @@ Engineering responsibilities should remain modular.
 
 ---
 
+# Build Conformance
+
+This section defines checks that verify Build Configuration and produced artifacts conform to Build Documentation.
+
+## Artifact Spec Declaration
+
+Build Documentation should embed an Artifact Spec and Runtime Spec that declare the contract downstream artifacts must satisfy:
+
+```markdown
+## Artifact Spec
+
+- name: samgraha
+- targets: [x86_64-pc-windows-msvc, x86_64-unknown-linux-gnu, x86_64-apple-darwin]
+- outputs: [bin/samgraha.exe (windows), bin/samgraha (unix)]
+- embedded_files: [help.db, standards.db]
+- features: [sqlite, mcp-server]
+
+## Runtime Spec
+
+- requires: [sqlite, stdio]
+- embedded_db: [help.db, standards.db]
+- offline: true
+- network: none
+```
+
+---
+
+## BC1. Build Principles Realized
+
+Doc-declared build principles are visible in Build Configuration.
+
+**Level:** Config (always runs)
+
+---
+
+## BC2. Target Platforms Conform
+
+Doc-declared target platforms are built by CI and produce binaries.
+
+**Level:** Artifact* (opt-in — requires `--inspect-artifact`)
+
+---
+
+## BC3. Feature Completeness
+
+Every doc-declared feature exists in `Cargo.toml [features]`.
+
+**Level:** Config (always runs)
+
+---
+
+## BC4. Dependency Rationale
+
+Every dependency declared in config has rationale in build documentation.
+
+**Level:** Config (always runs)
+
+**Note:** Undocumented dependency detection is owned by Coverage Audit (CV12).
+
+---
+
+## BC5. CI Platform Alignment
+
+Doc-declared CI platform matches the actual CI configuration.
+
+**Level:** Config (always runs)
+
+---
+
+## BC6. Output Completeness
+
+Doc-declared binary outputs exist as `[[bin]]` targets and the produced artifact.
+
+**Level:** Artifact* (opt-in)
+
+---
+
+## BC7. Build Config Self-Consistency
+
+Build configuration contains no contradicting settings.
+
+**Level:** Config (always runs)
+
+---
+
+## BC8. External Context Applied
+
+External dependencies referenced in build configuration are documented through External Context.
+
+**Level:** Config (always runs)
+
+---
+
+## BC9. Artifact Contents Match Spec
+
+Declared embedded files are present in the produced binary.
+
+**Level:** Artifact* (opt-in)
+
+---
+
+## BC10. Future Maintainability
+
+Build configuration changes require updates only within the appropriate engineering documents.
+
+**Level:** Config (always runs)
+
+---
+
+`*` = Artifact-level checks require a built binary and are opt-in via `--inspect-artifact` flag or `[audit.pipelines.build] artifact_inspection = "always"` config.
+
+---
+
 # Scoring Model
 
 Each validation is scored.
@@ -268,9 +381,10 @@ Scores measure engineering quality rather than pass/fail compliance.
 
 | Category              | Weight |
 | --------------------- | -----: |
-| Engineering Strategy  |    35% |
-| Documentation Quality |    30% |
-| Engineering Readiness |    35% |
+| Engineering Strategy  |    25% |
+| Documentation Quality |    20% |
+| Engineering Readiness |    25% |
+| Build Conformance     |    30% |
 
 Weighted scores produce an overall **Build Engineering Score (0–100)**.
 
@@ -278,7 +392,7 @@ Weighted scores produce an overall **Build Engineering Score (0–100)**.
 
 # Success Criteria
 
-The Build Engineering documentation should:
+The Build Engineering documentation and conformance should:
 
 * define repository-wide build principles
 * justify engineering decisions
@@ -288,6 +402,8 @@ The Build Engineering documentation should:
 * reference External Context appropriately
 * prepare engineers for implementation
 * remain maintainable over time
+* realize documented principles in Build Configuration
+* produce artifacts matching the Artifact Spec
 
 ---
 
@@ -299,7 +415,7 @@ The report must follow the Standard Audit Report format and include:
 2. Overall Score
 3. Category Scores
 4. Document Scores
-5. Validation Scores (B1–B12)
+5. Validation Scores (B1–B12, BC1–BC10)
 6. Trend Analysis
 7. Findings (Critical / Major / Minor / Observations)
 8. Prioritized Recommendations
@@ -319,6 +435,7 @@ Assess:
 | CI/CD Readiness           | READY / NOT READY |
 | Release Readiness         | READY / NOT READY |
 | Implementation Readiness  | READY / NOT READY |
+| Build Conformance         | PASS / FAIL       |
 
 Provide justification for every assessment.
 
@@ -329,16 +446,17 @@ Provide justification for every assessment.
 1. Rotate the previous report according to `docs/raw/audit/README.md#report-rotation`.
 2. Inventory all build-related engineering documents.
 3. Verify required engineering concerns are present.
-4. Execute validation checks B1–B12.
-5. Score every validation.
-6. Score every engineering document.
-7. Calculate weighted category scores.
-8. Calculate the overall Build Engineering Score.
-9. Compare against the previous report when available.
-10. Identify findings and prioritized improvements.
-11. Assess Engineering Readiness.
-12. Generate the audit report using the Standard Audit Report format.
-13. Write the report to:
+4. Execute documentation validation checks B1–B12.
+5. Execute conformance checks BC1–BC10 (config-level always; artifact-level opt-in).
+6. Score every validation.
+7. Score every engineering document.
+8. Calculate weighted category scores.
+9. Calculate the overall Build Engineering Score.
+10. Compare against the previous report when available.
+11. Identify findings and prioritized improvements.
+12. Assess Engineering Readiness and Build Conformance.
+13. Generate the audit report using the Standard Audit Report format.
+14. Write the report to:
 
 ```text
 docs/raw/reports/build/latest/

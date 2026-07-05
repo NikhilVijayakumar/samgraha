@@ -59,6 +59,15 @@ Checks documents against the Feature Standard rules:
 - `feat-003` — Has acceptance criteria (pass/fail)
 - `feat-004` — Technology independent (pass/fail)
 
+You can also run other audit types:
+
+```bash
+samgraha audit --pipeline build
+samgraha audit --pipeline security
+samgraha audit --pipeline consistency
+samgraha audit --pipeline coverage
+```
+
 ### Step 5: Search
 
 ```bash
