@@ -102,19 +102,20 @@ The MCP Runtime exposes registry operations through MCP tools alongside knowledg
 
 ### Registration Flow
 
-1. User invokes `samgraha registry register` or `samgraha init` completes initialization.
-2. CLI reads the repository's `manifest.json` from `.samgraha/`.
-3. CLI calls `RegistryClient::register(&manifest)`.
+1. User invokes `samgraha registry register` (CLI) or `register_repository` (MCP), or `samgraha init` completes initialization.
+2. Caller supplies the repository's `manifest.json` (CLI reads it from `.samgraha/`; MCP callers pass it as a JSON string parameter).
+3. Caller calls `RegistryClient::register(&manifest)`.
 4. `FileRegistryClient` validates: UUID is unique, `knowledge_db` path is inside declared `root_path`.
 5. Registry writes repository entry to `repository_cache` table.
-6. Registry returns success with repository identity.
+6. **MCP only:** the adapter checks whether `knowledge.db` exists at `repository_root`/`knowledge.location`. If missing, it immediately compiles that repository (`CompilationService::execute` against the target repo's own `.samgraha/knowledge.db`) before returning. This is the one case where compilation is triggered implicitly rather than by an explicit `compile` call — it exists so a manifest can be registered ahead of a first compile without a separate round trip. The CLI path does not do this; `samgraha registry register` still assumes the manifest's `knowledge.db` already exists.
+7. Registry returns success with repository identity (MCP response includes `auto_compiled: bool`).
 
 ### Synchronization Flow
 
-1. User invokes `samgraha registry sync` (explicit) or `auto_refresh = true` triggers post-compile.
-2. CLI reads `manifest.json` from each registered repository.
-3. CLI calls `RegistryClient::sync(&manifest)` for each.
-4. `FileRegistryClient` validates UUID consistency: stored UUID must match manifest UUID. Mismatch is an error.
+1. User invokes `samgraha registry sync` (explicit, always available), or a successful `compile` (CLI or MCP) triggers it automatically when `[resolver].auto_refresh` is `true` (default) — see docs/raw/feature-technical/cli-interface.md § Dependency/Interest Auto-Registration.
+2. Caller reads `manifest.json` from each dependency declared in `[[repository.dependencies]]` (this backs both `knowledge.dependencies` and `knowledge.interests` name resolution).
+3. Caller calls `RegistryClient::sync(&config)`.
+4. `FileRegistryClient` validates UUID consistency: stored UUID must match manifest UUID. Mismatch is an error (manual `sync`) or a logged warning, non-fatal (automatic post-compile sync).
 5. Registry updates repository entry — revision, audit status, exports, capabilities, dependencies.
 6. Registry updates synchronization timestamp.
 7. Metadata Cache is updated — upserts `repository_cache` table entries for each dependency with new revision and TTL.
@@ -269,7 +270,7 @@ The CLI provides the user-facing interface for registry operations. `samgraha re
 
 ### MCP Runtime
 
-The MCP Runtime provides dual routing — knowledge operations through `KnowledgeRuntime`, registry operations through `RegistryClient`. Single adapter pattern.
+The MCP Runtime provides dual routing — knowledge operations through `KnowledgeRuntime`, registry operations through `RegistryClient`. Single adapter pattern. `register_repository` additionally calls into the Knowledge Compiler directly (via the same `compile_external` path used by the `compile` tool) when the manifest's declared `knowledge.db` is absent — the only registry-triggered compilation in the system.
 
 ### Metadata Cache
 
@@ -370,6 +371,7 @@ Future `HttpRegistryClient` (Phase 7+) would live in `crates/providers/` per dep
 | Expired metadata | Use stale metadata (graceful degradation), report stale status |
 | Path validation failure | Report invalid path, reject registration or sync |
 | Concurrent write conflict | SQLite serializes, retry is caller responsibility |
+| `knowledge.db` missing at MCP `register_repository` | Auto-compile the target repository before returning; registration fails if that compile fails |
 
 ---
 

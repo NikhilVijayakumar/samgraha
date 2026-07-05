@@ -415,6 +415,30 @@ This pattern lets the LLM:
 
 The MCP Adapter communicates using JSON-RPC 2.0 over standard I/O, following the Model Context Protocol specification for tool discovery, invocation, and response handling.
 
+### Repository Guard
+
+Like `git`, the adapter refuses to run outside an initialized repository — it will not silently operate against an arbitrary directory (or a plain `.git` repo that was never `samgraha init`-ed).
+
+On startup, before building the runtime, the server walks up from the current working directory looking for `.samgraha/` or `samgraha.toml`:
+
+```rust
+fn discover_root() -> Result<PathBuf> {
+    let cwd = std::env::current_dir()?;
+    let mut current = Some(cwd.as_path());
+    while let Some(dir) = current {
+        if dir.join(".samgraha").is_dir() || dir.join("samgraha.toml").exists() {
+            return Ok(dir.to_path_buf());
+        }
+        current = dir.parent();
+    }
+    anyhow::bail!("fatal: not a samgraha repository ...");
+}
+```
+
+If neither marker is found anywhere up the directory tree, the process exits with an error telling the caller to run `samgraha init` first — it does not fall back to `.git` or any other heuristic. The CLI enforces the identical check (`ensure_samgraha_repo` in `crates/cli/src/commands.rs`, gating every command except `init` and `version`; `discover_repository_root` in `crates/cli/src/config.rs` uses the same two markers when resolving the root for an already-guarded command).
+
+`samgraha init` (`crates/cli/src/commands.rs::execute_init`) is what creates the markers a repo needs to pass this guard: it writes `.samgraha/` (the runtime's local state directory — knowledge DB, registry cache, manifest) and `samgraha.toml` (repository id, name, and a generated UUID). Once either exists, the repo is a valid samgraha repo for both the CLI and the MCP server.
+
 ### Transport
 
 The MCP Adapter reads from stdin and writes to stdout. Each message is a newline-delimited JSON object following the Model Context Protocol specification (version `2025-03-26`).
@@ -443,6 +467,8 @@ On initialization, the adapter publishes its capabilities:
   ]
 }
 ```
+
+`version` is the crate build version, read at compile time from `crates/mcp/Cargo.toml` (`version.workspace = true`, defined once in the root `Cargo.toml` under `[workspace.package]`) via `env!("CARGO_PKG_VERSION")`. Cargo.toml is the single source of truth — bump the workspace version to bump this. Not tracked in `samgraha.toml`; that file holds repository/compilation/audit config, not build metadata. `protocol_version` is a separate, independently-set constant for the MCP wire protocol revision.
 
 ---
 

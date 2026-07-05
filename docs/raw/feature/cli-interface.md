@@ -61,9 +61,63 @@ If no path is specified, the current directory shall be used.
 
 `samgraha init [path]` shall:
 
-- create a `samgraha.toml` with default configuration
+- create a `samgraha.toml` with default configuration, if none exists yet
+- declare every builtin documentation standard by default, so a new repo's toml shows the full catalog it can opt out of rather than an empty/arbitrary subset
 - create the expected documentation directory structure
+- generate (or update) `.env.example` alongside the config, documenting every env key samgraha recognizes
 - provide a starting template for new repositories
+- be safe to re-run on an already-initialized repository: if `samgraha.toml` exists, it shall not be recreated or overwritten — instead, every section/key present in the current schema but missing from the existing file shall be added, and every key already present shall be left exactly as it is (including its formatting and comments). `--force` bypasses this and fully overwrites, for the rare case an actual reset is wanted.
+
+## FR5a. Repository Guard
+
+Every command except `init` and `version` shall refuse to run outside a samgraha repository, the same way `git` refuses to run outside a git repository:
+
+- before executing, walk up from the current directory looking for `.samgraha/` or `samgraha.toml`
+- if neither is found in the current directory or any parent, fail with an error naming the problem and pointing to `samgraha init`
+- a directory containing only a `.git/` (no samgraha markers) is not sufficient — it must be explicitly initialized with `samgraha init`
+- the MCP server applies the identical guard on startup, since it resolves the repository root the same way the CLI does
+
+## FR5b. Domain Exclusions
+
+A repository does not necessarily use every builtin documentation standard. `samgraha.toml`'s `[repository.documentation]` shall support:
+
+- `domain`: the declared/known domains for this repo (init populates this with the full builtin catalog)
+- `domain_exclusion`: domains from that catalog this repo deliberately does not use (e.g. no `prototype` docs)
+
+Effective, active domains = `domain` minus `domain_exclusion`. Commands that list domains (e.g. `samgraha info`) shall reflect the effective set, not the raw catalog. An empty `domain` list means "all builtin standards" (back-compat default).
+
+## FR5c. Environment-Resolved Paths
+
+Machine-specific absolute paths — documentation root, report output directory, implementation/source directory, and (optionally) external scripts/test directories — shall be configurable in `samgraha.toml` as `${VAR_NAME}` placeholders, resolved from the process environment at load time:
+
+- if the env var is set, its value is used (as an absolute path, or joined to the repo root if relative)
+- if unset, a sensible repo-relative default is used, so the tool works with zero env configuration on a single-machine setup
+- a literal path (no `${...}`) is also accepted as-is, bypassing env resolution entirely
+
+`samgraha env [path]` shall generate/update `.env.example` with every recognized key, blank/commented, so a repo can be cloned onto a new machine and have its per-machine values regenerated and filled in. This is additive — it must not remove or overwrite keys the repo already declared for other purposes.
+
+On startup, before loading any config, the CLI and MCP server shall load a `.env` file (found by walking up from the current directory) into the process environment, without overriding any variable already set for real — so a checked-in `samgraha.toml` full of `${VAR}` placeholders resolves to real per-machine values just from editing `.env`, no shell export required.
+
+## FR5d. Report Directory
+
+`samgraha audit --report` shall write reports under a configurable base directory (`[report].dir`, env-resolvable per FR5c), with each report type in its own subdirectory:
+
+- `<report-dir>/<type>/latest/report.md` — the most recent report (fixed filename, meant to be version-controlled so its history is `git log`, not a separate mechanism)
+- `<report-dir>/<type>/archive/<timestamp>.md` — every past run, kept for local history
+
+Default base directory: `docs/raw/reports`.
+
+## FR5f. Optional Scripts/Tests Directories
+
+Some repositories keep external scripts or tests outside their implementation directory (e.g. a top-level `scripts/` or `tests/` alongside `src/`). `samgraha.toml` shall support declaring these as optional, env-resolvable directories (`[repository.scripts].dir`, `[repository.tests].dir`, per FR5c). Neither is required — `init` does not populate them; a repo adds them only when applicable.
+
+## FR5e. Dependency/Interest Auto-Registration
+
+Declared dependencies (`[[repository.dependencies]]`) and interests (`knowledge.interests`) shall be kept registered in the local repository registry without requiring a separate manual step every time:
+
+- a successful `compile` (CLI or MCP) automatically syncs/registers any declared dependency with a resolvable local path and manifest
+- `samgraha registry register` / `samgraha registry sync` remain available as an explicit, manual path at any time, for any repository — auto-sync does not replace or restrict them
+- sync/registration failures are logged as warnings and do not fail the compile
 
 ## FR6. Progress Reporting
 

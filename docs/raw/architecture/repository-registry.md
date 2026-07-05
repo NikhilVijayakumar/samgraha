@@ -48,7 +48,11 @@ The Knowledge Resolver reads compiled knowledge databases directly. It never con
 4. **Local-first.** Resolution operates from local metadata cache.
 5. **Metadata is disposable.** Registry state can be regenerated from manifests at any time.
 6. **Identity stability.** Repository UUID survives renames and relocations.
-7. **Explicit sync.** Registry updates happen through explicit user commands, not automatically at runtime.
+7. **Explicit sync, with a compile-triggered exception.** Registry updates happen through explicit user commands (`registry register`/`registry sync`, always available, for any repository, at any time) — with two narrow exceptions:
+   - MCP `register_repository` auto-compiles the target repository if its `knowledge.db` does not yet exist, so a manifest can be registered before a first compile without a separate `compile` call. One-time bootstrap at registration.
+   - Both compile entry points (CLI `execute_compile`, MCP `handle_compile`) call `RegistryClient::sync()` automatically after a successful compile, so declared `[[repository.dependencies]]` (which backs both `knowledge.dependencies` and `knowledge.interests` name resolution) don't go stale just because nobody ran `sync` by hand. Failures are logged, not fatal.
+
+   Neither exception is a runtime resolution behavior — the Resolution Flow's "cache miss → degrade gracefully" rule (never auto-compile or auto-register at resolution time) is unaffected. See docs/raw/feature-technical/cli-interface.md § Dependency/Interest Auto-Registration.
 
 ---
 
@@ -355,6 +359,8 @@ The MCP adapter routes both knowledge and registry operations.
 
 Single adapter, dual routing.
 
+**Exception:** MCP `register_repository` also calls into the Knowledge Compiler, synchronously, when the manifest's `knowledge.db` does not yet exist at `repository_root`. This is the sole path where registration implicitly triggers compilation — see Design Principle 7 below.
+
 ---
 
 # Design Properties
@@ -365,7 +371,7 @@ Single adapter, dual routing.
 * **Deterministic.** Same input always produces same Registry state.
 * **Disposable.** Registry can be rebuilt from manifests at any time.
 * **Stable identity.** UUID survives renames and relocations.
-* **Explicit sync.** Registry updates happen on user command.
+* **Explicit sync, auto-refreshed on compile.** Registry updates happen on user command (`register`/`sync`, always available); a successful compile also triggers `sync()` automatically as a convenience, best-effort.
 * **Extensible.** `RegistryClient` trait supports future backends.
 
 ---
