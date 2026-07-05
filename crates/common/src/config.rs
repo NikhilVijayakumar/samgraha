@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -19,6 +19,59 @@ pub struct SamgrahaConfig {
     pub audit: AuditConfigSection,
     #[serde(default)]
     pub output: OutputConfigSection,
+    #[serde(default)]
+    pub report: ReportConfig,
+}
+
+/// Where generated reports (e.g. audit `--report` output) are written.
+///
+/// `dir` may be a literal path or a `${VAR}` placeholder resolved from the
+/// process environment at load time via [`resolve_configured_dir`] — see
+/// docs/raw/feature-technical/cli-interface.md "Environment-Resolved Paths".
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ReportConfig {
+    #[serde(default = "default_report_dir")]
+    pub dir: String,
+}
+
+fn default_report_dir() -> String {
+    "${SAMGRAHA_REPORT_DIR}".to_string()
+}
+
+impl Default for ReportConfig {
+    fn default() -> Self {
+        Self {
+            dir: default_report_dir(),
+        }
+    }
+}
+
+/// Resolve a configured path that may be a `${VAR}` placeholder.
+///
+/// - `"${VAR}"` (the whole string, nothing else): read `VAR` from the process
+///   environment. If set, use its value (joined to `root` if relative). If
+///   unset, fall back to `root.join(fallback_rel)` — so the tool works with
+///   zero env configuration on a single-machine setup.
+/// - Anything else is a literal path, used as-is (joined to `root` if relative).
+pub fn resolve_configured_dir(raw: &str, root: &Path, fallback_rel: &str) -> PathBuf {
+    let trimmed = raw.trim();
+    let literal = if let Some(var_name) = trimmed.strip_prefix("${").and_then(|s| s.strip_suffix('}')) {
+        std::env::var(var_name).ok()
+    } else {
+        Some(trimmed.to_string())
+    };
+
+    match literal {
+        Some(value) if !value.is_empty() => {
+            let p = PathBuf::from(&value);
+            if p.is_absolute() {
+                p
+            } else {
+                root.join(p)
+            }
+        }
+        _ => root.join(fallback_rel),
+    }
 }
 
 /// Which repositories to load into the Knowledge Package for this repo.
@@ -51,6 +104,52 @@ pub struct RepositoryConfig {
     pub name: Option<String>,
     #[serde(default)]
     pub uuid: Option<Uuid>,
+    #[serde(default)]
+    pub implementation: ImplementationConfig,
+    /// External scripts directory, if this repo keeps one separate from
+    /// `implementation.dir` (e.g. a top-level `scripts/`). Optional — most
+    /// repos don't declare this; absent means "not applicable".
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scripts: Option<ScriptsConfig>,
+    /// Test directory, if this repo keeps tests outside `implementation.dir`
+    /// (e.g. a top-level `tests/` alongside a `crates/`/`src/` implementation
+    /// dir). Optional — absent means tests live inside `implementation.dir`
+    /// or aren't tracked separately.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tests: Option<TestsConfig>,
+}
+
+/// Where this repository's source/implementation lives, relative to the
+/// repository root (or an absolute path resolved from env — see
+/// [`resolve_configured_dir`]). Reserved for future traceability/audit checks
+/// that cross-reference documentation against actual source; not yet read by
+/// any consumer.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ImplementationConfig {
+    #[serde(default = "default_implementation_dir")]
+    pub dir: String,
+}
+
+fn default_implementation_dir() -> String {
+    "${SAMGRAHA_IMPLEMENTATION_DIR}".to_string()
+}
+
+impl Default for ImplementationConfig {
+    fn default() -> Self {
+        Self {
+            dir: default_implementation_dir(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ScriptsConfig {
+    pub dir: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TestsConfig {
+    pub dir: String,
 }
 
 /// Parse duration strings like "24h", "7d", "3600" into seconds.
@@ -83,26 +182,40 @@ impl Default for RepositoryConfig {
             id: None,
             name: None,
             uuid: None,
+            implementation: ImplementationConfig::default(),
+            scripts: None,
+            tests: None,
         }
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DocumentationConfig {
+    /// Documentation root directory, relative to the repository root (or an
+    /// absolute path resolved from env — see [`resolve_configured_dir`]).
+    #[serde(default = "default_docs_root_dir")]
+    pub root_dir: String,
+    /// Domain names this repo declares (e.g. "architecture", "feature").
+    /// Empty means "all builtin standards" (back-compat default).
     #[serde(default)]
-    pub paths: Vec<String>,
+    pub domain: Vec<String>,
+    /// Domain names to ignore even though they're listed in `domain` — for
+    /// repos that don't use every builtin standard (e.g. no `prototype` docs).
+    /// Effective domains = `domain` minus `domain_exclusion`.
     #[serde(default)]
-    pub standards: Vec<String>,
-    #[serde(default)]
-    pub exclusions: Vec<String>,
+    pub domain_exclusion: Vec<String>,
+}
+
+fn default_docs_root_dir() -> String {
+    "${SAMGRAHA_DOCS_DIR}".to_string()
 }
 
 impl Default for DocumentationConfig {
     fn default() -> Self {
         Self {
-            paths: vec!["docs".to_string()],
-            standards: Vec::new(),
-            exclusions: Vec::new(),
+            root_dir: default_docs_root_dir(),
+            domain: Vec::new(),
+            domain_exclusion: Vec::new(),
         }
     }
 }
@@ -353,6 +466,7 @@ impl Default for SamgrahaConfig {
             ai: AiConfigSection::default(),
             audit: AuditConfigSection::default(),
             output: OutputConfigSection::default(),
+            report: ReportConfig::default(),
         }
     }
 }
