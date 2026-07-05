@@ -12,13 +12,13 @@ use services::registry_client::RegistryClient;
 use services::resolution::KnowledgeResolver;
 use services::context::KnowledgeContext;
 use services::KnowledgeRuntime;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 pub struct McpAdapter {
     runtime: Arc<KnowledgeRuntime>,
     registry: Arc<dyn RegistryClient>,
     capabilities: McpCapabilities,
-    context: Option<KnowledgeContext>,
+    context: Mutex<Option<KnowledgeContext>>,
 }
 
 impl McpAdapter {
@@ -54,12 +54,31 @@ impl McpAdapter {
             runtime,
             registry,
             capabilities: caps,
-            context,
+            context: Mutex::new(context),
         }
     }
 
     pub fn capabilities(&self) -> &McpCapabilities {
         &self.capabilities
+    }
+
+    /// Rebuild the context if absent or invalid. Logs on rebuild; swallows error (context stays None).
+    fn ensure_context(&self) {
+        let mut guard = self.context.lock().unwrap();
+        let needs_rebuild = guard.as_ref().map_or(true, |c| !c.is_valid());
+        if needs_rebuild {
+            tracing::info!("Knowledge context stale or absent — rebuilding");
+            match KnowledgeContext::create(
+                &self.runtime.context.repository_root,
+                &self.runtime.context.config,
+            ) {
+                Ok(ctx) => {
+                    tracing::info!("Knowledge context rebuilt: {} store(s)", ctx.store_count());
+                    *guard = Some(ctx);
+                }
+                Err(e) => tracing::warn!("Context rebuild failed: {}", e),
+            }
+        }
     }
 
     pub fn handle_message(&self, message: McpMessage) -> McpMessage {
@@ -288,9 +307,10 @@ impl McpAdapter {
             ..Default::default()
         };
 
-        let results = match &self.context {
-            Some(s) if s.is_valid() => s.search(&search_query)?,
-            _ => self.runtime.search(&search_query)?,
+        self.ensure_context();
+        let results = match &*self.context.lock().unwrap() {
+            Some(s) => s.search(&search_query)?,
+            None => self.runtime.search(&search_query)?,
         };
         let mut out = Self::paginate(results.results, offset, limit, "results");
         out["query"] = serde_json::Value::String(query.to_string());
@@ -331,7 +351,7 @@ impl McpAdapter {
 
     fn handle_info(&self, _req: &McpRequest) -> Result<serde_json::Value> {
         let mut info = serde_json::to_value(&self.runtime.info())?;
-        if let Some(ref s) = self.context {
+        if let Some(ref s) = *self.context.lock().unwrap() {
             info["context_stores"] = serde_json::json!(s.store_count());
             info["context_valid"] = serde_json::json!(s.is_valid());
         }
@@ -340,7 +360,7 @@ impl McpAdapter {
 
     /// Return the current Knowledge Plan so the client can inspect repo status.
     fn handle_get_plan(&self) -> Result<serde_json::Value> {
-        match &self.context {
+        match &*self.context.lock().unwrap() {
             Some(s) => Ok(serde_json::json!({
                 "context_valid": s.is_valid(),
                 "store_count": s.store_count(),
