@@ -10,7 +10,6 @@ use services::compilation::CompilationService;
 use services::planner::write_meta_file;
 use services::registry_client::RegistryClient;
 use services::resolution::KnowledgeResolver;
-use services::context::KnowledgeContext;
 use services::context_manager::ContextManager;
 use services::KnowledgeRuntime;
 use std::sync::Arc;
