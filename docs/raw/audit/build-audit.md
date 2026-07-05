@@ -251,6 +251,14 @@ Engineering responsibilities should remain modular.
 
 This section defines checks that verify Build Configuration and produced artifacts conform to Build Documentation.
 
+Evidence for these checks comes from the repository's own declared Pipeline
+Contract (`samgraha.toml [pipelines.build]`) — command, working directory,
+and declared artifacts — not from any assumption about which build system
+the repository uses. A repository built with Cargo, npm, a Makefile, or a
+custom script all satisfy these checks the same way: by declaring their own
+`[pipelines.build]` contract and keeping it truthful. See
+`help/concepts/pipeline-contracts.md`.
+
 ## Artifact Spec Declaration
 
 Build Documentation should embed an Artifact Spec and Runtime Spec that declare the contract downstream artifacts must satisfy:
@@ -292,7 +300,9 @@ Doc-declared target platforms are built by CI and produce binaries.
 
 ## BC3. Feature Completeness
 
-Every doc-declared feature exists in `Cargo.toml [features]`.
+Every doc-declared feature exists in the repository's declared Pipeline
+Contract (`samgraha.toml [pipelines.build]`), not any single build system's
+own feature-flag syntax.
 
 **Level:** Config (always runs)
 
@@ -318,7 +328,8 @@ Doc-declared CI platform matches the actual CI configuration.
 
 ## BC6. Output Completeness
 
-Doc-declared binary outputs exist as `[[bin]]` targets and the produced artifact.
+Doc-declared binary outputs exist as declared `artifacts` in the Pipeline
+Contract, and the produced artifact matches.
 
 **Level:** Artifact* (opt-in)
 

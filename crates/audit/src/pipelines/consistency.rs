@@ -74,15 +74,20 @@ impl Pipeline for ConsistencyPipeline {
             ));
         }
 
-        // C5: Engineering→Implementation Alignment
+        // C5: Engineering→Implementation Alignment — repository declares its
+        // own source location, never a hardcoded `src/`
         alignment_total += 1;
-        let src_dir = ctx.project_root.join("src");
+        let src_dir = common::config::resolve_configured_dir(
+            &ctx.config.repository.implementation.dir,
+            &ctx.project_root,
+            "src",
+        );
         if eng_dir.exists() && src_dir.exists() {
             alignment_passed += 1;
         } else {
             findings.push(finding(
                 "C5", Severity::Suggestion,
-                "Engineering→Implementation alignment requires both docs and src".into(),
+                "Engineering→Implementation alignment requires both docs and the declared implementation directory".into(),
                 None,
             ));
         }

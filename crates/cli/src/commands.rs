@@ -118,6 +118,15 @@ pub enum Commands {
 
         #[arg(long = "runtime", help = "Enable runtime-level checks (Security Audit only)")]
         runtime: bool,
+
+        #[arg(long = "execute", help = "Run the declared [pipelines.build] contract instead of verify-only (Build Audit only)")]
+        execute: bool,
+
+        #[arg(long = "dry-run", help = "Print the resolved build command without running it (Build Audit only)")]
+        dry_run: bool,
+
+        #[arg(long = "yes", help = "Skip the confirmation prompt for --execute")]
+        yes: bool,
     },
 
     #[command(about = "Display repository information")]
@@ -269,6 +278,9 @@ impl Cli {
                 report,
                 inspect_artifact,
                 runtime,
+                execute,
+                dry_run,
+                yes,
             } => self.execute_audit(
                 domain.as_deref(),
                 pipeline.as_deref(),
@@ -278,6 +290,9 @@ impl Cli {
                 *report,
                 *inspect_artifact,
                 *runtime,
+                *execute,
+                *dry_run,
+                *yes,
                 &format,
             ),
             Commands::Info { path } => self.execute_info(path.as_ref(), &format),
@@ -494,6 +509,9 @@ impl Cli {
         report: bool,
         inspect_artifact: bool,
         runtime: bool,
+        execute: bool,
+        dry_run: bool,
+        yes: bool,
         format: &OutputFormat,
     ) -> Result<ExitCode> {
         let root = crate::config::discover_repository_root()?;
@@ -519,6 +537,39 @@ impl Cli {
                      '{}' does not accept them.",
                     pipeline_kind.as_str()
                 );
+            }
+        }
+
+        if (execute || dry_run) && pipeline_kind != schemas::audit::PipelineKind::Build {
+            anyhow::bail!(
+                "--execute and --dry-run only apply to the build pipeline ('--pipeline build'). \
+                 '{}' does not accept them.",
+                pipeline_kind.as_str()
+            );
+        }
+        if execute && dry_run {
+            anyhow::bail!("--execute and --dry-run are mutually exclusive");
+        }
+
+        if execute && !dry_run && !yes {
+            let contract = config.pipelines.as_ref().and_then(|p| p.build.as_ref());
+            if let Some(contract) = contract {
+                match contract.resolve(&root) {
+                    Ok(resolved) => {
+                        eprintln!("About to execute: {}", resolved.command.join(" "));
+                        eprintln!("Working directory: {}", resolved.working_directory.display());
+                    }
+                    Err(e) => anyhow::bail!("Cannot resolve [pipelines.build] contract: {}", e),
+                }
+            }
+            eprint!("Run this command now? [y/N] ");
+            use std::io::Write;
+            std::io::stderr().flush().ok();
+            let mut answer = String::new();
+            std::io::stdin().read_line(&mut answer)?;
+            if !matches!(answer.trim().to_lowercase().as_str(), "y" | "yes") {
+                eprintln!("Aborted.");
+                return Ok(ExitCode::Success);
             }
         }
 
@@ -580,7 +631,7 @@ impl Cli {
         } else {
             // Pipeline audit path (Build, Security, Consistency, Coverage, Dependency)
             let rt = KnowledgeRuntime::new(&root, config)?;
-            let pipeline_report = rt.run_pipeline(&pipeline_kind, inspect_artifact, runtime)?;
+            let pipeline_report = rt.run_pipeline(&pipeline_kind, inspect_artifact, runtime, execute, dry_run)?;
 
             // Render pipeline report
             println!("Pipeline: {}", pipeline_kind.as_str());

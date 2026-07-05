@@ -19,17 +19,19 @@ impl Pipeline for SecurityPipeline {
         let mut runtime_passed = 0u32;
         let mut runtime_total = 0u32;
 
-        // SC1: Dependency Vulnerability Scanning (static)
+        // SC1: Dependency Vulnerability Scanning (static) — checked generically,
+        // not tied to one CI vendor or scanner
         static_total += 1;
-        let audit_path = ctx.project_root.join(".github").join("workflows");
-        let has_audit = audit_path.exists() && std::fs::read_dir(&audit_path).is_ok();
-        if has_audit {
+        let has_ci = [".github/workflows", ".gitlab-ci.yml", ".circleci/config.yml", "azure-pipelines.yml"]
+            .iter()
+            .any(|p| ctx.project_root.join(p).exists());
+        if has_ci {
             static_passed += 1;
         } else {
             findings.push(finding(
                 "SC1", Severity::Suggestion,
-                "No CI workflows found — assume cargo-audit not configured".into(),
-                Some(audit_path.to_string_lossy().to_string()),
+                "No recognized CI configuration found — assume dependency vulnerability scanning is not configured".into(),
+                Some(ctx.project_root.to_string_lossy().to_string()),
             ));
         }
 

@@ -359,6 +359,28 @@ impl McpAdapter {
     }
 
     fn handle_audit(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let pipeline_name = req.params.get("pipeline").and_then(|v| v.as_str());
+        let pipeline_kind = match pipeline_name {
+            Some(name) => schemas::audit::PipelineKind::from_str(name)
+                .ok_or_else(|| anyhow::anyhow!(
+                    "Unknown pipeline '{}'. Valid values: doc, build, security, consistency, coverage, dependency",
+                    name
+                ))?,
+            None => schemas::audit::PipelineKind::Doc,
+        };
+
+        if pipeline_kind != schemas::audit::PipelineKind::Doc {
+            let inspect_artifact = req.params.get("inspect_artifact").and_then(|v| v.as_bool()).unwrap_or(false);
+            let runtime_mode = req.params.get("runtime").and_then(|v| v.as_bool()).unwrap_or(false);
+            let execute = req.params.get("execute").and_then(|v| v.as_bool()).unwrap_or(false);
+            let dry_run = req.params.get("dry_run").and_then(|v| v.as_bool()).unwrap_or(false);
+            if (execute || dry_run) && pipeline_kind != schemas::audit::PipelineKind::Build {
+                anyhow::bail!("'execute'/'dry_run' only apply to the build pipeline");
+            }
+            let report = self.runtime.run_pipeline(&pipeline_kind, inspect_artifact, runtime_mode, execute, dry_run)?;
+            return Ok(serde_json::to_value(&report)?);
+        }
+
         let domain = req.params.get("domain").and_then(|v| v.as_str());
         let providers = req.params.get("providers")
             .and_then(|v| v.as_array())

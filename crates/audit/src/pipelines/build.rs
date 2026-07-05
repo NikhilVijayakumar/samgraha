@@ -17,45 +17,46 @@ impl Pipeline for BuildPipeline {
         let mut artifact_passed = 0u32;
         let mut artifact_total = 0u32;
 
+        let build_contract = ctx.config.pipelines.as_ref().and_then(|p| p.build.as_ref());
+
         // BC1: Build Principles Realized
         config_total += 1;
-        let cargo_path = ctx.project_root.join("Cargo.toml");
-        if cargo_path.exists() {
+        if build_contract.is_some() {
             config_passed += 1;
         } else {
             findings.push(finding(
                 "BC1", Severity::Error,
-                "Cargo.toml not found — build principles cannot be verified".into(),
+                "No [pipelines.build] contract declared in samgraha.toml — build principles cannot be verified".into(),
                 Some(ctx.project_root.to_string_lossy().to_string()),
             ));
         }
 
-        // BC2: Target Platforms
+        // BC2: Target Platforms — CI presence, checked generically (not tied to one CI vendor)
         config_total += 1;
-        let ci_path = ctx.project_root.join(".github").join("workflows");
-        if ci_path.exists() {
+        let has_ci = [".github/workflows", ".gitlab-ci.yml", ".circleci/config.yml", "azure-pipelines.yml"]
+            .iter()
+            .any(|p| ctx.project_root.join(p).exists());
+        if has_ci {
             config_passed += 1;
         } else {
             findings.push(finding(
                 "BC2", Severity::Warning,
-                "No CI workflow directory found — target platform verification limited".into(),
+                "No recognized CI configuration found — target platform verification limited".into(),
                 Some(ctx.project_root.to_string_lossy().to_string()),
             ));
         }
 
-        // BC3: Feature Completeness
+        // BC3: Feature Completeness — declared `produces` on the build contract,
+        // not any single build system's own feature-flag syntax
         config_total += 1;
-        if cargo_path.exists() {
-            let content = std::fs::read_to_string(&cargo_path).unwrap_or_default();
-            if content.contains("[features]") {
-                config_passed += 1;
-            } else {
-                findings.push(finding(
-                    "BC3", Severity::Suggestion,
-                    "No [features] section in Cargo.toml".into(),
-                    Some(cargo_path.to_string_lossy().to_string()),
-                ));
-            }
+        match build_contract {
+            Some(c) if !c.produces.is_empty() => config_passed += 1,
+            Some(_) => findings.push(finding(
+                "BC3", Severity::Suggestion,
+                "[pipelines.build] declares no `produces` — feature completeness cannot be verified".into(),
+                None,
+            )),
+            None => {} // already covered by BC1
         }
 
         // BC4: Dependency Rationale — stub
@@ -74,19 +75,79 @@ impl Pipeline for BuildPipeline {
             None,
         ));
 
-        // BC6: Output Completeness
+        // BC6: Output Completeness — declared `artifacts` on the build contract exist on disk
         config_total += 1;
-        if cargo_path.exists() {
-            let content = std::fs::read_to_string(&cargo_path).unwrap_or_default();
-            if content.contains("[[bin]]") {
-                config_passed += 1;
-            } else {
+        match build_contract.map(|c| (c, c.resolve(&ctx.project_root))) {
+            Some((contract, Ok(resolved))) if ctx.dry_run => {
+                config_passed += 1; // dry-run is informational, not a failure
                 findings.push(finding(
                     "BC6", Severity::Suggestion,
-                    "No [[bin]] targets declared in Cargo.toml".into(),
-                    Some(cargo_path.to_string_lossy().to_string()),
+                    format!("Dry run — would execute: {}", resolved.command.join(" ")),
+                    None,
+                ));
+                let _ = contract; // command already captured above
+            }
+            Some((contract, Ok(resolved))) if ctx.execute => {
+                let timeout_secs = contract
+                    .timeout
+                    .as_deref()
+                    .and_then(common::config::parse_ttl_duration);
+                match crate::contract::ContractRunner::execute(&resolved, &ctx.project_root, timeout_secs) {
+                    Ok(result) if !result.matched_expected_exit_code => {
+                        findings.push(finding(
+                            "BC6", Severity::Warning,
+                            format!("Build command exited {} (expected {})", result.exit_code, resolved.success_exit_code),
+                            None,
+                        ));
+                    }
+                    Ok(_) => {
+                        let missing: Vec<_> = resolved.artifacts.iter().filter(|a| !a.exists()).collect();
+                        if missing.is_empty() {
+                            config_passed += 1;
+                        } else {
+                            for m in missing {
+                                findings.push(finding(
+                                    "BC6", Severity::Suggestion,
+                                    format!("Declared artifact not found after build: {}", m.display()),
+                                    Some(m.to_string_lossy().to_string()),
+                                ));
+                            }
+                        }
+                    }
+                    Err(e) => findings.push(finding(
+                        "BC6", Severity::Error,
+                        format!("Build execution failed: {}", e),
+                        None,
+                    )),
+                }
+            }
+            Some((_, Ok(resolved))) if resolved.artifacts.is_empty() => {
+                findings.push(finding(
+                    "BC6", Severity::Suggestion,
+                    "[pipelines.build] declares no `artifacts` — output completeness cannot be verified".into(),
+                    None,
                 ));
             }
+            Some((_, Ok(resolved))) => {
+                let missing: Vec<_> = resolved.artifacts.iter().filter(|a| !a.exists()).collect();
+                if missing.is_empty() {
+                    config_passed += 1;
+                } else {
+                    for m in missing {
+                        findings.push(finding(
+                            "BC6", Severity::Suggestion,
+                            format!("Declared artifact not found: {}", m.display()),
+                            Some(m.to_string_lossy().to_string()),
+                        ));
+                    }
+                }
+            }
+            Some((_, Err(e))) => findings.push(finding(
+                "BC6", Severity::Warning,
+                format!("[pipelines.build] artifacts could not be resolved: {}", e),
+                None,
+            )),
+            None => {} // already covered by BC1
         }
 
         // BC7: Build Config Self-Consistency — stub
@@ -167,6 +228,18 @@ mod tests {
         fn ctx(&self) -> PipelineContext {
             PipelineContext::new(self.root.clone(), common::config::SamgrahaConfig::default())
         }
+
+        fn ctx_with_build_contract(&self, contract: common::config::ContractSpec) -> PipelineContext {
+            let mut config = common::config::SamgrahaConfig::default();
+            config.pipelines = Some(common::config::PipelineContractConfig {
+                version: "1.0".to_string(),
+                build: Some(contract),
+                test: None,
+                package: None,
+                deploy: None,
+            });
+            PipelineContext::new(self.root.clone(), config)
+        }
     }
 
     impl Drop for TempProject {
@@ -175,8 +248,21 @@ mod tests {
         }
     }
 
+    fn bare_contract() -> common::config::ContractSpec {
+        common::config::ContractSpec {
+            command: vec!["echo".into(), "build".into()],
+            working_directory: "${PROJECT_ROOT}".to_string(),
+            artifacts: vec![],
+            success_exit_code: None,
+            timeout: None,
+            description: None,
+            produces: vec![],
+            consumes: vec![],
+        }
+    }
+
     #[test]
-    fn bc1_errors_when_no_cargo_toml() {
+    fn bc1_errors_when_no_pipelines_build_contract_declared() {
         let proj = TempProject::new();
         let report = BuildPipeline.run(&proj.ctx());
         let bc1 = report.findings.iter().find(|f| f.check_id == "BC1").unwrap();
@@ -184,11 +270,96 @@ mod tests {
     }
 
     #[test]
-    fn bc1_passes_when_cargo_toml_present() {
+    fn bc1_passes_when_pipelines_build_contract_declared() {
+        // regression: no Cargo.toml anywhere in this fixture — proves BuildPipeline
+        // no longer requires Rust/Cargo specifically, any declared contract works.
         let proj = TempProject::new();
-        std::fs::write(proj.root.join("Cargo.toml"), "[package]\nname=\"x\"").unwrap();
-        let report = BuildPipeline.run(&proj.ctx());
+        let report = BuildPipeline.run(&proj.ctx_with_build_contract(bare_contract()));
         assert!(!report.findings.iter().any(|f| f.check_id == "BC1"));
+    }
+
+    #[test]
+    fn bc3_passes_when_contract_declares_produces() {
+        let proj = TempProject::new();
+        let mut contract = bare_contract();
+        contract.produces = vec!["release binary".into()];
+        let report = proj_bc3(&proj, contract);
+        assert!(!report.findings.iter().any(|f| f.check_id == "BC3"));
+    }
+
+    #[test]
+    fn bc3_suggests_when_contract_declares_no_produces() {
+        let proj = TempProject::new();
+        let report = proj_bc3(&proj, bare_contract());
+        let bc3 = report.findings.iter().find(|f| f.check_id == "BC3").unwrap();
+        assert_eq!(bc3.severity, Severity::Suggestion);
+    }
+
+    fn proj_bc3(proj: &TempProject, contract: common::config::ContractSpec) -> schemas::audit::PipelineReport {
+        BuildPipeline.run(&proj.ctx_with_build_contract(contract))
+    }
+
+    #[test]
+    fn bc6_passes_when_declared_artifact_exists() {
+        let proj = TempProject::new();
+        std::fs::write(proj.root.join("out.bin"), b"x").unwrap();
+        let mut contract = bare_contract();
+        contract.artifacts = vec!["${PROJECT_ROOT}/out.bin".to_string()];
+        let report = BuildPipeline.run(&proj.ctx_with_build_contract(contract));
+        assert!(!report.findings.iter().any(|f| f.check_id == "BC6"));
+    }
+
+    #[test]
+    fn bc6_warns_when_declared_artifact_missing() {
+        let proj = TempProject::new();
+        let mut contract = bare_contract();
+        contract.artifacts = vec!["${PROJECT_ROOT}/missing.bin".to_string()];
+        let report = BuildPipeline.run(&proj.ctx_with_build_contract(contract));
+        assert!(report.findings.iter().any(|f| f.check_id == "BC6"));
+    }
+
+    #[test]
+    fn bc6_dry_run_reports_command_without_running_it() {
+        let proj = TempProject::new();
+        let mut contract = bare_contract();
+        contract.artifacts = vec!["${PROJECT_ROOT}/out.bin".to_string()];
+        contract.command = vec!["some-marker-that-would-fail-if-run".to_string()];
+        let ctx = proj.ctx_with_build_contract(contract).with_dry_run(true);
+        let report = BuildPipeline.run(&ctx);
+        let bc6 = report.findings.iter().find(|f| f.check_id == "BC6").unwrap();
+        assert!(bc6.message.contains("Dry run"));
+        assert!(!proj.root.join("out.bin").exists()); // nothing was executed
+    }
+
+    #[test]
+    fn bc6_execute_runs_command_and_verifies_fresh_artifact() {
+        let proj = TempProject::new();
+        let mut contract = bare_contract();
+        // portable "create the declared artifact" command
+        let (cmd, args): (&str, &[&str]) = if cfg!(windows) {
+            ("cmd", &["/C", "echo x > out.bin"])
+        } else {
+            ("sh", &["-c", "echo x > out.bin"])
+        };
+        contract.command = std::iter::once(cmd.to_string())
+            .chain(args.iter().map(|s| s.to_string()))
+            .collect();
+        contract.artifacts = vec!["${PROJECT_ROOT}/out.bin".to_string()];
+        let ctx = proj.ctx_with_build_contract(contract).with_execute(true);
+        let report = BuildPipeline.run(&ctx);
+        assert!(!report.findings.iter().any(|f| f.check_id == "BC6"));
+        assert!(proj.root.join("out.bin").exists());
+    }
+
+    #[test]
+    fn bc6_execute_refuses_contract_escaping_project_root() {
+        let proj = TempProject::new();
+        let mut contract = bare_contract();
+        contract.working_directory = "${PROJECT_ROOT}/../".to_string();
+        let ctx = proj.ctx_with_build_contract(contract).with_execute(true);
+        let report = BuildPipeline.run(&ctx);
+        let bc6 = report.findings.iter().find(|f| f.check_id == "BC6").unwrap();
+        assert_eq!(bc6.severity, Severity::Error);
     }
 
     #[test]

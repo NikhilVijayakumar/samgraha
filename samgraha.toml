@@ -32,7 +32,8 @@ domain = ["readme", "vision", "philosophy", "architecture", "feature", "feature-
 domain_exclusion = ["design", "feature-design", "external-context", "prototype", "help", "standards"]
 
 [repository.implementation]
-# Reserved for future traceability checks; not yet consumed by any tool.
+# Read by Coverage/Consistency pipeline checks as the source root (resolves
+# to "crates" for this repo via .env — a workspace, not a single "src/").
 dir = "${SAMGRAHA_IMPLEMENTATION_DIR}"
 
 [repository.scripts]
@@ -40,6 +41,25 @@ dir = "${SAMGRAHA_SCRIPTS_DIR}"
 
 [repository.tests]
 dir = "${SAMGRAHA_TESTS_DIR}"
+
+[pipelines]
+version = "1.0"
+
+[pipelines.build]
+command = ["cargo", "build", "--release", "-p", "cli"]
+working_directory = "${PROJECT_ROOT}"
+artifacts = ["${PROJECT_ROOT}/target/release/cli.exe"]
+description = "Build the release CLI binary"
+produces = ["release binary"]
+consumes = ["source code", "dependencies"]
+
+[pipelines.test]
+command = ["cargo", "test", "--workspace"]
+working_directory = "${PROJECT_ROOT}"
+artifacts = []
+description = "Run the full workspace test suite"
+produces = ["test results"]
+consumes = ["source code"]
 
 [compilation]
 watch = false

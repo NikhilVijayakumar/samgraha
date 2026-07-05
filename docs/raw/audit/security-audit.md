@@ -276,7 +276,11 @@ Security Documentation should embed a Security Properties section declaring what
 
 ## SC1. Dependency Vulnerability Scanning
 
-Doc-declared vulnerability scanning is configured (e.g., `cargo-audit` in CI).
+Doc-declared vulnerability scanning is configured. Evidence comes from the
+repository's declared Pipeline Contract (e.g. a `[pipelines.test]` entry
+running `cargo-audit`, `npm audit`, `pip-audit`, or any equivalent the
+repository declares) — not a hardcoded assumption about which scanner or CI
+system is in use.
 
 **Level:** Static (always runs)
 

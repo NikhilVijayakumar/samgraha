@@ -13,6 +13,11 @@ pub struct PipelineContext {
     pub config: common::config::SamgrahaConfig,
     pub inspect_artifact: bool,
     pub runtime_mode: bool,
+    /// Run the declared Pipeline Contract (`[pipelines.build]`) instead of
+    /// verify-only checking pre-existing artifacts. Build Audit only.
+    pub execute: bool,
+    /// Print the resolved command without running it. Build Audit only.
+    pub dry_run: bool,
 }
 
 impl PipelineContext {
@@ -25,6 +30,8 @@ impl PipelineContext {
             config,
             inspect_artifact: false,
             runtime_mode: false,
+            execute: false,
+            dry_run: false,
         }
     }
 
@@ -35,6 +42,16 @@ impl PipelineContext {
 
     pub fn with_runtime(mut self, val: bool) -> Self {
         self.runtime_mode = val;
+        self
+    }
+
+    pub fn with_execute(mut self, val: bool) -> Self {
+        self.execute = val;
+        self
+    }
+
+    pub fn with_dry_run(mut self, val: bool) -> Self {
+        self.dry_run = val;
         self
     }
 }

@@ -15,7 +15,13 @@ impl Pipeline for CoveragePipeline {
 
         // Forward coverage (doc→code)
         let docs_base = ctx.project_root.join("docs").join("raw");
-        let src_dir = ctx.project_root.join("src");
+        // Repository declares its own source location — never a hardcoded `src/`.
+        let src_dir = common::config::resolve_configured_dir(
+            &ctx.config.repository.implementation.dir,
+            &ctx.project_root,
+            "src",
+        );
+        let build_contract = ctx.config.pipelines.as_ref().and_then(|p| p.build.as_ref());
 
         // CV1: Documented Features Implemented
         let feature_dir = docs_base.join("feature");
@@ -85,13 +91,12 @@ impl Pipeline for CoveragePipeline {
         ));
 
         // CV7: Documented Build Targets Exist
-        let cargo = ctx.project_root.join("Cargo.toml");
-        if cargo.exists() {
+        if build_contract.is_some() {
             fwd_passed += 1;
         } else {
             findings.push(finding(
                 "CV7", Severity::Warning,
-                "No Cargo.toml found — build targets cannot be verified".into(),
+                "No [pipelines.build] contract declared — build targets cannot be verified".into(),
                 None,
             ));
         }
@@ -129,7 +134,7 @@ impl Pipeline for CoveragePipeline {
         ));
 
         // CV12: No Orphan Dependencies
-        if cargo.exists() {
+        if build_contract.is_some() {
             findings.push(finding(
                 "CV12", Severity::Suggestion,
                 "Orphan dependency detection requires dependency manifest analysis — not yet implemented".into(),
@@ -140,10 +145,10 @@ impl Pipeline for CoveragePipeline {
         }
 
         // CV13: No Orphan Features
-        if cargo.exists() {
+        if build_contract.is_some() {
             findings.push(finding(
                 "CV13", Severity::Suggestion,
-                "Orphan feature detection requires Cargo.toml [features] analysis — not yet implemented".into(),
+                "Orphan feature detection requires build contract analysis — not yet implemented".into(),
                 None,
             ));
         } else {
@@ -209,12 +214,68 @@ mod tests {
         fn ctx(&self) -> PipelineContext {
             PipelineContext::new(self.root.clone(), common::config::SamgrahaConfig::default())
         }
+
+        fn ctx_with_build_contract(&self) -> PipelineContext {
+            let mut config = common::config::SamgrahaConfig::default();
+            config.pipelines = Some(common::config::PipelineContractConfig {
+                version: "1.0".to_string(),
+                build: Some(common::config::ContractSpec {
+                    command: vec!["echo".into(), "build".into()],
+                    working_directory: "${PROJECT_ROOT}".to_string(),
+                    artifacts: vec![],
+                    success_exit_code: None,
+                    timeout: None,
+                    description: None,
+                    produces: vec![],
+                    consumes: vec![],
+                }),
+                test: None,
+                package: None,
+                deploy: None,
+            });
+            PipelineContext::new(self.root.clone(), config)
+        }
+
+        fn ctx_with_implementation_dir(&self, dir: &str) -> PipelineContext {
+            let mut config = common::config::SamgrahaConfig::default();
+            config.repository.implementation.dir = dir.to_string();
+            PipelineContext::new(self.root.clone(), config)
+        }
     }
 
     impl Drop for TempProject {
         fn drop(&mut self) {
             let _ = std::fs::remove_dir_all(&self.root);
         }
+    }
+
+    #[test]
+    fn cv7_passes_with_declared_build_contract_no_cargo_toml() {
+        // regression: no Cargo.toml in this fixture at all — proves CV7 no
+        // longer requires Rust/Cargo specifically.
+        let proj = TempProject::new();
+        let report = CoveragePipeline.run(&proj.ctx_with_build_contract());
+        assert!(!report.findings.iter().any(|f| f.check_id == "CV7"));
+    }
+
+    #[test]
+    fn cv7_warns_without_declared_build_contract() {
+        let proj = TempProject::new();
+        let report = CoveragePipeline.run(&proj.ctx());
+        let cv7 = report.findings.iter().find(|f| f.check_id == "CV7").unwrap();
+        assert_eq!(cv7.severity, Severity::Warning);
+    }
+
+    #[test]
+    fn source_dir_honors_declared_implementation_dir_not_hardcoded_src() {
+        // regression: source lives under "crates", not "src" — a workspace
+        // shape this repo itself uses. CV1 must find it via the declared
+        // implementation dir, not a hardcoded "src".
+        let proj = TempProject::new();
+        std::fs::create_dir_all(proj.root.join("docs/raw/feature")).unwrap();
+        std::fs::create_dir_all(proj.root.join("crates")).unwrap();
+        let report = CoveragePipeline.run(&proj.ctx_with_implementation_dir("crates"));
+        assert!(!report.findings.iter().any(|f| f.check_id == "CV1"));
     }
 
     #[test]

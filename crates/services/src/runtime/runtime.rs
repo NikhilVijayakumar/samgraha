@@ -146,13 +146,17 @@ impl KnowledgeRuntime {
         kind: &PipelineKind,
         inspect_artifact: bool,
         runtime_mode: bool,
+        execute: bool,
+        dry_run: bool,
     ) -> Result<PipelineReport> {
         let ctx = PipelineContext::new(
             self.context.repository_root.clone(),
             self.context.config.clone(),
         )
         .with_inspect_artifact(inspect_artifact)
-        .with_runtime(runtime_mode);
+        .with_runtime(runtime_mode)
+        .with_execute(execute)
+        .with_dry_run(dry_run);
 
         let report = match kind {
             PipelineKind::Build => AuditService::run_pipeline(&BuildPipeline, &ctx),

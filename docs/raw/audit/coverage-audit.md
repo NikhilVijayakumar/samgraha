@@ -44,6 +44,11 @@ Evidence is collected automatically. The scanner uses a manifest-driven approach
 
 **Orphan findings are always Warning severity** (never Error), regardless of scanner precision. The user decides the resolution: document / remove / suppress.
 
+**Source location:** the scanner reads `repository.implementation.dir` and
+`repository.tests.dir` from `samgraha.toml` (with `repository.source_exclude`
+applied) to find source — not a hardcoded `src/`. A repository declares where
+its own code lives once; the scanner never guesses a convention.
+
 ---
 
 # Validation Checklist

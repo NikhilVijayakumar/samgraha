@@ -21,6 +21,167 @@ pub struct SamgrahaConfig {
     pub output: OutputConfigSection,
     #[serde(default)]
     pub report: ReportConfig,
+    /// Repository-declared build/test/package/deploy contracts — see
+    /// `PipelineContractConfig`. Absent means the repository hasn't declared
+    /// any (Build/Security/Coverage pipeline checks fall back to reporting
+    /// "no contract declared" rather than guessing a build system).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pipelines: Option<PipelineContractConfig>,
+}
+
+/// Repository-declared operational contracts (`samgraha.toml [pipelines.*]`).
+/// Deliberately not named `PipelineConfig` / anything with a bare `Pipeline`
+/// prefix — `crates::audit::pipeline` already owns that name for the 5 audit
+/// types (Build, Security, Consistency, Coverage, Dependency). This is a
+/// different concept: user-declared, executable commands.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PipelineContractConfig {
+    #[serde(default = "default_pipelines_version")]
+    pub version: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub build: Option<ContractSpec>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub test: Option<ContractSpec>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub package: Option<ContractSpec>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deploy: Option<ContractSpec>,
+}
+
+fn default_pipelines_version() -> String {
+    "1.0".to_string()
+}
+
+/// This build's supported `[pipelines] version` — see [`PipelineContractConfig::check_version`].
+pub const SUPPORTED_PIPELINES_MAJOR: u32 = 1;
+pub const SUPPORTED_PIPELINES_MINOR: u32 = 0;
+
+impl PipelineContractConfig {
+    /// Checks `version` (`"major.minor"`) against what this build supports.
+    /// `Err` on a different major version (hard error — the contract shape
+    /// may have changed incompatibly). `Ok(true)` on a higher minor than
+    /// supported (forward-compatible field additions — proceed, caller should
+    /// warn). `Ok(false)` otherwise.
+    pub fn check_version(&self) -> Result<bool, String> {
+        let (major, minor) = self
+            .version
+            .split_once('.')
+            .and_then(|(maj, min)| Some((maj.parse::<u32>().ok()?, min.parse::<u32>().ok()?)))
+            .ok_or_else(|| {
+                format!(
+                    "Invalid [pipelines] version '{}': expected 'major.minor'",
+                    self.version
+                )
+            })?;
+        if major != SUPPORTED_PIPELINES_MAJOR {
+            return Err(format!(
+                "samgraha.toml declares [pipelines] version {}, this build supports {}.x — \
+                 upgrade Saṃgraha or downgrade the declared version",
+                self.version, SUPPORTED_PIPELINES_MAJOR
+            ));
+        }
+        Ok(minor > SUPPORTED_PIPELINES_MINOR)
+    }
+}
+
+/// One build/test/package/deploy contract. Same shape for all 4 types —
+/// `artifacts`/`working_directory` are always present so evidence-freshness
+/// checking runs one algorithm over every contract type, not one per type.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct ContractSpec {
+    pub command: Vec<String>,
+    #[serde(default = "default_working_directory")]
+    pub working_directory: String,
+    #[serde(default)]
+    pub artifacts: Vec<String>,
+    #[serde(default)]
+    pub success_exit_code: Option<i32>,
+    #[serde(default)]
+    pub timeout: Option<String>,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub produces: Vec<String>,
+    #[serde(default)]
+    pub consumes: Vec<String>,
+}
+
+fn default_working_directory() -> String {
+    "${PROJECT_ROOT}".to_string()
+}
+
+/// A `ContractSpec` with every `${VAR}`/`${VAR:-default}`/`${PROJECT_ROOT}`
+/// placeholder substituted.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ResolvedContract {
+    pub command: Vec<String>,
+    pub working_directory: PathBuf,
+    pub artifacts: Vec<PathBuf>,
+    pub success_exit_code: i32,
+}
+
+impl ContractSpec {
+    pub fn resolve(&self, project_root: &Path) -> Result<ResolvedContract, String> {
+        let command = self
+            .command
+            .iter()
+            .map(|c| interpolate(c, project_root))
+            .collect::<Result<Vec<_>, _>>()?;
+        let working_directory = PathBuf::from(interpolate(&self.working_directory, project_root)?);
+        let artifacts = self
+            .artifacts
+            .iter()
+            .map(|a| interpolate(a, project_root).map(PathBuf::from))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(ResolvedContract {
+            command,
+            working_directory,
+            artifacts,
+            success_exit_code: self.success_exit_code.unwrap_or(0),
+        })
+    }
+}
+
+/// Substitute every `${VAR}` / `${VAR:-default}` occurrence anywhere inside
+/// `input` — unlike [`resolve_env_string`] (whole-value-only, used for
+/// simple config path fields), this substitutes mid-string, needed for
+/// Pipeline Contract fields like `${PROJECT_ROOT}/target/release/samgraha.exe`.
+/// `PROJECT_ROOT` resolves to `project_root`; everything else reads the
+/// process environment. Errors on an unresolved bare `${VAR}` — contract
+/// fields have no repo-relative fallback the way `resolve_configured_dir`
+/// does, so an unset var is a clear misconfiguration, not a default case.
+pub fn interpolate(input: &str, project_root: &Path) -> Result<String, String> {
+    let mut out = String::with_capacity(input.len());
+    let mut rest = input;
+    while let Some(start) = rest.find("${") {
+        out.push_str(&rest[..start]);
+        let after = &rest[start + 2..];
+        let Some(end) = after.find('}') else {
+            return Err(format!("Unterminated '${{' in '{}'", input));
+        };
+        let inner = &after[..end];
+        let (var_name, default) = match inner.split_once(":-") {
+            Some((n, d)) => (n, Some(d)),
+            None => (inner, None),
+        };
+        let value = if var_name == "PROJECT_ROOT" {
+            Some(project_root.to_string_lossy().to_string())
+        } else {
+            std::env::var(var_name).ok()
+        };
+        match value.or_else(|| default.map(|d| d.to_string())) {
+            Some(v) => out.push_str(&v),
+            None => {
+                return Err(format!(
+                    "Unresolved environment variable '{}' in '{}'",
+                    var_name, input
+                ))
+            }
+        }
+        rest = &after[end + 1..];
+    }
+    out.push_str(rest);
+    Ok(out)
 }
 
 /// Where generated reports (e.g. audit `--report` output) are written.
@@ -46,20 +207,37 @@ impl Default for ReportConfig {
     }
 }
 
-/// Resolve a configured path that may be a `${VAR}` placeholder.
+/// Resolve `${VAR}` or `${VAR:-default}` from the process environment.
+///
+/// - `"${VAR}"`: read `VAR` from the environment. Returns `None` if unset —
+///   callers that have their own fallback (e.g. [`resolve_configured_dir`])
+///   use that; callers with no fallback should treat `None` as an error.
+/// - `"${VAR:-default}"`: read `VAR`; if unset, use the literal `default`
+///   instead (always `Some`, never propagates to a caller's fallback).
+/// - Anything else is returned unchanged (a literal value).
+pub fn resolve_env_string(raw: &str) -> Option<String> {
+    let trimmed = raw.trim();
+    let Some(inner) = trimmed.strip_prefix("${").and_then(|s| s.strip_suffix('}')) else {
+        return Some(trimmed.to_string());
+    };
+    if let Some((var_name, default)) = inner.split_once(":-") {
+        Some(std::env::var(var_name).unwrap_or_else(|_| default.to_string()))
+    } else {
+        std::env::var(inner).ok()
+    }
+}
+
+/// Resolve a configured path that may be a `${VAR}` or `${VAR:-default}` placeholder.
 ///
 /// - `"${VAR}"` (the whole string, nothing else): read `VAR` from the process
 ///   environment. If set, use its value (joined to `root` if relative). If
 ///   unset, fall back to `root.join(fallback_rel)` — so the tool works with
 ///   zero env configuration on a single-machine setup.
+/// - `"${VAR:-default}"`: read `VAR`; if unset, use `default` (joined to
+///   `root` if relative) instead of `fallback_rel`.
 /// - Anything else is a literal path, used as-is (joined to `root` if relative).
 pub fn resolve_configured_dir(raw: &str, root: &Path, fallback_rel: &str) -> PathBuf {
-    let trimmed = raw.trim();
-    let literal = if let Some(var_name) = trimmed.strip_prefix("${").and_then(|s| s.strip_suffix('}')) {
-        std::env::var(var_name).ok()
-    } else {
-        Some(trimmed.to_string())
-    };
+    let literal = resolve_env_string(raw);
 
     match literal {
         Some(value) if !value.is_empty() => {
@@ -117,6 +295,10 @@ pub struct RepositoryConfig {
     /// or aren't tracked separately.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tests: Option<TestsConfig>,
+    /// Paths under `implementation.dir` to skip when pipelines scan for
+    /// source (e.g. `["vendor", "target"]`). Relative to `implementation.dir`.
+    #[serde(default)]
+    pub source_exclude: Vec<String>,
 }
 
 /// Where this repository's source/implementation lives, relative to the
@@ -185,6 +367,7 @@ impl Default for RepositoryConfig {
             implementation: ImplementationConfig::default(),
             scripts: None,
             tests: None,
+            source_exclude: Vec::new(),
         }
     }
 }
@@ -467,6 +650,7 @@ impl Default for SamgrahaConfig {
             audit: AuditConfigSection::default(),
             output: OutputConfigSection::default(),
             report: ReportConfig::default(),
+            pipelines: None,
         }
     }
 }
@@ -496,5 +680,156 @@ impl Default for SharedWorkspaceConfig {
             audit_policies: HashMap::new(),
             registry_path: None,
         }
+    }
+}
+
+#[cfg(test)]
+mod resolve_env_string_tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+
+    fn unique_var_name() -> String {
+        let id = COUNTER.fetch_add(1, Ordering::SeqCst);
+        format!("SAMGRAHA_TEST_VAR_{}_{}", std::process::id(), id)
+    }
+
+    #[test]
+    fn literal_string_passes_through() {
+        assert_eq!(resolve_env_string("literal/path"), Some("literal/path".to_string()));
+    }
+
+    #[test]
+    fn bare_var_resolves_when_set() {
+        let name = unique_var_name();
+        std::env::set_var(&name, "resolved-value");
+        assert_eq!(resolve_env_string(&format!("${{{}}}", name)), Some("resolved-value".to_string()));
+        std::env::remove_var(&name);
+    }
+
+    #[test]
+    fn bare_var_is_none_when_unset() {
+        let name = unique_var_name();
+        std::env::remove_var(&name);
+        assert_eq!(resolve_env_string(&format!("${{{}}}", name)), None);
+    }
+
+    #[test]
+    fn var_with_default_falls_back_when_unset() {
+        let name = unique_var_name();
+        std::env::remove_var(&name);
+        assert_eq!(
+            resolve_env_string(&format!("${{{}:-fallback}}", name)),
+            Some("fallback".to_string())
+        );
+    }
+
+    #[test]
+    fn var_with_default_prefers_env_when_set() {
+        let name = unique_var_name();
+        std::env::set_var(&name, "from-env");
+        assert_eq!(
+            resolve_env_string(&format!("${{{}:-fallback}}", name)),
+            Some("from-env".to_string())
+        );
+        std::env::remove_var(&name);
+    }
+
+    #[test]
+    fn resolve_configured_dir_uses_fallback_rel_when_bare_var_unset() {
+        let name = unique_var_name();
+        std::env::remove_var(&name);
+        let root = std::path::Path::new("/repo");
+        let resolved = resolve_configured_dir(&format!("${{{}}}", name), root, "docs");
+        assert_eq!(resolved, root.join("docs"));
+    }
+
+    #[test]
+    fn resolve_configured_dir_uses_inline_default_over_fallback_rel() {
+        let name = unique_var_name();
+        std::env::remove_var(&name);
+        let root = std::path::Path::new("/repo");
+        let resolved = resolve_configured_dir(&format!("${{{}:-custom}}", name), root, "docs");
+        assert_eq!(resolved, root.join("custom"));
+    }
+
+    #[test]
+    fn interpolate_substitutes_project_root_mid_string() {
+        let root = std::path::Path::new("/repo");
+        let result = interpolate("${PROJECT_ROOT}/target/release/x.exe", root).unwrap();
+        assert_eq!(result, "/repo/target/release/x.exe");
+    }
+
+    #[test]
+    fn interpolate_errors_on_unresolved_bare_var() {
+        let name = unique_var_name();
+        std::env::remove_var(&name);
+        let root = std::path::Path::new("/repo");
+        assert!(interpolate(&format!("${{{}}}/x", name), root).is_err());
+    }
+
+    #[test]
+    fn interpolate_uses_inline_default_mid_string() {
+        let name = unique_var_name();
+        std::env::remove_var(&name);
+        let root = std::path::Path::new("/repo");
+        let result = interpolate(&format!("${{{}:-cargo}}", name), root).unwrap();
+        assert_eq!(result, "cargo");
+    }
+
+    #[test]
+    fn contract_spec_resolve_expands_all_fields() {
+        let spec = ContractSpec {
+            command: vec!["${PROJECT_ROOT}/build.sh".to_string()],
+            working_directory: "${PROJECT_ROOT}".to_string(),
+            artifacts: vec!["${PROJECT_ROOT}/out.bin".to_string()],
+            success_exit_code: None,
+            timeout: None,
+            description: None,
+            produces: vec![],
+            consumes: vec![],
+        };
+        let root = std::path::Path::new("/repo");
+        let resolved = spec.resolve(root).unwrap();
+        assert_eq!(resolved.working_directory, root);
+        assert_eq!(resolved.artifacts, vec![root.join("out.bin")]);
+        assert_eq!(resolved.success_exit_code, 0);
+    }
+
+    #[test]
+    fn check_version_ok_on_matching_major() {
+        let cfg = PipelineContractConfig {
+            version: "1.0".to_string(),
+            build: None,
+            test: None,
+            package: None,
+            deploy: None,
+        };
+        assert_eq!(cfg.check_version(), Ok(false));
+    }
+
+    #[test]
+    fn check_version_warns_on_higher_minor() {
+        let cfg = PipelineContractConfig {
+            version: "1.7".to_string(),
+            build: None,
+            test: None,
+            package: None,
+            deploy: None,
+        };
+        assert_eq!(cfg.check_version(), Ok(true));
+    }
+
+    #[test]
+    fn check_version_errors_on_different_major() {
+        let cfg = PipelineContractConfig {
+            version: "2.0".to_string(),
+            build: None,
+            test: None,
+            package: None,
+            deploy: None,
+        };
+        assert!(cfg.check_version().is_err());
     }
 }
