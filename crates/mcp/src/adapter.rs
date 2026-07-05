@@ -332,7 +332,11 @@ impl McpAdapter {
             document_id: None,
         };
 
-        let response = self.runtime.get_sections(&query)?;
+        self.ensure_context();
+        let response = match &*self.context.lock().unwrap() {
+            Some(ctx) => ctx.get_sections(&query)?,
+            None => self.runtime.get_sections(&query)?,
+        };
         let mut out = Self::paginate(response.sections, offset, limit, "sections");
         out["semantic_type"] = serde_json::Value::String(semantic_type.to_string());
         Ok(out)
@@ -345,7 +349,12 @@ impl McpAdapter {
             .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect::<Vec<_>>())
             .unwrap_or_else(|| vec!["deterministic".to_string()]);
 
-        let report = self.runtime.audit(domain, &providers, None)?;
+        self.ensure_context();
+        let cross_repo_docs = {
+            let guard = self.context.lock().unwrap();
+            guard.as_ref().and_then(|c| c.package.all_documents().ok())
+        };
+        let report = self.runtime.audit(domain, &providers, cross_repo_docs.as_deref())?;
         Ok(serde_json::to_value(&report)?)
     }
 

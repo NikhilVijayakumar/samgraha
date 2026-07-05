@@ -2,7 +2,7 @@ use anyhow::Result;
 use common::config::{parse_ttl_duration, SamgrahaConfig};
 use registry::RegistryStore;
 use schemas::document::Document;
-use schemas::search::{SearchQuery, SearchResponse};
+use schemas::search::{SearchQuery, SearchResponse, SectionQuery, SectionQueryResponse};
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Instant;
@@ -87,6 +87,19 @@ impl KnowledgeContext {
         self.plan.entries.iter().filter(|e| e.available).all(|e| {
             revision_on_disk(&e.root).map_or(true, |r| r == e.revision)
         })
+    }
+
+    /// Sections across all loaded stores, merged by semantic_type.
+    pub fn get_sections(&self, query: &SectionQuery) -> Result<SectionQueryResponse> {
+        let mut sections = Vec::new();
+        let mut duration_ms = 0u64;
+        for (_, store) in &self.package.repos {
+            let resp = store.get_sections_by_type(query)?;
+            sections.extend(resp.sections);
+            duration_ms = duration_ms.max(resp.duration_ms);
+        }
+        let total_count = sections.len();
+        Ok(SectionQueryResponse { sections, total_count, semantic_type: query.semantic_type.clone(), duration_ms })
     }
 
     /// Search across all loaded stores (primary + deps + interests).
