@@ -4,17 +4,23 @@ use crate::package::{PackageFormat, PackageRequest, PackageResult, PackageServic
 use crate::registry::{BoxedService, ServiceRegistry};
 use crate::resolution::{KnowledgeResolver, ResolutionResult};
 use crate::runtime::context::RuntimeContext;
+use crate::runtime::fix_store::RegistryFixStore;
 use crate::runtime::policy::RuntimePolicy;
 use crate::search::SearchService;
 use crate::workspace::{WorkspaceBuildResult, WorkspaceService};
 use anyhow::{Context, Result};
+use audit_crate::fix::orchestrator::{FixOrchestrator, FixStore};
+use audit_crate::fix::planner::{BuildPlanner, ConfigPlanner, DocPlanner, FixPlanner, ImplPlanner, SecPlanner, TestPlanner};
+use audit_crate::fix::planning_context::PlanningContextBuilder;
+use audit_crate::fix::types::{FixPlan, FixSession, PlanType, SessionStatus};
+use audit_crate::fix::verifier::Verifier;
 use audit_crate::pipeline::PipelineContext;
 use uuid::Uuid;
 use audit_crate::pipelines::{architecture::ArchitecturePipeline, build::BuildPipeline, consistency::ConsistencyPipeline, coverage::CoveragePipeline, design::DesignPipeline, deterministic_runtime::DeterministicRuntimePipeline, engineering::EngineeringPipeline, external_context::ExternalContextPipeline, external_context_ownership::ExternalContextOwnershipPipeline, feature::FeaturePipeline, feature_design::FeatureDesignPipeline, feature_technical::FeatureTechnicalPipeline, implementation::ImplementationPipeline, prototype::PrototypePipeline, readme::ReadmePipeline, security::SecurityPipeline, vision::VisionPipeline};
 use audit_crate::AuditFramework;
 use common::config::SamgrahaConfig;
 use registry::RegistryStore;
-use schemas::audit::{AuditReport, AuditStage, FindingStatus, GateResult, PipelineKind, PipelineReport, SectionChangedResult, SemanticReport};
+use schemas::audit::{AuditFinding, AuditReport, AuditStage, FindingStatus, GateResult, PipelineKind, PipelineReport, SectionChangedResult, SemanticReport, Severity};
 use schemas::compilation::{CompilationRequest, CompilationResult};
 use schemas::document::Document;
 use schemas::manifest::RepositoryManifest;
@@ -1383,6 +1389,160 @@ impl KnowledgeRuntime {
                 })
                 .collect(),
         }
+    }
+
+    // ── Audit-Fix Pipeline ─────────────────────────────────────────────────
+
+    /// Reject domains whose pipeline has no real checks yet — currently only
+    /// Dependency (`PipelineKind::Dependency` always returns a placeholder
+    /// "D0" finding). Fixing a placeholder finding is meaningless, so the
+    /// fix pipeline refuses it outright rather than silently "succeeding".
+    fn reject_stub_domain(domain: &str) -> Result<()> {
+        if domain == "dependency" {
+            anyhow::bail!(
+                "Domain 'dependency' is excluded from the audit-fix pipeline: \
+                 its audit pipeline is a stub (no real checks implemented yet)"
+            );
+        }
+        Ok(())
+    }
+
+    fn build_orchestrator(self: &Arc<Self>) -> Result<FixOrchestrator> {
+        let db_path = self.context.registry_path.clone();
+        let store: Box<dyn FixStore> = Box::new(RegistryFixStore::new(db_path)?);
+        let planners: Vec<Box<dyn FixPlanner>> = vec![
+            Box::new(DocPlanner),
+            Box::new(ConfigPlanner),
+            Box::new(ImplPlanner),
+            Box::new(BuildPlanner),
+            Box::new(SecPlanner),
+            Box::new(TestPlanner),
+        ];
+        let runtime = Arc::clone(self);
+        let check_runner = Box::new(move |domain: &str, check_id: &str| -> Result<f64> {
+            runtime.run_single_check(domain, check_id)
+        });
+        let verifier = Verifier::new(check_runner);
+        Ok(FixOrchestrator::new(
+            self.context.repository_root.clone(),
+            planners,
+            verifier,
+            store,
+        ))
+    }
+
+    /// Run the full audit-fix pipeline: plan, execute, verify, retry.
+    pub fn apply_finding_fix(
+        self: &Arc<Self>,
+        finding: &AuditFinding,
+        domain: &str,
+        report_id: i64,
+        report_type: &str,
+        target_path: &std::path::PathBuf,
+    ) -> Result<FixSession> {
+        Self::reject_stub_domain(domain)?;
+        let orch = self.build_orchestrator()?;
+        orch.execute(finding, domain, report_id, report_type, target_path)
+    }
+
+    /// Generate a fix plan without auto-execution.
+    /// Returns the plan and its steps for human review.
+    pub fn generate_fix_plan(
+        &self,
+        finding: &AuditFinding,
+        domain: &str,
+        report_id: i64,
+        report_type: &str,
+        target_path: &std::path::PathBuf,
+    ) -> Result<FixPlan> {
+        Self::reject_stub_domain(domain)?;
+        let pctx = PlanningContextBuilder::new(self.context.repository_root.clone())
+            .build(domain, target_path)
+            .context("Failed to build planning context")?;
+        // Kept in sync with FixOrchestrator::resolve_plan_type — same rules
+        // must apply whether a finding goes through preview or full apply.
+        let plan_type = match (domain, finding.check_id.as_str()) {
+            ("coverage", "CV6") => PlanType::Test,
+            ("build", _) => PlanType::Build,
+            ("security", _) => PlanType::Security,
+            ("implementation", _) | ("deterministic-runtime", _) => PlanType::Implementation,
+            _ => PlanType::Documentation,
+        };
+        let planners: Vec<Box<dyn FixPlanner>> = vec![
+            Box::new(DocPlanner),
+            Box::new(ConfigPlanner),
+            Box::new(ImplPlanner),
+            Box::new(BuildPlanner),
+            Box::new(SecPlanner),
+            Box::new(TestPlanner),
+        ];
+        let planner = planners
+            .into_iter()
+            .find(|p| p.plan_type() == plan_type)
+            .context(format!("No planner for {:?}", plan_type))?;
+        let session = FixSession {
+            id: None,
+            report_id,
+            report_type: report_type.to_string(),
+            criterion_id: finding.check_id.clone(),
+            finding_json: serde_json::to_string(finding)?,
+            domain: domain.to_string(),
+            plan_type: plan_type.clone(),
+            target_file: Some(target_path.to_string_lossy().to_string()),
+            attempt_count: 0,
+            max_attempts: 1,
+            status: SessionStatus::InProgress,
+            created_at: None,
+            updated_at: None,
+        };
+        let intent = audit_crate::fix::types::Intent::restore_compliance(domain, &finding.check_id);
+        let mut plan = planner.plan(&pctx, &intent, &session)?;
+
+        // Persist so `audit_fix_plan_get(plan_id)` can retrieve this preview
+        // later — same insert sequence FixOrchestrator::execute uses. No
+        // FixSession exists for a preview (nothing has been verified yet),
+        // so `session_id` stays empty; audit_fix_plan_get looks up by
+        // plan_id directly and doesn't depend on it.
+        plan.domain = domain.to_string();
+        plan.criterion_id = finding.check_id.clone();
+        plan.report_id = report_id;
+        let plan_id = self.registry.insert_fix_plan(&plan)?;
+        plan.id = Some(plan_id);
+        for step in &mut plan.steps {
+            step.plan_id = Some(plan_id);
+            self.registry.insert_fix_plan_step(step)?;
+        }
+
+        Ok(plan)
+    }
+
+    /// Run a single check for a given domain and check_id by re-running that
+    /// domain's full pipeline and looking up the check's own finding(s).
+    /// No per-check pipeline API exists, so this re-runs the whole domain —
+    /// coarse, but correct: a missing finding for `check_id` means it passed.
+    pub fn run_single_check(&self, domain: &str, check_id: &str) -> Result<f64> {
+        let kind = PipelineKind::from_str(domain)
+            .ok_or_else(|| anyhow::anyhow!("Unknown audit domain '{}'", domain))?;
+        let report = self
+            .run_pipeline(&kind, false, true, false, false)
+            .with_context(|| format!("Failed to run '{}' pipeline for check {}", domain, check_id))?;
+        let worst = report
+            .findings
+            .iter()
+            .filter(|f| f.check_id == check_id)
+            .map(|f| severity_score(&f.severity))
+            .fold(f64::INFINITY, f64::min);
+        Ok(if worst.is_finite() { worst } else { 10.0 })
+    }
+}
+
+/// Coarse severity → score mapping used by `run_single_check` — a finding
+/// present for a check means it failed; severity sets how badly.
+fn severity_score(severity: &Severity) -> f64 {
+    match severity {
+        Severity::Error => 0.0,
+        Severity::Warning => 5.0,
+        Severity::Suggestion => 7.0,
     }
 }
 

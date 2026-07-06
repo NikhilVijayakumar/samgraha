@@ -3657,6 +3657,41 @@ pub fn read_template(templates_dir: &Path, name: &str) -> Result<String> {
     fs::read_to_string(&path).with_context(|| format!("Template not found: {}", path.display()))
 }
 
+/// List available fix-plan templates from the fix-plan-templates directory.
+pub fn list_fix_plan_templates(templates_dir: &Path) -> Result<Vec<String>> {
+    list_templates(templates_dir)
+}
+
+/// Render a fix plan using the given template string.
+///
+/// Replaces `{{variable}}` placeholders from `FixPlan` fields.
+/// Supports `{{#steps}}...{{/steps}}` and `{{#prerequisites}}...{{/prerequisites}}` blocks.
+/// Blocks are stripped when empty.
+pub fn render_fix_plan(plan: &schemas::fix::FixPlan, template: &str) -> String {
+    let steps_table = plan.steps.iter().map(|s| format!(
+        "### Step {} — {}\n\n**Target:** `{}`\n**Action:** {}\n**Rationale:** {}\n\n**Detail:**\n\n{}\n\n**Verification:** {}\n**Rollback:** {}",
+        s.step_order, s.action, s.target, s.action, s.rationale, s.detail, s.verification,
+        s.rollback.as_deref().unwrap_or("N/A")
+    )).collect::<Vec<_>>().join("\n\n");
+    let prerequisites_text = if plan.prerequisites.is_empty() {
+        String::new()
+    } else {
+        plan.prerequisites.iter().map(|p| format!("- {}", p)).collect::<Vec<_>>().join("\n")
+    };
+
+    let mut t = template
+        .replace("{{domain}}", &plan.domain)
+        .replace("{{session_id}}", &plan.session_id)
+        .replace("{{criterion_id}}", &plan.criterion_id)
+        .replace("{{summary}}", &plan.summary)
+        .replace("{{rollback_instructions}}", plan.rollback_instructions.as_deref().unwrap_or("N/A"))
+        .replace("{{prerequisites}}", &prerequisites_text)
+        .replace("{{steps}}", &steps_table);
+    t = strip_conditional_blocks_str(&t, "prerequisites", &prerequisites_text);
+    t = strip_conditional_blocks_str(&t, "steps", &steps_table);
+    t
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -4696,5 +4731,107 @@ mod tests {
         let names = list_templates(&dir).unwrap();
         assert_eq!(names, vec!["custom", "other"]);
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn render_fix_plan_replaces_all_variables() {
+        let plan = schemas::fix::FixPlan {
+            id: Some(1),
+            session_id: "sess-1".into(),
+            report_id: 10,
+            criterion_id: "B1".into(),
+            domain: "build".into(),
+            plan_type: schemas::fix::PlanType::Build,
+            title: "Fix build".into(),
+            summary: "Update build config".into(),
+            prerequisites: vec!["File writable".into()],
+            steps: vec![schemas::fix::PlanStep {
+                id: Some(1),
+                plan_id: Some(1),
+                step_order: 1,
+                action: "modify_value".into(),
+                target: "Cargo.toml".into(),
+                rationale: "Missing dep".into(),
+                detail: "Add dep foo".into(),
+                verification: "cargo check".into(),
+                rollback: Some("git checkout".into()),
+                status: schemas::fix::FixStepStatus::Pending,
+                verified_at: None,
+                score: None,
+            }],
+            rollback_instructions: Some("git checkout .".into()),
+            expected_checks: vec!["B1".into()],
+            status: schemas::fix::FixPlanStatus::Draft,
+            created_at: None,
+            updated_at: None,
+        };
+        let template = r#"# {{domain}} Fix Plan
+
+{{summary}}
+
+{{#prerequisites}}
+{{prerequisites}}
+{{/prerequisites}}
+
+## Steps
+
+{{#steps}}
+{{steps}}
+{{/steps}}
+
+Rollback: {{rollback_instructions}}"#;
+        let rendered = render_fix_plan(&plan, template);
+        assert!(rendered.contains("build Fix Plan"));
+        assert!(rendered.contains("Update build config"));
+        assert!(rendered.contains("git checkout ."));
+        assert!(rendered.contains("- File writable"));
+        assert!(rendered.contains("modify_value"));
+        assert!(rendered.contains("Cargo.toml"));
+    }
+
+    #[test]
+    fn render_fix_plan_empty_prerequisites_removes_block() {
+        let plan = schemas::fix::FixPlan {
+            id: None, session_id: "s".into(), report_id: 1, criterion_id: "C1".into(),
+            domain: "test".into(), plan_type: schemas::fix::PlanType::Test,
+            title: "t".into(), summary: "s".into(),
+            prerequisites: vec![],
+            steps: vec![schemas::fix::PlanStep {
+                id: None, plan_id: None, step_order: 1,
+                action: "a".into(), target: "t".into(), rationale: "r".into(),
+                detail: "d".into(), verification: "v".into(), rollback: None,
+                status: schemas::fix::FixStepStatus::Pending,
+                verified_at: None, score: None,
+            }],
+            rollback_instructions: None, expected_checks: vec![],
+            status: schemas::fix::FixPlanStatus::Draft,
+            created_at: None, updated_at: None,
+        };
+        let template = "BEFORE{{#prerequisites}}\n{{prerequisites}}\n{{/prerequisites}}AFTER";
+        let rendered = render_fix_plan(&plan, template);
+        assert_eq!(rendered, "BEFOREAFTER");
+    }
+
+    #[test]
+    fn render_fix_plan_no_rollback_uses_default() {
+        let plan = schemas::fix::FixPlan {
+            id: None, session_id: "s".into(), report_id: 1, criterion_id: "C1".into(),
+            domain: "test".into(), plan_type: schemas::fix::PlanType::Test,
+            title: "t".into(), summary: "s".into(),
+            prerequisites: vec![],
+            steps: vec![schemas::fix::PlanStep {
+                id: None, plan_id: None, step_order: 1,
+                action: "a".into(), target: "t".into(), rationale: "r".into(),
+                detail: "d".into(), verification: "v".into(), rollback: None,
+                status: schemas::fix::FixStepStatus::Pending,
+                verified_at: None, score: None,
+            }],
+            rollback_instructions: None, expected_checks: vec![],
+            status: schemas::fix::FixPlanStatus::Draft,
+            created_at: None, updated_at: None,
+        };
+        let template = "Rollback: {{rollback_instructions}}";
+        let rendered = render_fix_plan(&plan, template);
+        assert!(rendered.contains("Rollback: N/A"));
     }
 }
