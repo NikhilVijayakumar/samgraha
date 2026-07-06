@@ -9,6 +9,7 @@ pub enum PlanType {
     Test,
     Build,
     Security,
+    Help,
 }
 
 impl PlanType {
@@ -20,6 +21,7 @@ impl PlanType {
             Self::Test => "test",
             Self::Build => "build",
             Self::Security => "security",
+            Self::Help => "help",
         }
     }
 
@@ -31,6 +33,7 @@ impl PlanType {
             "test" => Some(Self::Test),
             "build" => Some(Self::Build),
             "security" => Some(Self::Security),
+            "help" => Some(Self::Help),
             _ => None,
         }
     }
@@ -212,6 +215,7 @@ mod tests {
             ("test", PlanType::Test),
             ("build", PlanType::Build),
             ("security", PlanType::Security),
+            ("help", PlanType::Help),
         ] {
             let parsed = PlanType::from_str(s).unwrap();
             assert_eq!(parsed, *expected);

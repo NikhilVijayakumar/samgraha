@@ -23,6 +23,7 @@ pub enum PipelineKind {
     ExternalContextOwnership,
     Implementation,
     Dependency,
+    Help,
 }
 
 impl PipelineKind {
@@ -47,6 +48,7 @@ impl PipelineKind {
             Self::ExternalContextOwnership => "external-context-ownership",
             Self::Implementation => "implementation",
             Self::Dependency => "dependency",
+            Self::Help => "help",
         }
     }
 
@@ -71,6 +73,7 @@ impl PipelineKind {
             "external-context-ownership" => Some(Self::ExternalContextOwnership),
             "implementation" => Some(Self::Implementation),
             "dependency" => Some(Self::Dependency),
+            "help" => Some(Self::Help),
             _ => None,
         }
     }
