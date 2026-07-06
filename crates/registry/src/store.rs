@@ -1752,6 +1752,109 @@ impl RegistryStore {
         }))
     }
 
+    // ── Help ─────────────────────────────────────────────────────────────
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn insert_help_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        previous_score: Option<f64>,
+        engineering_readiness: &str,
+        coverage_score: Option<f64>,
+        navigation_score: Option<f64>,
+        quality_score: Option<f64>,
+        accuracy_score: Option<f64>,
+        doc_scores: Option<&str>,
+        validation_scores: Option<&str>,
+        finding_counts: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.conn.execute(
+            "INSERT INTO help_reports (session_id, score, git_revision, previous_score, engineering_readiness, coverage_score, navigation_score, quality_score, accuracy_score, doc_scores, validation_scores, finding_counts)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            params![
+                session_id, score, git_revision, previous_score, engineering_readiness,
+                coverage_score, navigation_score, quality_score, accuracy_score,
+                doc_scores, validation_scores, finding_counts,
+            ],
+        )?;
+        let report_id = self.conn.last_insert_rowid();
+        if !findings.is_empty() {
+            self.insert_report_findings("help", report_id, findings)?;
+        }
+        Ok(report_id)
+    }
+
+    pub fn query_help_sessions(&self, limit: usize) -> Result<Vec<HelpSessionInfo>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT r.id, r.session_id, r.score, r.previous_score, r.git_revision, r.created_at,
+                    r.engineering_readiness, r.coverage_score,
+                    r.navigation_score, r.quality_score, r.accuracy_score,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'help' AND f.report_id = r.id AND f.severity = 'error'), 0) as err_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'help' AND f.report_id = r.id AND f.severity = 'warning'), 0) as warn_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'help' AND f.report_id = r.id AND f.severity = 'suggestion'), 0) as sug_count
+             FROM help_reports r ORDER BY r.id DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit as i64], |row| {
+            Ok(HelpSessionInfo {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                score: row.get(2)?,
+                previous_score: row.get(3)?,
+                git_revision: row.get(4)?,
+                created_at: row.get(5)?,
+                engineering_readiness: row.get(6)?,
+                coverage_score: row.get(7)?,
+                navigation_score: row.get(8)?,
+                quality_score: row.get(9)?,
+                accuracy_score: row.get(10)?,
+                finding_counts: FindingCounts {
+                    errors: row.get::<_, i64>(11)? as usize,
+                    warnings: row.get::<_, i64>(12)? as usize,
+                    suggestions: row.get::<_, i64>(13)? as usize,
+                },
+            })
+        })?;
+        let mut sessions = Vec::new();
+        for row in rows {
+            sessions.push(row?);
+        }
+        Ok(sessions)
+    }
+
+    pub fn get_help_report_with_findings(&self, report_id: i64) -> Result<Option<HelpReportWithFindings>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session_id, score, previous_score, git_revision, created_at,
+                    engineering_readiness, coverage_score,
+                    navigation_score, quality_score, accuracy_score,
+                    doc_scores, validation_scores, finding_counts
+             FROM help_reports WHERE id = ?1",
+        )?;
+        let mut rows = stmt.query(params![report_id])?;
+        let Some(row) = rows.next()? else { return Ok(None); };
+        let findings = self.query_findings("help", report_id)?;
+        Ok(Some(HelpReportWithFindings {
+            id: row.get(0)?,
+            session_id: row.get(1)?,
+            score: row.get(2)?,
+            previous_score: row.get(3)?,
+            git_revision: row.get(4)?,
+            created_at: row.get(5)?,
+            engineering_readiness: row.get(6)?,
+            coverage_score: row.get(7)?,
+            navigation_score: row.get(8)?,
+            quality_score: row.get(9)?,
+            accuracy_score: row.get(10)?,
+            doc_scores: row.get(11)?,
+            validation_scores: row.get(12)?,
+            finding_counts: row.get(13)?,
+            findings,
+            recommendations: self.query_recommendations("help", report_id)?,
+        }))
+    }
+
     // ── Prototype ────────────────────────────────────────────────────────
 
     #[allow(clippy::too_many_arguments)]
@@ -3172,6 +3275,28 @@ impl RegistryStore {
         Ok(plans)
     }
 
+    // ── Repository Metadata (Product Guide Phase 1.5) ─────────────────────
+
+    pub fn upsert_repository_metadata(&self, key: &str, value: &str) -> Result<()> {
+        self.conn.execute(
+            "INSERT INTO repository_metadata (key, value) VALUES (?1, ?2)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            params![key, value],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_repository_metadata(&self) -> Result<std::collections::HashMap<String, String>> {
+        let mut stmt = self.conn.prepare("SELECT key, value FROM repository_metadata")?;
+        let rows = stmt.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?;
+        let mut map = std::collections::HashMap::new();
+        for row in rows {
+            let (k, v) = row?;
+            map.insert(k, v);
+        }
+        Ok(map)
+    }
+
     // ── Project Plan CRUD (Phase 9 — Planner) ─────────────────────────────
 
     pub fn insert_plan(&self, plan: &schemas::ProjectPlan) -> Result<()> {
@@ -3663,6 +3788,42 @@ pub struct ReadmeReportWithFindings {
     pub doc_navigation_score: Option<f64>,
     pub doc_quality_score: Option<f64>,
     pub maintainability_score: Option<f64>,
+    pub doc_scores: Option<String>,
+    pub validation_scores: Option<String>,
+    pub finding_counts: Option<String>,
+    pub findings: Vec<StoredFinding>,
+    pub recommendations: Vec<ReportRecommendation>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct HelpSessionInfo {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub previous_score: Option<f64>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub coverage_score: Option<f64>,
+    pub navigation_score: Option<f64>,
+    pub quality_score: Option<f64>,
+    pub accuracy_score: Option<f64>,
+    pub finding_counts: FindingCounts,
+}
+
+#[derive(Serialize)]
+pub struct HelpReportWithFindings {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub previous_score: Option<f64>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub coverage_score: Option<f64>,
+    pub navigation_score: Option<f64>,
+    pub quality_score: Option<f64>,
+    pub accuracy_score: Option<f64>,
     pub doc_scores: Option<String>,
     pub validation_scores: Option<String>,
     pub finding_counts: Option<String>,
@@ -4214,6 +4375,36 @@ mod tests {
         assert_eq!(stored.findings[1].severity, "warning");
     }
 
+    /// Regression test: `insert_help_report`'s INSERT statement listed a
+    /// `finding_counts` column that the V30 migration's `help_reports` table
+    /// didn't define — this would fail at runtime with "no column named
+    /// finding_counts" on the very first call, invisible to `cargo check`
+    /// since rusqlite doesn't validate SQL text at compile time.
+    #[test]
+    fn test_insert_and_query_help_report() {
+        let store = RegistryStore::open_in_memory().unwrap();
+        let findings = make_findings();
+
+        let report_id = store.insert_help_report(
+            85.0, "session-help-1", Some("abc123"), None,
+            "READY",
+            Some(90.0), Some(80.0), Some(85.0), Some(85.0),
+            None, None, None,
+            &findings,
+        ).unwrap();
+        assert!(report_id > 0);
+
+        let sessions = store.query_help_sessions(10).unwrap();
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].score, 85.0);
+        assert_eq!(sessions[0].finding_counts.errors, 1);
+        assert_eq!(sessions[0].finding_counts.warnings, 1);
+
+        let stored = store.get_help_report_with_findings(report_id).unwrap().unwrap();
+        assert_eq!(stored.engineering_readiness, "READY");
+        assert_eq!(stored.findings.len(), 2);
+    }
+
     #[test]
     fn test_insert_and_query_security_report() {
         let store = RegistryStore::open_in_memory().unwrap();
@@ -4430,6 +4621,22 @@ mod tests {
 
         let page3 = store.query_fix_sessions(2, 4).unwrap();
         assert_eq!(page3.len(), 1);
+    }
+
+    // ── Repository Metadata Tests ─────────────────────────────────────────
+
+    #[test]
+    fn test_repository_metadata_upsert_and_get() {
+        let store = RegistryStore::open_in_memory().unwrap();
+        store.upsert_repository_metadata("repo_name", "samgraha").unwrap();
+        store.upsert_repository_metadata("source_dir", "crates").unwrap();
+        // Upsert of an existing key must update, not duplicate.
+        store.upsert_repository_metadata("repo_name", "samgraha-renamed").unwrap();
+
+        let meta = store.get_repository_metadata().unwrap();
+        assert_eq!(meta.get("repo_name").map(String::as_str), Some("samgraha-renamed"));
+        assert_eq!(meta.get("source_dir").map(String::as_str), Some("crates"));
+        assert_eq!(meta.len(), 2);
     }
 
     // ── Project Plan CRUD Tests ──────────────────────────────────────────
