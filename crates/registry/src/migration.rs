@@ -1,5 +1,5 @@
 /// Knowledge registry migrations — create `knowledge.db` tables.
-pub const KNOWLEDGE_MIGRATIONS: &[&str] = &[V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12];
+pub const KNOWLEDGE_MIGRATIONS: &[&str] = &[V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27];
 
 /// Repository registry migrations — create `registry.db` tables.
 pub const REGISTRY_MIGRATIONS: &[&str] = &[REG_V1, REG_V2];
@@ -284,13 +284,488 @@ CREATE TABLE IF NOT EXISTS section_audit_hashes (
 );
 ";
 
-/// REG_V1 — repository registry tables for `.samgraha/registry.db`.
-///
-/// Stores cached dependency metadata in a single `repository_cache` table,
-/// indexed by UUID for fast lookup during dependency resolution.
-/// Supersedes the Phase 1-5 JSON file approach (`.samgraha/dependencies/*.meta.json`).
-/// The cache is disposable — fully rebuildable from dependency manifests.
+const V13: &str = "
+-- V13: Pipeline report storage for Phase 7 — store facts, render views on demand
+CREATE TABLE IF NOT EXISTS pipeline_reports (
+    id INTEGER PRIMARY KEY,
+    pipeline TEXT NOT NULL,
+    score REAL NOT NULL,
+    categories TEXT NOT NULL,
+    timestamp TEXT NOT NULL,
+    session_id TEXT NOT NULL,
+    git_revision TEXT,
+    UNIQUE(session_id, pipeline)
+);
+
+CREATE TABLE IF NOT EXISTS pipeline_findings (
+    id INTEGER PRIMARY KEY,
+    report_id INTEGER NOT NULL REFERENCES pipeline_reports(id) ON DELETE CASCADE,
+    check_id TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    message TEXT NOT NULL,
+    location TEXT,
+    status TEXT NOT NULL DEFAULT 'open',
+    comment TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_pipeline_findings_report ON pipeline_findings(report_id);
+CREATE INDEX IF NOT EXISTS idx_pipeline_findings_severity ON pipeline_findings(severity);
+
+CREATE TABLE IF NOT EXISTS report_comments (
+    id INTEGER PRIMARY KEY,
+    report_id INTEGER NOT NULL REFERENCES pipeline_reports(id) ON DELETE CASCADE,
+    finding_id INTEGER REFERENCES pipeline_findings(id) ON DELETE SET NULL,
+    author TEXT NOT NULL,
+    body TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_report_comments_report ON report_comments(report_id);
+";
+
+const V14: &str = "
+-- V14: Per-audit report tables (Phase 8) — each audit type gets its own domain-specific schema.
+--       Shared concerns (findings, evidence, summaries, improvements) use polymorphic tables.
+--       Old pipeline_reports/findings/comments tables remain untouched.
+
+CREATE TABLE IF NOT EXISTS build_reports (
+    id INTEGER PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    pipeline TEXT NOT NULL DEFAULT 'build',
+    score REAL NOT NULL,
+    git_revision TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    contract_name TEXT,
+    declared_produces TEXT,
+    actual_artifacts TEXT,
+    artifact_freshness TEXT,
+    execution_success INTEGER,
+    execution_output TEXT,
+    UNIQUE(session_id, pipeline)
+);
+
+CREATE TABLE IF NOT EXISTS security_reports (
+    id INTEGER PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    pipeline TEXT NOT NULL DEFAULT 'security',
+    score REAL NOT NULL,
+    git_revision TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    secrets_scanned INTEGER DEFAULT 0,
+    secrets_found INTEGER DEFAULT 0,
+    runtime_checks INTEGER DEFAULT 0,
+    runtime_issues INTEGER DEFAULT 0,
+    high_risk_findings INTEGER DEFAULT 0,
+    threat_summary TEXT,
+    UNIQUE(session_id, pipeline)
+);
+
+CREATE TABLE IF NOT EXISTS consistency_reports (
+    id INTEGER PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    pipeline TEXT NOT NULL DEFAULT 'consistency',
+    score REAL NOT NULL,
+    git_revision TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    vision_exists INTEGER DEFAULT 0,
+    architecture_exists INTEGER DEFAULT 0,
+    structure_score REAL,
+    naming_issues TEXT,
+    cross_references INTEGER DEFAULT 0,
+    UNIQUE(session_id, pipeline)
+);
+
+CREATE TABLE IF NOT EXISTS coverage_reports (
+    id INTEGER PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    pipeline TEXT NOT NULL DEFAULT 'coverage',
+    score REAL NOT NULL,
+    git_revision TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    features_count INTEGER DEFAULT 0,
+    src_files_count INTEGER DEFAULT 0,
+    feature_coverage_pct REAL,
+    uncovered_features TEXT,
+    doc_types_covered TEXT,
+    UNIQUE(session_id, pipeline)
+);
+
+CREATE TABLE IF NOT EXISTS report_findings (
+    id INTEGER PRIMARY KEY,
+    report_type TEXT NOT NULL,
+    report_id INTEGER NOT NULL,
+    check_id TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    message TEXT NOT NULL,
+    location TEXT,
+    status TEXT NOT NULL DEFAULT 'open',
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_report_findings_type ON report_findings(report_type, report_id);
+
+CREATE TABLE IF NOT EXISTS report_evidence (
+    id INTEGER PRIMARY KEY,
+    report_type TEXT NOT NULL,
+    report_id INTEGER NOT NULL,
+    finding_id INTEGER REFERENCES report_findings(id),
+    key TEXT NOT NULL,
+    value TEXT,
+    source TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_report_evidence_type ON report_evidence(report_type, report_id);
+
+CREATE TABLE IF NOT EXISTS report_summaries (
+    id INTEGER PRIMARY KEY,
+    report_type TEXT NOT NULL,
+    report_id INTEGER NOT NULL,
+    summary_text TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_report_summaries_type ON report_summaries(report_type, report_id);
+
+CREATE TABLE IF NOT EXISTS report_improvements (
+    id INTEGER PRIMARY KEY,
+    report_type TEXT NOT NULL,
+    report_id INTEGER NOT NULL,
+    category TEXT NOT NULL,
+    suggestion TEXT NOT NULL,
+    priority TEXT DEFAULT 'medium',
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_report_improvements_type ON report_improvements(report_type, report_id);
+
+-- Rename report_improvements to report_recommendations for clarity
+CREATE TABLE IF NOT EXISTS report_recommendations (
+    id INTEGER PRIMARY KEY,
+    report_type TEXT NOT NULL,
+    report_id INTEGER NOT NULL,
+    priority TEXT NOT NULL DEFAULT 'P3',
+    category TEXT NOT NULL,
+    description TEXT NOT NULL,
+    file_path TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_report_recommendations_type ON report_recommendations(report_type, report_id);
+";
+
+const V15: &str = "
+-- V15: In-depth architecture reports (Phase 9).
+--       Dedicated table with domain-specific scoring dimensions, per-document scores,
+--       per-validation (A1-A13) scores, and trend tracking.
+
+CREATE TABLE IF NOT EXISTS architecture_reports (
+    id INTEGER PRIMARY KEY,
+    session_id TEXT NOT NULL UNIQUE,
+    score REAL NOT NULL,
+    previous_score REAL,
+    git_revision TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    engineering_readiness TEXT NOT NULL DEFAULT 'NO',
+    collection_integrity_score REAL,
+    structural_integrity_score REAL,
+    consistency_score REAL,
+    cross_repo_score REAL,
+    doc_scores TEXT,
+    validation_scores TEXT,
+    finding_counts TEXT DEFAULT '{\"critical\":0,\"major\":0,\"minor\":0,\"observations\":0}'
+);
+";
+
+const V16: &str = "
+-- V16: Vision report storage — mirrors architecture_reports' shape (score,
+--       4 category scores, doc/validation scores, finding counts, trend
+--       tracking) with Vision's own category names.
+
+CREATE TABLE IF NOT EXISTS vision_reports (
+    id INTEGER PRIMARY KEY,
+    session_id TEXT NOT NULL UNIQUE,
+    score REAL NOT NULL,
+    previous_score REAL,
+    git_revision TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    engineering_readiness TEXT NOT NULL DEFAULT 'NO',
+    vision_content_score REAL,
+    tech_independence_score REAL,
+    traceability_consistency_score REAL,
+    doc_quality_score REAL,
+    doc_scores TEXT,
+    validation_scores TEXT,
+    finding_counts TEXT DEFAULT '{\"critical\":0,\"major\":0,\"minor\":0,\"observations\":0}'
+);
+";
+
+const V17: &str = "
+-- V17: Design report storage — mirrors architecture_reports'/vision_reports'
+--       shape with Design's own category names (Design System /
+--       Documentation Quality / Design Quality).
+
+CREATE TABLE IF NOT EXISTS design_reports (
+    id INTEGER PRIMARY KEY,
+    session_id TEXT NOT NULL UNIQUE,
+    score REAL NOT NULL,
+    previous_score REAL,
+    git_revision TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    engineering_readiness TEXT NOT NULL DEFAULT 'NO',
+    design_system_score REAL,
+    doc_quality_score REAL,
+    design_quality_score REAL,
+    doc_scores TEXT,
+    validation_scores TEXT,
+    finding_counts TEXT DEFAULT '{\"critical\":0,\"major\":0,\"minor\":0,\"observations\":0}'
+);
+";
+
+const V18: &str = "
+-- V18: README report storage — mirrors the other domain report tables with
+--       README's own category names (Repository Introduction / Documentation
+--       Navigation / Documentation Quality / Maintainability).
+
+CREATE TABLE IF NOT EXISTS readme_reports (
+    id INTEGER PRIMARY KEY,
+    session_id TEXT NOT NULL UNIQUE,
+    score REAL NOT NULL,
+    previous_score REAL,
+    git_revision TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    engineering_readiness TEXT NOT NULL DEFAULT 'NO',
+    repo_introduction_score REAL,
+    doc_navigation_score REAL,
+    doc_quality_score REAL,
+    maintainability_score REAL,
+    doc_scores TEXT,
+    validation_scores TEXT,
+    finding_counts TEXT DEFAULT '{\"critical\":0,\"major\":0,\"minor\":0,\"observations\":0}'
+);
+";
+
+const V19: &str = "
+-- V19: Prototype report storage — mirrors the other domain report tables
+--       with Prototype's own category names (Product Validation / Runtime
+--       Validation / Engineering Validation / Validation Quality).
+
+CREATE TABLE IF NOT EXISTS prototype_reports (
+    id INTEGER PRIMARY KEY,
+    session_id TEXT NOT NULL UNIQUE,
+    score REAL NOT NULL,
+    previous_score REAL,
+    git_revision TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    engineering_readiness TEXT NOT NULL DEFAULT 'NO',
+    product_validation_score REAL,
+    runtime_validation_score REAL,
+    engineering_validation_score REAL,
+    validation_quality_score REAL,
+    doc_scores TEXT,
+    validation_scores TEXT,
+    finding_counts TEXT DEFAULT '{\"critical\":0,\"major\":0,\"minor\":0,\"observations\":0}'
+);
+";
+
+const V20: &str = "
+-- V20: External Context report storage — mirrors the other domain report
+--       tables with its own category names (Document Quality / Content
+--       Completeness / Documentation Integrity / Collection Quality).
+
+CREATE TABLE IF NOT EXISTS external_context_reports (
+    id INTEGER PRIMARY KEY,
+    session_id TEXT NOT NULL UNIQUE,
+    score REAL NOT NULL,
+    previous_score REAL,
+    git_revision TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    engineering_readiness TEXT NOT NULL DEFAULT 'NO',
+    document_quality_score REAL,
+    content_completeness_score REAL,
+    documentation_integrity_score REAL,
+    collection_quality_score REAL,
+    doc_scores TEXT,
+    validation_scores TEXT,
+    finding_counts TEXT DEFAULT '{\"critical\":0,\"major\":0,\"minor\":0,\"observations\":0}'
+);
+";
+
+const V21: &str = "
+-- V21: Engineering report storage — mirrors the other domain report
+--       tables with its own category names (Engineering Coverage /
+--       Documentation Quality / Traceability and Consistency).
+
+CREATE TABLE IF NOT EXISTS engineering_reports (
+    id INTEGER PRIMARY KEY,
+    session_id TEXT NOT NULL UNIQUE,
+    score REAL NOT NULL,
+    previous_score REAL,
+    git_revision TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    engineering_readiness TEXT NOT NULL DEFAULT 'NO',
+    engineering_coverage_score REAL,
+    documentation_quality_score REAL,
+    traceability_consistency_score REAL,
+    doc_scores TEXT,
+    validation_scores TEXT,
+    finding_counts TEXT DEFAULT '{\"critical\":0,\"major\":0,\"minor\":0,\"observations\":0}'
+);
+";
+
+const V22: &str = "
+-- V22: Feature report storage — mirrors the other domain report tables
+--       with its own category names (Feature Definition / Product
+--       Definition / Documentation Quality / Product Readiness).
+
+CREATE TABLE IF NOT EXISTS feature_reports (
+    id INTEGER PRIMARY KEY,
+    session_id TEXT NOT NULL UNIQUE,
+    score REAL NOT NULL,
+    previous_score REAL,
+    git_revision TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    engineering_readiness TEXT NOT NULL DEFAULT 'NO',
+    feature_definition_score REAL,
+    product_definition_score REAL,
+    documentation_quality_score REAL,
+    product_readiness_score REAL,
+    doc_scores TEXT,
+    validation_scores TEXT,
+    finding_counts TEXT DEFAULT '{\"critical\":0,\"major\":0,\"minor\":0,\"observations\":0}'
+);
+";
+
+const V23: &str = "
+-- V23: Feature Technical Design report storage — mirrors the other domain
+--       report tables with its own category names (Feature Mapping /
+--       Technical Realization / Documentation Quality / Implementation
+--       Readiness).
+
+CREATE TABLE IF NOT EXISTS feature_technical_reports (
+    id INTEGER PRIMARY KEY,
+    session_id TEXT NOT NULL UNIQUE,
+    score REAL NOT NULL,
+    previous_score REAL,
+    git_revision TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    engineering_readiness TEXT NOT NULL DEFAULT 'NO',
+    feature_mapping_score REAL,
+    technical_realization_score REAL,
+    documentation_quality_score REAL,
+    implementation_readiness_score REAL,
+    doc_scores TEXT,
+    validation_scores TEXT,
+    finding_counts TEXT DEFAULT '{\"critical\":0,\"major\":0,\"minor\":0,\"observations\":0}'
+);
+";
+
+const V24: &str = "
+-- V24: Feature Design report storage — mirrors the other domain report
+--       tables with its own category names (Feature Mapping / User
+--       Experience / Documentation Quality / Design Readiness).
+
+CREATE TABLE IF NOT EXISTS feature_design_reports (
+    id INTEGER PRIMARY KEY,
+    session_id TEXT NOT NULL UNIQUE,
+    score REAL NOT NULL,
+    previous_score REAL,
+    git_revision TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    engineering_readiness TEXT NOT NULL DEFAULT 'NO',
+    feature_mapping_score REAL,
+    user_experience_score REAL,
+    documentation_quality_score REAL,
+    design_readiness_score REAL,
+    doc_scores TEXT,
+    validation_scores TEXT,
+    finding_counts TEXT DEFAULT '{\"critical\":0,\"major\":0,\"minor\":0,\"observations\":0}'
+);
+";
+
+const V25: &str = "
+-- V25: Deterministic Runtime report storage — mirrors the other domain
+--       report tables with its own category names (Runtime Model /
+--       Engineering Principles / Runtime Integrity). This audit is
+--       cross-cutting (scans Architecture + Engineering docs together)
+--       rather than a single documentation collection, so it has no
+--       document-scores concept of its own beyond the shared doc_scores column.
+
+CREATE TABLE IF NOT EXISTS deterministic_runtime_reports (
+    id INTEGER PRIMARY KEY,
+    session_id TEXT NOT NULL UNIQUE,
+    score REAL NOT NULL,
+    previous_score REAL,
+    git_revision TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    engineering_readiness TEXT NOT NULL DEFAULT 'NO',
+    runtime_model_score REAL,
+    engineering_principles_score REAL,
+    runtime_integrity_score REAL,
+    doc_scores TEXT,
+    validation_scores TEXT,
+    finding_counts TEXT DEFAULT '{\"critical\":0,\"major\":0,\"minor\":0,\"observations\":0}'
+);
+";
+
+const V26: &str = "
+-- V26: External Context Ownership report storage — mirrors the other
+--       domain report tables with its own category names (Dependency
+--       Coverage / Documentation Integration / Consistency). Distinct
+--       from external_context_reports: this audit cross-checks External
+--       Context usage across the whole documentation ecosystem rather
+--       than auditing the External Context collection in isolation.
+
+CREATE TABLE IF NOT EXISTS external_context_ownership_reports (
+    id INTEGER PRIMARY KEY,
+    session_id TEXT NOT NULL UNIQUE,
+    score REAL NOT NULL,
+    previous_score REAL,
+    git_revision TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    engineering_readiness TEXT NOT NULL DEFAULT 'NO',
+    dependency_coverage_score REAL,
+    documentation_integration_score REAL,
+    consistency_score REAL,
+    doc_scores TEXT,
+    validation_scores TEXT,
+    finding_counts TEXT DEFAULT '{\"critical\":0,\"major\":0,\"minor\":0,\"observations\":0}'
+);
+";
+
+const V27: &str = "
+-- V27: Implementation Conformance report storage — mirrors the other
+--       domain report tables with its own category names (Architectural
+--       Conformance / Feature Conformance / Engineering Conformance /
+--       Documentation Integrity / Implementation Quality). Distinct from
+--       every other domain: this audit reads actual source code under
+--       the declared implementation folder, not just docs/raw/*.md.
+
+CREATE TABLE IF NOT EXISTS implementation_reports (
+    id INTEGER PRIMARY KEY,
+    session_id TEXT NOT NULL UNIQUE,
+    score REAL NOT NULL,
+    previous_score REAL,
+    git_revision TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    engineering_readiness TEXT NOT NULL DEFAULT 'NO',
+    architectural_conformance_score REAL,
+    feature_conformance_score REAL,
+    engineering_conformance_score REAL,
+    documentation_integrity_score REAL,
+    implementation_quality_score REAL,
+    doc_scores TEXT,
+    validation_scores TEXT,
+    finding_counts TEXT DEFAULT '{\"critical\":0,\"major\":0,\"minor\":0,\"observations\":0}'
+);
+";
+
 const REG_V1: &str = "
+-- REG_V1 — repository registry tables for `.samgraha/registry.db`.
+-- Stores cached dependency metadata in a single `repository_cache` table,
+-- indexed by UUID for fast lookup during dependency resolution.
+-- Supersedes the Phase 1-5 JSON file approach (`.samgraha/dependencies/*.meta.json`).
+-- The cache is disposable — fully rebuildable from dependency manifests.
 CREATE TABLE IF NOT EXISTS _schema_version (
     version INTEGER PRIMARY KEY,
     applied_at TEXT NOT NULL DEFAULT (datetime('now'))

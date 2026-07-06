@@ -6,7 +6,7 @@ use services::package::PackageFormat;
 use schemas::search::{RetrievalLevel, SearchQuery, SectionQuery};
 use std::path::PathBuf;
 
-use crate::output::{format_output, render_audit, render_audit_report, render_compile, render_info, render_pipeline_report, render_registry_list, render_search, render_sections, render_workspace_compile, OutputFormat};
+use crate::output::{format_output, render_audit, render_audit_report, render_compile, render_info, render_registry_list, render_search, render_sections, render_workspace_compile, OutputFormat};
 use common::config::{resolve_configured_dir, SamgrahaConfig};
 use services::{CompilationService, KnowledgeRuntime, WorkspaceService};
 
@@ -177,6 +177,27 @@ pub enum Commands {
         action: WorkspaceAction,
     },
 
+    #[command(about = "Generate reports from stored pipeline results")]
+    Report {
+        #[arg(help = "Pipeline to report on (build, security, consistency, coverage, dependency)")]
+        pipeline: Option<String>,
+
+        #[arg(long = "session", help = "Session UUID to render (default: latest)")]
+        session: Option<String>,
+
+        #[arg(long = "template", help = "Template name (without .md extension, default: pipeline-default)")]
+        template: Option<String>,
+
+        #[arg(long = "stdout", help = "Print to stdout only, do not write to disk")]
+        stdout: bool,
+
+        #[arg(long = "list-sessions", help = "List available sessions")]
+        list_sessions: bool,
+
+        #[arg(long = "list-templates", help = "List available templates")]
+        list_templates: bool,
+    },
+
     #[command(about = "Display version information")]
     Version,
 }
@@ -302,6 +323,9 @@ impl Cli {
             }
             Commands::Registry { action } => self.execute_registry(action, &format),
             Commands::Env { path } => self.execute_env(path.as_ref(), &format),
+            Commands::Report { pipeline, session, template, stdout, list_sessions, list_templates } => {
+                self.execute_report(pipeline.as_deref(), session.as_deref(), template.as_deref(), *stdout, *list_sessions, *list_templates, &format)
+            }
             Commands::Workspace { action } => self.execute_workspace(action, &format),
             Commands::Version => self.execute_version(&format),
         }
@@ -633,7 +657,7 @@ impl Cli {
             let rt = KnowledgeRuntime::new(&root, config)?;
             let pipeline_report = rt.run_pipeline(&pipeline_kind, inspect_artifact, runtime, execute, dry_run)?;
 
-            // Render pipeline report
+            // Render pipeline report (always print summary to stdout)
             println!("Pipeline: {}", pipeline_kind.as_str());
             println!("Score: {:.1}%", pipeline_report.score);
             if !pipeline_report.categories.is_empty() {
@@ -653,19 +677,24 @@ impl Cli {
                 println!("  [{}] {} {} — {}", sev, f.check_id, loc, f.message);
             }
 
+            // --report flag: render using per-audit template
             if report {
+                let audit_type = pipeline_kind.as_str();
+                let md = services::reporting::render_report_from_pipeline(
+                    audit_type,
+                    services::reporting::get_default_template(),
+                    &pipeline_report,
+                );
                 let reports_base = resolve_configured_dir(
                     &rt.context.config.report.dir,
                     &root,
                     "docs/raw/reports",
                 );
-                let pipeline_name = pipeline_kind.as_str();
-                let latest_dir = reports_base.join(pipeline_name).join("latest");
-                let archive_dir = reports_base.join(pipeline_name).join("archive");
+                let latest_dir = reports_base.join(audit_type).join("latest");
+                let archive_dir = reports_base.join(audit_type).join("archive");
                 std::fs::create_dir_all(&latest_dir)?;
                 std::fs::create_dir_all(&archive_dir)?;
 
-                let md = render_pipeline_report(&pipeline_report);
                 let now = chrono::Local::now();
                 let archive_path = archive_dir.join(format!("{}.md", now.format("%Y%m%d-%H%M%S")));
                 std::fs::write(&archive_path, &md)?;
@@ -700,6 +729,94 @@ impl Cli {
 
         let info = runtime.info();
         println!("{}", render_info(&info, format));
+        Ok(ExitCode::Success)
+    }
+
+    fn execute_report(
+        &self,
+        pipeline: Option<&str>,
+        _session: Option<&str>,
+        _template_name: Option<&str>,
+        stdout_only: bool,
+        list_sessions: bool,
+        list_templates: bool,
+        format: &OutputFormat,
+    ) -> Result<ExitCode> {
+        let root = crate::config::discover_repository_root()?;
+        let config = crate::config::load_config(self.config.as_ref())?;
+
+        // List templates (doesn't need a compiled repo)
+        if list_templates {
+            let templates_dir = root.join("docs/raw/report-templates");
+            let names = services::reporting::list_templates(&templates_dir)?;
+            if names.is_empty() {
+                println!("No templates found in {:?}", templates_dir);
+                return Ok(ExitCode::Success);
+            }
+            println!("Available templates:");
+            for name in &names {
+                println!("  {}.md", name);
+            }
+            return Ok(ExitCode::Success);
+        }
+
+        let runtime = KnowledgeRuntime::new(&root, config)?;
+        let audit_type = pipeline.unwrap_or("build");
+
+        // List sessions
+        if list_sessions {
+            let sessions = runtime.query_sessions_by_type(audit_type, 50)?;
+            if sessions.is_empty() {
+                println!("No '{}' audit sessions found", audit_type);
+                return Ok(ExitCode::Success);
+            }
+            if matches!(format, OutputFormat::Json) {
+                println!("{}", serde_json::to_string_pretty(&sessions)?);
+            } else {
+                println!("{:<5} {:<12} {:<8} {:<6} {:<6} {:<6}  {}",
+                         "ID", "Session", "Score", "Err", "Warn", "Sug", "Timestamp");
+                for s in &sessions {
+                    let id = s["id"].as_i64().unwrap_or(0);
+                    let sid = s["session_id"].as_str().unwrap_or("");
+                    let score = s["score"].as_f64().unwrap_or(0.0);
+                    let fc = &s["finding_counts"];
+                    let err = fc["errors"].as_i64().unwrap_or(0);
+                    let warn = fc["warnings"].as_i64().unwrap_or(0);
+                    let sug = fc["suggestions"].as_i64().unwrap_or(0);
+                    let ts = s["created_at"].as_str().unwrap_or("");
+                    println!("{:<5} {:<12} {:<8.1} {:<6} {:<6} {:<6}  {}",
+                             id, sid, score, err, warn, sug, ts);
+                }
+            }
+            return Ok(ExitCode::Success);
+        }
+
+        // Render the latest report using per-audit template
+        let templates_dir = root.join("docs/raw/report-templates");
+        let rendered = services::reporting::render_report(audit_type, &templates_dir, &runtime.registry)?;
+
+        if stdout_only {
+            println!("{}", rendered);
+            return Ok(ExitCode::Success);
+        }
+
+        // Write to disk
+        let reports_base = root.join("reports");
+        let audit_dir = reports_base.join(audit_type);
+        let latest_dir = audit_dir.join("latest");
+        let archive_dir = audit_dir.join("archive");
+        std::fs::create_dir_all(&latest_dir)?;
+        std::fs::create_dir_all(&archive_dir)?;
+
+        let now = chrono::Local::now();
+        let archive_path = archive_dir.join(format!("{}.md", now.format("%Y%m%d-%H%M%S")));
+        std::fs::write(&archive_path, &rendered)?;
+        let latest_path = latest_dir.join("report.md");
+        std::fs::write(&latest_path, &rendered)?;
+
+        println!("Report saved: {}", latest_path.display());
+        println!("Archived:     {}", archive_path.display());
+
         Ok(ExitCode::Success)
     }
 

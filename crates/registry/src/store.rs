@@ -12,6 +12,7 @@ use schemas::registry::{
     BuildMetadata, GlossaryEntry, RegistryMetadata, RegistryStatus, Relationship,
 };
 use schemas::search::{SemanticSection, SectionQuery, SectionQueryResponse};
+use serde::Serialize;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
@@ -991,6 +992,2473 @@ impl RegistryStore {
         )?;
         Ok(())
     }
+
+    // ── Per-Audit Report Operations (Phase 8) ────────────────────────────
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Build Reports
+    // ═══════════════════════════════════════════════════════════════════════
+
+    pub fn insert_build_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        contract_name: Option<&str>,
+        declared_produces: Option<&str>,
+        actual_artifacts: Option<&str>,
+        artifact_freshness: Option<&str>,
+        execution_success: Option<bool>,
+        execution_output: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.conn.execute(
+            "INSERT OR REPLACE INTO build_reports (session_id, pipeline, score, git_revision, contract_name, declared_produces, actual_artifacts, artifact_freshness, execution_success, execution_output)
+             VALUES (?1, 'build', ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                session_id, score, git_revision, contract_name,
+                declared_produces, actual_artifacts, artifact_freshness,
+                execution_success.map(|v| v as i64), execution_output,
+            ],
+        )?;
+        let report_id = self.conn.last_insert_rowid();
+        self.insert_report_findings("build", report_id, findings)?;
+        Ok(report_id)
+    }
+
+    pub fn query_build_sessions(&self, limit: usize) -> Result<Vec<BuildSessionInfo>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session_id, score, git_revision, created_at,
+                    COALESCE((SELECT COUNT(*) FROM report_findings rf WHERE rf.report_type = 'build' AND rf.report_id = br.id AND rf.severity = 'error'), 0) as err_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings rf WHERE rf.report_type = 'build' AND rf.report_id = br.id AND rf.severity = 'warning'), 0) as warn_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings rf WHERE rf.report_type = 'build' AND rf.report_id = br.id AND rf.severity = 'suggestion'), 0) as sug_count
+             FROM build_reports br ORDER BY br.id DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit as i64], |row| {
+            Ok(BuildSessionInfo {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                score: row.get(2)?,
+                git_revision: row.get(3)?,
+                created_at: row.get(4)?,
+                finding_counts: FindingCounts {
+                    errors: row.get::<_, i64>(5)? as usize,
+                    warnings: row.get::<_, i64>(6)? as usize,
+                    suggestions: row.get::<_, i64>(7)? as usize,
+                },
+            })
+        })?;
+        let mut sessions = Vec::new();
+        for row in rows {
+            sessions.push(row?);
+        }
+        Ok(sessions)
+    }
+
+    pub fn get_build_report_with_findings(&self, report_id: i64) -> Result<Option<BuildReportWithFindings>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session_id, score, git_revision, created_at, contract_name, declared_produces, actual_artifacts, artifact_freshness, execution_success, execution_output
+             FROM build_reports WHERE id = ?1",
+        )?;
+        let mut rows = stmt.query(params![report_id])?;
+        let Some(row) = rows.next()? else { return Ok(None); };
+        let findings = self.query_findings("build", report_id)?;
+        Ok(Some(BuildReportWithFindings {
+            id: row.get(0)?,
+            session_id: row.get(1)?,
+            score: row.get(2)?,
+            git_revision: row.get(3)?,
+            created_at: row.get(4)?,
+            contract_name: row.get(5)?,
+            declared_produces: row.get(6)?,
+            actual_artifacts: row.get(7)?,
+            artifact_freshness: row.get(8)?,
+            execution_success: row.get::<_, Option<i64>>(9)?.map(|v| v != 0),
+            execution_output: row.get(10)?,
+            findings,
+        }))
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Security Reports
+    // ═══════════════════════════════════════════════════════════════════════
+
+    pub fn insert_security_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        secrets_scanned: i64,
+        secrets_found: i64,
+        runtime_checks: i64,
+        runtime_issues: i64,
+        high_risk_findings: i64,
+        threat_summary: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.conn.execute(
+            "INSERT OR REPLACE INTO security_reports (session_id, pipeline, score, git_revision, secrets_scanned, secrets_found, runtime_checks, runtime_issues, high_risk_findings, threat_summary)
+             VALUES (?1, 'security', ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                session_id, score, git_revision, secrets_scanned, secrets_found,
+                runtime_checks, runtime_issues, high_risk_findings, threat_summary,
+            ],
+        )?;
+        let report_id = self.conn.last_insert_rowid();
+        self.insert_report_findings("security", report_id, findings)?;
+        Ok(report_id)
+    }
+
+    pub fn query_security_sessions(&self, limit: usize) -> Result<Vec<SecuritySessionInfo>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session_id, score, git_revision, created_at, secrets_scanned, secrets_found, runtime_checks, runtime_issues, high_risk_findings,
+                    COALESCE((SELECT COUNT(*) FROM report_findings rf WHERE rf.report_type = 'security' AND rf.report_id = sr.id AND rf.severity = 'error'), 0) as err_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings rf WHERE rf.report_type = 'security' AND rf.report_id = sr.id AND rf.severity = 'warning'), 0) as warn_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings rf WHERE rf.report_type = 'security' AND rf.report_id = sr.id AND rf.severity = 'suggestion'), 0) as sug_count
+             FROM security_reports sr ORDER BY sr.id DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit as i64], |row| {
+            Ok(SecuritySessionInfo {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                score: row.get(2)?,
+                git_revision: row.get(3)?,
+                created_at: row.get(4)?,
+                secrets_scanned: row.get(5)?,
+                secrets_found: row.get(6)?,
+                runtime_checks: row.get(7)?,
+                runtime_issues: row.get(8)?,
+                high_risk_findings: row.get(9)?,
+                finding_counts: FindingCounts {
+                    errors: row.get::<_, i64>(10)? as usize,
+                    warnings: row.get::<_, i64>(11)? as usize,
+                    suggestions: row.get::<_, i64>(12)? as usize,
+                },
+            })
+        })?;
+        let mut sessions = Vec::new();
+        for row in rows {
+            sessions.push(row?);
+        }
+        Ok(sessions)
+    }
+
+    pub fn get_security_report_with_findings(&self, report_id: i64) -> Result<Option<SecurityReportWithFindings>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session_id, score, git_revision, created_at, secrets_scanned, secrets_found, runtime_checks, runtime_issues, high_risk_findings, threat_summary
+             FROM security_reports WHERE id = ?1",
+        )?;
+        let mut rows = stmt.query(params![report_id])?;
+        let Some(row) = rows.next()? else { return Ok(None); };
+        let findings = self.query_findings("security", report_id)?;
+        Ok(Some(SecurityReportWithFindings {
+            id: row.get(0)?,
+            session_id: row.get(1)?,
+            score: row.get(2)?,
+            git_revision: row.get(3)?,
+            created_at: row.get(4)?,
+            secrets_scanned: row.get(5)?,
+            secrets_found: row.get(6)?,
+            runtime_checks: row.get(7)?,
+            runtime_issues: row.get(8)?,
+            high_risk_findings: row.get(9)?,
+            threat_summary: row.get(10)?,
+            findings,
+        }))
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Consistency Reports
+    // ═══════════════════════════════════════════════════════════════════════
+
+    pub fn insert_consistency_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        vision_exists: bool,
+        architecture_exists: bool,
+        structure_score: Option<f64>,
+        naming_issues: Option<&str>,
+        cross_references: i64,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.conn.execute(
+            "INSERT OR REPLACE INTO consistency_reports (session_id, pipeline, score, git_revision, vision_exists, architecture_exists, structure_score, naming_issues, cross_references)
+             VALUES (?1, 'consistency', ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                session_id, score, git_revision,
+                vision_exists as i64, architecture_exists as i64,
+                structure_score, naming_issues, cross_references,
+            ],
+        )?;
+        let report_id = self.conn.last_insert_rowid();
+        self.insert_report_findings("consistency", report_id, findings)?;
+        Ok(report_id)
+    }
+
+    pub fn query_consistency_sessions(&self, limit: usize) -> Result<Vec<ConsistencySessionInfo>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session_id, score, git_revision, created_at, vision_exists, architecture_exists, structure_score, cross_references,
+                    COALESCE((SELECT COUNT(*) FROM report_findings rf WHERE rf.report_type = 'consistency' AND rf.report_id = cr.id AND rf.severity = 'error'), 0) as err_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings rf WHERE rf.report_type = 'consistency' AND rf.report_id = cr.id AND rf.severity = 'warning'), 0) as warn_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings rf WHERE rf.report_type = 'consistency' AND rf.report_id = cr.id AND rf.severity = 'suggestion'), 0) as sug_count
+             FROM consistency_reports cr ORDER BY cr.id DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit as i64], |row| {
+            Ok(ConsistencySessionInfo {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                score: row.get(2)?,
+                git_revision: row.get(3)?,
+                created_at: row.get(4)?,
+                vision_exists: row.get::<_, i64>(5)? != 0,
+                architecture_exists: row.get::<_, i64>(6)? != 0,
+                structure_score: row.get(7)?,
+                cross_references: row.get::<_, i64>(8)? as usize,
+                finding_counts: FindingCounts {
+                    errors: row.get::<_, i64>(9)? as usize,
+                    warnings: row.get::<_, i64>(10)? as usize,
+                    suggestions: row.get::<_, i64>(11)? as usize,
+                },
+            })
+        })?;
+        let mut sessions = Vec::new();
+        for row in rows {
+            sessions.push(row?);
+        }
+        Ok(sessions)
+    }
+
+    pub fn get_consistency_report_with_findings(&self, report_id: i64) -> Result<Option<ConsistencyReportWithFindings>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session_id, score, git_revision, created_at, vision_exists, architecture_exists, structure_score, naming_issues, cross_references
+             FROM consistency_reports WHERE id = ?1",
+        )?;
+        let mut rows = stmt.query(params![report_id])?;
+        let Some(row) = rows.next()? else { return Ok(None); };
+        let findings = self.query_findings("consistency", report_id)?;
+        Ok(Some(ConsistencyReportWithFindings {
+            id: row.get(0)?,
+            session_id: row.get(1)?,
+            score: row.get(2)?,
+            git_revision: row.get(3)?,
+            created_at: row.get(4)?,
+            vision_exists: row.get::<_, i64>(5)? != 0,
+            architecture_exists: row.get::<_, i64>(6)? != 0,
+            structure_score: row.get(7)?,
+            naming_issues: row.get(8)?,
+            cross_references: row.get::<_, i64>(9)? as usize,
+            findings,
+        }))
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Coverage Reports
+    // ═══════════════════════════════════════════════════════════════════════
+
+    pub fn insert_coverage_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        features_count: i64,
+        src_files_count: i64,
+        feature_coverage_pct: Option<f64>,
+        uncovered_features: Option<&str>,
+        doc_types_covered: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.conn.execute(
+            "INSERT OR REPLACE INTO coverage_reports (session_id, pipeline, score, git_revision, features_count, src_files_count, feature_coverage_pct, uncovered_features, doc_types_covered)
+             VALUES (?1, 'coverage', ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                session_id, score, git_revision,
+                features_count, src_files_count, feature_coverage_pct,
+                uncovered_features, doc_types_covered,
+            ],
+        )?;
+        let report_id = self.conn.last_insert_rowid();
+        self.insert_report_findings("coverage", report_id, findings)?;
+        Ok(report_id)
+    }
+
+    pub fn query_coverage_sessions(&self, limit: usize) -> Result<Vec<CoverageSessionInfo>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session_id, score, git_revision, created_at, features_count, src_files_count, feature_coverage_pct,
+                    COALESCE((SELECT COUNT(*) FROM report_findings rf WHERE rf.report_type = 'coverage' AND rf.report_id = cr.id AND rf.severity = 'error'), 0) as err_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings rf WHERE rf.report_type = 'coverage' AND rf.report_id = cr.id AND rf.severity = 'warning'), 0) as warn_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings rf WHERE rf.report_type = 'coverage' AND rf.report_id = cr.id AND rf.severity = 'suggestion'), 0) as sug_count
+             FROM coverage_reports cr ORDER BY cr.id DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit as i64], |row| {
+            Ok(CoverageSessionInfo {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                score: row.get(2)?,
+                git_revision: row.get(3)?,
+                created_at: row.get(4)?,
+                features_count: row.get::<_, i64>(5)? as usize,
+                src_files_count: row.get::<_, i64>(6)? as usize,
+                feature_coverage_pct: row.get(7)?,
+                finding_counts: FindingCounts {
+                    errors: row.get::<_, i64>(8)? as usize,
+                    warnings: row.get::<_, i64>(9)? as usize,
+                    suggestions: row.get::<_, i64>(10)? as usize,
+                },
+            })
+        })?;
+        let mut sessions = Vec::new();
+        for row in rows {
+            sessions.push(row?);
+        }
+        Ok(sessions)
+    }
+
+    pub fn get_coverage_report_with_findings(&self, report_id: i64) -> Result<Option<CoverageReportWithFindings>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session_id, score, git_revision, created_at, features_count, src_files_count, feature_coverage_pct, uncovered_features, doc_types_covered
+             FROM coverage_reports WHERE id = ?1",
+        )?;
+        let mut rows = stmt.query(params![report_id])?;
+        let Some(row) = rows.next()? else { return Ok(None); };
+        let findings = self.query_findings("coverage", report_id)?;
+        Ok(Some(CoverageReportWithFindings {
+            id: row.get(0)?,
+            session_id: row.get(1)?,
+            score: row.get(2)?,
+            git_revision: row.get(3)?,
+            created_at: row.get(4)?,
+            features_count: row.get::<_, i64>(5)? as usize,
+            src_files_count: row.get::<_, i64>(6)? as usize,
+            feature_coverage_pct: row.get(7)?,
+            uncovered_features: row.get(8)?,
+            doc_types_covered: row.get(9)?,
+            findings,
+        }))
+    }
+
+    // ── Architecture (Phase 9) ──────────────────────────────────────────
+
+    pub fn insert_architecture_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        previous_score: Option<f64>,
+        engineering_readiness: &str,
+        collection_integrity_score: Option<f64>,
+        structural_integrity_score: Option<f64>,
+        consistency_score: Option<f64>,
+        cross_repo_score: Option<f64>,
+        doc_scores: Option<&str>,
+        validation_scores: Option<&str>,
+        finding_counts: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.conn.execute(
+            "INSERT INTO architecture_reports (session_id, score, git_revision, previous_score, engineering_readiness, collection_integrity_score, structural_integrity_score, consistency_score, cross_repo_score, doc_scores, validation_scores, finding_counts)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            params![
+                session_id, score, git_revision, previous_score, engineering_readiness,
+                collection_integrity_score, structural_integrity_score,
+                consistency_score, cross_repo_score,
+                doc_scores, validation_scores, finding_counts,
+            ],
+        )?;
+        let report_id = self.conn.last_insert_rowid();
+        if !findings.is_empty() {
+            self.insert_report_findings("architecture", report_id, findings)?;
+        }
+        Ok(report_id)
+    }
+
+    pub fn query_architecture_sessions(&self, limit: usize) -> Result<Vec<ArchitectureSessionInfo>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT a.id, a.session_id, a.score, a.previous_score, a.git_revision, a.created_at,
+                    a.engineering_readiness, a.collection_integrity_score,
+                    a.structural_integrity_score, a.consistency_score, a.cross_repo_score,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'architecture' AND f.report_id = a.id AND f.severity = 'error'), 0) as err_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'architecture' AND f.report_id = a.id AND f.severity = 'warning'), 0) as warn_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'architecture' AND f.report_id = a.id AND f.severity = 'suggestion'), 0) as sug_count
+             FROM architecture_reports a ORDER BY a.id DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit as i64], |row| {
+            Ok(ArchitectureSessionInfo {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                score: row.get(2)?,
+                previous_score: row.get(3)?,
+                git_revision: row.get(4)?,
+                created_at: row.get(5)?,
+                engineering_readiness: row.get(6)?,
+                collection_integrity_score: row.get(7)?,
+                structural_integrity_score: row.get(8)?,
+                consistency_score: row.get(9)?,
+                cross_repo_score: row.get(10)?,
+                finding_counts: FindingCounts {
+                    errors: row.get::<_, i64>(11)? as usize,
+                    warnings: row.get::<_, i64>(12)? as usize,
+                    suggestions: row.get::<_, i64>(13)? as usize,
+                },
+            })
+        })?;
+        let mut sessions = Vec::new();
+        for row in rows {
+            sessions.push(row?);
+        }
+        Ok(sessions)
+    }
+
+    pub fn get_architecture_report_with_findings(&self, report_id: i64) -> Result<Option<ArchitectureReportWithFindings>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session_id, score, previous_score, git_revision, created_at,
+                    engineering_readiness, collection_integrity_score,
+                    structural_integrity_score, consistency_score, cross_repo_score,
+                    doc_scores, validation_scores, finding_counts
+             FROM architecture_reports WHERE id = ?1",
+        )?;
+        let mut rows = stmt.query(params![report_id])?;
+        let Some(row) = rows.next()? else { return Ok(None); };
+        let findings = self.query_findings("architecture", report_id)?;
+        Ok(Some(ArchitectureReportWithFindings {
+            id: row.get(0)?,
+            session_id: row.get(1)?,
+            score: row.get(2)?,
+            previous_score: row.get(3)?,
+            git_revision: row.get(4)?,
+            created_at: row.get(5)?,
+            engineering_readiness: row.get(6)?,
+            collection_integrity_score: row.get(7)?,
+            structural_integrity_score: row.get(8)?,
+            consistency_score: row.get(9)?,
+            cross_repo_score: row.get(10)?,
+            doc_scores: row.get(11)?,
+            validation_scores: row.get(12)?,
+            finding_counts: row.get(13)?,
+            findings,
+            recommendations: self.query_recommendations("architecture", report_id)?,
+        }))
+    }
+
+    // ── Vision ───────────────────────────────────────────────────────────
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn insert_vision_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        previous_score: Option<f64>,
+        engineering_readiness: &str,
+        vision_content_score: Option<f64>,
+        tech_independence_score: Option<f64>,
+        traceability_consistency_score: Option<f64>,
+        doc_quality_score: Option<f64>,
+        doc_scores: Option<&str>,
+        validation_scores: Option<&str>,
+        finding_counts: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.conn.execute(
+            "INSERT INTO vision_reports (session_id, score, git_revision, previous_score, engineering_readiness, vision_content_score, tech_independence_score, traceability_consistency_score, doc_quality_score, doc_scores, validation_scores, finding_counts)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            params![
+                session_id, score, git_revision, previous_score, engineering_readiness,
+                vision_content_score, tech_independence_score,
+                traceability_consistency_score, doc_quality_score,
+                doc_scores, validation_scores, finding_counts,
+            ],
+        )?;
+        let report_id = self.conn.last_insert_rowid();
+        if !findings.is_empty() {
+            self.insert_report_findings("vision", report_id, findings)?;
+        }
+        Ok(report_id)
+    }
+
+    pub fn query_vision_sessions(&self, limit: usize) -> Result<Vec<VisionSessionInfo>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT v.id, v.session_id, v.score, v.previous_score, v.git_revision, v.created_at,
+                    v.engineering_readiness, v.vision_content_score,
+                    v.tech_independence_score, v.traceability_consistency_score, v.doc_quality_score,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'vision' AND f.report_id = v.id AND f.severity = 'error'), 0) as err_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'vision' AND f.report_id = v.id AND f.severity = 'warning'), 0) as warn_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'vision' AND f.report_id = v.id AND f.severity = 'suggestion'), 0) as sug_count
+             FROM vision_reports v ORDER BY v.id DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit as i64], |row| {
+            Ok(VisionSessionInfo {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                score: row.get(2)?,
+                previous_score: row.get(3)?,
+                git_revision: row.get(4)?,
+                created_at: row.get(5)?,
+                engineering_readiness: row.get(6)?,
+                vision_content_score: row.get(7)?,
+                tech_independence_score: row.get(8)?,
+                traceability_consistency_score: row.get(9)?,
+                doc_quality_score: row.get(10)?,
+                finding_counts: FindingCounts {
+                    errors: row.get::<_, i64>(11)? as usize,
+                    warnings: row.get::<_, i64>(12)? as usize,
+                    suggestions: row.get::<_, i64>(13)? as usize,
+                },
+            })
+        })?;
+        let mut sessions = Vec::new();
+        for row in rows {
+            sessions.push(row?);
+        }
+        Ok(sessions)
+    }
+
+    pub fn get_vision_report_with_findings(&self, report_id: i64) -> Result<Option<VisionReportWithFindings>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session_id, score, previous_score, git_revision, created_at,
+                    engineering_readiness, vision_content_score,
+                    tech_independence_score, traceability_consistency_score, doc_quality_score,
+                    doc_scores, validation_scores, finding_counts
+             FROM vision_reports WHERE id = ?1",
+        )?;
+        let mut rows = stmt.query(params![report_id])?;
+        let Some(row) = rows.next()? else { return Ok(None); };
+        let findings = self.query_findings("vision", report_id)?;
+        Ok(Some(VisionReportWithFindings {
+            id: row.get(0)?,
+            session_id: row.get(1)?,
+            score: row.get(2)?,
+            previous_score: row.get(3)?,
+            git_revision: row.get(4)?,
+            created_at: row.get(5)?,
+            engineering_readiness: row.get(6)?,
+            vision_content_score: row.get(7)?,
+            tech_independence_score: row.get(8)?,
+            traceability_consistency_score: row.get(9)?,
+            doc_quality_score: row.get(10)?,
+            doc_scores: row.get(11)?,
+            validation_scores: row.get(12)?,
+            finding_counts: row.get(13)?,
+            findings,
+            recommendations: self.query_recommendations("vision", report_id)?,
+        }))
+    }
+
+    // ── Design ───────────────────────────────────────────────────────────
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn insert_design_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        previous_score: Option<f64>,
+        engineering_readiness: &str,
+        design_system_score: Option<f64>,
+        doc_quality_score: Option<f64>,
+        design_quality_score: Option<f64>,
+        doc_scores: Option<&str>,
+        validation_scores: Option<&str>,
+        finding_counts: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.conn.execute(
+            "INSERT INTO design_reports (session_id, score, git_revision, previous_score, engineering_readiness, design_system_score, doc_quality_score, design_quality_score, doc_scores, validation_scores, finding_counts)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+            params![
+                session_id, score, git_revision, previous_score, engineering_readiness,
+                design_system_score, doc_quality_score, design_quality_score,
+                doc_scores, validation_scores, finding_counts,
+            ],
+        )?;
+        let report_id = self.conn.last_insert_rowid();
+        if !findings.is_empty() {
+            self.insert_report_findings("design", report_id, findings)?;
+        }
+        Ok(report_id)
+    }
+
+    pub fn query_design_sessions(&self, limit: usize) -> Result<Vec<DesignSessionInfo>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT d.id, d.session_id, d.score, d.previous_score, d.git_revision, d.created_at,
+                    d.engineering_readiness, d.design_system_score,
+                    d.doc_quality_score, d.design_quality_score,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'design' AND f.report_id = d.id AND f.severity = 'error'), 0) as err_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'design' AND f.report_id = d.id AND f.severity = 'warning'), 0) as warn_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'design' AND f.report_id = d.id AND f.severity = 'suggestion'), 0) as sug_count
+             FROM design_reports d ORDER BY d.id DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit as i64], |row| {
+            Ok(DesignSessionInfo {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                score: row.get(2)?,
+                previous_score: row.get(3)?,
+                git_revision: row.get(4)?,
+                created_at: row.get(5)?,
+                engineering_readiness: row.get(6)?,
+                design_system_score: row.get(7)?,
+                doc_quality_score: row.get(8)?,
+                design_quality_score: row.get(9)?,
+                finding_counts: FindingCounts {
+                    errors: row.get::<_, i64>(10)? as usize,
+                    warnings: row.get::<_, i64>(11)? as usize,
+                    suggestions: row.get::<_, i64>(12)? as usize,
+                },
+            })
+        })?;
+        let mut sessions = Vec::new();
+        for row in rows {
+            sessions.push(row?);
+        }
+        Ok(sessions)
+    }
+
+    pub fn get_design_report_with_findings(&self, report_id: i64) -> Result<Option<DesignReportWithFindings>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session_id, score, previous_score, git_revision, created_at,
+                    engineering_readiness, design_system_score,
+                    doc_quality_score, design_quality_score,
+                    doc_scores, validation_scores, finding_counts
+             FROM design_reports WHERE id = ?1",
+        )?;
+        let mut rows = stmt.query(params![report_id])?;
+        let Some(row) = rows.next()? else { return Ok(None); };
+        let findings = self.query_findings("design", report_id)?;
+        Ok(Some(DesignReportWithFindings {
+            id: row.get(0)?,
+            session_id: row.get(1)?,
+            score: row.get(2)?,
+            previous_score: row.get(3)?,
+            git_revision: row.get(4)?,
+            created_at: row.get(5)?,
+            engineering_readiness: row.get(6)?,
+            design_system_score: row.get(7)?,
+            doc_quality_score: row.get(8)?,
+            design_quality_score: row.get(9)?,
+            doc_scores: row.get(10)?,
+            validation_scores: row.get(11)?,
+            finding_counts: row.get(12)?,
+            findings,
+            recommendations: self.query_recommendations("design", report_id)?,
+        }))
+    }
+
+    // ── README ───────────────────────────────────────────────────────────
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn insert_readme_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        previous_score: Option<f64>,
+        engineering_readiness: &str,
+        repo_introduction_score: Option<f64>,
+        doc_navigation_score: Option<f64>,
+        doc_quality_score: Option<f64>,
+        maintainability_score: Option<f64>,
+        doc_scores: Option<&str>,
+        validation_scores: Option<&str>,
+        finding_counts: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.conn.execute(
+            "INSERT INTO readme_reports (session_id, score, git_revision, previous_score, engineering_readiness, repo_introduction_score, doc_navigation_score, doc_quality_score, maintainability_score, doc_scores, validation_scores, finding_counts)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            params![
+                session_id, score, git_revision, previous_score, engineering_readiness,
+                repo_introduction_score, doc_navigation_score, doc_quality_score, maintainability_score,
+                doc_scores, validation_scores, finding_counts,
+            ],
+        )?;
+        let report_id = self.conn.last_insert_rowid();
+        if !findings.is_empty() {
+            self.insert_report_findings("readme", report_id, findings)?;
+        }
+        Ok(report_id)
+    }
+
+    pub fn query_readme_sessions(&self, limit: usize) -> Result<Vec<ReadmeSessionInfo>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT r.id, r.session_id, r.score, r.previous_score, r.git_revision, r.created_at,
+                    r.engineering_readiness, r.repo_introduction_score,
+                    r.doc_navigation_score, r.doc_quality_score, r.maintainability_score,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'readme' AND f.report_id = r.id AND f.severity = 'error'), 0) as err_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'readme' AND f.report_id = r.id AND f.severity = 'warning'), 0) as warn_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'readme' AND f.report_id = r.id AND f.severity = 'suggestion'), 0) as sug_count
+             FROM readme_reports r ORDER BY r.id DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit as i64], |row| {
+            Ok(ReadmeSessionInfo {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                score: row.get(2)?,
+                previous_score: row.get(3)?,
+                git_revision: row.get(4)?,
+                created_at: row.get(5)?,
+                engineering_readiness: row.get(6)?,
+                repo_introduction_score: row.get(7)?,
+                doc_navigation_score: row.get(8)?,
+                doc_quality_score: row.get(9)?,
+                maintainability_score: row.get(10)?,
+                finding_counts: FindingCounts {
+                    errors: row.get::<_, i64>(11)? as usize,
+                    warnings: row.get::<_, i64>(12)? as usize,
+                    suggestions: row.get::<_, i64>(13)? as usize,
+                },
+            })
+        })?;
+        let mut sessions = Vec::new();
+        for row in rows {
+            sessions.push(row?);
+        }
+        Ok(sessions)
+    }
+
+    pub fn get_readme_report_with_findings(&self, report_id: i64) -> Result<Option<ReadmeReportWithFindings>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session_id, score, previous_score, git_revision, created_at,
+                    engineering_readiness, repo_introduction_score,
+                    doc_navigation_score, doc_quality_score, maintainability_score,
+                    doc_scores, validation_scores, finding_counts
+             FROM readme_reports WHERE id = ?1",
+        )?;
+        let mut rows = stmt.query(params![report_id])?;
+        let Some(row) = rows.next()? else { return Ok(None); };
+        let findings = self.query_findings("readme", report_id)?;
+        Ok(Some(ReadmeReportWithFindings {
+            id: row.get(0)?,
+            session_id: row.get(1)?,
+            score: row.get(2)?,
+            previous_score: row.get(3)?,
+            git_revision: row.get(4)?,
+            created_at: row.get(5)?,
+            engineering_readiness: row.get(6)?,
+            repo_introduction_score: row.get(7)?,
+            doc_navigation_score: row.get(8)?,
+            doc_quality_score: row.get(9)?,
+            maintainability_score: row.get(10)?,
+            doc_scores: row.get(11)?,
+            validation_scores: row.get(12)?,
+            finding_counts: row.get(13)?,
+            findings,
+            recommendations: self.query_recommendations("readme", report_id)?,
+        }))
+    }
+
+    // ── Prototype ────────────────────────────────────────────────────────
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn insert_prototype_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        previous_score: Option<f64>,
+        engineering_readiness: &str,
+        product_validation_score: Option<f64>,
+        runtime_validation_score: Option<f64>,
+        engineering_validation_score: Option<f64>,
+        validation_quality_score: Option<f64>,
+        doc_scores: Option<&str>,
+        validation_scores: Option<&str>,
+        finding_counts: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.conn.execute(
+            "INSERT INTO prototype_reports (session_id, score, git_revision, previous_score, engineering_readiness, product_validation_score, runtime_validation_score, engineering_validation_score, validation_quality_score, doc_scores, validation_scores, finding_counts)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            params![
+                session_id, score, git_revision, previous_score, engineering_readiness,
+                product_validation_score, runtime_validation_score,
+                engineering_validation_score, validation_quality_score,
+                doc_scores, validation_scores, finding_counts,
+            ],
+        )?;
+        let report_id = self.conn.last_insert_rowid();
+        if !findings.is_empty() {
+            self.insert_report_findings("prototype", report_id, findings)?;
+        }
+        Ok(report_id)
+    }
+
+    pub fn query_prototype_sessions(&self, limit: usize) -> Result<Vec<PrototypeSessionInfo>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT p.id, p.session_id, p.score, p.previous_score, p.git_revision, p.created_at,
+                    p.engineering_readiness, p.product_validation_score,
+                    p.runtime_validation_score, p.engineering_validation_score, p.validation_quality_score,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'prototype' AND f.report_id = p.id AND f.severity = 'error'), 0) as err_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'prototype' AND f.report_id = p.id AND f.severity = 'warning'), 0) as warn_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'prototype' AND f.report_id = p.id AND f.severity = 'suggestion'), 0) as sug_count
+             FROM prototype_reports p ORDER BY p.id DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit as i64], |row| {
+            Ok(PrototypeSessionInfo {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                score: row.get(2)?,
+                previous_score: row.get(3)?,
+                git_revision: row.get(4)?,
+                created_at: row.get(5)?,
+                engineering_readiness: row.get(6)?,
+                product_validation_score: row.get(7)?,
+                runtime_validation_score: row.get(8)?,
+                engineering_validation_score: row.get(9)?,
+                validation_quality_score: row.get(10)?,
+                finding_counts: FindingCounts {
+                    errors: row.get::<_, i64>(11)? as usize,
+                    warnings: row.get::<_, i64>(12)? as usize,
+                    suggestions: row.get::<_, i64>(13)? as usize,
+                },
+            })
+        })?;
+        let mut sessions = Vec::new();
+        for row in rows {
+            sessions.push(row?);
+        }
+        Ok(sessions)
+    }
+
+    pub fn get_prototype_report_with_findings(&self, report_id: i64) -> Result<Option<PrototypeReportWithFindings>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session_id, score, previous_score, git_revision, created_at,
+                    engineering_readiness, product_validation_score,
+                    runtime_validation_score, engineering_validation_score, validation_quality_score,
+                    doc_scores, validation_scores, finding_counts
+             FROM prototype_reports WHERE id = ?1",
+        )?;
+        let mut rows = stmt.query(params![report_id])?;
+        let Some(row) = rows.next()? else { return Ok(None); };
+        let findings = self.query_findings("prototype", report_id)?;
+        Ok(Some(PrototypeReportWithFindings {
+            id: row.get(0)?,
+            session_id: row.get(1)?,
+            score: row.get(2)?,
+            previous_score: row.get(3)?,
+            git_revision: row.get(4)?,
+            created_at: row.get(5)?,
+            engineering_readiness: row.get(6)?,
+            product_validation_score: row.get(7)?,
+            runtime_validation_score: row.get(8)?,
+            engineering_validation_score: row.get(9)?,
+            validation_quality_score: row.get(10)?,
+            doc_scores: row.get(11)?,
+            validation_scores: row.get(12)?,
+            finding_counts: row.get(13)?,
+            findings,
+            recommendations: self.query_recommendations("prototype", report_id)?,
+        }))
+    }
+
+    // ── External Context ─────────────────────────────────────────────────
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn insert_external_context_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        previous_score: Option<f64>,
+        engineering_readiness: &str,
+        document_quality_score: Option<f64>,
+        content_completeness_score: Option<f64>,
+        documentation_integrity_score: Option<f64>,
+        collection_quality_score: Option<f64>,
+        doc_scores: Option<&str>,
+        validation_scores: Option<&str>,
+        finding_counts: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.conn.execute(
+            "INSERT INTO external_context_reports (session_id, score, git_revision, previous_score, engineering_readiness, document_quality_score, content_completeness_score, documentation_integrity_score, collection_quality_score, doc_scores, validation_scores, finding_counts)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            params![
+                session_id, score, git_revision, previous_score, engineering_readiness,
+                document_quality_score, content_completeness_score,
+                documentation_integrity_score, collection_quality_score,
+                doc_scores, validation_scores, finding_counts,
+            ],
+        )?;
+        let report_id = self.conn.last_insert_rowid();
+        if !findings.is_empty() {
+            self.insert_report_findings("external-context", report_id, findings)?;
+        }
+        Ok(report_id)
+    }
+
+    pub fn query_external_context_sessions(&self, limit: usize) -> Result<Vec<ExternalContextSessionInfo>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT e.id, e.session_id, e.score, e.previous_score, e.git_revision, e.created_at,
+                    e.engineering_readiness, e.document_quality_score,
+                    e.content_completeness_score, e.documentation_integrity_score, e.collection_quality_score,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'external-context' AND f.report_id = e.id AND f.severity = 'error'), 0) as err_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'external-context' AND f.report_id = e.id AND f.severity = 'warning'), 0) as warn_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'external-context' AND f.report_id = e.id AND f.severity = 'suggestion'), 0) as sug_count
+             FROM external_context_reports e ORDER BY e.id DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit as i64], |row| {
+            Ok(ExternalContextSessionInfo {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                score: row.get(2)?,
+                previous_score: row.get(3)?,
+                git_revision: row.get(4)?,
+                created_at: row.get(5)?,
+                engineering_readiness: row.get(6)?,
+                document_quality_score: row.get(7)?,
+                content_completeness_score: row.get(8)?,
+                documentation_integrity_score: row.get(9)?,
+                collection_quality_score: row.get(10)?,
+                finding_counts: FindingCounts {
+                    errors: row.get::<_, i64>(11)? as usize,
+                    warnings: row.get::<_, i64>(12)? as usize,
+                    suggestions: row.get::<_, i64>(13)? as usize,
+                },
+            })
+        })?;
+        let mut sessions = Vec::new();
+        for row in rows {
+            sessions.push(row?);
+        }
+        Ok(sessions)
+    }
+
+    pub fn get_external_context_report_with_findings(&self, report_id: i64) -> Result<Option<ExternalContextReportWithFindings>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session_id, score, previous_score, git_revision, created_at,
+                    engineering_readiness, document_quality_score,
+                    content_completeness_score, documentation_integrity_score, collection_quality_score,
+                    doc_scores, validation_scores, finding_counts
+             FROM external_context_reports WHERE id = ?1",
+        )?;
+        let mut rows = stmt.query(params![report_id])?;
+        let Some(row) = rows.next()? else { return Ok(None); };
+        let findings = self.query_findings("external-context", report_id)?;
+        Ok(Some(ExternalContextReportWithFindings {
+            id: row.get(0)?,
+            session_id: row.get(1)?,
+            score: row.get(2)?,
+            previous_score: row.get(3)?,
+            git_revision: row.get(4)?,
+            created_at: row.get(5)?,
+            engineering_readiness: row.get(6)?,
+            document_quality_score: row.get(7)?,
+            content_completeness_score: row.get(8)?,
+            documentation_integrity_score: row.get(9)?,
+            collection_quality_score: row.get(10)?,
+            doc_scores: row.get(11)?,
+            validation_scores: row.get(12)?,
+            finding_counts: row.get(13)?,
+            findings,
+            recommendations: self.query_recommendations("external-context", report_id)?,
+        }))
+    }
+
+    // ── Engineering ───────────────────────────────────────────────────────
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn insert_engineering_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        previous_score: Option<f64>,
+        engineering_readiness: &str,
+        engineering_coverage_score: Option<f64>,
+        documentation_quality_score: Option<f64>,
+        traceability_consistency_score: Option<f64>,
+        doc_scores: Option<&str>,
+        validation_scores: Option<&str>,
+        finding_counts: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.conn.execute(
+            "INSERT INTO engineering_reports (session_id, score, git_revision, previous_score, engineering_readiness, engineering_coverage_score, documentation_quality_score, traceability_consistency_score, doc_scores, validation_scores, finding_counts)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+            params![
+                session_id, score, git_revision, previous_score, engineering_readiness,
+                engineering_coverage_score, documentation_quality_score,
+                traceability_consistency_score,
+                doc_scores, validation_scores, finding_counts,
+            ],
+        )?;
+        let report_id = self.conn.last_insert_rowid();
+        if !findings.is_empty() {
+            self.insert_report_findings("engineering", report_id, findings)?;
+        }
+        Ok(report_id)
+    }
+
+    pub fn query_engineering_sessions(&self, limit: usize) -> Result<Vec<EngineeringSessionInfo>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT e.id, e.session_id, e.score, e.previous_score, e.git_revision, e.created_at,
+                    e.engineering_readiness, e.engineering_coverage_score,
+                    e.documentation_quality_score, e.traceability_consistency_score,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'engineering' AND f.report_id = e.id AND f.severity = 'error'), 0) as err_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'engineering' AND f.report_id = e.id AND f.severity = 'warning'), 0) as warn_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'engineering' AND f.report_id = e.id AND f.severity = 'suggestion'), 0) as sug_count
+             FROM engineering_reports e ORDER BY e.id DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit as i64], |row| {
+            Ok(EngineeringSessionInfo {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                score: row.get(2)?,
+                previous_score: row.get(3)?,
+                git_revision: row.get(4)?,
+                created_at: row.get(5)?,
+                engineering_readiness: row.get(6)?,
+                engineering_coverage_score: row.get(7)?,
+                documentation_quality_score: row.get(8)?,
+                traceability_consistency_score: row.get(9)?,
+                finding_counts: FindingCounts {
+                    errors: row.get::<_, i64>(10)? as usize,
+                    warnings: row.get::<_, i64>(11)? as usize,
+                    suggestions: row.get::<_, i64>(12)? as usize,
+                },
+            })
+        })?;
+        let mut sessions = Vec::new();
+        for row in rows {
+            sessions.push(row?);
+        }
+        Ok(sessions)
+    }
+
+    pub fn get_engineering_report_with_findings(&self, report_id: i64) -> Result<Option<EngineeringReportWithFindings>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session_id, score, previous_score, git_revision, created_at,
+                    engineering_readiness, engineering_coverage_score,
+                    documentation_quality_score, traceability_consistency_score,
+                    doc_scores, validation_scores, finding_counts
+             FROM engineering_reports WHERE id = ?1",
+        )?;
+        let mut rows = stmt.query(params![report_id])?;
+        let Some(row) = rows.next()? else { return Ok(None); };
+        let findings = self.query_findings("engineering", report_id)?;
+        Ok(Some(EngineeringReportWithFindings {
+            id: row.get(0)?,
+            session_id: row.get(1)?,
+            score: row.get(2)?,
+            previous_score: row.get(3)?,
+            git_revision: row.get(4)?,
+            created_at: row.get(5)?,
+            engineering_readiness: row.get(6)?,
+            engineering_coverage_score: row.get(7)?,
+            documentation_quality_score: row.get(8)?,
+            traceability_consistency_score: row.get(9)?,
+            doc_scores: row.get(10)?,
+            validation_scores: row.get(11)?,
+            finding_counts: row.get(12)?,
+            findings,
+            recommendations: self.query_recommendations("engineering", report_id)?,
+        }))
+    }
+
+    // ── Feature ───────────────────────────────────────────────────────────
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn insert_feature_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        previous_score: Option<f64>,
+        engineering_readiness: &str,
+        feature_definition_score: Option<f64>,
+        product_definition_score: Option<f64>,
+        documentation_quality_score: Option<f64>,
+        product_readiness_score: Option<f64>,
+        doc_scores: Option<&str>,
+        validation_scores: Option<&str>,
+        finding_counts: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.conn.execute(
+            "INSERT INTO feature_reports (session_id, score, git_revision, previous_score, engineering_readiness, feature_definition_score, product_definition_score, documentation_quality_score, product_readiness_score, doc_scores, validation_scores, finding_counts)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            params![
+                session_id, score, git_revision, previous_score, engineering_readiness,
+                feature_definition_score, product_definition_score,
+                documentation_quality_score, product_readiness_score,
+                doc_scores, validation_scores, finding_counts,
+            ],
+        )?;
+        let report_id = self.conn.last_insert_rowid();
+        if !findings.is_empty() {
+            self.insert_report_findings("feature", report_id, findings)?;
+        }
+        Ok(report_id)
+    }
+
+    pub fn query_feature_sessions(&self, limit: usize) -> Result<Vec<FeatureSessionInfo>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT e.id, e.session_id, e.score, e.previous_score, e.git_revision, e.created_at,
+                    e.engineering_readiness, e.feature_definition_score,
+                    e.product_definition_score, e.documentation_quality_score, e.product_readiness_score,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'feature' AND f.report_id = e.id AND f.severity = 'error'), 0) as err_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'feature' AND f.report_id = e.id AND f.severity = 'warning'), 0) as warn_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'feature' AND f.report_id = e.id AND f.severity = 'suggestion'), 0) as sug_count
+             FROM feature_reports e ORDER BY e.id DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit as i64], |row| {
+            Ok(FeatureSessionInfo {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                score: row.get(2)?,
+                previous_score: row.get(3)?,
+                git_revision: row.get(4)?,
+                created_at: row.get(5)?,
+                engineering_readiness: row.get(6)?,
+                feature_definition_score: row.get(7)?,
+                product_definition_score: row.get(8)?,
+                documentation_quality_score: row.get(9)?,
+                product_readiness_score: row.get(10)?,
+                finding_counts: FindingCounts {
+                    errors: row.get::<_, i64>(11)? as usize,
+                    warnings: row.get::<_, i64>(12)? as usize,
+                    suggestions: row.get::<_, i64>(13)? as usize,
+                },
+            })
+        })?;
+        let mut sessions = Vec::new();
+        for row in rows {
+            sessions.push(row?);
+        }
+        Ok(sessions)
+    }
+
+    pub fn get_feature_report_with_findings(&self, report_id: i64) -> Result<Option<FeatureReportWithFindings>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session_id, score, previous_score, git_revision, created_at,
+                    engineering_readiness, feature_definition_score,
+                    product_definition_score, documentation_quality_score, product_readiness_score,
+                    doc_scores, validation_scores, finding_counts
+             FROM feature_reports WHERE id = ?1",
+        )?;
+        let mut rows = stmt.query(params![report_id])?;
+        let Some(row) = rows.next()? else { return Ok(None); };
+        let findings = self.query_findings("feature", report_id)?;
+        Ok(Some(FeatureReportWithFindings {
+            id: row.get(0)?,
+            session_id: row.get(1)?,
+            score: row.get(2)?,
+            previous_score: row.get(3)?,
+            git_revision: row.get(4)?,
+            created_at: row.get(5)?,
+            engineering_readiness: row.get(6)?,
+            feature_definition_score: row.get(7)?,
+            product_definition_score: row.get(8)?,
+            documentation_quality_score: row.get(9)?,
+            product_readiness_score: row.get(10)?,
+            doc_scores: row.get(11)?,
+            validation_scores: row.get(12)?,
+            finding_counts: row.get(13)?,
+            findings,
+            recommendations: self.query_recommendations("feature", report_id)?,
+        }))
+    }
+
+    // ── Feature Technical ───────────────────────────────────────────────
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn insert_feature_technical_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        previous_score: Option<f64>,
+        engineering_readiness: &str,
+        feature_mapping_score: Option<f64>,
+        technical_realization_score: Option<f64>,
+        documentation_quality_score: Option<f64>,
+        implementation_readiness_score: Option<f64>,
+        doc_scores: Option<&str>,
+        validation_scores: Option<&str>,
+        finding_counts: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.conn.execute(
+            "INSERT INTO feature_technical_reports (session_id, score, git_revision, previous_score, engineering_readiness, feature_mapping_score, technical_realization_score, documentation_quality_score, implementation_readiness_score, doc_scores, validation_scores, finding_counts)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            params![
+                session_id, score, git_revision, previous_score, engineering_readiness,
+                feature_mapping_score, technical_realization_score,
+                documentation_quality_score, implementation_readiness_score,
+                doc_scores, validation_scores, finding_counts,
+            ],
+        )?;
+        let report_id = self.conn.last_insert_rowid();
+        if !findings.is_empty() {
+            self.insert_report_findings("feature-technical", report_id, findings)?;
+        }
+        Ok(report_id)
+    }
+
+    pub fn query_feature_technical_sessions(&self, limit: usize) -> Result<Vec<FeatureTechnicalSessionInfo>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT e.id, e.session_id, e.score, e.previous_score, e.git_revision, e.created_at,
+                    e.engineering_readiness, e.feature_mapping_score,
+                    e.technical_realization_score, e.documentation_quality_score, e.implementation_readiness_score,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'feature-technical' AND f.report_id = e.id AND f.severity = 'error'), 0) as err_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'feature-technical' AND f.report_id = e.id AND f.severity = 'warning'), 0) as warn_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'feature-technical' AND f.report_id = e.id AND f.severity = 'suggestion'), 0) as sug_count
+             FROM feature_technical_reports e ORDER BY e.id DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit as i64], |row| {
+            Ok(FeatureTechnicalSessionInfo {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                score: row.get(2)?,
+                previous_score: row.get(3)?,
+                git_revision: row.get(4)?,
+                created_at: row.get(5)?,
+                engineering_readiness: row.get(6)?,
+                feature_mapping_score: row.get(7)?,
+                technical_realization_score: row.get(8)?,
+                documentation_quality_score: row.get(9)?,
+                implementation_readiness_score: row.get(10)?,
+                finding_counts: FindingCounts {
+                    errors: row.get::<_, i64>(11)? as usize,
+                    warnings: row.get::<_, i64>(12)? as usize,
+                    suggestions: row.get::<_, i64>(13)? as usize,
+                },
+            })
+        })?;
+        let mut sessions = Vec::new();
+        for row in rows {
+            sessions.push(row?);
+        }
+        Ok(sessions)
+    }
+
+    pub fn get_feature_technical_report_with_findings(&self, report_id: i64) -> Result<Option<FeatureTechnicalReportWithFindings>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session_id, score, previous_score, git_revision, created_at,
+                    engineering_readiness, feature_mapping_score,
+                    technical_realization_score, documentation_quality_score, implementation_readiness_score,
+                    doc_scores, validation_scores, finding_counts
+             FROM feature_technical_reports WHERE id = ?1",
+        )?;
+        let mut rows = stmt.query(params![report_id])?;
+        let Some(row) = rows.next()? else { return Ok(None); };
+        let findings = self.query_findings("feature-technical", report_id)?;
+        Ok(Some(FeatureTechnicalReportWithFindings {
+            id: row.get(0)?,
+            session_id: row.get(1)?,
+            score: row.get(2)?,
+            previous_score: row.get(3)?,
+            git_revision: row.get(4)?,
+            created_at: row.get(5)?,
+            engineering_readiness: row.get(6)?,
+            feature_mapping_score: row.get(7)?,
+            technical_realization_score: row.get(8)?,
+            documentation_quality_score: row.get(9)?,
+            implementation_readiness_score: row.get(10)?,
+            doc_scores: row.get(11)?,
+            validation_scores: row.get(12)?,
+            finding_counts: row.get(13)?,
+            findings,
+            recommendations: self.query_recommendations("feature-technical", report_id)?,
+        }))
+    }
+
+    // ── Feature Design ───────────────────────────────────────────────────
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn insert_feature_design_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        previous_score: Option<f64>,
+        engineering_readiness: &str,
+        feature_mapping_score: Option<f64>,
+        user_experience_score: Option<f64>,
+        documentation_quality_score: Option<f64>,
+        design_readiness_score: Option<f64>,
+        doc_scores: Option<&str>,
+        validation_scores: Option<&str>,
+        finding_counts: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.conn.execute(
+            "INSERT INTO feature_design_reports (session_id, score, git_revision, previous_score, engineering_readiness, feature_mapping_score, user_experience_score, documentation_quality_score, design_readiness_score, doc_scores, validation_scores, finding_counts)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            params![
+                session_id, score, git_revision, previous_score, engineering_readiness,
+                feature_mapping_score, user_experience_score,
+                documentation_quality_score, design_readiness_score,
+                doc_scores, validation_scores, finding_counts,
+            ],
+        )?;
+        let report_id = self.conn.last_insert_rowid();
+        if !findings.is_empty() {
+            self.insert_report_findings("feature-design", report_id, findings)?;
+        }
+        Ok(report_id)
+    }
+
+    pub fn query_feature_design_sessions(&self, limit: usize) -> Result<Vec<FeatureDesignSessionInfo>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT e.id, e.session_id, e.score, e.previous_score, e.git_revision, e.created_at,
+                    e.engineering_readiness, e.feature_mapping_score,
+                    e.user_experience_score, e.documentation_quality_score, e.design_readiness_score,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'feature-design' AND f.report_id = e.id AND f.severity = 'error'), 0) as err_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'feature-design' AND f.report_id = e.id AND f.severity = 'warning'), 0) as warn_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'feature-design' AND f.report_id = e.id AND f.severity = 'suggestion'), 0) as sug_count
+             FROM feature_design_reports e ORDER BY e.id DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit as i64], |row| {
+            Ok(FeatureDesignSessionInfo {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                score: row.get(2)?,
+                previous_score: row.get(3)?,
+                git_revision: row.get(4)?,
+                created_at: row.get(5)?,
+                engineering_readiness: row.get(6)?,
+                feature_mapping_score: row.get(7)?,
+                user_experience_score: row.get(8)?,
+                documentation_quality_score: row.get(9)?,
+                design_readiness_score: row.get(10)?,
+                finding_counts: FindingCounts {
+                    errors: row.get::<_, i64>(11)? as usize,
+                    warnings: row.get::<_, i64>(12)? as usize,
+                    suggestions: row.get::<_, i64>(13)? as usize,
+                },
+            })
+        })?;
+        let mut sessions = Vec::new();
+        for row in rows {
+            sessions.push(row?);
+        }
+        Ok(sessions)
+    }
+
+    pub fn get_feature_design_report_with_findings(&self, report_id: i64) -> Result<Option<FeatureDesignReportWithFindings>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session_id, score, previous_score, git_revision, created_at,
+                    engineering_readiness, feature_mapping_score,
+                    user_experience_score, documentation_quality_score, design_readiness_score,
+                    doc_scores, validation_scores, finding_counts
+             FROM feature_design_reports WHERE id = ?1",
+        )?;
+        let mut rows = stmt.query(params![report_id])?;
+        let Some(row) = rows.next()? else { return Ok(None); };
+        let findings = self.query_findings("feature-design", report_id)?;
+        Ok(Some(FeatureDesignReportWithFindings {
+            id: row.get(0)?,
+            session_id: row.get(1)?,
+            score: row.get(2)?,
+            previous_score: row.get(3)?,
+            git_revision: row.get(4)?,
+            created_at: row.get(5)?,
+            engineering_readiness: row.get(6)?,
+            feature_mapping_score: row.get(7)?,
+            user_experience_score: row.get(8)?,
+            documentation_quality_score: row.get(9)?,
+            design_readiness_score: row.get(10)?,
+            doc_scores: row.get(11)?,
+            validation_scores: row.get(12)?,
+            finding_counts: row.get(13)?,
+            findings,
+            recommendations: self.query_recommendations("feature-design", report_id)?,
+        }))
+    }
+
+    // ── Deterministic Runtime ────────────────────────────────────────────
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn insert_deterministic_runtime_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        previous_score: Option<f64>,
+        engineering_readiness: &str,
+        runtime_model_score: Option<f64>,
+        engineering_principles_score: Option<f64>,
+        runtime_integrity_score: Option<f64>,
+        doc_scores: Option<&str>,
+        validation_scores: Option<&str>,
+        finding_counts: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.conn.execute(
+            "INSERT INTO deterministic_runtime_reports (session_id, score, git_revision, previous_score, engineering_readiness, runtime_model_score, engineering_principles_score, runtime_integrity_score, doc_scores, validation_scores, finding_counts)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+            params![
+                session_id, score, git_revision, previous_score, engineering_readiness,
+                runtime_model_score, engineering_principles_score, runtime_integrity_score,
+                doc_scores, validation_scores, finding_counts,
+            ],
+        )?;
+        let report_id = self.conn.last_insert_rowid();
+        if !findings.is_empty() {
+            self.insert_report_findings("deterministic-runtime", report_id, findings)?;
+        }
+        Ok(report_id)
+    }
+
+    pub fn query_deterministic_runtime_sessions(&self, limit: usize) -> Result<Vec<DeterministicRuntimeSessionInfo>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT e.id, e.session_id, e.score, e.previous_score, e.git_revision, e.created_at,
+                    e.engineering_readiness, e.runtime_model_score,
+                    e.engineering_principles_score, e.runtime_integrity_score,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'deterministic-runtime' AND f.report_id = e.id AND f.severity = 'error'), 0) as err_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'deterministic-runtime' AND f.report_id = e.id AND f.severity = 'warning'), 0) as warn_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'deterministic-runtime' AND f.report_id = e.id AND f.severity = 'suggestion'), 0) as sug_count
+             FROM deterministic_runtime_reports e ORDER BY e.id DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit as i64], |row| {
+            Ok(DeterministicRuntimeSessionInfo {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                score: row.get(2)?,
+                previous_score: row.get(3)?,
+                git_revision: row.get(4)?,
+                created_at: row.get(5)?,
+                engineering_readiness: row.get(6)?,
+                runtime_model_score: row.get(7)?,
+                engineering_principles_score: row.get(8)?,
+                runtime_integrity_score: row.get(9)?,
+                finding_counts: FindingCounts {
+                    errors: row.get::<_, i64>(10)? as usize,
+                    warnings: row.get::<_, i64>(11)? as usize,
+                    suggestions: row.get::<_, i64>(12)? as usize,
+                },
+            })
+        })?;
+        let mut sessions = Vec::new();
+        for row in rows {
+            sessions.push(row?);
+        }
+        Ok(sessions)
+    }
+
+    pub fn get_deterministic_runtime_report_with_findings(&self, report_id: i64) -> Result<Option<DeterministicRuntimeReportWithFindings>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session_id, score, previous_score, git_revision, created_at,
+                    engineering_readiness, runtime_model_score,
+                    engineering_principles_score, runtime_integrity_score,
+                    doc_scores, validation_scores, finding_counts
+             FROM deterministic_runtime_reports WHERE id = ?1",
+        )?;
+        let mut rows = stmt.query(params![report_id])?;
+        let Some(row) = rows.next()? else { return Ok(None); };
+        let findings = self.query_findings("deterministic-runtime", report_id)?;
+        Ok(Some(DeterministicRuntimeReportWithFindings {
+            id: row.get(0)?,
+            session_id: row.get(1)?,
+            score: row.get(2)?,
+            previous_score: row.get(3)?,
+            git_revision: row.get(4)?,
+            created_at: row.get(5)?,
+            engineering_readiness: row.get(6)?,
+            runtime_model_score: row.get(7)?,
+            engineering_principles_score: row.get(8)?,
+            runtime_integrity_score: row.get(9)?,
+            doc_scores: row.get(10)?,
+            validation_scores: row.get(11)?,
+            finding_counts: row.get(12)?,
+            findings,
+            recommendations: self.query_recommendations("deterministic-runtime", report_id)?,
+        }))
+    }
+
+    // ── External Context Ownership ───────────────────────────────────────
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn insert_external_context_ownership_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        previous_score: Option<f64>,
+        engineering_readiness: &str,
+        dependency_coverage_score: Option<f64>,
+        documentation_integration_score: Option<f64>,
+        consistency_score: Option<f64>,
+        doc_scores: Option<&str>,
+        validation_scores: Option<&str>,
+        finding_counts: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.conn.execute(
+            "INSERT INTO external_context_ownership_reports (session_id, score, git_revision, previous_score, engineering_readiness, dependency_coverage_score, documentation_integration_score, consistency_score, doc_scores, validation_scores, finding_counts)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+            params![
+                session_id, score, git_revision, previous_score, engineering_readiness,
+                dependency_coverage_score, documentation_integration_score, consistency_score,
+                doc_scores, validation_scores, finding_counts,
+            ],
+        )?;
+        let report_id = self.conn.last_insert_rowid();
+        if !findings.is_empty() {
+            self.insert_report_findings("external-context-ownership", report_id, findings)?;
+        }
+        Ok(report_id)
+    }
+
+    pub fn query_external_context_ownership_sessions(&self, limit: usize) -> Result<Vec<ExternalContextOwnershipSessionInfo>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT e.id, e.session_id, e.score, e.previous_score, e.git_revision, e.created_at,
+                    e.engineering_readiness, e.dependency_coverage_score,
+                    e.documentation_integration_score, e.consistency_score,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'external-context-ownership' AND f.report_id = e.id AND f.severity = 'error'), 0) as err_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'external-context-ownership' AND f.report_id = e.id AND f.severity = 'warning'), 0) as warn_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'external-context-ownership' AND f.report_id = e.id AND f.severity = 'suggestion'), 0) as sug_count
+             FROM external_context_ownership_reports e ORDER BY e.id DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit as i64], |row| {
+            Ok(ExternalContextOwnershipSessionInfo {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                score: row.get(2)?,
+                previous_score: row.get(3)?,
+                git_revision: row.get(4)?,
+                created_at: row.get(5)?,
+                engineering_readiness: row.get(6)?,
+                dependency_coverage_score: row.get(7)?,
+                documentation_integration_score: row.get(8)?,
+                consistency_score: row.get(9)?,
+                finding_counts: FindingCounts {
+                    errors: row.get::<_, i64>(10)? as usize,
+                    warnings: row.get::<_, i64>(11)? as usize,
+                    suggestions: row.get::<_, i64>(12)? as usize,
+                },
+            })
+        })?;
+        let mut sessions = Vec::new();
+        for row in rows {
+            sessions.push(row?);
+        }
+        Ok(sessions)
+    }
+
+    pub fn get_external_context_ownership_report_with_findings(&self, report_id: i64) -> Result<Option<ExternalContextOwnershipReportWithFindings>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session_id, score, previous_score, git_revision, created_at,
+                    engineering_readiness, dependency_coverage_score,
+                    documentation_integration_score, consistency_score,
+                    doc_scores, validation_scores, finding_counts
+             FROM external_context_ownership_reports WHERE id = ?1",
+        )?;
+        let mut rows = stmt.query(params![report_id])?;
+        let Some(row) = rows.next()? else { return Ok(None); };
+        let findings = self.query_findings("external-context-ownership", report_id)?;
+        Ok(Some(ExternalContextOwnershipReportWithFindings {
+            id: row.get(0)?,
+            session_id: row.get(1)?,
+            score: row.get(2)?,
+            previous_score: row.get(3)?,
+            git_revision: row.get(4)?,
+            created_at: row.get(5)?,
+            engineering_readiness: row.get(6)?,
+            dependency_coverage_score: row.get(7)?,
+            documentation_integration_score: row.get(8)?,
+            consistency_score: row.get(9)?,
+            doc_scores: row.get(10)?,
+            validation_scores: row.get(11)?,
+            finding_counts: row.get(12)?,
+            findings,
+            recommendations: self.query_recommendations("external-context-ownership", report_id)?,
+        }))
+    }
+
+    // ── Implementation ───────────────────────────────────────────────────
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn insert_implementation_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        previous_score: Option<f64>,
+        engineering_readiness: &str,
+        architectural_conformance_score: Option<f64>,
+        feature_conformance_score: Option<f64>,
+        engineering_conformance_score: Option<f64>,
+        documentation_integrity_score: Option<f64>,
+        implementation_quality_score: Option<f64>,
+        doc_scores: Option<&str>,
+        validation_scores: Option<&str>,
+        finding_counts: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.conn.execute(
+            "INSERT INTO implementation_reports (session_id, score, git_revision, previous_score, engineering_readiness, architectural_conformance_score, feature_conformance_score, engineering_conformance_score, documentation_integrity_score, implementation_quality_score, doc_scores, validation_scores, finding_counts)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+            params![
+                session_id, score, git_revision, previous_score, engineering_readiness,
+                architectural_conformance_score, feature_conformance_score,
+                engineering_conformance_score, documentation_integrity_score,
+                implementation_quality_score,
+                doc_scores, validation_scores, finding_counts,
+            ],
+        )?;
+        let report_id = self.conn.last_insert_rowid();
+        if !findings.is_empty() {
+            self.insert_report_findings("implementation", report_id, findings)?;
+        }
+        Ok(report_id)
+    }
+
+    pub fn query_implementation_sessions(&self, limit: usize) -> Result<Vec<ImplementationSessionInfo>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT e.id, e.session_id, e.score, e.previous_score, e.git_revision, e.created_at,
+                    e.engineering_readiness, e.architectural_conformance_score,
+                    e.feature_conformance_score, e.engineering_conformance_score,
+                    e.documentation_integrity_score, e.implementation_quality_score,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'implementation' AND f.report_id = e.id AND f.severity = 'error'), 0) as err_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'implementation' AND f.report_id = e.id AND f.severity = 'warning'), 0) as warn_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'implementation' AND f.report_id = e.id AND f.severity = 'suggestion'), 0) as sug_count
+             FROM implementation_reports e ORDER BY e.id DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit as i64], |row| {
+            Ok(ImplementationSessionInfo {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                score: row.get(2)?,
+                previous_score: row.get(3)?,
+                git_revision: row.get(4)?,
+                created_at: row.get(5)?,
+                engineering_readiness: row.get(6)?,
+                architectural_conformance_score: row.get(7)?,
+                feature_conformance_score: row.get(8)?,
+                engineering_conformance_score: row.get(9)?,
+                documentation_integrity_score: row.get(10)?,
+                implementation_quality_score: row.get(11)?,
+                finding_counts: FindingCounts {
+                    errors: row.get::<_, i64>(12)? as usize,
+                    warnings: row.get::<_, i64>(13)? as usize,
+                    suggestions: row.get::<_, i64>(14)? as usize,
+                },
+            })
+        })?;
+        let mut sessions = Vec::new();
+        for row in rows {
+            sessions.push(row?);
+        }
+        Ok(sessions)
+    }
+
+    pub fn get_implementation_report_with_findings(&self, report_id: i64) -> Result<Option<ImplementationReportWithFindings>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session_id, score, previous_score, git_revision, created_at,
+                    engineering_readiness, architectural_conformance_score,
+                    feature_conformance_score, engineering_conformance_score,
+                    documentation_integrity_score, implementation_quality_score,
+                    doc_scores, validation_scores, finding_counts
+             FROM implementation_reports WHERE id = ?1",
+        )?;
+        let mut rows = stmt.query(params![report_id])?;
+        let Some(row) = rows.next()? else { return Ok(None); };
+        let findings = self.query_findings("implementation", report_id)?;
+        Ok(Some(ImplementationReportWithFindings {
+            id: row.get(0)?,
+            session_id: row.get(1)?,
+            score: row.get(2)?,
+            previous_score: row.get(3)?,
+            git_revision: row.get(4)?,
+            created_at: row.get(5)?,
+            engineering_readiness: row.get(6)?,
+            architectural_conformance_score: row.get(7)?,
+            feature_conformance_score: row.get(8)?,
+            engineering_conformance_score: row.get(9)?,
+            documentation_integrity_score: row.get(10)?,
+            implementation_quality_score: row.get(11)?,
+            doc_scores: row.get(12)?,
+            validation_scores: row.get(13)?,
+            finding_counts: row.get(14)?,
+            findings,
+            recommendations: self.query_recommendations("implementation", report_id)?,
+        }))
+    }
+
+    // ── Recommendations (Phase 9) ───────────────────────────────────────
+
+    pub fn insert_recommendations(&self, report_type: &str, report_id: i64, recommendations: &[ReportRecommendation]) -> Result<()> {
+        for r in recommendations {
+            self.conn.execute(
+                "INSERT INTO report_recommendations (report_type, report_id, priority, category, description, file_path)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![report_type, report_id, r.priority, r.category, r.description, r.file_path],
+            )?;
+        }
+        Ok(())
+    }
+
+    pub fn query_recommendations(&self, report_type: &str, report_id: i64) -> Result<Vec<ReportRecommendation>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, priority, category, description, file_path
+             FROM report_recommendations WHERE report_type = ?1 AND report_id = ?2
+             ORDER BY
+                CASE priority
+                    WHEN 'P1' THEN 1
+                    WHEN 'P2' THEN 2
+                    WHEN 'P3' THEN 3
+                    ELSE 4
+                END",
+        )?;
+        let rows = stmt.query_map(params![report_type, report_id], |row| {
+            Ok(ReportRecommendation {
+                id: row.get(0)?,
+                priority: row.get(1)?,
+                category: row.get(2)?,
+                description: row.get(3)?,
+                file_path: row.get(4)?,
+            })
+        })?;
+        let mut result = Vec::new();
+        for row in rows {
+            result.push(row?);
+        }
+        Ok(result)
+    }
+
+    // ── Shared Report Operations (Phase 8) ──────────────────────────────
+
+    pub fn insert_report_findings(&self, report_type: &str, report_id: i64, findings: &[schemas::audit::AuditFinding]) -> Result<()> {
+        for f in findings {
+            self.conn.execute(
+                "INSERT INTO report_findings (report_type, report_id, check_id, severity, message, location)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![report_type, report_id, f.check_id, f.severity.to_string(), f.message, f.location],
+            )?;
+            // Evidence was previously dropped here even though AuditFinding.evidence
+            // carries it (semantic providers set it; deterministic providers leave it
+            // None). Persist it when present so the read path / report templates can
+            // show it — see StoredFinding.evidence_excerpt / query_findings below.
+            if let Some(evidence) = &f.evidence {
+                let finding_id = self.conn.last_insert_rowid();
+                let source = format!("section_id={}, paragraph_index={}", evidence.section_id, evidence.paragraph_index);
+                self.insert_report_evidence(
+                    report_type,
+                    report_id,
+                    Some(finding_id),
+                    "excerpt",
+                    Some(&evidence.excerpt),
+                    Some(&source),
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn query_findings(&self, report_type: &str, report_id: i64) -> Result<Vec<StoredFinding>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT f.id, f.check_id, f.severity, f.message, f.location, f.status,
+                    e.value, e.source
+             FROM report_findings f
+             LEFT JOIN report_evidence e
+                    ON e.finding_id = f.id AND e.key = 'excerpt'
+             WHERE f.report_type = ?1 AND f.report_id = ?2 ORDER BY f.id",
+        )?;
+        let findings = stmt.query_map(params![report_type, report_id], |row| {
+            Ok(StoredFinding {
+                id: row.get(0)?,
+                check_id: row.get(1)?,
+                severity: row.get(2)?,
+                message: row.get(3)?,
+                location: row.get(4)?,
+                status: row.get(5)?,
+                evidence_excerpt: row.get(6)?,
+                evidence_source: row.get(7)?,
+            })
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+        Ok(findings)
+    }
+
+    pub fn update_finding_status_by_id(&self, finding_id: i64, status: &str) -> Result<()> {
+        self.conn.execute(
+            "UPDATE report_findings SET status = ?1 WHERE id = ?2",
+            params![status, finding_id],
+        )?;
+        Ok(())
+    }
+
+    /// For each semantic section type, how many documents in `domain` contain
+    /// it versus the total document count in that domain. Used to check a
+    /// documentation collection against a standard's Required Sections table
+    /// (e.g. `docs/raw/standards/architecture.md`) without re-deriving that
+    /// list here — the caller passes the section types to check.
+    pub fn count_section_type_coverage(
+        &self,
+        domain: &str,
+        semantic_types: &[&str],
+    ) -> Result<Vec<(String, usize, usize)>> {
+        let total_docs: usize = self.conn.query_row(
+            "SELECT COUNT(*) FROM documents WHERE standard = ?1",
+            params![domain],
+            |row| row.get(0),
+        )?;
+
+        let mut out = Vec::with_capacity(semantic_types.len());
+        for semantic_type in semantic_types {
+            let with_type: usize = self.conn.query_row(
+                "SELECT COUNT(DISTINCT d.id) FROM documents d
+                 JOIN document_sections ds ON ds.document_id = d.id
+                 WHERE d.standard = ?1 AND ds.semantic_type = ?2",
+                params![domain, semantic_type],
+                |row| row.get(0),
+            )?;
+            out.push((semantic_type.to_string(), with_type, total_docs));
+        }
+        Ok(out)
+    }
+
+    pub fn insert_report_evidence(&self, report_type: &str, report_id: i64, finding_id: Option<i64>, key: &str, value: Option<&str>, source: Option<&str>) -> Result<i64> {
+        self.conn.execute(
+            "INSERT INTO report_evidence (report_type, report_id, finding_id, key, value, source)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![report_type, report_id, finding_id, key, value, source],
+        )?;
+        Ok(self.conn.last_insert_rowid())
+    }
+
+    pub fn insert_report_summary(&self, report_type: &str, report_id: i64, summary_text: &str) -> Result<i64> {
+        self.conn.execute(
+            "INSERT INTO report_summaries (report_type, report_id, summary_text)
+             VALUES (?1, ?2, ?3)",
+            params![report_type, report_id, summary_text],
+        )?;
+        Ok(self.conn.last_insert_rowid())
+    }
+
+    pub fn insert_report_improvement(&self, report_type: &str, report_id: i64, category: &str, suggestion: &str, priority: &str) -> Result<i64> {
+        self.conn.execute(
+            "INSERT INTO report_improvements (report_type, report_id, category, suggestion, priority)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![report_type, report_id, category, suggestion, priority],
+        )?;
+        Ok(self.conn.last_insert_rowid())
+    }
+}
+
+// ── Per-Audit Report Types (Phase 8) ─────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct FindingCounts {
+    pub errors: usize,
+    pub warnings: usize,
+    pub suggestions: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct StoredFinding {
+    pub id: i64,
+    pub check_id: String,
+    pub severity: String,
+    pub message: String,
+    pub location: Option<String>,
+    pub status: String,
+    /// Captured excerpt backing this finding, when the provider that raised
+    /// it recorded one (semantic providers do; deterministic providers
+    /// currently don't — this is `None` for those, not a bug).
+    pub evidence_excerpt: Option<String>,
+    /// Where the excerpt came from, e.g. "section_id=5, paragraph_index=0".
+    pub evidence_source: Option<String>,
+}
+
+// ── Build ────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BuildSessionInfo {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub finding_counts: FindingCounts,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BuildReportWithFindings {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub contract_name: Option<String>,
+    pub declared_produces: Option<String>,
+    pub actual_artifacts: Option<String>,
+    pub artifact_freshness: Option<String>,
+    pub execution_success: Option<bool>,
+    pub execution_output: Option<String>,
+    pub findings: Vec<StoredFinding>,
+}
+
+// ── Security ─────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SecuritySessionInfo {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub secrets_scanned: i64,
+    pub secrets_found: i64,
+    pub runtime_checks: i64,
+    pub runtime_issues: i64,
+    pub high_risk_findings: i64,
+    pub finding_counts: FindingCounts,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SecurityReportWithFindings {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub secrets_scanned: i64,
+    pub secrets_found: i64,
+    pub runtime_checks: i64,
+    pub runtime_issues: i64,
+    pub high_risk_findings: i64,
+    pub threat_summary: Option<String>,
+    pub findings: Vec<StoredFinding>,
+}
+
+// ── Consistency ──────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ConsistencySessionInfo {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub vision_exists: bool,
+    pub architecture_exists: bool,
+    pub structure_score: Option<f64>,
+    pub cross_references: usize,
+    pub finding_counts: FindingCounts,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ConsistencyReportWithFindings {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub vision_exists: bool,
+    pub architecture_exists: bool,
+    pub structure_score: Option<f64>,
+    pub naming_issues: Option<String>,
+    pub cross_references: usize,
+    pub findings: Vec<StoredFinding>,
+}
+
+// ── Coverage ─────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CoverageSessionInfo {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub features_count: usize,
+    pub src_files_count: usize,
+    pub feature_coverage_pct: Option<f64>,
+    pub finding_counts: FindingCounts,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CoverageReportWithFindings {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub features_count: usize,
+    pub src_files_count: usize,
+    pub feature_coverage_pct: Option<f64>,
+    pub uncovered_features: Option<String>,
+    pub doc_types_covered: Option<String>,
+    pub findings: Vec<StoredFinding>,
+}
+
+// ── Architecture (Phase 9) ──────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ArchitectureSessionInfo {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub previous_score: Option<f64>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub collection_integrity_score: Option<f64>,
+    pub structural_integrity_score: Option<f64>,
+    pub consistency_score: Option<f64>,
+    pub cross_repo_score: Option<f64>,
+    pub finding_counts: FindingCounts,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ReportRecommendation {
+    pub id: i64,
+    pub priority: String,
+    pub category: String,
+    pub description: String,
+    pub file_path: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct ArchitectureReportWithFindings {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub previous_score: Option<f64>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub collection_integrity_score: Option<f64>,
+    pub structural_integrity_score: Option<f64>,
+    pub consistency_score: Option<f64>,
+    pub cross_repo_score: Option<f64>,
+    pub doc_scores: Option<String>,
+    pub validation_scores: Option<String>,
+    pub finding_counts: Option<String>,
+    pub findings: Vec<StoredFinding>,
+    pub recommendations: Vec<ReportRecommendation>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct VisionSessionInfo {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub previous_score: Option<f64>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub vision_content_score: Option<f64>,
+    pub tech_independence_score: Option<f64>,
+    pub traceability_consistency_score: Option<f64>,
+    pub doc_quality_score: Option<f64>,
+    pub finding_counts: FindingCounts,
+}
+
+#[derive(Serialize)]
+pub struct VisionReportWithFindings {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub previous_score: Option<f64>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub vision_content_score: Option<f64>,
+    pub tech_independence_score: Option<f64>,
+    pub traceability_consistency_score: Option<f64>,
+    pub doc_quality_score: Option<f64>,
+    pub doc_scores: Option<String>,
+    pub validation_scores: Option<String>,
+    pub finding_counts: Option<String>,
+    pub findings: Vec<StoredFinding>,
+    pub recommendations: Vec<ReportRecommendation>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DesignSessionInfo {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub previous_score: Option<f64>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub design_system_score: Option<f64>,
+    pub doc_quality_score: Option<f64>,
+    pub design_quality_score: Option<f64>,
+    pub finding_counts: FindingCounts,
+}
+
+#[derive(Serialize)]
+pub struct DesignReportWithFindings {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub previous_score: Option<f64>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub design_system_score: Option<f64>,
+    pub doc_quality_score: Option<f64>,
+    pub design_quality_score: Option<f64>,
+    pub doc_scores: Option<String>,
+    pub validation_scores: Option<String>,
+    pub finding_counts: Option<String>,
+    pub findings: Vec<StoredFinding>,
+    pub recommendations: Vec<ReportRecommendation>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ReadmeSessionInfo {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub previous_score: Option<f64>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub repo_introduction_score: Option<f64>,
+    pub doc_navigation_score: Option<f64>,
+    pub doc_quality_score: Option<f64>,
+    pub maintainability_score: Option<f64>,
+    pub finding_counts: FindingCounts,
+}
+
+#[derive(Serialize)]
+pub struct ReadmeReportWithFindings {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub previous_score: Option<f64>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub repo_introduction_score: Option<f64>,
+    pub doc_navigation_score: Option<f64>,
+    pub doc_quality_score: Option<f64>,
+    pub maintainability_score: Option<f64>,
+    pub doc_scores: Option<String>,
+    pub validation_scores: Option<String>,
+    pub finding_counts: Option<String>,
+    pub findings: Vec<StoredFinding>,
+    pub recommendations: Vec<ReportRecommendation>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PrototypeSessionInfo {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub previous_score: Option<f64>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub product_validation_score: Option<f64>,
+    pub runtime_validation_score: Option<f64>,
+    pub engineering_validation_score: Option<f64>,
+    pub validation_quality_score: Option<f64>,
+    pub finding_counts: FindingCounts,
+}
+
+#[derive(Serialize)]
+pub struct PrototypeReportWithFindings {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub previous_score: Option<f64>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub product_validation_score: Option<f64>,
+    pub runtime_validation_score: Option<f64>,
+    pub engineering_validation_score: Option<f64>,
+    pub validation_quality_score: Option<f64>,
+    pub doc_scores: Option<String>,
+    pub validation_scores: Option<String>,
+    pub finding_counts: Option<String>,
+    pub findings: Vec<StoredFinding>,
+    pub recommendations: Vec<ReportRecommendation>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ExternalContextSessionInfo {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub previous_score: Option<f64>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub document_quality_score: Option<f64>,
+    pub content_completeness_score: Option<f64>,
+    pub documentation_integrity_score: Option<f64>,
+    pub collection_quality_score: Option<f64>,
+    pub finding_counts: FindingCounts,
+}
+
+#[derive(Serialize)]
+pub struct ExternalContextReportWithFindings {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub previous_score: Option<f64>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub document_quality_score: Option<f64>,
+    pub content_completeness_score: Option<f64>,
+    pub documentation_integrity_score: Option<f64>,
+    pub collection_quality_score: Option<f64>,
+    pub doc_scores: Option<String>,
+    pub validation_scores: Option<String>,
+    pub finding_counts: Option<String>,
+    pub findings: Vec<StoredFinding>,
+    pub recommendations: Vec<ReportRecommendation>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct EngineeringSessionInfo {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub previous_score: Option<f64>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub engineering_coverage_score: Option<f64>,
+    pub documentation_quality_score: Option<f64>,
+    pub traceability_consistency_score: Option<f64>,
+    pub finding_counts: FindingCounts,
+}
+
+#[derive(Serialize)]
+pub struct EngineeringReportWithFindings {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub previous_score: Option<f64>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub engineering_coverage_score: Option<f64>,
+    pub documentation_quality_score: Option<f64>,
+    pub traceability_consistency_score: Option<f64>,
+    pub doc_scores: Option<String>,
+    pub validation_scores: Option<String>,
+    pub finding_counts: Option<String>,
+    pub findings: Vec<StoredFinding>,
+    pub recommendations: Vec<ReportRecommendation>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct FeatureSessionInfo {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub previous_score: Option<f64>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub feature_definition_score: Option<f64>,
+    pub product_definition_score: Option<f64>,
+    pub documentation_quality_score: Option<f64>,
+    pub product_readiness_score: Option<f64>,
+    pub finding_counts: FindingCounts,
+}
+
+#[derive(Serialize)]
+pub struct FeatureReportWithFindings {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub previous_score: Option<f64>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub feature_definition_score: Option<f64>,
+    pub product_definition_score: Option<f64>,
+    pub documentation_quality_score: Option<f64>,
+    pub product_readiness_score: Option<f64>,
+    pub doc_scores: Option<String>,
+    pub validation_scores: Option<String>,
+    pub finding_counts: Option<String>,
+    pub findings: Vec<StoredFinding>,
+    pub recommendations: Vec<ReportRecommendation>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct FeatureTechnicalSessionInfo {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub previous_score: Option<f64>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub feature_mapping_score: Option<f64>,
+    pub technical_realization_score: Option<f64>,
+    pub documentation_quality_score: Option<f64>,
+    pub implementation_readiness_score: Option<f64>,
+    pub finding_counts: FindingCounts,
+}
+
+#[derive(Serialize)]
+pub struct FeatureTechnicalReportWithFindings {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub previous_score: Option<f64>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub feature_mapping_score: Option<f64>,
+    pub technical_realization_score: Option<f64>,
+    pub documentation_quality_score: Option<f64>,
+    pub implementation_readiness_score: Option<f64>,
+    pub doc_scores: Option<String>,
+    pub validation_scores: Option<String>,
+    pub finding_counts: Option<String>,
+    pub findings: Vec<StoredFinding>,
+    pub recommendations: Vec<ReportRecommendation>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct FeatureDesignSessionInfo {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub previous_score: Option<f64>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub feature_mapping_score: Option<f64>,
+    pub user_experience_score: Option<f64>,
+    pub documentation_quality_score: Option<f64>,
+    pub design_readiness_score: Option<f64>,
+    pub finding_counts: FindingCounts,
+}
+
+#[derive(Serialize)]
+pub struct FeatureDesignReportWithFindings {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub previous_score: Option<f64>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub feature_mapping_score: Option<f64>,
+    pub user_experience_score: Option<f64>,
+    pub documentation_quality_score: Option<f64>,
+    pub design_readiness_score: Option<f64>,
+    pub doc_scores: Option<String>,
+    pub validation_scores: Option<String>,
+    pub finding_counts: Option<String>,
+    pub findings: Vec<StoredFinding>,
+    pub recommendations: Vec<ReportRecommendation>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DeterministicRuntimeSessionInfo {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub previous_score: Option<f64>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub runtime_model_score: Option<f64>,
+    pub engineering_principles_score: Option<f64>,
+    pub runtime_integrity_score: Option<f64>,
+    pub finding_counts: FindingCounts,
+}
+
+#[derive(Serialize)]
+pub struct DeterministicRuntimeReportWithFindings {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub previous_score: Option<f64>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub runtime_model_score: Option<f64>,
+    pub engineering_principles_score: Option<f64>,
+    pub runtime_integrity_score: Option<f64>,
+    pub doc_scores: Option<String>,
+    pub validation_scores: Option<String>,
+    pub finding_counts: Option<String>,
+    pub findings: Vec<StoredFinding>,
+    pub recommendations: Vec<ReportRecommendation>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ExternalContextOwnershipSessionInfo {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub previous_score: Option<f64>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub dependency_coverage_score: Option<f64>,
+    pub documentation_integration_score: Option<f64>,
+    pub consistency_score: Option<f64>,
+    pub finding_counts: FindingCounts,
+}
+
+#[derive(Serialize)]
+pub struct ExternalContextOwnershipReportWithFindings {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub previous_score: Option<f64>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub dependency_coverage_score: Option<f64>,
+    pub documentation_integration_score: Option<f64>,
+    pub consistency_score: Option<f64>,
+    pub doc_scores: Option<String>,
+    pub validation_scores: Option<String>,
+    pub finding_counts: Option<String>,
+    pub findings: Vec<StoredFinding>,
+    pub recommendations: Vec<ReportRecommendation>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ImplementationSessionInfo {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub previous_score: Option<f64>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub architectural_conformance_score: Option<f64>,
+    pub feature_conformance_score: Option<f64>,
+    pub engineering_conformance_score: Option<f64>,
+    pub documentation_integrity_score: Option<f64>,
+    pub implementation_quality_score: Option<f64>,
+    pub finding_counts: FindingCounts,
+}
+
+#[derive(Serialize)]
+pub struct ImplementationReportWithFindings {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub previous_score: Option<f64>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub architectural_conformance_score: Option<f64>,
+    pub feature_conformance_score: Option<f64>,
+    pub engineering_conformance_score: Option<f64>,
+    pub documentation_integrity_score: Option<f64>,
+    pub implementation_quality_score: Option<f64>,
+    pub doc_scores: Option<String>,
+    pub validation_scores: Option<String>,
+    pub finding_counts: Option<String>,
+    pub findings: Vec<StoredFinding>,
+    pub recommendations: Vec<ReportRecommendation>,
 }
 
 fn chrono_now() -> String {
@@ -1048,6 +3516,92 @@ mod tests {
     }
 
     #[test]
+    fn test_count_section_type_coverage() {
+        let store = RegistryStore::open_in_memory().unwrap();
+        store.insert_document(&create_test_doc(1)).unwrap();
+        store.insert_document(&create_test_doc(2)).unwrap();
+
+        let section = DocumentSection {
+            heading: "System Overview".into(),
+            semantic_type: "system_overview".into(),
+            level: 1,
+            body: "...".into(),
+            required: true,
+            source_span: None,
+            subsections: Vec::new(),
+            hash: "h1".into(),
+        };
+        // Only document 1 has a system_overview section; document 2 has none.
+        store.insert_document_sections(1, std::slice::from_ref(&section)).unwrap();
+
+        let coverage = store
+            .count_section_type_coverage("architecture", &["system_overview", "component_model"])
+            .unwrap();
+
+        let system_overview = coverage.iter().find(|(t, _, _)| t == "system_overview").unwrap();
+        assert_eq!(system_overview.1, 1); // 1 doc has it
+        assert_eq!(system_overview.2, 2); // 2 docs total
+
+        let component_model = coverage.iter().find(|(t, _, _)| t == "component_model").unwrap();
+        assert_eq!(component_model.1, 0); // no doc has it
+        assert_eq!(component_model.2, 2);
+    }
+
+    #[test]
+    fn test_finding_evidence_round_trips_through_insert_and_query() {
+        let store = RegistryStore::open_in_memory().unwrap();
+        let findings = vec![schemas::audit::AuditFinding {
+            check_id: "C1".into(),
+            severity: schemas::audit::Severity::Warning,
+            message: "Purpose section is generic".into(),
+            location: Some("docs/raw/architecture/overview.md".into()),
+            document_id: None,
+            provider: "semantic".into(),
+            stage: None,
+            section_id: None,
+            confidence: None,
+            evidence: Some(schemas::audit::Evidence {
+                section_id: 5,
+                paragraph_index: 0,
+                sentence: None,
+                excerpt: "This system does things.".into(),
+            }),
+            status: None,
+            strategy: None,
+        }];
+        store.insert_report_findings("architecture", 1, &findings).unwrap();
+
+        let stored = store.query_findings("architecture", 1).unwrap();
+        assert_eq!(stored.len(), 1);
+        assert_eq!(stored[0].evidence_excerpt.as_deref(), Some("This system does things."));
+        assert!(stored[0].evidence_source.as_deref().unwrap().contains("section_id=5"));
+    }
+
+    #[test]
+    fn test_finding_without_evidence_has_none() {
+        let store = RegistryStore::open_in_memory().unwrap();
+        let findings = vec![schemas::audit::AuditFinding {
+            check_id: "C2".into(),
+            severity: schemas::audit::Severity::Error,
+            message: "Deterministic check failed".into(),
+            location: None,
+            document_id: None,
+            provider: "deterministic".into(),
+            stage: None,
+            section_id: None,
+            confidence: None,
+            evidence: None,
+            status: None,
+            strategy: None,
+        }];
+        store.insert_report_findings("architecture", 1, &findings).unwrap();
+
+        let stored = store.query_findings("architecture", 1).unwrap();
+        assert_eq!(stored.len(), 1);
+        assert!(stored[0].evidence_excerpt.is_none());
+    }
+
+    #[test]
     fn test_integrity_check() {
         let store = RegistryStore::open_in_memory().unwrap();
         let meta = store.check_integrity().unwrap();
@@ -1075,5 +3629,179 @@ mod tests {
 
         let domains = store.get_domains().unwrap();
         assert_eq!(domains, vec!["architecture".to_string(), "audit".to_string()]);
+    }
+
+    // ── Per-Audit Report Tests (Phase 8) ───────────────────────────────
+
+    fn make_findings() -> Vec<schemas::audit::AuditFinding> {
+        vec![
+            schemas::audit::AuditFinding {
+                check_id: "B1".into(),
+                severity: schemas::audit::Severity::Error,
+                message: "Build failed".into(),
+                location: Some("src/main.rs".into()),
+                document_id: None, provider: "pipeline".into(),
+                stage: None, section_id: None,
+                confidence: None, evidence: None, status: None, strategy: None,
+            },
+            schemas::audit::AuditFinding {
+                check_id: "B2".into(),
+                severity: schemas::audit::Severity::Warning,
+                message: "Missing artifact".into(),
+                location: None,
+                document_id: None, provider: "pipeline".into(),
+                stage: None, section_id: None,
+                confidence: None, evidence: None, status: None, strategy: None,
+            },
+        ]
+    }
+
+    #[test]
+    fn test_insert_and_query_build_report() {
+        let store = RegistryStore::open_in_memory().unwrap();
+        let findings = make_findings();
+
+        let report_id = store.insert_build_report(
+            80.0, "session-1", Some("abc123"),
+            Some("my-contract"), Some("[\"target/release/myapp\"]"),
+            Some("[\"target/release/myapp\"]"), Some("{\"target/release/myapp\":\"fresh\"}"),
+            Some(true), Some("Build completed"),
+            &findings,
+        ).unwrap();
+        assert!(report_id > 0);
+
+        let sessions = store.query_build_sessions(10).unwrap();
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].score, 80.0);
+        assert_eq!(sessions[0].finding_counts.errors, 1);
+        assert_eq!(sessions[0].finding_counts.warnings, 1);
+
+        let stored = store.get_build_report_with_findings(report_id).unwrap().unwrap();
+        assert_eq!(stored.contract_name.as_deref(), Some("my-contract"));
+        assert_eq!(stored.findings.len(), 2);
+        assert_eq!(stored.findings[0].check_id, "B1");
+        assert_eq!(stored.findings[0].severity, "error");
+        assert_eq!(stored.findings[1].check_id, "B2");
+        assert_eq!(stored.findings[1].severity, "warning");
+    }
+
+    #[test]
+    fn test_insert_and_query_security_report() {
+        let store = RegistryStore::open_in_memory().unwrap();
+        let report_id = store.insert_security_report(
+            75.0, "session-sec-1", None,
+            100, 3, 20, 1, 1, Some("Medium risk — 1 secret found"),
+            &[],
+        ).unwrap();
+        assert!(report_id > 0);
+
+        let sessions = store.query_security_sessions(10).unwrap();
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].secrets_scanned, 100);
+        assert_eq!(sessions[0].secrets_found, 3);
+
+        let stored = store.get_security_report_with_findings(report_id).unwrap().unwrap();
+        assert_eq!(stored.threat_summary.as_deref(), Some("Medium risk — 1 secret found"));
+        assert_eq!(stored.high_risk_findings, 1);
+    }
+
+    #[test]
+    fn test_insert_and_query_consistency_report() {
+        let store = RegistryStore::open_in_memory().unwrap();
+        let report_id = store.insert_consistency_report(
+            90.0, "session-con-1", None,
+            true, true, Some(85.0), Some("[{\"issue\":\"naming\"}]"), 12,
+            &[],
+        ).unwrap();
+        assert!(report_id > 0);
+
+        let sessions = store.query_consistency_sessions(10).unwrap();
+        assert_eq!(sessions.len(), 1);
+        assert!(sessions[0].vision_exists);
+        assert_eq!(sessions[0].cross_references, 12);
+
+        let stored = store.get_consistency_report_with_findings(report_id).unwrap().unwrap();
+        assert!(stored.vision_exists);
+        assert!(stored.architecture_exists);
+    }
+
+    #[test]
+    fn test_insert_and_query_coverage_report() {
+        let store = RegistryStore::open_in_memory().unwrap();
+        let report_id = store.insert_coverage_report(
+            65.0, "session-cov-1", None,
+            20, 10, Some(50.0), Some("[\"feat-1\"]"), Some("{\"standard\":true}"),
+            &[],
+        ).unwrap();
+        assert!(report_id > 0);
+
+        let sessions = store.query_coverage_sessions(10).unwrap();
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].features_count, 20);
+        assert_eq!(sessions[0].src_files_count, 10);
+
+        let stored = store.get_coverage_report_with_findings(report_id).unwrap().unwrap();
+        assert_eq!(stored.features_count, 20);
+        assert_eq!(stored.src_files_count, 10);
+        assert!((stored.feature_coverage_pct.unwrap() - 50.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_insert_and_query_architecture_report() {
+        let store = RegistryStore::open_in_memory().unwrap();
+        let findings = make_findings();
+        let doc_scores = r#"[{"name":"API Architecture","score":88.0},{"name":"Data Flow","score":92.0}]"#;
+        let validation_scores = r#"[{"id":"A1","score":95.0},{"id":"A2","score":80.0}]"#;
+        let report_id = store.insert_architecture_report(
+            85.5, "session-arch-1", None, None,
+            "YES",
+            Some(90.0), Some(85.0), Some(80.0), Some(75.0),
+            Some(doc_scores), Some(validation_scores), None,
+            &findings,
+        ).unwrap();
+        assert!(report_id > 0);
+
+        let sessions = store.query_architecture_sessions(10).unwrap();
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].score as i64, 85);
+        assert_eq!(sessions[0].engineering_readiness, "YES");
+
+        let stored = store.get_architecture_report_with_findings(report_id).unwrap().unwrap();
+        assert!((stored.score - 85.5).abs() < 0.01);
+        assert_eq!(stored.findings.len(), 2);
+        assert_eq!(sessions[0].finding_counts.errors, 1);
+        assert_eq!(sessions[0].finding_counts.warnings, 1);
+        assert_eq!(sessions[0].finding_counts.suggestions, 0);
+        assert!(stored.doc_scores.as_deref().unwrap().contains("API Architecture"));
+        assert!(stored.validation_scores.as_deref().unwrap().contains("A1"));
+    }
+
+    #[test]
+    fn test_report_findings_update_status() {
+        let store = RegistryStore::open_in_memory().unwrap();
+        let findings = make_findings();
+        let report_id = store.insert_build_report(
+            100.0, "session-status", None,
+            None, None, None, None, None, None,
+            &findings,
+        ).unwrap();
+
+        let stored = store.get_build_report_with_findings(report_id).unwrap().unwrap();
+        assert_eq!(stored.findings[0].status, "open");
+
+        store.update_finding_status_by_id(stored.findings[0].id, "accepted").unwrap();
+
+        let updated = store.get_build_report_with_findings(report_id).unwrap().unwrap();
+        assert_eq!(updated.findings[0].status, "accepted");
+    }
+
+    #[test]
+    fn test_query_sessions_empty() {
+        let store = RegistryStore::open_in_memory().unwrap();
+        assert!(store.query_build_sessions(10).unwrap().is_empty());
+        assert!(store.query_security_sessions(10).unwrap().is_empty());
+        assert!(store.query_consistency_sessions(10).unwrap().is_empty());
+        assert!(store.query_coverage_sessions(10).unwrap().is_empty());
+        assert!(store.query_architecture_sessions(10).unwrap().is_empty());
     }
 }

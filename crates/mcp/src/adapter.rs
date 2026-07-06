@@ -48,6 +48,9 @@ impl McpAdapter {
         caps.methods.push("get_plan".to_string());
         caps.methods.push("switch_context".to_string());
         caps.methods.push("list_contexts".to_string());
+        caps.methods.push("report_templates".to_string());
+        caps.methods.push("report_generate".to_string());
+        caps.methods.push("report_sessions".to_string());
         Self {
             runtime,
             registry,
@@ -127,6 +130,9 @@ impl McpAdapter {
             "get_plan"                => self.handle_get_plan(),
             "switch_context"          => self.handle_switch_context(&req),
             "list_contexts"           => self.handle_list_contexts(),
+            "report_templates"        => self.handle_report_templates(&req),
+            "report_generate"         => self.handle_report_generate(&req),
+            "report_sessions"         => self.handle_report_sessions(&req),
             _                         => Err(anyhow::anyhow!("Unknown method: {}", req.method)),
         };
 
@@ -820,5 +826,48 @@ impl McpAdapter {
 
         self.runtime.update_finding_status(report_id, criterion_id, status)?;
         Ok(serde_json::json!({"success": true}))
+    }
+
+    // ── Pipeline Report MCP Methods ──────────────────────────────────────
+
+    fn handle_report_templates(&self, _req: &McpRequest) -> Result<serde_json::Value> {
+        let templates_dir = self.runtime.context.repository_root.join("docs/raw/report-templates");
+        let names = services::reporting::list_templates(&templates_dir)?;
+        // Always include the built-in default
+        let mut templates = vec!["pipeline-default".to_string()];
+        templates.extend(names.into_iter().filter(|n| n != "pipeline-default"));
+        Ok(serde_json::json!({
+            "templates": templates.iter().map(|n| serde_json::json!({
+                "name": n,
+                "path": format!("{}.md", n),
+                "builtin": n == "pipeline-default",
+            })).collect::<Vec<_>>(),
+        }))
+    }
+
+    fn handle_report_generate(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let audit_type = req.params.get("type")
+            .or_else(|| req.params.get("pipeline"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("build");
+        let templates_dir = self.runtime.context.repository_root.join("docs/raw/report-templates");
+        let rendered = services::reporting::render_report(audit_type, &templates_dir, self.runtime.registry.as_ref())?;
+        Ok(serde_json::json!({
+            "type": audit_type,
+            "markdown": rendered,
+        }))
+    }
+
+    fn handle_report_sessions(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let audit_type = req.params.get("type")
+            .or_else(|| req.params.get("pipeline"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("build");
+        let (limit, _offset) = crate::adapter::McpAdapter::page_params(req, 50);
+        let sessions = self.runtime.query_sessions_by_type(audit_type, limit)?;
+        Ok(serde_json::json!({
+            "sessions": sessions,
+            "count": sessions.len(),
+        }))
     }
 }

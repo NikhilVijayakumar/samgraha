@@ -9,7 +9,8 @@ use crate::search::SearchService;
 use crate::workspace::{WorkspaceBuildResult, WorkspaceService};
 use anyhow::{Context, Result};
 use audit_crate::pipeline::PipelineContext;
-use audit_crate::pipelines::{build::BuildPipeline, consistency::ConsistencyPipeline, coverage::CoveragePipeline, security::SecurityPipeline};
+use uuid::Uuid;
+use audit_crate::pipelines::{architecture::ArchitecturePipeline, build::BuildPipeline, consistency::ConsistencyPipeline, coverage::CoveragePipeline, design::DesignPipeline, deterministic_runtime::DeterministicRuntimePipeline, engineering::EngineeringPipeline, external_context::ExternalContextPipeline, external_context_ownership::ExternalContextOwnershipPipeline, feature::FeaturePipeline, feature_design::FeatureDesignPipeline, feature_technical::FeatureTechnicalPipeline, implementation::ImplementationPipeline, prototype::PrototypePipeline, readme::ReadmePipeline, security::SecurityPipeline, vision::VisionPipeline};
 use audit_crate::AuditFramework;
 use common::config::SamgrahaConfig;
 use registry::RegistryStore;
@@ -163,6 +164,19 @@ impl KnowledgeRuntime {
             PipelineKind::Security => AuditService::run_pipeline(&SecurityPipeline, &ctx),
             PipelineKind::Consistency => AuditService::run_pipeline(&ConsistencyPipeline, &ctx),
             PipelineKind::Coverage => AuditService::run_pipeline(&CoveragePipeline, &ctx),
+            PipelineKind::Architecture => AuditService::run_pipeline(&ArchitecturePipeline, &ctx),
+            PipelineKind::Vision => AuditService::run_pipeline(&VisionPipeline, &ctx),
+            PipelineKind::Design => AuditService::run_pipeline(&DesignPipeline, &ctx),
+            PipelineKind::Readme => AuditService::run_pipeline(&ReadmePipeline, &ctx),
+            PipelineKind::Prototype => AuditService::run_pipeline(&PrototypePipeline, &ctx),
+            PipelineKind::ExternalContext => AuditService::run_pipeline(&ExternalContextPipeline, &ctx),
+            PipelineKind::Engineering => AuditService::run_pipeline(&EngineeringPipeline, &ctx),
+            PipelineKind::Feature => AuditService::run_pipeline(&FeaturePipeline, &ctx),
+            PipelineKind::FeatureTechnical => AuditService::run_pipeline(&FeatureTechnicalPipeline, &ctx),
+            PipelineKind::FeatureDesign => AuditService::run_pipeline(&FeatureDesignPipeline, &ctx),
+            PipelineKind::DeterministicRuntime => AuditService::run_pipeline(&DeterministicRuntimePipeline, &ctx),
+            PipelineKind::ExternalContextOwnership => AuditService::run_pipeline(&ExternalContextOwnershipPipeline, &ctx),
+            PipelineKind::Implementation => AuditService::run_pipeline(&ImplementationPipeline, &ctx),
             PipelineKind::Dependency => {
                 let mut findings = Vec::new();
                 let mut cats = std::collections::HashMap::new();
@@ -194,6 +208,13 @@ impl KnowledgeRuntime {
                 anyhow::bail!("Use the standard audit() method for Documentation Audit");
             }
         };
+
+        // Auto-store pipeline results to SQLite (Phase 8: per-audit storage)
+        let session_id = Uuid::new_v4().to_string();
+        if let Err(e) = self.store_pipeline_to_db(kind, &report, &session_id) {
+            tracing::warn!("Failed to store pipeline report: {}", e);
+        }
+
         Ok(report)
     }
 
@@ -339,6 +360,921 @@ impl KnowledgeRuntime {
         self.registry.update_finding_status(report_id, criterion_id, status)
     }
 
+    // ── Pipeline Report Operations (Phase 8 — Per-Audit) ──────────────
+
+    fn store_pipeline_to_db(
+        &self,
+        kind: &PipelineKind,
+        report: &PipelineReport,
+        session_id: &str,
+    ) -> Result<i64> {
+        match kind {
+            PipelineKind::Build => self.store_build_report(
+                report.score, session_id,
+                None, None, None, None, None, None,
+                &report.findings,
+            ),
+            PipelineKind::Security => self.store_security_report(
+                report.score, session_id,
+                0, 0, 0, 0, 0, None,
+                &report.findings,
+            ),
+            PipelineKind::Consistency => self.store_consistency_report(
+                report.score, session_id,
+                false, false, None, None, 0,
+                &report.findings,
+            ),
+            PipelineKind::Architecture => {
+                let report_id = self.store_architecture_report(
+                    report.score, session_id,
+                    None, None,
+                    report.metadata.get("engineering_readiness").map(|s| s.as_str()).unwrap_or("NOT_READY"),
+                    report.categories.get("Collection Integrity").copied(),
+                    report.categories.get("Structural Integrity").copied(),
+                    report.categories.get("Consistency").copied(),
+                    report.categories.get("Cross-Repository Architecture").copied(),
+                    None, None,
+                    &report.findings,
+                )?;
+                // Generate recommendations from findings
+                let recommendations = generate_recommendations(&report.findings);
+                if !recommendations.is_empty() {
+                    let _ = self.registry.insert_recommendations(
+                        "architecture", report_id, &recommendations,
+                    );
+                }
+                Ok(report_id)
+            }
+            PipelineKind::Vision => {
+                let report_id = self.store_vision_report(
+                    report.score, session_id,
+                    None, None,
+                    report.metadata.get("engineering_readiness").map(|s| s.as_str()).unwrap_or("NOT_READY"),
+                    report.categories.get("Vision Content").copied(),
+                    report.categories.get("Technology Independence").copied(),
+                    report.categories.get("Traceability and Consistency").copied(),
+                    report.categories.get("Documentation Quality").copied(),
+                    None, None,
+                    &report.findings,
+                )?;
+                let recommendations = generate_recommendations(&report.findings);
+                if !recommendations.is_empty() {
+                    let _ = self.registry.insert_recommendations(
+                        "vision", report_id, &recommendations,
+                    );
+                }
+                Ok(report_id)
+            }
+            PipelineKind::Design => {
+                let report_id = self.store_design_report(
+                    report.score, session_id,
+                    None, None,
+                    report.metadata.get("engineering_readiness").map(|s| s.as_str()).unwrap_or("NOT_READY"),
+                    report.categories.get("Design System").copied(),
+                    report.categories.get("Documentation Quality").copied(),
+                    report.categories.get("Design Quality").copied(),
+                    None, None,
+                    &report.findings,
+                )?;
+                let recommendations = generate_recommendations(&report.findings);
+                if !recommendations.is_empty() {
+                    let _ = self.registry.insert_recommendations(
+                        "design", report_id, &recommendations,
+                    );
+                }
+                Ok(report_id)
+            }
+            PipelineKind::Readme => {
+                let report_id = self.store_readme_report(
+                    report.score, session_id,
+                    None, None,
+                    report.metadata.get("engineering_readiness").map(|s| s.as_str()).unwrap_or("NOT_READY"),
+                    report.categories.get("Repository Introduction").copied(),
+                    report.categories.get("Documentation Navigation").copied(),
+                    report.categories.get("Documentation Quality").copied(),
+                    report.categories.get("Maintainability").copied(),
+                    None, None,
+                    &report.findings,
+                )?;
+                let recommendations = generate_recommendations(&report.findings);
+                if !recommendations.is_empty() {
+                    let _ = self.registry.insert_recommendations(
+                        "readme", report_id, &recommendations,
+                    );
+                }
+                Ok(report_id)
+            }
+            PipelineKind::Prototype => {
+                let report_id = self.store_prototype_report(
+                    report.score, session_id,
+                    None, None,
+                    report.metadata.get("engineering_readiness").map(|s| s.as_str()).unwrap_or("NOT_READY"),
+                    report.categories.get("Product Validation").copied(),
+                    report.categories.get("Runtime Validation").copied(),
+                    report.categories.get("Engineering Validation").copied(),
+                    report.categories.get("Validation Quality").copied(),
+                    None, None,
+                    &report.findings,
+                )?;
+                let recommendations = generate_recommendations(&report.findings);
+                if !recommendations.is_empty() {
+                    let _ = self.registry.insert_recommendations(
+                        "prototype", report_id, &recommendations,
+                    );
+                }
+                Ok(report_id)
+            }
+            PipelineKind::ExternalContext => {
+                let report_id = self.store_external_context_report(
+                    report.score, session_id,
+                    None, None,
+                    report.metadata.get("engineering_readiness").map(|s| s.as_str()).unwrap_or("NOT_READY"),
+                    report.categories.get("Document Quality").copied(),
+                    report.categories.get("Content Completeness").copied(),
+                    report.categories.get("Documentation Integrity").copied(),
+                    report.categories.get("Collection Quality").copied(),
+                    None, None,
+                    &report.findings,
+                )?;
+                let recommendations = generate_recommendations(&report.findings);
+                if !recommendations.is_empty() {
+                    let _ = self.registry.insert_recommendations(
+                        "external-context", report_id, &recommendations,
+                    );
+                }
+                Ok(report_id)
+            }
+            PipelineKind::Engineering => {
+                let report_id = self.store_engineering_report(
+                    report.score, session_id,
+                    None, None,
+                    report.metadata.get("engineering_readiness").map(|s| s.as_str()).unwrap_or("NOT_READY"),
+                    report.categories.get("Engineering Coverage").copied(),
+                    report.categories.get("Documentation Quality").copied(),
+                    report.categories.get("Traceability and Consistency").copied(),
+                    None, None,
+                    &report.findings,
+                )?;
+                let recommendations = generate_recommendations(&report.findings);
+                if !recommendations.is_empty() {
+                    let _ = self.registry.insert_recommendations(
+                        "engineering", report_id, &recommendations,
+                    );
+                }
+                Ok(report_id)
+            }
+            PipelineKind::Feature => {
+                let report_id = self.store_feature_report(
+                    report.score, session_id,
+                    None, None,
+                    report.metadata.get("engineering_readiness").map(|s| s.as_str()).unwrap_or("NOT_READY"),
+                    report.categories.get("Feature Definition").copied(),
+                    report.categories.get("Product Definition").copied(),
+                    report.categories.get("Documentation Quality").copied(),
+                    report.categories.get("Product Readiness").copied(),
+                    None, None,
+                    &report.findings,
+                )?;
+                let recommendations = generate_recommendations(&report.findings);
+                if !recommendations.is_empty() {
+                    let _ = self.registry.insert_recommendations(
+                        "feature", report_id, &recommendations,
+                    );
+                }
+                Ok(report_id)
+            }
+            PipelineKind::FeatureTechnical => {
+                let report_id = self.store_feature_technical_report(
+                    report.score, session_id,
+                    None, None,
+                    report.metadata.get("engineering_readiness").map(|s| s.as_str()).unwrap_or("NOT_READY"),
+                    report.categories.get("Feature Mapping").copied(),
+                    report.categories.get("Technical Realization").copied(),
+                    report.categories.get("Documentation Quality").copied(),
+                    report.categories.get("Implementation Readiness").copied(),
+                    None, None,
+                    &report.findings,
+                )?;
+                let recommendations = generate_recommendations(&report.findings);
+                if !recommendations.is_empty() {
+                    let _ = self.registry.insert_recommendations(
+                        "feature-technical", report_id, &recommendations,
+                    );
+                }
+                Ok(report_id)
+            }
+            PipelineKind::FeatureDesign => {
+                let report_id = self.store_feature_design_report(
+                    report.score, session_id,
+                    None, None,
+                    report.metadata.get("engineering_readiness").map(|s| s.as_str()).unwrap_or("NOT_READY"),
+                    report.categories.get("Feature Mapping").copied(),
+                    report.categories.get("User Experience").copied(),
+                    report.categories.get("Documentation Quality").copied(),
+                    report.categories.get("Design Readiness").copied(),
+                    None, None,
+                    &report.findings,
+                )?;
+                let recommendations = generate_recommendations(&report.findings);
+                if !recommendations.is_empty() {
+                    let _ = self.registry.insert_recommendations(
+                        "feature-design", report_id, &recommendations,
+                    );
+                }
+                Ok(report_id)
+            }
+            PipelineKind::DeterministicRuntime => {
+                let report_id = self.store_deterministic_runtime_report(
+                    report.score, session_id,
+                    None, None,
+                    report.metadata.get("engineering_readiness").map(|s| s.as_str()).unwrap_or("NOT_READY"),
+                    report.categories.get("Runtime Model").copied(),
+                    report.categories.get("Engineering Principles").copied(),
+                    report.categories.get("Runtime Integrity").copied(),
+                    None, None,
+                    &report.findings,
+                )?;
+                let recommendations = generate_recommendations(&report.findings);
+                if !recommendations.is_empty() {
+                    let _ = self.registry.insert_recommendations(
+                        "deterministic-runtime", report_id, &recommendations,
+                    );
+                }
+                Ok(report_id)
+            }
+            PipelineKind::ExternalContextOwnership => {
+                let report_id = self.store_external_context_ownership_report(
+                    report.score, session_id,
+                    None, None,
+                    report.metadata.get("engineering_readiness").map(|s| s.as_str()).unwrap_or("NOT_READY"),
+                    report.categories.get("Dependency Coverage").copied(),
+                    report.categories.get("Documentation Integration").copied(),
+                    report.categories.get("Consistency").copied(),
+                    None, None,
+                    &report.findings,
+                )?;
+                let recommendations = generate_recommendations(&report.findings);
+                if !recommendations.is_empty() {
+                    let _ = self.registry.insert_recommendations(
+                        "external-context-ownership", report_id, &recommendations,
+                    );
+                }
+                Ok(report_id)
+            }
+            PipelineKind::Implementation => {
+                let report_id = self.store_implementation_report(
+                    report.score, session_id,
+                    None, None,
+                    report.metadata.get("engineering_readiness").map(|s| s.as_str()).unwrap_or("NOT_READY"),
+                    report.categories.get("Architectural Conformance").copied(),
+                    report.categories.get("Feature Conformance").copied(),
+                    report.categories.get("Engineering Conformance").copied(),
+                    report.categories.get("Documentation Integrity").copied(),
+                    report.categories.get("Implementation Quality").copied(),
+                    None, None,
+                    &report.findings,
+                )?;
+                let recommendations = generate_recommendations(&report.findings);
+                if !recommendations.is_empty() {
+                    let _ = self.registry.insert_recommendations(
+                        "implementation", report_id, &recommendations,
+                    );
+                }
+                Ok(report_id)
+            }
+            PipelineKind::Coverage => self.store_coverage_report(
+                report.score, session_id,
+                0, 0, None, None, None,
+                &report.findings,
+            ),
+            PipelineKind::Dependency => {
+                // Dependency pipeline stores to build_reports as a fallback
+                self.store_build_report(
+                    report.score, session_id,
+                    None, None, None, None, None, None,
+                    &report.findings,
+                )
+            }
+            PipelineKind::Doc => anyhow::bail!("Doc pipeline uses audit() not run_pipeline()"),
+        }
+    }
+
+    fn get_git_revision(&self) -> Option<String> {
+        get_git_revision(&self.context.repository_root)
+    }
+
+    pub fn store_build_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        contract_name: Option<&str>,
+        declared_produces: Option<&str>,
+        actual_artifacts: Option<&str>,
+        artifact_freshness: Option<&str>,
+        execution_success: Option<bool>,
+        execution_output: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        let git_revision = self.get_git_revision();
+        self.registry.insert_build_report(
+            score, session_id, git_revision.as_deref(),
+            contract_name, declared_produces, actual_artifacts, artifact_freshness,
+            execution_success, execution_output, findings,
+        )
+    }
+
+    pub fn store_security_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        secrets_scanned: i64,
+        secrets_found: i64,
+        runtime_checks: i64,
+        runtime_issues: i64,
+        high_risk_findings: i64,
+        threat_summary: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        let git_revision = self.get_git_revision();
+        self.registry.insert_security_report(
+            score, session_id, git_revision.as_deref(),
+            secrets_scanned, secrets_found, runtime_checks, runtime_issues,
+            high_risk_findings, threat_summary, findings,
+        )
+    }
+
+    pub fn store_consistency_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        vision_exists: bool,
+        architecture_exists: bool,
+        structure_score: Option<f64>,
+        naming_issues: Option<&str>,
+        cross_references: i64,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        let git_revision = self.get_git_revision();
+        self.registry.insert_consistency_report(
+            score, session_id, git_revision.as_deref(),
+            vision_exists, architecture_exists, structure_score,
+            naming_issues, cross_references, findings,
+        )
+    }
+
+    pub fn store_coverage_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        features_count: i64,
+        src_files_count: i64,
+        feature_coverage_pct: Option<f64>,
+        uncovered_features: Option<&str>,
+        doc_types_covered: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        let git_revision = self.get_git_revision();
+        self.registry.insert_coverage_report(
+            score, session_id, git_revision.as_deref(),
+            features_count, src_files_count, feature_coverage_pct,
+            uncovered_features, doc_types_covered, findings,
+        )
+    }
+
+    pub fn query_build_sessions(&self, limit: usize) -> Result<Vec<registry::store::BuildSessionInfo>> {
+        self.registry.query_build_sessions(limit)
+    }
+
+    pub fn query_security_sessions(&self, limit: usize) -> Result<Vec<registry::store::SecuritySessionInfo>> {
+        self.registry.query_security_sessions(limit)
+    }
+
+    pub fn query_consistency_sessions(&self, limit: usize) -> Result<Vec<registry::store::ConsistencySessionInfo>> {
+        self.registry.query_consistency_sessions(limit)
+    }
+
+    pub fn query_coverage_sessions(&self, limit: usize) -> Result<Vec<registry::store::CoverageSessionInfo>> {
+        self.registry.query_coverage_sessions(limit)
+    }
+
+    pub fn get_build_report_with_findings(&self, report_id: i64) -> Result<Option<registry::store::BuildReportWithFindings>> {
+        self.registry.get_build_report_with_findings(report_id)
+    }
+
+    pub fn get_security_report_with_findings(&self, report_id: i64) -> Result<Option<registry::store::SecurityReportWithFindings>> {
+        self.registry.get_security_report_with_findings(report_id)
+    }
+
+    pub fn get_consistency_report_with_findings(&self, report_id: i64) -> Result<Option<registry::store::ConsistencyReportWithFindings>> {
+        self.registry.get_consistency_report_with_findings(report_id)
+    }
+
+    pub fn get_coverage_report_with_findings(&self, report_id: i64) -> Result<Option<registry::store::CoverageReportWithFindings>> {
+        self.registry.get_coverage_report_with_findings(report_id)
+    }
+
+    // ── Architecture (Phase 9) ──────────────────────────────────────────
+
+    pub fn store_architecture_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        previous_score: Option<f64>,
+        engineering_readiness: &str,
+        collection_integrity_score: Option<f64>,
+        structural_integrity_score: Option<f64>,
+        consistency_score: Option<f64>,
+        cross_repo_score: Option<f64>,
+        doc_scores: Option<&str>,
+        validation_scores: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.registry.insert_architecture_report(
+            score, session_id, git_revision, previous_score, engineering_readiness,
+            collection_integrity_score, structural_integrity_score,
+            consistency_score, cross_repo_score,
+            doc_scores, validation_scores, None, findings,
+        )
+    }
+
+    pub fn query_architecture_sessions(&self, limit: usize) -> Result<Vec<registry::store::ArchitectureSessionInfo>> {
+        self.registry.query_architecture_sessions(limit)
+    }
+
+    pub fn get_architecture_report_with_findings(&self, report_id: i64) -> Result<Option<registry::store::ArchitectureReportWithFindings>> {
+        self.registry.get_architecture_report_with_findings(report_id)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn store_vision_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        previous_score: Option<f64>,
+        engineering_readiness: &str,
+        vision_content_score: Option<f64>,
+        tech_independence_score: Option<f64>,
+        traceability_consistency_score: Option<f64>,
+        doc_quality_score: Option<f64>,
+        doc_scores: Option<&str>,
+        validation_scores: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.registry.insert_vision_report(
+            score, session_id, git_revision, previous_score, engineering_readiness,
+            vision_content_score, tech_independence_score,
+            traceability_consistency_score, doc_quality_score,
+            doc_scores, validation_scores, None, findings,
+        )
+    }
+
+    pub fn query_vision_sessions(&self, limit: usize) -> Result<Vec<registry::store::VisionSessionInfo>> {
+        self.registry.query_vision_sessions(limit)
+    }
+
+    pub fn get_vision_report_with_findings(&self, report_id: i64) -> Result<Option<registry::store::VisionReportWithFindings>> {
+        self.registry.get_vision_report_with_findings(report_id)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn store_design_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        previous_score: Option<f64>,
+        engineering_readiness: &str,
+        design_system_score: Option<f64>,
+        doc_quality_score: Option<f64>,
+        design_quality_score: Option<f64>,
+        doc_scores: Option<&str>,
+        validation_scores: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.registry.insert_design_report(
+            score, session_id, git_revision, previous_score, engineering_readiness,
+            design_system_score, doc_quality_score, design_quality_score,
+            doc_scores, validation_scores, None, findings,
+        )
+    }
+
+    pub fn query_design_sessions(&self, limit: usize) -> Result<Vec<registry::store::DesignSessionInfo>> {
+        self.registry.query_design_sessions(limit)
+    }
+
+    pub fn get_design_report_with_findings(&self, report_id: i64) -> Result<Option<registry::store::DesignReportWithFindings>> {
+        self.registry.get_design_report_with_findings(report_id)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn store_readme_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        previous_score: Option<f64>,
+        engineering_readiness: &str,
+        repo_introduction_score: Option<f64>,
+        doc_navigation_score: Option<f64>,
+        doc_quality_score: Option<f64>,
+        maintainability_score: Option<f64>,
+        doc_scores: Option<&str>,
+        validation_scores: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.registry.insert_readme_report(
+            score, session_id, git_revision, previous_score, engineering_readiness,
+            repo_introduction_score, doc_navigation_score, doc_quality_score, maintainability_score,
+            doc_scores, validation_scores, None, findings,
+        )
+    }
+
+    pub fn query_readme_sessions(&self, limit: usize) -> Result<Vec<registry::store::ReadmeSessionInfo>> {
+        self.registry.query_readme_sessions(limit)
+    }
+
+    pub fn get_readme_report_with_findings(&self, report_id: i64) -> Result<Option<registry::store::ReadmeReportWithFindings>> {
+        self.registry.get_readme_report_with_findings(report_id)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn store_prototype_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        previous_score: Option<f64>,
+        engineering_readiness: &str,
+        product_validation_score: Option<f64>,
+        runtime_validation_score: Option<f64>,
+        engineering_validation_score: Option<f64>,
+        validation_quality_score: Option<f64>,
+        doc_scores: Option<&str>,
+        validation_scores: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.registry.insert_prototype_report(
+            score, session_id, git_revision, previous_score, engineering_readiness,
+            product_validation_score, runtime_validation_score,
+            engineering_validation_score, validation_quality_score,
+            doc_scores, validation_scores, None, findings,
+        )
+    }
+
+    pub fn query_prototype_sessions(&self, limit: usize) -> Result<Vec<registry::store::PrototypeSessionInfo>> {
+        self.registry.query_prototype_sessions(limit)
+    }
+
+    pub fn get_prototype_report_with_findings(&self, report_id: i64) -> Result<Option<registry::store::PrototypeReportWithFindings>> {
+        self.registry.get_prototype_report_with_findings(report_id)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn store_external_context_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        previous_score: Option<f64>,
+        engineering_readiness: &str,
+        document_quality_score: Option<f64>,
+        content_completeness_score: Option<f64>,
+        documentation_integrity_score: Option<f64>,
+        collection_quality_score: Option<f64>,
+        doc_scores: Option<&str>,
+        validation_scores: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.registry.insert_external_context_report(
+            score, session_id, git_revision, previous_score, engineering_readiness,
+            document_quality_score, content_completeness_score,
+            documentation_integrity_score, collection_quality_score,
+            doc_scores, validation_scores, None, findings,
+        )
+    }
+
+    pub fn query_external_context_sessions(&self, limit: usize) -> Result<Vec<registry::store::ExternalContextSessionInfo>> {
+        self.registry.query_external_context_sessions(limit)
+    }
+
+    pub fn get_external_context_report_with_findings(&self, report_id: i64) -> Result<Option<registry::store::ExternalContextReportWithFindings>> {
+        self.registry.get_external_context_report_with_findings(report_id)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn store_engineering_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        previous_score: Option<f64>,
+        engineering_readiness: &str,
+        engineering_coverage_score: Option<f64>,
+        documentation_quality_score: Option<f64>,
+        traceability_consistency_score: Option<f64>,
+        doc_scores: Option<&str>,
+        validation_scores: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.registry.insert_engineering_report(
+            score, session_id, git_revision, previous_score, engineering_readiness,
+            engineering_coverage_score, documentation_quality_score,
+            traceability_consistency_score,
+            doc_scores, validation_scores, None, findings,
+        )
+    }
+
+    pub fn query_engineering_sessions(&self, limit: usize) -> Result<Vec<registry::store::EngineeringSessionInfo>> {
+        self.registry.query_engineering_sessions(limit)
+    }
+
+    pub fn get_engineering_report_with_findings(&self, report_id: i64) -> Result<Option<registry::store::EngineeringReportWithFindings>> {
+        self.registry.get_engineering_report_with_findings(report_id)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn store_feature_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        previous_score: Option<f64>,
+        engineering_readiness: &str,
+        feature_definition_score: Option<f64>,
+        product_definition_score: Option<f64>,
+        documentation_quality_score: Option<f64>,
+        product_readiness_score: Option<f64>,
+        doc_scores: Option<&str>,
+        validation_scores: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.registry.insert_feature_report(
+            score, session_id, git_revision, previous_score, engineering_readiness,
+            feature_definition_score, product_definition_score,
+            documentation_quality_score, product_readiness_score,
+            doc_scores, validation_scores, None, findings,
+        )
+    }
+
+    pub fn query_feature_sessions(&self, limit: usize) -> Result<Vec<registry::store::FeatureSessionInfo>> {
+        self.registry.query_feature_sessions(limit)
+    }
+
+    pub fn get_feature_report_with_findings(&self, report_id: i64) -> Result<Option<registry::store::FeatureReportWithFindings>> {
+        self.registry.get_feature_report_with_findings(report_id)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn store_feature_technical_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        previous_score: Option<f64>,
+        engineering_readiness: &str,
+        feature_mapping_score: Option<f64>,
+        technical_realization_score: Option<f64>,
+        documentation_quality_score: Option<f64>,
+        implementation_readiness_score: Option<f64>,
+        doc_scores: Option<&str>,
+        validation_scores: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.registry.insert_feature_technical_report(
+            score, session_id, git_revision, previous_score, engineering_readiness,
+            feature_mapping_score, technical_realization_score,
+            documentation_quality_score, implementation_readiness_score,
+            doc_scores, validation_scores, None, findings,
+        )
+    }
+
+    pub fn query_feature_technical_sessions(&self, limit: usize) -> Result<Vec<registry::store::FeatureTechnicalSessionInfo>> {
+        self.registry.query_feature_technical_sessions(limit)
+    }
+
+    pub fn get_feature_technical_report_with_findings(&self, report_id: i64) -> Result<Option<registry::store::FeatureTechnicalReportWithFindings>> {
+        self.registry.get_feature_technical_report_with_findings(report_id)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn store_feature_design_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        previous_score: Option<f64>,
+        engineering_readiness: &str,
+        feature_mapping_score: Option<f64>,
+        user_experience_score: Option<f64>,
+        documentation_quality_score: Option<f64>,
+        design_readiness_score: Option<f64>,
+        doc_scores: Option<&str>,
+        validation_scores: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.registry.insert_feature_design_report(
+            score, session_id, git_revision, previous_score, engineering_readiness,
+            feature_mapping_score, user_experience_score,
+            documentation_quality_score, design_readiness_score,
+            doc_scores, validation_scores, None, findings,
+        )
+    }
+
+    pub fn query_feature_design_sessions(&self, limit: usize) -> Result<Vec<registry::store::FeatureDesignSessionInfo>> {
+        self.registry.query_feature_design_sessions(limit)
+    }
+
+    pub fn get_feature_design_report_with_findings(&self, report_id: i64) -> Result<Option<registry::store::FeatureDesignReportWithFindings>> {
+        self.registry.get_feature_design_report_with_findings(report_id)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn store_deterministic_runtime_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        previous_score: Option<f64>,
+        engineering_readiness: &str,
+        runtime_model_score: Option<f64>,
+        engineering_principles_score: Option<f64>,
+        runtime_integrity_score: Option<f64>,
+        doc_scores: Option<&str>,
+        validation_scores: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.registry.insert_deterministic_runtime_report(
+            score, session_id, git_revision, previous_score, engineering_readiness,
+            runtime_model_score, engineering_principles_score, runtime_integrity_score,
+            doc_scores, validation_scores, None, findings,
+        )
+    }
+
+    pub fn query_deterministic_runtime_sessions(&self, limit: usize) -> Result<Vec<registry::store::DeterministicRuntimeSessionInfo>> {
+        self.registry.query_deterministic_runtime_sessions(limit)
+    }
+
+    pub fn get_deterministic_runtime_report_with_findings(&self, report_id: i64) -> Result<Option<registry::store::DeterministicRuntimeReportWithFindings>> {
+        self.registry.get_deterministic_runtime_report_with_findings(report_id)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn store_external_context_ownership_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        previous_score: Option<f64>,
+        engineering_readiness: &str,
+        dependency_coverage_score: Option<f64>,
+        documentation_integration_score: Option<f64>,
+        consistency_score: Option<f64>,
+        doc_scores: Option<&str>,
+        validation_scores: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.registry.insert_external_context_ownership_report(
+            score, session_id, git_revision, previous_score, engineering_readiness,
+            dependency_coverage_score, documentation_integration_score, consistency_score,
+            doc_scores, validation_scores, None, findings,
+        )
+    }
+
+    pub fn query_external_context_ownership_sessions(&self, limit: usize) -> Result<Vec<registry::store::ExternalContextOwnershipSessionInfo>> {
+        self.registry.query_external_context_ownership_sessions(limit)
+    }
+
+    pub fn get_external_context_ownership_report_with_findings(&self, report_id: i64) -> Result<Option<registry::store::ExternalContextOwnershipReportWithFindings>> {
+        self.registry.get_external_context_ownership_report_with_findings(report_id)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn store_implementation_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        previous_score: Option<f64>,
+        engineering_readiness: &str,
+        architectural_conformance_score: Option<f64>,
+        feature_conformance_score: Option<f64>,
+        engineering_conformance_score: Option<f64>,
+        documentation_integrity_score: Option<f64>,
+        implementation_quality_score: Option<f64>,
+        doc_scores: Option<&str>,
+        validation_scores: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.registry.insert_implementation_report(
+            score, session_id, git_revision, previous_score, engineering_readiness,
+            architectural_conformance_score, feature_conformance_score,
+            engineering_conformance_score, documentation_integrity_score,
+            implementation_quality_score,
+            doc_scores, validation_scores, None, findings,
+        )
+    }
+
+    pub fn query_implementation_sessions(&self, limit: usize) -> Result<Vec<registry::store::ImplementationSessionInfo>> {
+        self.registry.query_implementation_sessions(limit)
+    }
+
+    pub fn get_implementation_report_with_findings(&self, report_id: i64) -> Result<Option<registry::store::ImplementationReportWithFindings>> {
+        self.registry.get_implementation_report_with_findings(report_id)
+    }
+
+    pub fn update_report_finding_status(&self, finding_id: i64, status: &str) -> Result<()> {
+        self.registry.update_finding_status_by_id(finding_id, status)
+    }
+
+    // ── Per-audit dispatch helpers ────────────────────────────────────────────────
+    // Used by CLI and MCP for the `report` subcommand which takes a string type.
+
+    pub fn query_sessions_by_type(&self, audit_type: &str, limit: usize) -> Result<Vec<serde_json::Value>> {
+        match audit_type {
+            "build" => self.query_build_sessions(limit)
+                .map(|v| v.into_iter().map(|s| serde_json::to_value(s).unwrap()).collect()),
+            "security" => self.query_security_sessions(limit)
+                .map(|v| v.into_iter().map(|s| serde_json::to_value(s).unwrap()).collect()),
+            "consistency" => self.query_consistency_sessions(limit)
+                .map(|v| v.into_iter().map(|s| serde_json::to_value(s).unwrap()).collect()),
+            "coverage" => self.query_coverage_sessions(limit)
+                .map(|v| v.into_iter().map(|s| serde_json::to_value(s).unwrap()).collect()),
+            "architecture" => self.query_architecture_sessions(limit)
+                .map(|v| v.into_iter().map(|s| serde_json::to_value(s).unwrap()).collect()),
+            "vision" => self.query_vision_sessions(limit)
+                .map(|v| v.into_iter().map(|s| serde_json::to_value(s).unwrap()).collect()),
+            "design" => self.query_design_sessions(limit)
+                .map(|v| v.into_iter().map(|s| serde_json::to_value(s).unwrap()).collect()),
+            "readme" => self.query_readme_sessions(limit)
+                .map(|v| v.into_iter().map(|s| serde_json::to_value(s).unwrap()).collect()),
+            "prototype" => self.query_prototype_sessions(limit)
+                .map(|v| v.into_iter().map(|s| serde_json::to_value(s).unwrap()).collect()),
+            "external-context" => self.query_external_context_sessions(limit)
+                .map(|v| v.into_iter().map(|s| serde_json::to_value(s).unwrap()).collect()),
+            "engineering" => self.query_engineering_sessions(limit)
+                .map(|v| v.into_iter().map(|s| serde_json::to_value(s).unwrap()).collect()),
+            "feature" => self.query_feature_sessions(limit)
+                .map(|v| v.into_iter().map(|s| serde_json::to_value(s).unwrap()).collect()),
+            "feature-technical" => self.query_feature_technical_sessions(limit)
+                .map(|v| v.into_iter().map(|s| serde_json::to_value(s).unwrap()).collect()),
+            "feature-design" => self.query_feature_design_sessions(limit)
+                .map(|v| v.into_iter().map(|s| serde_json::to_value(s).unwrap()).collect()),
+            "deterministic-runtime" => self.query_deterministic_runtime_sessions(limit)
+                .map(|v| v.into_iter().map(|s| serde_json::to_value(s).unwrap()).collect()),
+            "external-context-ownership" => self.query_external_context_ownership_sessions(limit)
+                .map(|v| v.into_iter().map(|s| serde_json::to_value(s).unwrap()).collect()),
+            "implementation" => self.query_implementation_sessions(limit)
+                .map(|v| v.into_iter().map(|s| serde_json::to_value(s).unwrap()).collect()),
+            _ => anyhow::bail!("Unknown audit type: {}", audit_type),
+        }
+    }
+
+    pub fn get_report_with_findings_by_type(
+        &self,
+        audit_type: &str,
+        report_id: i64,
+    ) -> Result<Option<serde_json::Value>> {
+        match audit_type {
+            "build" => self.get_build_report_with_findings(report_id)
+                .map(|v| v.map(|r| serde_json::to_value(r).unwrap())),
+            "security" => self.get_security_report_with_findings(report_id)
+                .map(|v| v.map(|r| serde_json::to_value(r).unwrap())),
+            "consistency" => self.get_consistency_report_with_findings(report_id)
+                .map(|v| v.map(|r| serde_json::to_value(r).unwrap())),
+            "coverage" => self.get_coverage_report_with_findings(report_id)
+                .map(|v| v.map(|r| serde_json::to_value(r).unwrap())),
+            "architecture" => self.get_architecture_report_with_findings(report_id)
+                .map(|v| v.map(|r| serde_json::to_value(r).unwrap())),
+            "vision" => self.get_vision_report_with_findings(report_id)
+                .map(|v| v.map(|r| serde_json::to_value(r).unwrap())),
+            "design" => self.get_design_report_with_findings(report_id)
+                .map(|v| v.map(|r| serde_json::to_value(r).unwrap())),
+            "readme" => self.get_readme_report_with_findings(report_id)
+                .map(|v| v.map(|r| serde_json::to_value(r).unwrap())),
+            "prototype" => self.get_prototype_report_with_findings(report_id)
+                .map(|v| v.map(|r| serde_json::to_value(r).unwrap())),
+            "external-context" => self.get_external_context_report_with_findings(report_id)
+                .map(|v| v.map(|r| serde_json::to_value(r).unwrap())),
+            "engineering" => self.get_engineering_report_with_findings(report_id)
+                .map(|v| v.map(|r| serde_json::to_value(r).unwrap())),
+            "feature" => self.get_feature_report_with_findings(report_id)
+                .map(|v| v.map(|r| serde_json::to_value(r).unwrap())),
+            "feature-technical" => self.get_feature_technical_report_with_findings(report_id)
+                .map(|v| v.map(|r| serde_json::to_value(r).unwrap())),
+            "feature-design" => self.get_feature_design_report_with_findings(report_id)
+                .map(|v| v.map(|r| serde_json::to_value(r).unwrap())),
+            "deterministic-runtime" => self.get_deterministic_runtime_report_with_findings(report_id)
+                .map(|v| v.map(|r| serde_json::to_value(r).unwrap())),
+            "external-context-ownership" => self.get_external_context_ownership_report_with_findings(report_id)
+                .map(|v| v.map(|r| serde_json::to_value(r).unwrap())),
+            "implementation" => self.get_implementation_report_with_findings(report_id)
+                .map(|v| v.map(|r| serde_json::to_value(r).unwrap())),
+            _ => anyhow::bail!("Unknown audit type: {}", audit_type),
+        }
+    }
+
     // ── Typed accessors ──────────────────────────────────────────────────────────
 
     pub fn documents_by_standard(&self, standard: &str) -> Result<Vec<Document>> {
@@ -476,6 +1412,25 @@ fn workspace_result_to_compilation(ws: WorkspaceBuildResult) -> CompilationResul
     }
 }
 
+/// Get the current HEAD revision of the repository for traceability.
+fn get_git_revision(root: &std::path::Path) -> Option<String> {
+    let git_dir = root.join(".git");
+    if !git_dir.exists() {
+        return None;
+    }
+    let head_path = git_dir.join("HEAD");
+    let head_content = std::fs::read_to_string(head_path).ok()?;
+    let head = head_content.trim();
+    if let Some(ref_path) = head.strip_prefix("ref: ") {
+        // Resolve the ref
+        let ref_file = git_dir.join(ref_path);
+        std::fs::read_to_string(ref_file).ok().map(|s| s.trim().to_string())
+    } else {
+        // Detached HEAD — content is the hash directly
+        Some(head.to_string())
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct RuntimeInfo {
     pub repository: String,
@@ -486,4 +1441,25 @@ pub struct RuntimeInfo {
     pub policy: RuntimePolicy,
     /// Built-in knowledge store status, e.g. "help (loaded)", "standards (missing)".
     pub builtin_stores: Vec<String>,
+}
+
+/// Generate architecture recommendations from pipeline findings.
+/// Maps finding severity to recommendation priority and category.
+pub fn generate_recommendations(findings: &[schemas::audit::AuditFinding]) -> Vec<registry::store::ReportRecommendation> {
+    let mut out = Vec::new();
+    for f in findings {
+        let (priority, category) = match f.severity {
+            schemas::audit::Severity::Error => ("P1", "High Impact"),
+            schemas::audit::Severity::Warning => ("P2", "Medium Impact"),
+            schemas::audit::Severity::Suggestion => ("P3", "Low Impact"),
+        };
+        out.push(registry::store::ReportRecommendation {
+            id: 0,
+            priority: priority.to_string(),
+            category: category.to_string(),
+            description: format!("Address {}: {}", f.check_id, f.message),
+            file_path: f.location.clone(),
+        });
+    }
+    out
 }
