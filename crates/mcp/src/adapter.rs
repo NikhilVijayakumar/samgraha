@@ -75,6 +75,7 @@ impl McpAdapter {
         caps.methods.push("resolve_dependencies".to_string());
         caps.methods.push("repository_status".to_string());
         caps.methods.push("workspace_status".to_string());
+        caps.methods.push("get_product_knowledge_context".to_string());
         caps.methods.push("get_documents_by_domain".to_string());
         caps.methods.push("get_section".to_string());
         caps.methods.push("get_audit_knowledge".to_string());
@@ -177,6 +178,7 @@ impl McpAdapter {
             "resolve_dependencies"    => self.handle_resolve_dependencies(&req),
             "repository_status"       => self.handle_repository_status(&req),
             "workspace_status"        => self.handle_workspace_status(&req),
+            "get_product_knowledge_context" => self.handle_get_product_knowledge_context(),
             // Semantic audit handlers
             "get_documents_by_domain" => self.handle_get_documents_by_domain(&req),
             "get_section"             => self.handle_get_section(&req),
@@ -750,6 +752,18 @@ impl McpAdapter {
             return Ok(out);
         }
         Ok(Self::paginate(statuses, offset, limit, "repositories"))
+    }
+
+    /// Returns this repository's compiled Product Knowledge context — the
+    /// `repository_metadata` key-value snapshot written during `compile`
+    /// (source/test/scripts dirs, declared dependencies, pipeline commands,
+    /// repo identity). Empty object if `compile` hasn't run yet. Distinct
+    /// from `repository_status`: that's a workspace-wide view across every
+    /// registered repository; this is single-repo depth for the repository
+    /// this MCP session is bound to.
+    fn handle_get_product_knowledge_context(&self) -> Result<serde_json::Value> {
+        let metadata = self.runtime.registry.get_repository_metadata()?;
+        Ok(serde_json::json!({ "context": metadata }))
     }
 
     fn handle_workspace_status(&self, req: &McpRequest) -> Result<serde_json::Value> {

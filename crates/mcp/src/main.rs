@@ -383,6 +383,11 @@ fn tool_definitions() -> Vec<serde_json::Value> {
                 }
             }
         }),
+        serde_json::json!({
+            "name": "get_product_knowledge_context",
+            "description": "Get this repository's compiled Product Knowledge context (repository_metadata: source/test/scripts dirs, dependencies, pipeline commands, repo identity) — empty until compile has run at least once",
+            "inputSchema": { "type": "object", "properties": {} }
+        }),
         // ── Semantic Audit Tools ─────────────────────────────────────────────
         serde_json::json!({
             "name": "get_documents_by_domain",
