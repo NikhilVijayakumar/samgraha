@@ -2,7 +2,7 @@ use crate::protocol::{McpCapabilities, McpError, McpMessage, McpRequest, McpResp
 use anyhow::Result;
 use common::config::{parse_ttl_duration, SamgrahaConfig};
 use registry::RegistryStore;
-use schemas::audit::{AuditStage, FindingStatus, SemanticReport};
+use schemas::audit::{AuditFinding, AuditStage, FindingStatus, SemanticReport};
 use schemas::compilation::{CompilationRequest, CompilationScope};
 use schemas::manifest::CachedRepoMetadata;
 use schemas::search::{RetrievalLevel, SearchQuery, SectionQuery};
@@ -12,8 +12,47 @@ use services::registry_client::RegistryClient;
 use services::resolution::KnowledgeResolver;
 use services::context_manager::ContextManager;
 use services::KnowledgeRuntime;
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
+
+/// Validate that the given path is within the repository root.
+fn validate_target_path(repo_root: &Path, target: &Path) -> Result<()> {
+    let canonical = target.canonicalize().map_err(|e| {
+        anyhow::anyhow!("Target path '{}' cannot be resolved: {}", target.display(), e)
+    })?;
+    let repo_canonical = repo_root.canonicalize().map_err(|e| {
+        anyhow::anyhow!("Repository root '{}' cannot be resolved: {}", repo_root.display(), e)
+    })?;
+    if !canonical.starts_with(&repo_canonical) {
+        anyhow::bail!(
+            "Path safety violation: '{}' is outside repository root '{}'",
+            canonical.display(),
+            repo_canonical.display()
+        );
+    }
+    Ok(())
+}
+
+fn parse_finding(req: &McpRequest) -> Result<AuditFinding> {
+    let finding_val = req.params.get("finding")
+        .ok_or_else(|| anyhow::anyhow!("Missing 'finding' parameter"))?;
+    serde_json::from_value(finding_val.clone())
+        .map_err(|e| anyhow::anyhow!("Invalid 'finding' JSON: {}", e))
+}
+
+fn parse_string(req: &McpRequest, name: &str) -> Result<String> {
+    req.params.get(name)
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .ok_or_else(|| anyhow::anyhow!("Missing '{}' parameter", name))
+}
+
+fn parse_i64(req: &McpRequest, name: &str) -> Result<i64> {
+    req.params.get(name)
+        .and_then(|v| v.as_i64())
+        .ok_or_else(|| anyhow::anyhow!("Missing or invalid '{}' parameter", name))
+}
 
 pub struct McpAdapter {
     runtime: Arc<KnowledgeRuntime>,
@@ -51,6 +90,16 @@ impl McpAdapter {
         caps.methods.push("report_templates".to_string());
         caps.methods.push("report_generate".to_string());
         caps.methods.push("report_sessions".to_string());
+        caps.methods.push("audit_fix_plan".to_string());
+        caps.methods.push("audit_fix_apply".to_string());
+        caps.methods.push("audit_fix_accept".to_string());
+        caps.methods.push("audit_fix_reject".to_string());
+        caps.methods.push("audit_fix_status".to_string());
+        caps.methods.push("audit_fix_list".to_string());
+        caps.methods.push("audit_fix_plan_list".to_string());
+        caps.methods.push("audit_fix_plan_get".to_string());
+        caps.methods.push("audit_fix_plan_render".to_string());
+        caps.methods.push("audit_fix_templates".to_string());
         Self {
             runtime,
             registry,
@@ -133,6 +182,17 @@ impl McpAdapter {
             "report_templates"        => self.handle_report_templates(&req),
             "report_generate"         => self.handle_report_generate(&req),
             "report_sessions"         => self.handle_report_sessions(&req),
+            // Audit-fix pipeline handlers
+            "audit_fix_plan"          => self.handle_audit_fix_plan(&req),
+            "audit_fix_apply"         => self.handle_audit_fix_apply(&req),
+            "audit_fix_accept"        => self.handle_audit_fix_accept(&req),
+            "audit_fix_reject"        => self.handle_audit_fix_reject(&req),
+            "audit_fix_status"        => self.handle_audit_fix_status(&req),
+            "audit_fix_list"          => self.handle_audit_fix_list(&req),
+            "audit_fix_plan_list"     => self.handle_audit_fix_plan_list(&req),
+            "audit_fix_plan_get"      => self.handle_audit_fix_plan_get(&req),
+            "audit_fix_plan_render"   => self.handle_audit_fix_plan_render(&req),
+            "audit_fix_templates"     => self.handle_audit_fix_templates(&req),
             _                         => Err(anyhow::anyhow!("Unknown method: {}", req.method)),
         };
 
@@ -868,6 +928,119 @@ impl McpAdapter {
         Ok(serde_json::json!({
             "sessions": sessions,
             "count": sessions.len(),
+        }))
+    }
+
+    // ── Audit-Fix MCP Methods ─────────────────────────────────────────────
+
+    /// Generate a fix plan without auto-execution (human review mode).
+    fn handle_audit_fix_plan(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let finding = parse_finding(req)?;
+        let domain = parse_string(req, "domain")?;
+        let report_id = parse_i64(req, "report_id")?;
+        let report_type = parse_string(req, "report_type")?;
+        let target_path_str = parse_string(req, "target_path")?;
+        let target_path = std::path::PathBuf::from(&target_path_str);
+        validate_target_path(&self.runtime.context.repository_root, &target_path)?;
+        let plan = self.runtime.generate_fix_plan(&finding, &domain, report_id, &report_type, &target_path)?;
+        Ok(serde_json::json!(plan))
+    }
+
+    /// Run the full audit-fix pipeline: plan, execute, verify, retry.
+    fn handle_audit_fix_apply(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let finding = parse_finding(req)?;
+        let domain = parse_string(req, "domain")?;
+        let report_id = parse_i64(req, "report_id")?;
+        let report_type = parse_string(req, "report_type")?;
+        let target_path_str = parse_string(req, "target_path")?;
+        let target_path = std::path::PathBuf::from(&target_path_str);
+        validate_target_path(&self.runtime.context.repository_root, &target_path)?;
+        let session = self.runtime.apply_finding_fix(&finding, &domain, report_id, &report_type, &target_path)?;
+        Ok(serde_json::json!(session))
+    }
+
+    /// Accept a fix — delegates to `update_finding_status` with status "fixed".
+    fn handle_audit_fix_accept(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let report_id = parse_i64(req, "report_id")?;
+        let criterion_id = parse_string(req, "criterion_id")?;
+        self.runtime.update_finding_status(report_id, &criterion_id, FindingStatus::Fixed)?;
+        Ok(serde_json::json!({"success": true}))
+    }
+
+    /// Reject a fix — delegates to `update_finding_status` with status "accepted".
+    fn handle_audit_fix_reject(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let report_id = parse_i64(req, "report_id")?;
+        let criterion_id = parse_string(req, "criterion_id")?;
+        self.runtime.update_finding_status(report_id, &criterion_id, FindingStatus::Accepted)?;
+        Ok(serde_json::json!({"success": true}))
+    }
+
+    /// Get the status of a fix session by session_id.
+    fn handle_audit_fix_status(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let session_id = parse_i64(req, "session_id")?;
+        let session = self.runtime.registry.get_fix_session(session_id)?;
+        let attempts = self.runtime.registry.get_fix_attempts(session_id)?;
+        Ok(serde_json::json!({
+            "session": session,
+            "attempts": attempts,
+        }))
+    }
+
+    /// List fix sessions (paginated).
+    fn handle_audit_fix_list(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let (limit, offset) = McpAdapter::page_params(req, 20);
+        let sessions = self.runtime.registry.query_fix_sessions(limit, offset)?;
+        Ok(McpAdapter::paginate(sessions, offset, limit, "sessions"))
+    }
+
+    /// List fix plans for a session.
+    fn handle_audit_fix_plan_list(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let session_id = parse_i64(req, "session_id")?;
+        let plans = self.runtime.registry.query_fix_plans_by_session(session_id)?;
+        Ok(serde_json::json!({ "plans": plans, "count": plans.len() }))
+    }
+
+    /// Get a single fix plan by plan_id.
+    fn handle_audit_fix_plan_get(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let plan_id = parse_i64(req, "plan_id")?;
+        let plan = self.runtime.registry.get_fix_plan(plan_id)?;
+        let steps = plan.as_ref().and_then(|p| {
+            self.runtime.registry.get_fix_plan_steps(p.id.unwrap_or(0)).ok()
+        }).unwrap_or_default();
+        Ok(serde_json::json!({
+            "plan": plan,
+            "steps": steps,
+        }))
+    }
+
+    /// Render a fix plan as markdown using the template engine.
+    fn handle_audit_fix_plan_render(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let plan_id = parse_i64(req, "plan_id")?;
+        let template_name = req.params.get("template")
+            .and_then(|v| v.as_str())
+            .unwrap_or("documentation")
+            .to_string();
+        let plan = self.runtime.registry.get_fix_plan(plan_id)?
+            .ok_or_else(|| anyhow::anyhow!("Fix plan not found: {}", plan_id))?;
+        let templates_dir = self.runtime.context.repository_root.join("docs/raw/fix-plan-templates");
+        let template = services::reporting::read_template(&templates_dir, &template_name)?;
+        let markdown = services::reporting::render_fix_plan(&plan, &template);
+        Ok(serde_json::json!({
+            "plan_id": plan_id,
+            "template": template_name,
+            "markdown": markdown,
+        }))
+    }
+
+    /// List available fix plan templates.
+    fn handle_audit_fix_templates(&self, _req: &McpRequest) -> Result<serde_json::Value> {
+        let templates_dir = self.runtime.context.repository_root.join("docs/raw/fix-plan-templates");
+        let names = services::reporting::list_fix_plan_templates(&templates_dir)?;
+        Ok(serde_json::json!({
+            "templates": names.iter().map(|n| serde_json::json!({
+                "name": n,
+                "path": format!("{}-plan.md", n),
+            })).collect::<Vec<_>>(),
         }))
     }
 }
