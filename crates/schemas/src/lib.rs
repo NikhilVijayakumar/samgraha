@@ -1,4 +1,5 @@
 pub mod audit;
+pub mod code_inventory;
 pub mod compilation;
 pub mod fix;
 pub mod planning;
