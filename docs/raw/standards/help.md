@@ -16,9 +16,11 @@ Sections are identified by heading text; the compiler maps each to a semantic ty
 | Section | semantic_type | Required | Aliases |
 |---------|--------------|----------|---------|
 | Title | `title` | ✓ | Title |
-| Content | `body` | ✓ | Body, Details |
 | Purpose | `purpose` | | Overview |
-| Related | `related` | | See Also, References |
+| Product Context | `product-context` | | Context, Background |
+| Public Contract | `public-contract` | | Interface, API |
+| Content | `body` | ✓ | Body, Details |
+| Related | `related` | | See Also, References, Cross-References |
 
 Section headings are case-insensitive. Sections not listed here are stored as `generic` type — preserved but not queryable by type.
 
@@ -29,13 +31,21 @@ Section headings are case-insensitive. Sections not listed here are stored as `g
 | `help-001` | Has title | error |
 | `help-002` | Has purpose | suggestion |
 | `help-003` | Has content | error |
+| `help-004` | Has product context | suggestion |
+| `help-005` | Has public contract | warning |
 
 ## Usage
 
-Written by whoever ships a feature that needs end-user-facing explanation — a help topic is small and single-purpose, one file per concept/command/guide, never a catch-all. Use `samgraha compile --domain help` (done automatically by the release build for the shipped `docs/raw/help/` tree) and `samgraha audit --domain help` to confirm every topic has a title and body before it ships. Two packaging profiles exist: `quickref` (title + body only, for compact contexts) and `full` (all four sections).
+Written by whoever ships a feature that needs end-user-facing explanation — a help topic is small and single-purpose, one file per concept/command/guide, never a catch-all. Use `samgraha compile --domain help` (done automatically by the release build for the shipped `docs/raw/product-guide/` tree) and `samgraha audit --domain help` to confirm every topic has a title and body before it ships. Two packaging profiles exist: `quickref` (title + body only, for compact contexts) and `full` (all six sections).
+
+The corpus is also validated by the **Product Guide Audit Pipeline**
+(`samgraha audit --pipeline help`) — a separate, deeper check spanning
+Coverage, Navigation, Quality, and Accuracy against the actual CLI/MCP/config
+surface, not just per-topic section presence. See
+[Product Guide Audit Pipeline](../product-guide/concepts/help-audit.md).
 
 ## Related
 
 - [index.md](index.md) — table of contents for the standards collection
 - [Standards Reference Standard](standards.md) — the meta-standard this document is itself written against
-- `docs/raw/help/index.md` — the actual Help content tree's table of contents (not this file — this one documents the *standard*, that one is the *content*)
+- `docs/raw/product-guide/index.md` — the actual Help content tree's table of contents (not this file — this one documents the *standard*, that one is the *content*)

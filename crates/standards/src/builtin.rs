@@ -508,14 +508,16 @@ fn help_standard() -> StandardDefinition {
     StandardDefinition {
         id: "help".into(),
         name: "Help Standard".into(),
-        version: "1.0.0".into(),
+        version: "2.0.0".into(),
         domain: "help".into(),
         description: "How to use Samgraha — product docs for end users.".into(),
         required_sections: vec![
             sec("Title", "title", &["Title"], true, "Topic title"),
             sec("Purpose", "purpose", &["Purpose", "Overview"], false, "What this topic covers"),
+            sec("Product Context", "product-context", &["Product Context", "Context", "Background"], false, "How this capability fits the product"),
+            sec("Public Contract", "public-contract", &["Public Contract", "Interface", "API"], false, "Public-facing behavior"),
             sec("Content", "body", &["Content", "Body", "Details"], true, "Main body"),
-            sec("Related", "related", &["Related", "See Also", "References"], false, "Cross-refs"),
+            sec("Related", "related", &["Related", "See Also", "References", "Cross-References"], false, "Cross-refs"),
         ],
         prohibited_content: vec![],
         relationships: vec![],
@@ -523,10 +525,12 @@ fn help_standard() -> StandardDefinition {
             rule("help-001", "Has title", "Help topic must have a title", "error", "has_title", ""),
             rule("help-002", "Has purpose", "Help topic should explain purpose", "suggestion", "has_section", "Purpose"),
             rule("help-003", "Has content", "Help topic must have body content", "error", "has_section", "Content"),
+            rule("help-004", "Has product context", "Help topic should explain product context", "suggestion", "has_section", "Product Context"),
+            rule("help-005", "Has public contract", "Help topic should document public behavior", "warning", "has_section", "Public Contract"),
         ],
         profiles: vec![
             schemas::standard::profile_def("quickref", "Title + body", &["title", "body"]),
-            schemas::standard::profile_def("full", "All sections", &["title", "purpose", "body", "related"]),
+            schemas::standard::profile_def("full", "All sections", &["title", "purpose", "product-context", "public-contract", "body", "related"]),
         ],
     }
 }
