@@ -25,8 +25,8 @@ domain = ["readme", "vision", "philosophy", "architecture", "feature", "feature-
 # docs/raw/feature/cli-interface.md and the Domain Exclusions section in
 # docs/raw/feature-technical/cli-interface.md.
 # help/standards are excluded here too: they're built-in knowledge compiled
-# separately by the release script (--path docs/raw/help|standards), not
-# part of this repo's own document set. Exclusion only affects the `info`
+# separately by the release script (--path docs/raw/product-guide|standards),
+# not part of this repo's own document set. Exclusion only affects the `info`
 # standards list — see [repository.ignore].patterns above for the real
 # compile-time safeguard.
 domain_exclusion = ["design", "feature-design", "external-context", "prototype", "help", "standards"]

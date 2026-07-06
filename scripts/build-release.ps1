@@ -75,7 +75,7 @@ foreach ($dir in @("standards", "audit", "audit-standards")) {
 # === Built-in Knowledge Sources ===
 $builtinSources = @(
     @{ name = "standards"; path = "docs/raw/standards" },
-    @{ name = "help"; path = "docs/raw/help" }
+    @{ name = "help"; path = "docs/raw/product-guide" }
 )
 
 foreach ($src in $builtinSources) {
