@@ -6,6 +6,10 @@ use schemas::audit::{
     SemanticReport,
 };
 use schemas::document::{Document, DocumentBody, DocumentSection};
+use schemas::fix::{
+    FixAttempt, FixPlan, FixPlanStatus, FixSession, FixStepStatus, PlanStep, PlanType,
+    SessionStatus,
+};
 use schemas::enrichment::EnrichmentArtifact;
 use schemas::graph::{EdgeType, GraphEdge, GraphNode, KnowledgeGraph};
 use schemas::registry::{
@@ -2839,6 +2843,334 @@ impl RegistryStore {
         )?;
         Ok(self.conn.last_insert_rowid())
     }
+
+    // ── Fix Pipeline (Phase 1) ────────────────────────────────────────────────
+
+    pub fn insert_fix_session(&self, session: &FixSession) -> Result<i64> {
+        self.conn.execute(
+            "INSERT INTO fix_sessions (report_id, report_type, criterion_id, finding_json, domain, plan_type, target_file, attempt_count, max_attempts, status, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            params![
+                session.report_id,
+                session.report_type,
+                session.criterion_id,
+                session.finding_json,
+                session.domain,
+                session.plan_type.as_str(),
+                session.target_file,
+                session.attempt_count,
+                session.max_attempts,
+                session.status.as_str(),
+                session.created_at.as_deref().unwrap_or(""),
+                session.updated_at.as_deref().unwrap_or(""),
+            ],
+        )?;
+        Ok(self.conn.last_insert_rowid())
+    }
+
+    pub fn update_fix_session(&self, session: &FixSession) -> Result<()> {
+        self.conn.execute(
+            "UPDATE fix_sessions SET
+                plan_type = ?1, attempt_count = ?2, status = ?3, updated_at = ?4
+             WHERE id = ?5",
+            params![
+                session.plan_type.as_str(),
+                session.attempt_count,
+                session.status.as_str(),
+                chrono_now(),
+                session.id,
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_fix_session(&self, id: i64) -> Result<Option<FixSession>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, report_id, report_type, criterion_id, finding_json, domain, plan_type, target_file, attempt_count, max_attempts, status, created_at, updated_at
+             FROM fix_sessions WHERE id = ?1",
+        )?;
+        let mut rows = stmt.query(params![id])?;
+        if let Some(row) = rows.next()? {
+            Ok(Some(FixSession {
+                id: Some(row.get(0)?),
+                report_id: row.get(1)?,
+                report_type: row.get(2)?,
+                criterion_id: row.get(3)?,
+                finding_json: row.get(4)?,
+                domain: row.get(5)?,
+                plan_type: PlanType::from_str(&row.get::<_, String>(6)?)
+                    .unwrap_or(PlanType::Documentation),
+                target_file: row.get(7)?,
+                attempt_count: row.get(8)?,
+                max_attempts: row.get(9)?,
+                status: SessionStatus::from_str(&row.get::<_, String>(10)?)
+                    .unwrap_or(SessionStatus::InProgress),
+                created_at: Some(row.get(11)?),
+                updated_at: Some(row.get(12)?),
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn insert_fix_plan(&self, plan: &FixPlan) -> Result<i64> {
+        let steps_json = serde_json::to_string(&plan.steps)?;
+        let prereqs_json = serde_json::to_string(&plan.prerequisites)?;
+        self.conn.execute(
+            "INSERT INTO fix_plans (session_id, report_id, criterion_id, domain, plan_type, title, summary, prerequisites, steps, rollback_instructions, expected_checks, status, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+            params![
+                plan.session_id,
+                plan.report_id,
+                plan.criterion_id,
+                plan.domain,
+                plan.plan_type.as_str(),
+                plan.title,
+                plan.summary,
+                prereqs_json,
+                steps_json,
+                plan.rollback_instructions,
+                serde_json::to_string(&plan.expected_checks)?,
+                plan.status.as_str(),
+                plan.created_at.as_deref().unwrap_or(""),
+                plan.updated_at.as_deref().unwrap_or(""),
+            ],
+        )?;
+        Ok(self.conn.last_insert_rowid())
+    }
+
+    pub fn get_fix_plan(&self, id: i64) -> Result<Option<FixPlan>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session_id, report_id, criterion_id, domain, plan_type, title, summary, prerequisites, steps, rollback_instructions, expected_checks, status, created_at, updated_at
+             FROM fix_plans WHERE id = ?1",
+        )?;
+        let mut rows = stmt.query(params![id])?;
+        if let Some(row) = rows.next()? {
+            let steps_str: String = row.get(9)?;
+            let prereqs_str: String = row.get(8)?;
+            let ec_str: String = row.get(11)?;
+            Ok(Some(FixPlan {
+                id: Some(row.get(0)?),
+                session_id: row.get(1)?,
+                report_id: row.get(2)?,
+                criterion_id: row.get(3)?,
+                domain: row.get(4)?,
+                plan_type: PlanType::from_str(&row.get::<_, String>(5)?)
+                    .unwrap_or(PlanType::Documentation),
+                title: row.get(6)?,
+                summary: row.get(7)?,
+                prerequisites: serde_json::from_str(&prereqs_str).unwrap_or_default(),
+                steps: serde_json::from_str(&steps_str).unwrap_or_default(),
+                rollback_instructions: row.get(10)?,
+                expected_checks: serde_json::from_str(&ec_str).unwrap_or_default(),
+                status: FixPlanStatus::from_str(&row.get::<_, String>(12)?)
+                    .unwrap_or(FixPlanStatus::Draft),
+                created_at: Some(row.get(13)?),
+                updated_at: Some(row.get(14)?),
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn update_fix_plan_status(&self, plan_id: i64, status: &FixPlanStatus) -> Result<()> {
+        self.conn.execute(
+            "UPDATE fix_plans SET status = ?1, updated_at = ?2 WHERE id = ?3",
+            params![status.as_str(), chrono_now(), plan_id],
+        )?;
+        Ok(())
+    }
+
+    pub fn insert_fix_plan_step(&self, step: &PlanStep) -> Result<i64> {
+        self.conn.execute(
+            "INSERT INTO fix_plan_steps (plan_id, step_order, action, target, rationale, detail, verification, rollback, status, verified_at, score)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+            params![
+                step.plan_id,
+                step.step_order as i64,
+                step.action,
+                step.target,
+                step.rationale,
+                step.detail,
+                step.verification,
+                step.rollback,
+                step.status.as_str(),
+                step.verified_at,
+                step.score,
+            ],
+        )?;
+        Ok(self.conn.last_insert_rowid())
+    }
+
+    pub fn update_fix_plan_step(&self, step: &PlanStep) -> Result<()> {
+        self.conn.execute(
+            "UPDATE fix_plan_steps SET status = ?1, verified_at = ?2, score = ?3 WHERE id = ?4",
+            params![
+                step.status.as_str(),
+                step.verified_at,
+                step.score,
+                step.id,
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_fix_plan_steps(&self, plan_id: i64) -> Result<Vec<PlanStep>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, plan_id, step_order, action, target, rationale, detail, verification, rollback, status, verified_at, score
+             FROM fix_plan_steps WHERE plan_id = ?1 ORDER BY step_order",
+        )?;
+        let rows = stmt.query_map(params![plan_id], |row| {
+            Ok(PlanStep {
+                id: Some(row.get(0)?),
+                plan_id: Some(row.get(1)?),
+                step_order: row.get::<_, i64>(2)? as usize,
+                action: row.get(3)?,
+                target: row.get(4)?,
+                rationale: row.get(5)?,
+                detail: row.get(6)?,
+                verification: row.get(7)?,
+                rollback: row.get(8)?,
+                status: FixStepStatus::from_str(&row.get::<_, String>(9)?)
+                    .unwrap_or(FixStepStatus::Pending),
+                verified_at: row.get(10)?,
+                score: row.get(11)?,
+            })
+        })?;
+        let mut steps = Vec::new();
+        for row in rows {
+            steps.push(row?);
+        }
+        Ok(steps)
+    }
+
+    pub fn insert_fix_attempt(&self, attempt: &FixAttempt) -> Result<i64> {
+        let check_scores_json = attempt.check_scores.as_ref()
+            .map(|m| serde_json::to_string(m).unwrap_or_default())
+            .unwrap_or_default();
+        self.conn.execute(
+            "INSERT INTO fix_attempts (session_id, attempt, plan_id, plan_type, score, check_scores, passed, error_message, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                attempt.session_id,
+                attempt.attempt,
+                attempt.plan_id,
+                attempt.plan_type.as_str(),
+                attempt.score,
+                check_scores_json,
+                attempt.passed as i32,
+                attempt.error_message,
+                attempt.created_at.as_deref().unwrap_or(""),
+            ],
+        )?;
+        Ok(self.conn.last_insert_rowid())
+    }
+
+    pub fn get_fix_attempts(&self, session_id: i64) -> Result<Vec<FixAttempt>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session_id, attempt, plan_id, plan_type, score, check_scores, passed, error_message, created_at
+             FROM fix_attempts WHERE session_id = ?1 ORDER BY attempt",
+        )?;
+        let rows = stmt.query_map(params![session_id], |row| {
+            let cs_str: Option<String> = row.get(6).ok();
+            let check_scores = cs_str
+                .and_then(|s| serde_json::from_str(&s).ok())
+                .unwrap_or_default();
+            Ok(FixAttempt {
+                id: Some(row.get(0)?),
+                session_id: row.get(1)?,
+                attempt: row.get(2)?,
+                plan_id: row.get(3)?,
+                plan_type: PlanType::from_str(&row.get::<_, String>(4)?)
+                    .unwrap_or(PlanType::Documentation),
+                score: row.get(5)?,
+                check_scores: Some(check_scores),
+                passed: row.get::<_, i32>(7)? != 0,
+                error_message: row.get(8)?,
+                created_at: Some(row.get(9)?),
+            })
+        })?;
+        let mut attempts = Vec::new();
+        for row in rows {
+            attempts.push(row?);
+        }
+        Ok(attempts)
+    }
+
+    /// List fix sessions ordered by creation time descending.
+    pub fn query_fix_sessions(&self, limit: usize, offset: usize) -> Result<Vec<FixSession>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, report_id, report_type, criterion_id, finding_json, domain, plan_type, target_file, attempt_count, max_attempts, status, created_at, updated_at
+             FROM fix_sessions ORDER BY id DESC LIMIT ?1 OFFSET ?2",
+        )?;
+        let rows = stmt.query_map(params![limit as i64, offset as i64], |row| {
+            Ok(FixSession {
+                id: Some(row.get(0)?),
+                report_id: row.get(1)?,
+                report_type: row.get(2)?,
+                criterion_id: row.get(3)?,
+                finding_json: row.get(4)?,
+                domain: row.get(5)?,
+                plan_type: PlanType::from_str(&row.get::<_, String>(6)?)
+                    .unwrap_or(PlanType::Documentation),
+                target_file: row.get(7)?,
+                attempt_count: row.get(8)?,
+                max_attempts: row.get(9)?,
+                status: SessionStatus::from_str(&row.get::<_, String>(10)?)
+                    .unwrap_or(SessionStatus::InProgress),
+                created_at: Some(row.get(11)?),
+                updated_at: Some(row.get(12)?),
+            })
+        })?;
+        let mut sessions = Vec::new();
+        for row in rows {
+            sessions.push(row?);
+        }
+        Ok(sessions)
+    }
+
+    /// List fix plans for a given fix session (by fix_sessions.id).
+    pub fn query_fix_plans_by_session(&self, fix_session_id: i64) -> Result<Vec<FixPlan>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT DISTINCT fp.id, fp.session_id, fp.report_id, fp.criterion_id, fp.domain, fp.plan_type, fp.title, fp.summary, fp.prerequisites, fp.steps, fp.rollback_instructions, fp.expected_checks, fp.status, fp.created_at, fp.updated_at
+             FROM fix_plans fp
+             JOIN fix_attempts fa ON fa.plan_id = fp.id
+             WHERE fa.session_id = ?1
+             ORDER BY fp.id DESC",
+        )?;
+        let rows = stmt.query_map(params![fix_session_id], |row| {
+            let prereq_str: String = row.get(8)?;
+            let steps_str: String = row.get(9)?;
+            let checks_str: String = row.get(11)?;
+            let prerequisites: Vec<String> = serde_json::from_str(&prereq_str).unwrap_or_default();
+            let steps: Vec<PlanStep> = serde_json::from_str(&steps_str).unwrap_or_default();
+            let expected_checks: Vec<String> = serde_json::from_str(&checks_str).unwrap_or_default();
+            Ok(FixPlan {
+                id: Some(row.get(0)?),
+                session_id: row.get(1)?,
+                report_id: row.get(2)?,
+                criterion_id: row.get(3)?,
+                domain: row.get(4)?,
+                plan_type: PlanType::from_str(&row.get::<_, String>(5)?)
+                    .unwrap_or(PlanType::Documentation),
+                title: row.get(6)?,
+                summary: row.get(7)?,
+                prerequisites,
+                steps,
+                rollback_instructions: row.get(10)?,
+                expected_checks,
+                status: FixPlanStatus::from_str(&row.get::<_, String>(12)?)
+                    .unwrap_or(FixPlanStatus::Draft),
+                created_at: Some(row.get(13)?),
+                updated_at: Some(row.get(14)?),
+            })
+        })?;
+        let mut plans = Vec::new();
+        for row in rows {
+            plans.push(row?);
+        }
+        Ok(plans)
+    }
 }
 
 // ── Per-Audit Report Types (Phase 8) ─────────────────────────────────────
@@ -3803,5 +4135,103 @@ mod tests {
         assert!(store.query_consistency_sessions(10).unwrap().is_empty());
         assert!(store.query_coverage_sessions(10).unwrap().is_empty());
         assert!(store.query_architecture_sessions(10).unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_insert_and_query_fix_session() {
+        let store = RegistryStore::open_in_memory().unwrap();
+        let session = FixSession {
+            id: None, report_id: 1, report_type: "build".into(),
+            criterion_id: "B1".into(), finding_json: r#"{"check":"B1"}"#.into(),
+            domain: "build".into(), plan_type: PlanType::Build,
+            target_file: Some("Cargo.toml".into()),
+            attempt_count: 0, max_attempts: 3,
+            status: SessionStatus::InProgress, created_at: None, updated_at: None,
+        };
+        let id = store.insert_fix_session(&session).unwrap();
+        assert!(id > 0);
+
+        let fetched = store.get_fix_session(id).unwrap().unwrap();
+        assert_eq!(fetched.report_id, 1);
+        assert_eq!(fetched.criterion_id, "B1");
+        assert_eq!(fetched.domain, "build");
+        assert_eq!(fetched.plan_type, PlanType::Build);
+
+        let sessions = store.query_fix_sessions(10, 0).unwrap();
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].domain, "build");
+    }
+
+    #[test]
+    fn test_insert_and_query_fix_plan() {
+        let store = RegistryStore::open_in_memory().unwrap();
+        let step = PlanStep {
+            id: None, plan_id: None, step_order: 1,
+            action: "modify".into(), target: "Cargo.toml".into(),
+            rationale: "Missing dep".into(), detail: "Add dep".into(),
+            verification: "cargo check".into(), rollback: Some("git checkout".into()),
+            status: FixStepStatus::Pending, verified_at: None, score: None,
+        };
+        let plan = FixPlan {
+            id: None, session_id: "sess-1".into(), report_id: 1,
+            criterion_id: "B1".into(), domain: "build".into(),
+            plan_type: PlanType::Build, title: "Fix build".into(),
+            summary: "Update Cargo.toml".into(),
+            prerequisites: vec!["File writable".into()],
+            steps: vec![step],
+            rollback_instructions: Some("git checkout".into()),
+            expected_checks: vec!["B1".into()],
+            status: FixPlanStatus::Draft, created_at: None, updated_at: None,
+        };
+        let id = store.insert_fix_plan(&plan).unwrap();
+        assert!(id > 0);
+
+        let fetched = store.get_fix_plan(id).unwrap().unwrap();
+        assert_eq!(fetched.criterion_id, "B1");
+        assert_eq!(fetched.steps.len(), 1);
+        assert_eq!(fetched.prerequisites.len(), 1);
+        assert_eq!(fetched.expected_checks, vec!["B1"]);
+
+        // Plans are linked via fix_attempts: insert session first, then attempt
+        let sess_id = store.insert_fix_session(&FixSession {
+            id: None, report_id: 1, report_type: "build".into(),
+            criterion_id: "B1".into(), finding_json: "{}".into(),
+            domain: "build".into(), plan_type: PlanType::Build,
+            target_file: None, attempt_count: 0, max_attempts: 3,
+            status: SessionStatus::InProgress, created_at: None, updated_at: None,
+        }).unwrap();
+        // Insert attempt linking session to plan
+        store.insert_fix_attempt(&FixAttempt {
+            id: None, session_id: sess_id, attempt: 0, plan_id: Some(id),
+            plan_type: PlanType::Build, score: Some(9.0),
+            check_scores: None, passed: true, error_message: None, created_at: None,
+        }).unwrap();
+        let plans = store.query_fix_plans_by_session(sess_id).unwrap();
+        assert_eq!(plans.len(), 1);
+        assert_eq!(plans[0].title, "Fix build");
+    }
+
+    #[test]
+    fn test_fix_session_pagination() {
+        let store = RegistryStore::open_in_memory().unwrap();
+        for i in 0..5 {
+            let session = FixSession {
+                id: None, report_id: i, report_type: "build".into(),
+                criterion_id: format!("B{}", i), finding_json: "{}".into(),
+                domain: "build".into(), plan_type: PlanType::Build,
+                target_file: None, attempt_count: 0, max_attempts: 3,
+                status: SessionStatus::InProgress, created_at: None, updated_at: None,
+            };
+            store.insert_fix_session(&session).unwrap();
+        }
+
+        let page1 = store.query_fix_sessions(2, 0).unwrap();
+        assert_eq!(page1.len(), 2);
+
+        let page2 = store.query_fix_sessions(2, 2).unwrap();
+        assert_eq!(page2.len(), 2);
+
+        let page3 = store.query_fix_sessions(2, 4).unwrap();
+        assert_eq!(page3.len(), 1);
     }
 }

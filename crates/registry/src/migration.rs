@@ -1,5 +1,5 @@
 /// Knowledge registry migrations — create `knowledge.db` tables.
-pub const KNOWLEDGE_MIGRATIONS: &[&str] = &[V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27];
+pub const KNOWLEDGE_MIGRATIONS: &[&str] = &[V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28];
 
 /// Repository registry migrations — create `registry.db` tables.
 pub const REGISTRY_MIGRATIONS: &[&str] = &[REG_V1, REG_V2];
@@ -757,6 +757,75 @@ CREATE TABLE IF NOT EXISTS implementation_reports (
     doc_scores TEXT,
     validation_scores TEXT,
     finding_counts TEXT DEFAULT '{\"critical\":0,\"major\":0,\"minor\":0,\"observations\":0}'
+);
+";
+
+const V28: &str = "
+-- V28: Audit-Fix Pipeline tables — fix sessions, attempts, plans, and plan steps.
+-- Each fix_session tracks one finding remediation from first attempt through
+-- pass or human-review escalation. fix_plans and fix_plan_steps store the
+-- generated plan; fix_attempts records each verification loop iteration.
+
+CREATE TABLE IF NOT EXISTS fix_sessions (
+    id INTEGER PRIMARY KEY,
+    report_id INTEGER NOT NULL,
+    report_type TEXT NOT NULL,
+    criterion_id TEXT NOT NULL,
+    finding_json TEXT NOT NULL,
+    domain TEXT NOT NULL,
+    plan_type TEXT NOT NULL,
+    target_file TEXT,
+    attempt_count INTEGER NOT NULL DEFAULT 0,
+    max_attempts INTEGER NOT NULL DEFAULT 3,
+    status TEXT NOT NULL DEFAULT 'in_progress',
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS fix_attempts (
+    id INTEGER PRIMARY KEY,
+    session_id INTEGER NOT NULL REFERENCES fix_sessions(id),
+    attempt INTEGER NOT NULL,
+    plan_id INTEGER REFERENCES fix_plans(id),
+    plan_type TEXT NOT NULL,
+    score REAL,
+    check_scores TEXT,
+    passed INTEGER DEFAULT 0,
+    error_message TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS fix_plans (
+    id INTEGER PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    report_id INTEGER NOT NULL,
+    criterion_id TEXT NOT NULL,
+    domain TEXT NOT NULL,
+    plan_type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    prerequisites TEXT,
+    steps TEXT NOT NULL,
+    rollback_instructions TEXT,
+    expected_checks TEXT NOT NULL DEFAULT '[]',
+    status TEXT NOT NULL DEFAULT 'draft',
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS fix_plan_steps (
+    id INTEGER PRIMARY KEY,
+    plan_id INTEGER NOT NULL REFERENCES fix_plans(id),
+    step_order INTEGER NOT NULL,
+    action TEXT NOT NULL,
+    target TEXT NOT NULL,
+    rationale TEXT NOT NULL,
+    detail TEXT NOT NULL,
+    verification TEXT NOT NULL,
+    rollback TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    verified_at TEXT,
+    score REAL
 );
 ";
 
