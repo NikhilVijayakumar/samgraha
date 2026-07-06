@@ -224,6 +224,82 @@ impl KnowledgeRuntime {
         Ok(report)
     }
 
+    /// Run a pipeline and return both the report and its persisted report_id.
+    /// Unlike `run_pipeline()`, this preserves the report_id needed by
+    /// `apply_finding_fix()` / `generate_fix_plan()` in downstream phases.
+    pub fn run_pipeline_with_id(
+        &self,
+        kind: &PipelineKind,
+        inspect_artifact: bool,
+        runtime_mode: bool,
+        execute: bool,
+        dry_run: bool,
+    ) -> Result<(PipelineReport, i64)> {
+        let ctx = PipelineContext::new(
+            self.context.repository_root.clone(),
+            self.context.config.clone(),
+        )
+        .with_inspect_artifact(inspect_artifact)
+        .with_runtime(runtime_mode)
+        .with_execute(execute)
+        .with_dry_run(dry_run);
+
+        let report = match kind {
+            PipelineKind::Build => AuditService::run_pipeline(&BuildPipeline, &ctx),
+            PipelineKind::Security => AuditService::run_pipeline(&SecurityPipeline, &ctx),
+            PipelineKind::Consistency => AuditService::run_pipeline(&ConsistencyPipeline, &ctx),
+            PipelineKind::Coverage => AuditService::run_pipeline(&CoveragePipeline, &ctx),
+            PipelineKind::Architecture => AuditService::run_pipeline(&ArchitecturePipeline, &ctx),
+            PipelineKind::Vision => AuditService::run_pipeline(&VisionPipeline, &ctx),
+            PipelineKind::Design => AuditService::run_pipeline(&DesignPipeline, &ctx),
+            PipelineKind::Readme => AuditService::run_pipeline(&ReadmePipeline, &ctx),
+            PipelineKind::Prototype => AuditService::run_pipeline(&PrototypePipeline, &ctx),
+            PipelineKind::ExternalContext => AuditService::run_pipeline(&ExternalContextPipeline, &ctx),
+            PipelineKind::Engineering => AuditService::run_pipeline(&EngineeringPipeline, &ctx),
+            PipelineKind::Feature => AuditService::run_pipeline(&FeaturePipeline, &ctx),
+            PipelineKind::FeatureTechnical => AuditService::run_pipeline(&FeatureTechnicalPipeline, &ctx),
+            PipelineKind::FeatureDesign => AuditService::run_pipeline(&FeatureDesignPipeline, &ctx),
+            PipelineKind::DeterministicRuntime => AuditService::run_pipeline(&DeterministicRuntimePipeline, &ctx),
+            PipelineKind::ExternalContextOwnership => AuditService::run_pipeline(&ExternalContextOwnershipPipeline, &ctx),
+            PipelineKind::Implementation => AuditService::run_pipeline(&ImplementationPipeline, &ctx),
+            PipelineKind::Dependency => {
+                let mut findings = Vec::new();
+                let mut cats = std::collections::HashMap::new();
+                findings.push(schemas::audit::AuditFinding {
+                    check_id: "D0".into(),
+                    severity: schemas::audit::Severity::Suggestion,
+                    message: "Dependency Governance is specification only — automated checks not yet implemented".into(),
+                    location: None,
+                    document_id: None,
+                    provider: "pipeline".into(),
+                    stage: None,
+                    section_id: None,
+                    confidence: None,
+                    evidence: None,
+                    status: None,
+                    strategy: None,
+                });
+                cats.insert("Governance".into(), 100.0);
+                schemas::audit::PipelineReport {
+                    pipeline: PipelineKind::Dependency,
+                    score: 100.0,
+                    categories: cats,
+                    findings,
+                    timestamp: chrono::Utc::now().to_rfc3339(),
+                    metadata: std::collections::HashMap::new(),
+                }
+            }
+            PipelineKind::Doc => {
+                anyhow::bail!("Use the standard audit() method for Documentation Audit");
+            }
+        };
+
+        let session_id = Uuid::new_v4().to_string();
+        let report_id = self.store_pipeline_to_db(kind, &report, &session_id)?;
+
+        Ok((report, report_id))
+    }
+
     pub fn audit(
         &self,
         domain: Option<&str>,

@@ -1,6 +1,7 @@
 pub mod audit;
 pub mod compilation;
 pub mod fix;
+pub mod planning;
 pub mod scoreband;
 pub mod diagnostics;
 pub mod document;
@@ -24,6 +25,7 @@ pub use graph::*;
 pub use manifest::*;
 pub use objects::*;
 pub use package::*;
+pub use planning::*;
 pub use quality::*;
 pub use registry::*;
 pub use search::*;

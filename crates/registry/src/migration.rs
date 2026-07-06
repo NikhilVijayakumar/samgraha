@@ -1,5 +1,5 @@
 /// Knowledge registry migrations — create `knowledge.db` tables.
-pub const KNOWLEDGE_MIGRATIONS: &[&str] = &[V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28];
+pub const KNOWLEDGE_MIGRATIONS: &[&str] = &[V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29];
 
 /// Repository registry migrations — create `registry.db` tables.
 pub const REGISTRY_MIGRATIONS: &[&str] = &[REG_V1, REG_V2];
@@ -859,4 +859,36 @@ CREATE INDEX IF NOT EXISTS idx_repo_cache_uuid ON repository_cache(uuid);
 /// Enables offline resolution without reading dependency manifests on cache hit.
 const REG_V2: &str = "
 ALTER TABLE repository_cache ADD COLUMN dependencies TEXT NOT NULL DEFAULT '[]';
+";
+
+/// V29 — Project planner tables for phasewise workflow orchestration.
+const V29: &str = "
+CREATE TABLE IF NOT EXISTS project_plans (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    case_type TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
+    current_phase TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS project_phases (
+    id TEXT PRIMARY KEY,
+    plan_id TEXT NOT NULL REFERENCES project_plans(id),
+    phase_number INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    phase_type TEXT NOT NULL,
+    domains TEXT NOT NULL,
+    pipeline_ids TEXT NOT NULL,
+    dependencies TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    started_at TEXT,
+    completed_at TEXT,
+    result_json TEXT,
+    UNIQUE(plan_id, phase_number)
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_phases_plan ON project_phases(plan_id);
+CREATE INDEX IF NOT EXISTS idx_project_phases_status ON project_phases(status);
 ";

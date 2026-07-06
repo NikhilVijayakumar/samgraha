@@ -503,6 +503,70 @@ fn tool_definitions() -> Vec<serde_json::Value> {
                 "required": ["report_id", "criterion_id", "status"]
             }
         }),
+        // ── Project Planner Tools ─────────────────────────────────────────
+        serde_json::json!({
+            "name": "project_plan",
+            "description": "Create a new project plan for a given use case. Generates a phasewise plan with dependency-aware phase ordering.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "case": { "type": "string", "enum": ["new_project", "docs_audit", "impl_test_audit", "build_audit"], "description": "Project goal" },
+                    "title": { "type": "string", "description": "Optional plan title (defaults to case name)" }
+                },
+                "required": ["case"]
+            }
+        }),
+        serde_json::json!({
+            "name": "project_plan_get",
+            "description": "Get a project plan with all its phases and statuses.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "plan_id": { "type": "string", "description": "Plan ID" }
+                },
+                "required": ["plan_id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "project_plan_list",
+            "description": "List all project plans with their status.",
+            "inputSchema": { "type": "object", "properties": {} }
+        }),
+        serde_json::json!({
+            "name": "project_plan_execute",
+            "description": "Execute a phase within a project plan. Omitting phase_number executes the next pending phase.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "plan_id": { "type": "string", "description": "Plan ID" },
+                    "phase_number": { "type": "integer", "description": "Optional phase number to execute (default: next pending)" }
+                },
+                "required": ["plan_id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "project_plan_status",
+            "description": "Get progress summary for a project plan.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "plan_id": { "type": "string", "description": "Plan ID" }
+                },
+                "required": ["plan_id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "project_plan_abort",
+            "description": "Abort a project plan (mark as failed).",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "plan_id": { "type": "string", "description": "Plan ID" },
+                    "reason": { "type": "string", "description": "Reason for abort" }
+                },
+                "required": ["plan_id"]
+            }
+        }),
     ]
 }
 

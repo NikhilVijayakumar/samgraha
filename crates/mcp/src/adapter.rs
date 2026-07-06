@@ -8,6 +8,7 @@ use schemas::manifest::CachedRepoMetadata;
 use schemas::search::{RetrievalLevel, SearchQuery, SectionQuery};
 use services::compilation::CompilationService;
 use services::planner::write_meta_file;
+use services::project_planner::PlanOrchestrator;
 use services::registry_client::RegistryClient;
 use services::resolution::KnowledgeResolver;
 use services::context_manager::ContextManager;
@@ -59,6 +60,7 @@ pub struct McpAdapter {
     registry: Arc<dyn RegistryClient>,
     capabilities: McpCapabilities,
     context_manager: ContextManager,
+    orchestrator: PlanOrchestrator,
 }
 
 impl McpAdapter {
@@ -100,11 +102,22 @@ impl McpAdapter {
         caps.methods.push("audit_fix_plan_get".to_string());
         caps.methods.push("audit_fix_plan_render".to_string());
         caps.methods.push("audit_fix_templates".to_string());
+        caps.methods.push("project_plan".to_string());
+        caps.methods.push("project_plan_get".to_string());
+        caps.methods.push("project_plan_list".to_string());
+        caps.methods.push("project_plan_execute".to_string());
+        caps.methods.push("project_plan_status".to_string());
+        caps.methods.push("project_plan_abort".to_string());
+        let orchestrator = PlanOrchestrator::new(
+            Arc::clone(&runtime),
+            Arc::clone(&runtime.registry),
+        );
         Self {
             runtime,
             registry,
             capabilities: caps,
             context_manager,
+            orchestrator,
         }
     }
 
@@ -193,6 +206,13 @@ impl McpAdapter {
             "audit_fix_plan_get"      => self.handle_audit_fix_plan_get(&req),
             "audit_fix_plan_render"   => self.handle_audit_fix_plan_render(&req),
             "audit_fix_templates"     => self.handle_audit_fix_templates(&req),
+            // Project planner handlers
+            "project_plan"            => self.handle_project_plan(&req),
+            "project_plan_get"        => self.handle_project_plan_get(&req),
+            "project_plan_list"       => self.handle_project_plan_list(),
+            "project_plan_execute"    => self.handle_project_plan_execute(&req),
+            "project_plan_status"     => self.handle_project_plan_status(&req),
+            "project_plan_abort"      => self.handle_project_plan_abort(&req),
             _                         => Err(anyhow::anyhow!("Unknown method: {}", req.method)),
         };
 
@@ -1042,5 +1062,65 @@ impl McpAdapter {
                 "path": format!("{}-plan.md", n),
             })).collect::<Vec<_>>(),
         }))
+    }
+
+    // ── Project Planner MCP Methods ──────────────────────────────────────
+
+    fn handle_project_plan(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let case_str = parse_string(req, "case")?;
+        let case = schemas::ProjectCase::from_str(&case_str)
+            .ok_or_else(|| anyhow::anyhow!("Invalid case: '{}' (expected: new_project, docs_audit, impl_test_audit, build_audit)", case_str))?;
+        let title = req.params.get("title")
+            .and_then(|v| v.as_str())
+            .unwrap_or(&case_str)
+            .to_string();
+        let plan_with_phases = self.orchestrator.create_plan(&case, &title)?;
+        Ok(serde_json::json!({
+            "plan_id": plan_with_phases.plan.id,
+            "title": plan_with_phases.plan.title,
+            "case": plan_with_phases.plan.case_type,
+            "status": plan_with_phases.plan.status,
+            "phases": plan_with_phases.phases.iter().map(|p| serde_json::json!({
+                "phase_number": p.phase_number,
+                "name": p.name,
+                "phase_type": p.phase_type,
+                "status": p.status,
+                "dependencies": p.dependencies,
+            })).collect::<Vec<_>>(),
+        }))
+    }
+
+    fn handle_project_plan_get(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let plan_id = parse_string(req, "plan_id")?;
+        let plan = self.orchestrator.get_plan(&plan_id)?;
+        Ok(serde_json::to_value(plan)?)
+    }
+
+    fn handle_project_plan_list(&self) -> Result<serde_json::Value> {
+        let plans = self.orchestrator.list_plans()?;
+        Ok(serde_json::json!({ "plans": plans, "count": plans.len() }))
+    }
+
+    fn handle_project_plan_execute(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let plan_id = parse_string(req, "plan_id")?;
+        let phase_number = req.params.get("phase_number").and_then(|v| v.as_u64()).map(|n| n as u32);
+        let result = self.orchestrator.execute_phase(&plan_id, phase_number)?;
+        Ok(result)
+    }
+
+    fn handle_project_plan_status(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let plan_id = parse_string(req, "plan_id")?;
+        let progress = self.orchestrator.get_progress(&plan_id)?;
+        Ok(serde_json::to_value(progress)?)
+    }
+
+    fn handle_project_plan_abort(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let plan_id = parse_string(req, "plan_id")?;
+        let reason = req.params.get("reason")
+            .and_then(|v| v.as_str())
+            .unwrap_or("aborted")
+            .to_string();
+        self.orchestrator.abort_plan(&plan_id, &reason)?;
+        Ok(serde_json::json!({ "success": true, "plan_id": plan_id }))
     }
 }

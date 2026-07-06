@@ -3171,6 +3171,203 @@ impl RegistryStore {
         }
         Ok(plans)
     }
+
+    // ── Project Plan CRUD (Phase 9 — Planner) ─────────────────────────────
+
+    pub fn insert_plan(&self, plan: &schemas::ProjectPlan) -> Result<()> {
+        self.conn.execute(
+            "INSERT OR REPLACE INTO project_plans (id, title, case_type, status, current_phase, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                plan.id,
+                plan.title,
+                plan.case_type.to_string(),
+                plan.status.to_string(),
+                plan.current_phase,
+                plan.created_at,
+                plan.updated_at,
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_plan(&self, id: &str) -> Result<Option<schemas::ProjectPlan>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, title, case_type, status, current_phase, created_at, updated_at FROM project_plans WHERE id = ?1",
+        )?;
+        let mut rows = stmt.query_map(params![id], |row| {
+            Ok(schemas::ProjectPlan {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                case_type: schemas::ProjectCase::from_str(&row.get::<_, String>(2)?)
+                    .unwrap_or(schemas::ProjectCase::DocAudit),
+                status: schemas::PlanStatus::from_str(&row.get::<_, String>(3)?)
+                    .unwrap_or(schemas::PlanStatus::Active),
+                current_phase: row.get(4)?,
+                created_at: row.get(5)?,
+                updated_at: row.get(6)?,
+            })
+        })?;
+        Ok(rows.next().transpose()?)
+    }
+
+    pub fn list_plans(&self) -> Result<Vec<schemas::ProjectPlan>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, title, case_type, status, current_phase, created_at, updated_at FROM project_plans ORDER BY created_at DESC",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok(schemas::ProjectPlan {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                case_type: schemas::ProjectCase::from_str(&row.get::<_, String>(2)?)
+                    .unwrap_or(schemas::ProjectCase::DocAudit),
+                status: schemas::PlanStatus::from_str(&row.get::<_, String>(3)?)
+                    .unwrap_or(schemas::PlanStatus::Active),
+                current_phase: row.get(4)?,
+                created_at: row.get(5)?,
+                updated_at: row.get(6)?,
+            })
+        })?;
+        let mut plans = Vec::new();
+        for row in rows {
+            plans.push(row?);
+        }
+        Ok(plans)
+    }
+
+    pub fn update_plan_status(&self, id: &str, status: &schemas::PlanStatus) -> Result<()> {
+        self.conn.execute(
+            "UPDATE project_plans SET status = ?1, updated_at = datetime('now') WHERE id = ?2",
+            params![status.to_string(), id],
+        )?;
+        Ok(())
+    }
+
+    pub fn update_plan_current_phase(&self, id: &str, phase_id: &str) -> Result<()> {
+        self.conn.execute(
+            "UPDATE project_plans SET current_phase = ?1, updated_at = datetime('now') WHERE id = ?2",
+            params![phase_id, id],
+        )?;
+        Ok(())
+    }
+
+    pub fn insert_phase(&self, phase: &schemas::ProjectPhase) -> Result<()> {
+        self.conn.execute(
+            "INSERT OR REPLACE INTO project_phases (id, plan_id, phase_number, name, phase_type, domains, pipeline_ids, dependencies, status, started_at, completed_at, result_json)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            params![
+                phase.id,
+                phase.plan_id,
+                phase.phase_number,
+                phase.name,
+                phase.phase_type.to_string(),
+                serde_json::to_string(&phase.domains).unwrap_or_default(),
+                serde_json::to_string(&phase.pipeline_ids).unwrap_or_default(),
+                serde_json::to_string(&phase.dependencies).unwrap_or_default(),
+                phase.status.to_string(),
+                phase.started_at,
+                phase.completed_at,
+                phase.result_json,
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_phases(&self, plan_id: &str) -> Result<Vec<schemas::ProjectPhase>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, plan_id, phase_number, name, phase_type, domains, pipeline_ids, dependencies, status, started_at, completed_at, result_json
+             FROM project_phases WHERE plan_id = ?1 ORDER BY phase_number",
+        )?;
+        let rows = stmt.query_map(params![plan_id], |row| {
+            let domains_str: String = row.get(5)?;
+            let pipelines_str: String = row.get(6)?;
+            let deps_str: String = row.get(7)?;
+            Ok(schemas::ProjectPhase {
+                id: row.get(0)?,
+                plan_id: row.get(1)?,
+                phase_number: row.get(2)?,
+                name: row.get(3)?,
+                phase_type: schemas::PhaseType::from_str(&row.get::<_, String>(4)?)
+                    .unwrap_or(schemas::PhaseType::Audit),
+                domains: serde_json::from_str(&domains_str).unwrap_or_default(),
+                pipeline_ids: serde_json::from_str(&pipelines_str).unwrap_or_default(),
+                dependencies: serde_json::from_str(&deps_str).unwrap_or_default(),
+                status: schemas::PhaseStatus::from_str(&row.get::<_, String>(8)?)
+                    .unwrap_or(schemas::PhaseStatus::Pending),
+                started_at: row.get(9)?,
+                completed_at: row.get(10)?,
+                result_json: row.get(11)?,
+            })
+        })?;
+        let mut phases = Vec::new();
+        for row in rows {
+            phases.push(row?);
+        }
+        Ok(phases)
+    }
+
+    /// Atomically transition a phase from `pending` to `in_progress`.
+    /// Returns `false` (no-op) if the phase was not `pending` — guards
+    /// against two concurrent `execute_phase` calls both starting the same
+    /// phase.
+    pub fn try_start_phase(&self, id: &str) -> Result<bool> {
+        let started = chrono::Utc::now().to_rfc3339();
+        let changed = self.conn.execute(
+            "UPDATE project_phases SET status = 'in_progress', started_at = ?1 WHERE id = ?2 AND status = 'pending'",
+            params![started, id],
+        )?;
+        Ok(changed > 0)
+    }
+
+    pub fn update_phase_status(&self, id: &str, status: &schemas::PhaseStatus) -> Result<()> {
+        let (started, completed) = match status {
+            schemas::PhaseStatus::InProgress => (Some(chrono::Utc::now().to_rfc3339()), None),
+            schemas::PhaseStatus::Completed | schemas::PhaseStatus::Failed => (None, Some(chrono::Utc::now().to_rfc3339())),
+            _ => (None, None),
+        };
+        self.conn.execute(
+            "UPDATE project_phases SET status = ?1, started_at = COALESCE(?2, started_at), completed_at = COALESCE(?3, completed_at) WHERE id = ?4",
+            params![status.to_string(), started, completed, id],
+        )?;
+        Ok(())
+    }
+
+    pub fn update_phase_result(&self, id: &str, result_json: &str) -> Result<()> {
+        self.conn.execute(
+            "UPDATE project_phases SET result_json = ?1 WHERE id = ?2",
+            params![result_json, id],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_pending_phase(&self, plan_id: &str) -> Result<Option<schemas::ProjectPhase>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, plan_id, phase_number, name, phase_type, domains, pipeline_ids, dependencies, status, started_at, completed_at, result_json
+             FROM project_phases WHERE plan_id = ?1 AND status = 'pending' ORDER BY phase_number LIMIT 1",
+        )?;
+        let mut rows = stmt.query_map(params![plan_id], |row| {
+            let domains_str: String = row.get(5)?;
+            let pipelines_str: String = row.get(6)?;
+            let deps_str: String = row.get(7)?;
+            Ok(schemas::ProjectPhase {
+                id: row.get(0)?,
+                plan_id: row.get(1)?,
+                phase_number: row.get(2)?,
+                name: row.get(3)?,
+                phase_type: schemas::PhaseType::from_str(&row.get::<_, String>(4)?)
+                    .unwrap_or(schemas::PhaseType::Audit),
+                domains: serde_json::from_str(&domains_str).unwrap_or_default(),
+                pipeline_ids: serde_json::from_str(&pipelines_str).unwrap_or_default(),
+                dependencies: serde_json::from_str(&deps_str).unwrap_or_default(),
+                status: schemas::PhaseStatus::from_str(&row.get::<_, String>(8)?)
+                    .unwrap_or(schemas::PhaseStatus::Pending),
+                started_at: row.get(9)?,
+                completed_at: row.get(10)?,
+                result_json: row.get(11)?,
+            })
+        })?;
+        Ok(rows.next().transpose()?)
+    }
 }
 
 // ── Per-Audit Report Types (Phase 8) ─────────────────────────────────────
@@ -4233,5 +4430,164 @@ mod tests {
 
         let page3 = store.query_fix_sessions(2, 4).unwrap();
         assert_eq!(page3.len(), 1);
+    }
+
+    // ── Project Plan CRUD Tests ──────────────────────────────────────────
+
+    #[test]
+    fn test_insert_and_get_plan() {
+        let store = RegistryStore::open_in_memory().unwrap();
+        let plan = schemas::ProjectPlan {
+            id: "plan-1".into(),
+            title: "Test Plan".into(),
+            case_type: schemas::ProjectCase::DocAudit,
+            status: schemas::PlanStatus::Active,
+            current_phase: None,
+            created_at: "2025-01-01T00:00:00Z".into(),
+            updated_at: "2025-01-01T00:00:00Z".into(),
+        };
+        store.insert_plan(&plan).unwrap();
+        let fetched = store.get_plan("plan-1").unwrap().unwrap();
+        assert_eq!(fetched.title, "Test Plan");
+        assert_eq!(fetched.case_type, schemas::ProjectCase::DocAudit);
+    }
+
+    #[test]
+    fn test_insert_and_get_phases() {
+        let store = RegistryStore::open_in_memory().unwrap();
+        let plan = schemas::ProjectPlan {
+            id: "plan-2".into(),
+            title: "Phase Test".into(),
+            case_type: schemas::ProjectCase::NewProject,
+            status: schemas::PlanStatus::Active,
+            current_phase: None,
+            created_at: "2025-01-01T00:00:00Z".into(),
+            updated_at: "2025-01-01T00:00:00Z".into(),
+        };
+        store.insert_plan(&plan).unwrap();
+
+        let phase = schemas::ProjectPhase {
+            id: "phase-1".into(),
+            plan_id: "plan-2".into(),
+            phase_number: 1,
+            name: "Audit".into(),
+            phase_type: schemas::PhaseType::Audit,
+            domains: vec!["build".into()],
+            pipeline_ids: vec!["build".into()],
+            dependencies: vec![],
+            status: schemas::PhaseStatus::Pending,
+            started_at: None,
+            completed_at: None,
+            result_json: None,
+        };
+        store.insert_phase(&phase).unwrap();
+
+        let phases = store.get_phases("plan-2").unwrap();
+        assert_eq!(phases.len(), 1);
+        assert_eq!(phases[0].name, "Audit");
+        assert_eq!(phases[0].phase_number, 1);
+    }
+
+    #[test]
+    fn test_list_plans() {
+        let store = RegistryStore::open_in_memory().unwrap();
+        let plan = schemas::ProjectPlan {
+            id: "plan-list-1".into(),
+            title: "List Test".into(),
+            case_type: schemas::ProjectCase::BuildAudit,
+            status: schemas::PlanStatus::Active,
+            current_phase: None,
+            created_at: "2025-01-01T00:00:00Z".into(),
+            updated_at: "2025-01-01T00:00:00Z".into(),
+        };
+        store.insert_plan(&plan).unwrap();
+        let plans = store.list_plans().unwrap();
+        assert_eq!(plans.len(), 1);
+    }
+
+    #[test]
+    fn test_update_plan_status() {
+        let store = RegistryStore::open_in_memory().unwrap();
+        let plan = schemas::ProjectPlan {
+            id: "plan-status".into(),
+            title: "Status Test".into(),
+            case_type: schemas::ProjectCase::BuildAudit,
+            status: schemas::PlanStatus::Active,
+            current_phase: None,
+            created_at: "2025-01-01T00:00:00Z".into(),
+            updated_at: "2025-01-01T00:00:00Z".into(),
+        };
+        store.insert_plan(&plan).unwrap();
+        store.update_plan_status("plan-status", &schemas::PlanStatus::Completed).unwrap();
+        let fetched = store.get_plan("plan-status").unwrap().unwrap();
+        assert_eq!(fetched.status, schemas::PlanStatus::Completed);
+    }
+
+    #[test]
+    fn test_get_pending_phase() {
+        let store = RegistryStore::open_in_memory().unwrap();
+        let plan = schemas::ProjectPlan {
+            id: "plan-pending".into(),
+            title: "Pending Test".into(),
+            case_type: schemas::ProjectCase::NewProject,
+            status: schemas::PlanStatus::Active,
+            current_phase: None,
+            created_at: "2025-01-01T00:00:00Z".into(),
+            updated_at: "2025-01-01T00:00:00Z".into(),
+        };
+        store.insert_plan(&plan).unwrap();
+
+        let phase1 = schemas::ProjectPhase {
+            id: "p1".into(), plan_id: "plan-pending".into(),
+            phase_number: 1, name: "Phase 1".into(),
+            phase_type: schemas::PhaseType::Audit,
+            domains: vec!["build".into()], pipeline_ids: vec!["build".into()],
+            dependencies: vec![], status: schemas::PhaseStatus::Completed,
+            started_at: None, completed_at: None, result_json: None,
+        };
+        let phase2 = schemas::ProjectPhase {
+            id: "p2".into(), plan_id: "plan-pending".into(),
+            phase_number: 2, name: "Phase 2".into(),
+            phase_type: schemas::PhaseType::Fix,
+            domains: vec!["build".into()], pipeline_ids: vec!["build".into()],
+            dependencies: vec![], status: schemas::PhaseStatus::Pending,
+            started_at: None, completed_at: None, result_json: None,
+        };
+        store.insert_phase(&phase1).unwrap();
+        store.insert_phase(&phase2).unwrap();
+
+        let pending = store.get_pending_phase("plan-pending").unwrap().unwrap();
+        assert_eq!(pending.phase_number, 2);
+        assert_eq!(pending.name, "Phase 2");
+    }
+
+    #[test]
+    fn test_try_start_phase_guards_concurrent_start() {
+        let store = RegistryStore::open_in_memory().unwrap();
+        let plan = schemas::ProjectPlan {
+            id: "plan-race".into(),
+            title: "Race Test".into(),
+            case_type: schemas::ProjectCase::BuildAudit,
+            status: schemas::PlanStatus::Active,
+            current_phase: None,
+            created_at: "2025-01-01T00:00:00Z".into(),
+            updated_at: "2025-01-01T00:00:00Z".into(),
+        };
+        store.insert_plan(&plan).unwrap();
+        let phase = schemas::ProjectPhase {
+            id: "phase-race".into(), plan_id: "plan-race".into(),
+            phase_number: 1, name: "Audit".into(),
+            phase_type: schemas::PhaseType::Audit,
+            domains: vec!["build".into()], pipeline_ids: vec!["build".into()],
+            dependencies: vec![], status: schemas::PhaseStatus::Pending,
+            started_at: None, completed_at: None, result_json: None,
+        };
+        store.insert_phase(&phase).unwrap();
+
+        // First caller wins the race.
+        assert!(store.try_start_phase("phase-race").unwrap());
+        // A second overlapping caller must not also "win" — the phase is no
+        // longer pending.
+        assert!(!store.try_start_phase("phase-race").unwrap());
     }
 }
