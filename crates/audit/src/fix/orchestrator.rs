@@ -187,6 +187,7 @@ impl FixOrchestrator {
         // checks fixed by documenting, correctly staying on DocPlanner.
         match (domain, check_id) {
             ("coverage", "CV6") => PlanType::Test,
+            ("help", _) => PlanType::Documentation,
             ("build", _) => PlanType::Build,
             ("security", _) => PlanType::Security,
             ("implementation", _) | ("deterministic-runtime", _) => PlanType::Implementation,

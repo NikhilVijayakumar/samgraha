@@ -4,6 +4,7 @@ pub mod consistency;
 pub mod coverage;
 pub mod design;
 pub mod deterministic_runtime;
+pub mod help;
 pub mod engineering;
 pub mod external_context;
 pub mod external_context_ownership;

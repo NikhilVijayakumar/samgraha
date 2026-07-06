@@ -175,6 +175,7 @@ pub fn executor_for_plan(plan_type: &PlanType) -> Box<dyn Executor> {
     match plan_type {
         PlanType::Documentation => Box::new(DocExecutor),
         PlanType::Configuration => Box::new(ConfigExecutor),
+        PlanType::Help => Box::new(PlanExecutor),
         PlanType::Implementation
         | PlanType::Test
         | PlanType::Build

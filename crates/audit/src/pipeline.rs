@@ -18,6 +18,12 @@ pub struct PipelineContext {
     pub execute: bool,
     /// Print the resolved command without running it. Build Audit only.
     pub dry_run: bool,
+    /// The `repository_metadata` table's contents, if the caller has
+    /// registry access to fetch it (`Pipeline::run` itself doesn't — no
+    /// registry/DB handle is threaded through the trait). Empty unless a
+    /// caller opts in via `with_repository_metadata`. Product Guide Audit's
+    /// PA7 is currently the only consumer.
+    pub repository_metadata: HashMap<String, String>,
 }
 
 impl PipelineContext {
@@ -32,7 +38,13 @@ impl PipelineContext {
             runtime_mode: false,
             execute: false,
             dry_run: false,
+            repository_metadata: HashMap::new(),
         }
+    }
+
+    pub fn with_repository_metadata(mut self, metadata: HashMap<String, String>) -> Self {
+        self.repository_metadata = metadata;
+        self
     }
 
     pub fn with_inspect_artifact(mut self, val: bool) -> Self {
