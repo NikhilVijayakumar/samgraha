@@ -214,7 +214,14 @@ function Invoke-McpTool {
             if (-not $Quiet) { Add-PhaseError -Tool $request -Err "$($parsed.error.code): $($parsed.error.message)" -Resp $raw }
             return $null
         }
-        return $parsed.result
+        $result = $parsed.result
+        if ($result.isError) {
+            $errText = if ($result.structuredContent -and $result.structuredContent.error) { $result.structuredContent.error } else { "Tool returned error" }
+            if (-not $Quiet) { Add-PhaseError -Tool $request -Err $errText -Resp $raw }
+            return $null
+        }
+        if ($result.structuredContent) { return $result.structuredContent }
+        return $result
     } catch {
         if (-not $Quiet) { Add-PhaseError -Tool $request -Err $_.Exception.Message -Resp "" }
         return $null

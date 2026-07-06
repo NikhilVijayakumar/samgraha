@@ -279,13 +279,13 @@ function Invoke-Phase2 {
         if ($r -match "compile") { Write-Pass "tools/list" } else { Write-Fail "tools/list" }
         Write-Info "tools/call search"
         $r = RawMcp '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"search","arguments":{"query":"compilation"}}}'
-        if ($r -match "error|not found") { Write-Fail "search" } else { Write-Pass "search" }
+        if ($r -match '"isError":true') { Write-Fail "search" } else { Write-Pass "search" }
         Write-Info "tools/call get_document"
         $r = RawMcp '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_document","arguments":{"id":1}}}'
-        if ($r -match "error|not found") { Write-Fail "get_document" } else { Write-Pass "get_document" }
+        if ($r -match '"isError":true') { Write-Fail "get_document" } else { Write-Pass "get_document" }
         Write-Info "tools/call nonexistent"
         $r = RawMcp '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"nonexistent"}}'
-        if ($r -match "error" -or $r -match "not found") { Write-Pass "nonexistent => error" } else { Write-Fail "nonexistent should error" }
+        if ($r -match '"isError":true') { Write-Pass "nonexistent => error" } else { Write-Fail "nonexistent should error" }
     } finally {
         Pop-Location
         Remove-TestFixture $testDir
