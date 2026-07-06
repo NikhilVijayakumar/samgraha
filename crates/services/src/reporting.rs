@@ -2982,6 +2982,23 @@ pub struct CoverageTemplateContext {
     pub improvements: String,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct HelpTemplateContext {
+    pub session_id: String,
+    pub score: f64,
+    pub date: String,
+    pub git_revision: String,
+    pub engineering_readiness: String,
+    pub coverage_score: f64,
+    pub navigation_score: f64,
+    pub quality_score: f64,
+    pub accuracy_score: f64,
+    pub errors: Vec<TemplateFinding>,
+    pub warnings: Vec<TemplateFinding>,
+    pub suggestions: Vec<TemplateFinding>,
+    pub improvements: String,
+}
+
 // ── High-Level Renderer ────────────────────────────────────────────────
 
 fn build_build_context(store: &registry::RegistryStore) -> BuildTemplateContext {
@@ -3125,6 +3142,40 @@ fn build_coverage_context(store: &registry::RegistryStore) -> CoverageTemplateCo
     CoverageTemplateContext::default()
 }
 
+fn build_help_context(store: &registry::RegistryStore) -> HelpTemplateContext {
+    let sessions = store.query_help_sessions(1).unwrap_or_default();
+    if let Some(s) = sessions.into_iter().next() {
+        if let Ok(Some(r)) = store.get_help_report_with_findings(s.id) {
+            let mut ctx = HelpTemplateContext {
+                session_id: r.session_id.clone(),
+                score: r.score,
+                date: r.created_at,
+                git_revision: r.git_revision.unwrap_or_default(),
+                engineering_readiness: r.engineering_readiness,
+                coverage_score: r.coverage_score.unwrap_or(0.0),
+                navigation_score: r.navigation_score.unwrap_or(0.0),
+                quality_score: r.quality_score.unwrap_or(0.0),
+                accuracy_score: r.accuracy_score.unwrap_or(0.0),
+                ..Default::default()
+            };
+            for f in r.findings {
+                let tf = TemplateFinding {
+                    check_id: f.check_id,
+                    message: f.message,
+                    location: f.location,
+                };
+                match f.severity.as_str() {
+                    "error" => ctx.errors.push(tf),
+                    "warning" => ctx.warnings.push(tf),
+                    _ => ctx.suggestions.push(tf),
+                }
+            }
+            return ctx;
+        }
+    }
+    HelpTemplateContext::default()
+}
+
 /// Render a per-audit report from a template file + data.
 /// Returns rendered markdown or an error if template is missing.
 /// Queries the store for the latest session of the given audit type.
@@ -3133,7 +3184,12 @@ pub fn render_report(
     templates_dir: &Path,
     store: &registry::RegistryStore,
 ) -> Result<String> {
-    let template_path = templates_dir.join(format!("{}-report.md", report_type));
+    let template_file = if report_type == "help" {
+        "product-guide-report.md"
+    } else {
+        &format!("{}-report.md", report_type)
+    };
+    let template_path = templates_dir.join(template_file);
     let template = fs::read_to_string(&template_path)?;
     match report_type {
         "build" => {
@@ -3151,6 +3207,10 @@ pub fn render_report(
         "coverage" => {
             let ctx = build_coverage_context(store);
             Ok(render_coverage_template(&ctx, &template))
+        }
+        "help" => {
+            let ctx = build_help_context(store);
+            Ok(render_help_template(&ctx, &template))
         }
         "architecture" => {
             let sessions = store.query_architecture_sessions(1)?;
@@ -3546,6 +3606,31 @@ fn render_coverage_template(ctx: &CoverageTemplateContext, template: &str) -> St
     t
 }
 
+fn render_help_template(ctx: &HelpTemplateContext, template: &str) -> String {
+    let mut t = template
+        .replace("{{date}}", &ctx.date)
+        .replace("{{score}}", &format!("{:.1}", ctx.score))
+        .replace("{{score_bar}}", &render_score_bar(ctx.score))
+        .replace("{{session_id}}", &ctx.session_id)
+        .replace("{{git_revision}}", &ctx.git_revision)
+        .replace("{{engineering_readiness}}", &ctx.engineering_readiness)
+        .replace("{{coverage_score}}", &format!("{:.1}", ctx.coverage_score))
+        .replace("{{navigation_score}}", &format!("{:.1}", ctx.navigation_score))
+        .replace("{{quality_score}}", &format!("{:.1}", ctx.quality_score))
+        .replace("{{accuracy_score}}", &format!("{:.1}", ctx.accuracy_score))
+        .replace("{{errors_table}}", &render_finding_table(&ctx.errors))
+        .replace("{{warnings_table}}", &render_finding_table(&ctx.warnings))
+        .replace("{{suggestions_table}}", &render_finding_table(&ctx.suggestions))
+        .replace("{{errors_count}}", &ctx.errors.len().to_string())
+        .replace("{{warnings_count}}", &ctx.warnings.len().to_string())
+        .replace("{{suggestions_count}}", &ctx.suggestions.len().to_string())
+        .replace("{{improvements}}", &ctx.improvements);
+    t = strip_conditional_blocks(&t, &ctx.errors, "errors");
+    t = strip_conditional_blocks(&t, &ctx.warnings, "warnings");
+    t = strip_conditional_blocks(&t, &ctx.suggestions, "suggestions");
+    t
+}
+
 fn strip_conditional_blocks(template: &str, items: &[TemplateFinding], section: &str) -> String {
     let start = format!("{{{{#{}}}}}\n", section);
     let end = format!("\n{{{{/{}}}}}", section);
@@ -3716,6 +3801,43 @@ mod tests {
         for score in [100.0, 92.0, 85.0, 75.0, 40.0] {
             assert!(!rating_description(score).is_empty());
         }
+    }
+
+    #[test]
+    fn real_help_template_renders_without_error() {
+        // Reads the actual shipped `product-guide-report.md` and renders it with a
+        // realistic context — this is the template `samgraha report help`
+        // reads via `render_report()`'s `"help"` arm; previously there was
+        // no such file and no such arm, so `report help` failed outright.
+        let template_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../docs/raw/report-templates/product-guide-report.md");
+        let template = fs::read_to_string(&template_path)
+            .unwrap_or_else(|e| panic!("failed to read {:?}: {}", template_path, e));
+
+        let ctx = HelpTemplateContext {
+            session_id: "sess-1".into(),
+            score: 43.6,
+            date: "2026-07-06".into(),
+            git_revision: "abc123".into(),
+            engineering_readiness: "NOT_READY".into(),
+            coverage_score: 14.3,
+            navigation_score: 75.0,
+            quality_score: 40.0,
+            accuracy_score: 57.1,
+            errors: vec![TemplateFinding { check_id: "PC1".into(), message: "missing docs".into(), location: Some("docs/raw/help/commands/".into()) }],
+            warnings: vec![TemplateFinding { check_id: "PQ4".into(), message: "short page".into(), location: None }],
+            suggestions: vec![],
+            improvements: String::new(),
+        };
+        let rendered = render_help_template(&ctx, &template);
+
+        assert!(!rendered.contains("{{"), "unresolved placeholder left in rendered output: {}", rendered);
+        assert!(rendered.contains("43.6"));
+        assert!(rendered.contains("NOT_READY"));
+        assert!(rendered.contains("PC1"));
+        assert!(rendered.contains("PQ4"));
+        // No suggestions were supplied — the conditional block must be stripped, not rendered empty.
+        assert!(!rendered.contains("Suggestions (0)"));
     }
 
     #[test]

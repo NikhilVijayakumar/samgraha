@@ -210,6 +210,47 @@ impl CompilationService {
                 Err(e) => tracing::warn!("Cannot serialize manifest.json: {}", e),
             }
 
+            // Repository Metadata (Product Guide Audit Phase 1.5) — a
+            // key-value snapshot of the same context manifest.json carries,
+            // queryable from SQL without re-reading/re-resolving
+            // samgraha.toml. Best-effort: a write failure here shouldn't
+            // fail compilation.
+            let source_dir = config.repository.implementation.dir.clone();
+            let test_dir = config.repository.tests.as_ref().map(|t| t.dir.clone()).unwrap_or_default();
+            let scripts_dir = config.repository.scripts.as_ref().map(|s| s.dir.clone()).unwrap_or_default();
+            let dependencies_json = serde_json::to_string(&config.knowledge.dependencies).unwrap_or_default();
+            let interests_json = serde_json::to_string(&config.knowledge.interests).unwrap_or_default();
+            let build_command_json = config.pipelines.as_ref()
+                .and_then(|p| p.build.as_ref())
+                .map(|c| serde_json::to_string(&c.command).unwrap_or_default())
+                .unwrap_or_default();
+            let test_command_json = config.pipelines.as_ref()
+                .and_then(|p| p.test.as_ref())
+                .map(|c| serde_json::to_string(&c.command).unwrap_or_default())
+                .unwrap_or_default();
+
+            let metadata_entries: [(&str, String); 9] = [
+                ("source_dir", source_dir),
+                ("test_dir", test_dir),
+                ("scripts_dir", scripts_dir),
+                ("dependencies", dependencies_json),
+                ("interests", interests_json),
+                ("pipeline_build_command", build_command_json),
+                ("pipeline_test_command", test_command_json),
+                ("compiled_at", Utc::now().to_rfc3339()),
+                ("repo_root", root.to_string_lossy().to_string()),
+            ];
+            for (key, value) in metadata_entries {
+                if let Err(e) = registry.upsert_repository_metadata(key, &value) {
+                    tracing::warn!("Failed to write repository_metadata['{}']: {}", key, e);
+                }
+            }
+            if let Err(e) = registry.upsert_repository_metadata("repo_name", &config.repository.name.clone().unwrap_or_else(repo_dir_name)) {
+                tracing::warn!("Failed to write repository_metadata['repo_name']: {}", e);
+            }
+            if let Err(e) = registry.upsert_repository_metadata("uuid", &uuid.to_string()) {
+                tracing::warn!("Failed to write repository_metadata['uuid']: {}", e);
+            }
         }
 
         // Enrich newly compiled documents (not skipped ones — their enrichment is still valid).

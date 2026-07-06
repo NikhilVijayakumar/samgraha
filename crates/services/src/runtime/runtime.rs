@@ -16,7 +16,7 @@ use audit_crate::fix::types::{FixPlan, FixSession, PlanType, SessionStatus};
 use audit_crate::fix::verifier::Verifier;
 use audit_crate::pipeline::PipelineContext;
 use uuid::Uuid;
-use audit_crate::pipelines::{architecture::ArchitecturePipeline, build::BuildPipeline, consistency::ConsistencyPipeline, coverage::CoveragePipeline, design::DesignPipeline, deterministic_runtime::DeterministicRuntimePipeline, engineering::EngineeringPipeline, external_context::ExternalContextPipeline, external_context_ownership::ExternalContextOwnershipPipeline, feature::FeaturePipeline, feature_design::FeatureDesignPipeline, feature_technical::FeatureTechnicalPipeline, implementation::ImplementationPipeline, prototype::PrototypePipeline, readme::ReadmePipeline, security::SecurityPipeline, vision::VisionPipeline};
+use audit_crate::pipelines::{architecture::ArchitecturePipeline, build::BuildPipeline, consistency::ConsistencyPipeline, coverage::CoveragePipeline, design::DesignPipeline, deterministic_runtime::DeterministicRuntimePipeline, engineering::EngineeringPipeline, external_context::ExternalContextPipeline, external_context_ownership::ExternalContextOwnershipPipeline, feature::FeaturePipeline, feature_design::FeatureDesignPipeline, feature_technical::FeatureTechnicalPipeline, help::HelpPipeline, implementation::ImplementationPipeline, prototype::PrototypePipeline, readme::ReadmePipeline, security::SecurityPipeline, vision::VisionPipeline};
 use audit_crate::AuditFramework;
 use common::config::SamgrahaConfig;
 use registry::RegistryStore;
@@ -163,7 +163,8 @@ impl KnowledgeRuntime {
         .with_inspect_artifact(inspect_artifact)
         .with_runtime(runtime_mode)
         .with_execute(execute)
-        .with_dry_run(dry_run);
+        .with_dry_run(dry_run)
+        .with_repository_metadata(self.registry.get_repository_metadata().unwrap_or_default());
 
         let report = match kind {
             PipelineKind::Build => AuditService::run_pipeline(&BuildPipeline, &ctx),
@@ -210,6 +211,7 @@ impl KnowledgeRuntime {
                     metadata: std::collections::HashMap::new(),
                 }
             }
+            PipelineKind::Help => AuditService::run_pipeline(&HelpPipeline, &ctx),
             PipelineKind::Doc => {
                 anyhow::bail!("Use the standard audit() method for Documentation Audit");
             }
@@ -242,7 +244,8 @@ impl KnowledgeRuntime {
         .with_inspect_artifact(inspect_artifact)
         .with_runtime(runtime_mode)
         .with_execute(execute)
-        .with_dry_run(dry_run);
+        .with_dry_run(dry_run)
+        .with_repository_metadata(self.registry.get_repository_metadata().unwrap_or_default());
 
         let report = match kind {
             PipelineKind::Build => AuditService::run_pipeline(&BuildPipeline, &ctx),
@@ -289,6 +292,7 @@ impl KnowledgeRuntime {
                     metadata: std::collections::HashMap::new(),
                 }
             }
+            PipelineKind::Help => AuditService::run_pipeline(&HelpPipeline, &ctx),
             PipelineKind::Doc => {
                 anyhow::bail!("Use the standard audit() method for Documentation Audit");
             }
@@ -737,6 +741,27 @@ impl KnowledgeRuntime {
                     &report.findings,
                 )
             }
+            PipelineKind::Help => {
+                let report_id = self.registry.insert_help_report(
+                    report.score, session_id,
+                    None, None,
+                    report.metadata.get("engineering_readiness")
+                        .map(|s| s.as_str()).unwrap_or("NOT_READY"),
+                    report.categories.get("Coverage").copied(),
+                    report.categories.get("Navigation").copied(),
+                    report.categories.get("Quality").copied(),
+                    report.categories.get("Accuracy").copied(),
+                    None, None, None,
+                    &report.findings,
+                )?;
+                let recommendations = generate_recommendations(&report.findings);
+                if !recommendations.is_empty() {
+                    let _ = self.registry.insert_recommendations(
+                        "help", report_id, &recommendations,
+                    );
+                }
+                Ok(report_id)
+            }
             PipelineKind::Doc => anyhow::bail!("Doc pipeline uses audit() not run_pipeline()"),
         }
     }
@@ -979,6 +1004,37 @@ impl KnowledgeRuntime {
 
     pub fn get_readme_report_with_findings(&self, report_id: i64) -> Result<Option<registry::store::ReadmeReportWithFindings>> {
         self.registry.get_readme_report_with_findings(report_id)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn store_help_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        previous_score: Option<f64>,
+        engineering_readiness: &str,
+        coverage_score: Option<f64>,
+        navigation_score: Option<f64>,
+        quality_score: Option<f64>,
+        accuracy_score: Option<f64>,
+        doc_scores: Option<&str>,
+        validation_scores: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.registry.insert_help_report(
+            score, session_id, git_revision, previous_score, engineering_readiness,
+            coverage_score, navigation_score, quality_score, accuracy_score,
+            doc_scores, validation_scores, None, findings,
+        )
+    }
+
+    pub fn query_help_sessions(&self, limit: usize) -> Result<Vec<registry::store::HelpSessionInfo>> {
+        self.registry.query_help_sessions(limit)
+    }
+
+    pub fn get_help_report_with_findings(&self, report_id: i64) -> Result<Option<registry::store::HelpReportWithFindings>> {
+        self.registry.get_help_report_with_findings(report_id)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1293,6 +1349,8 @@ impl KnowledgeRuntime {
                 .map(|v| v.into_iter().map(|s| serde_json::to_value(s).unwrap()).collect()),
             "prototype" => self.query_prototype_sessions(limit)
                 .map(|v| v.into_iter().map(|s| serde_json::to_value(s).unwrap()).collect()),
+            "help" => self.query_help_sessions(limit)
+                .map(|v| v.into_iter().map(|s| serde_json::to_value(s).unwrap()).collect()),
             "external-context" => self.query_external_context_sessions(limit)
                 .map(|v| v.into_iter().map(|s| serde_json::to_value(s).unwrap()).collect()),
             "engineering" => self.query_engineering_sessions(limit)
@@ -1336,6 +1394,8 @@ impl KnowledgeRuntime {
             "readme" => self.get_readme_report_with_findings(report_id)
                 .map(|v| v.map(|r| serde_json::to_value(r).unwrap())),
             "prototype" => self.get_prototype_report_with_findings(report_id)
+                .map(|v| v.map(|r| serde_json::to_value(r).unwrap())),
+            "help" => self.get_help_report_with_findings(report_id)
                 .map(|v| v.map(|r| serde_json::to_value(r).unwrap())),
             "external-context" => self.get_external_context_report_with_findings(report_id)
                 .map(|v| v.map(|r| serde_json::to_value(r).unwrap())),
