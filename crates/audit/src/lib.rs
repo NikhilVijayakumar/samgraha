@@ -1,4 +1,5 @@
 pub mod contract;
+pub mod fix;
 pub mod framework;
 pub mod pipeline;
 pub mod pipelines;
