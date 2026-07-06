@@ -1,5 +1,5 @@
 /// Knowledge registry migrations — create `knowledge.db` tables.
-pub const KNOWLEDGE_MIGRATIONS: &[&str] = &[V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29];
+pub const KNOWLEDGE_MIGRATIONS: &[&str] = &[V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30];
 
 /// Repository registry migrations — create `registry.db` tables.
 pub const REGISTRY_MIGRATIONS: &[&str] = &[REG_V1, REG_V2];
@@ -891,4 +891,28 @@ CREATE TABLE IF NOT EXISTS project_phases (
 
 CREATE INDEX IF NOT EXISTS idx_project_phases_plan ON project_phases(plan_id);
 CREATE INDEX IF NOT EXISTS idx_project_phases_status ON project_phases(status);
+";
+
+const V30: &str = "
+CREATE TABLE IF NOT EXISTS help_reports (
+    id INTEGER PRIMARY KEY,
+    session_id TEXT NOT NULL UNIQUE,
+    score REAL NOT NULL,
+    previous_score REAL,
+    git_revision TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    engineering_readiness TEXT NOT NULL DEFAULT 'NOT_READY',
+    coverage_score REAL,
+    navigation_score REAL,
+    quality_score REAL,
+    accuracy_score REAL,
+    doc_scores TEXT,
+    validation_scores TEXT,
+    finding_counts TEXT DEFAULT '{\"critical\":0,\"major\":0,\"minor\":0,\"observations\":0}'
+);
+
+CREATE TABLE IF NOT EXISTS repository_metadata (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 ";
