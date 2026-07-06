@@ -1,5 +1,6 @@
 pub mod audit;
 pub mod compilation;
+pub mod fix;
 pub mod scoreband;
 pub mod diagnostics;
 pub mod document;
