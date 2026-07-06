@@ -26,5 +26,8 @@ target
 /docs/report/
 tests/.samgraha/
 /.samgraha/
+**/.samgraha/
 /samgraha.toml.phase1bak
 .env
+/docs/proposal.md
+/.opencode/
