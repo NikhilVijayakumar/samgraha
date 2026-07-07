@@ -911,7 +911,20 @@ The binary is always at `<Location>/bin/mcp`. Point Claude Code at it:
 
 Replace `/home/user/mcp/samgraha/release/samgraha` with the actual `Location` path printed by the script (which is `OUTPUT_DIR/samgraha` from your `.env`).
 
-The binary is self-contained — `samgraha.toml` and `docs/raw/` sit alongside it in the package directory, so no working directory configuration is needed.
+The binary discovers its repo root by walking up from the process working directory looking for `.samgraha` or `samgraha.toml`. **Project-scope** config works with no extra setup — Claude Code spawns the server with `cwd` already inside the repo. **User/global-scope** config is different: Claude Code does not reliably pass its `cwd` config key through to the spawned process, so the binary can fail with `fatal: not a samgraha repository` when Claude Code is launched from an unrelated directory (see `docs/errors-list/2026-07-07-mcp-cwd-ignored.md`). Fix: set `SAMGRAHA_REPO` in `env` instead of relying on `cwd`:
+
+```json
+{
+  "mcpServers": {
+    "samgraha": {
+      "command": "E:\\MCP\\Samgraha\\release\\samgraha\\bin\\mcp.exe",
+      "env": { "SAMGRAHA_REPO": "E:\\MCP\\Samgraha\\release\\samgraha" }
+    }
+  }
+}
+```
+
+`env` is passed through reliably where `cwd` is not. Verify by launching Claude Code from a directory with no `.samgraha` marker and confirming `claude mcp list` still shows `samgraha` connected.
 
 Test prompts:
 
@@ -973,7 +986,8 @@ The binary is always at `<Location>\bin\mcp.exe`. Configure in `opencode.json`:
   "mcp": {
     "samgraha": {
       "type": "local",
-      "command": ["E:\\MCP\\Samgraha\\release\\samgraha\\bin\\mcp.exe"]
+      "command": ["E:\\MCP\\Samgraha\\release\\samgraha\\bin\\mcp.exe"],
+      "env": { "SAMGRAHA_REPO": "E:\\MCP\\Samgraha\\release\\samgraha" }
     }
   }
 }
@@ -1015,7 +1029,37 @@ The binary is always at `<Location>/bin/mcp`. Configure in `opencode.json`:
 
 Replace `/home/user/mcp/samgraha/release/samgraha` with the actual `Location` path printed by the script (which is `OUTPUT_DIR/samgraha` from your `.env`).
 
-The binary is self-contained — `samgraha.toml` and `docs/raw/` sit alongside it in the package directory, so no working directory configuration is needed.
+The binary discovers its repo root by walking up from the process working directory looking for `.samgraha` or `samgraha.toml`. This works for project-local `opencode.json` (cwd defaults to workspace root, per 4.2 note above). For **global** `opencode.json` config launched outside the repo, set `SAMGRAHA_REPO` in `env` instead of relying on cwd:
+
+**Windows:**
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "samgraha": {
+      "type": "local",
+      "command": ["E:\\MCP\\Samgraha\\release\\samgraha\\bin\\mcp.exe"],
+      "env": { "SAMGRAHA_REPO": "E:\\MCP\\Samgraha\\release\\samgraha" }
+    }
+  }
+}
+```
+
+**Linux / Ubuntu:**
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "samgraha": {
+      "type": "local",
+      "command": ["/home/user/mcp/samgraha/release/samgraha/bin/mcp"],
+      "env": { "SAMGRAHA_REPO": "/home/user/mcp/samgraha/release/samgraha" }
+    }
+  }
+}
+```
 
 Test prompts:
 

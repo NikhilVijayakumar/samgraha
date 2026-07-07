@@ -599,8 +599,11 @@ fn check_expiry() {
 }
 
 fn discover_root() -> Result<std::path::PathBuf> {
-    let cwd = std::env::current_dir()?;
-    let mut current = Some(cwd.as_path());
+    let start = match std::env::var_os("SAMGRAHA_REPO") {
+        Some(p) => std::path::PathBuf::from(p),
+        None => std::env::current_dir()?,
+    };
+    let mut current = Some(start.as_path());
     while let Some(dir) = current {
         if dir.join(".samgraha").is_dir() || dir.join("samgraha.toml").exists() {
             return Ok(dir.to_path_buf());
@@ -609,7 +612,8 @@ fn discover_root() -> Result<std::path::PathBuf> {
     }
     anyhow::bail!(
         "fatal: not a samgraha repository (or any of the parent directories). \
-         Run 'samgraha init' first to initialize, or start the MCP server from a samgraha repo."
+         Set SAMGRAHA_REPO to the repo path, run 'samgraha init' first to initialize, \
+         or start the MCP server from a samgraha repo."
     );
 }
 
@@ -642,5 +646,22 @@ mod tests {
         let wrapped = tool_result(&serde_json::json!({ "error": "boom" }), true);
         assert_eq!(wrapped["isError"], true);
         assert!(wrapped["content"][0]["text"].as_str().unwrap().contains("boom"));
+    }
+
+    #[test]
+    fn discover_root_honors_samgraha_repo_env_override() {
+        let dir = std::env::temp_dir().join(format!(
+            "samgraha-mcp-test-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(dir.join(".samgraha")).unwrap();
+
+        // SAFETY: test-only, single-threaded access to this env var.
+        unsafe { std::env::set_var("SAMGRAHA_REPO", &dir) };
+        let result = discover_root();
+        unsafe { std::env::remove_var("SAMGRAHA_REPO") };
+
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert_eq!(result.unwrap(), dir);
     }
 }

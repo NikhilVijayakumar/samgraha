@@ -31,3 +31,4 @@ tests/.samgraha/
 .env
 /docs/proposal.md
 /.opencode/
+/docs/errors-list/

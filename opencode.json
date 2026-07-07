@@ -3,7 +3,8 @@
   "mcp": {
     "samgraha": {
       "type": "local",
-      "command": ["E:\\MCP\\Samgraha\\release\\samgraha\\bin\\mcp.exe"]
+      "command": ["E:\\MCP\\Samgraha\\release\\samgraha\\bin\\mcp.exe"],
+      "env": { "SAMGRAHA_REPO": "E:\\MCP\\Samgraha\\release\\samgraha" }
     }
   }
 }
