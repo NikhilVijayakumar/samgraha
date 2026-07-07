@@ -987,7 +987,7 @@ The binary is always at `<Location>\bin\mcp.exe`. Configure in `opencode.json`:
     "samgraha": {
       "type": "local",
       "command": ["E:\\MCP\\Samgraha\\release\\samgraha\\bin\\mcp.exe"],
-      "env": { "SAMGRAHA_REPO": "E:\\MCP\\Samgraha\\release\\samgraha" }
+      ""environment": { "SAMGRAHA_REPO": "E:\\MCP\\Samgraha\\release\\samgraha" }
     }
   }
 }
