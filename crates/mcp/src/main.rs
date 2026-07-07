@@ -216,6 +216,16 @@ fn tool_result(payload: &serde_json::Value, is_error: bool) -> serde_json::Value
 fn tool_definitions() -> Vec<serde_json::Value> {
     vec![
         serde_json::json!({
+            "name": "init",
+            "description": "Initialize samgraha.toml and .samgraha/ for this repository, or backfill any keys missing from an existing samgraha.toml (never overwrites a key that's already there). Run this first in a repo with no samgraha.toml before compile/register_repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "force": { "type": "boolean", "description": "Overwrite existing samgraha.toml with a fresh template instead of backfilling missing keys" }
+                }
+            }
+        }),
+        serde_json::json!({
             "name": "compile",
             "description": "Compile documentation into knowledge database. Omit 'path' to compile Samgraha itself; provide 'path' to compile an external repository into its own knowledge.db.",
             "inputSchema": {
@@ -598,6 +608,10 @@ fn check_expiry() {
     eprintln!("Warning: SAMGRAHA_EXPIRY='{expiry}' not YYYY-MM-DD or RFC3339, ignored");
 }
 
+/// Walk up from `start` looking for an existing `.samgraha/` or `samgraha.toml`.
+/// If none is found in any ancestor, `start` itself is returned uninitialized —
+/// the server still boots so the `init` tool is reachable to bootstrap it;
+/// every other tool that needs a compiled repo will fail with its own error.
 fn discover_root() -> Result<std::path::PathBuf> {
     let start = match std::env::var_os("SAMGRAHA_REPO") {
         Some(p) => std::path::PathBuf::from(p),
@@ -610,11 +624,7 @@ fn discover_root() -> Result<std::path::PathBuf> {
         }
         current = dir.parent();
     }
-    anyhow::bail!(
-        "fatal: not a samgraha repository (or any of the parent directories). \
-         Set SAMGRAHA_REPO to the repo path, run 'samgraha init' first to initialize, \
-         or start the MCP server from a samgraha repo."
-    );
+    Ok(start)
 }
 
 fn load_config(root: &Path) -> Result<SamgrahaConfig> {

@@ -68,6 +68,7 @@ impl McpAdapter {
         let context_manager = ContextManager::new(Duration::from_secs(300));
         context_manager.ensure("primary", &runtime.context.repository_root, &runtime.context.config);
         let mut caps = McpCapabilities::default_capabilities();
+        caps.methods.push("init".to_string());
         caps.methods.push("list_repositories".to_string());
         caps.methods.push("register_repository".to_string());
         caps.methods.push("unregister_repository".to_string());
@@ -163,6 +164,7 @@ impl McpAdapter {
         let result: Result<serde_json::Value> = match req.method.as_str() {
             "ping"                    => Ok(serde_json::json!({"pong": "pong"})),
             "capabilities"            => Ok(serde_json::to_value(&self.capabilities).unwrap_or_default()),
+            "init"                    => self.handle_init(&req),
             "compile"                 => self.handle_compile(&req),
             "search"                  => self.handle_search(&req),
             "get_sections"            => self.handle_get_sections(&req),
@@ -283,6 +285,21 @@ impl McpAdapter {
     }
 
     // ── Knowledge methods ─────────────────────────────────────────────────────
+
+    /// Initialize (or backfill) `samgraha.toml` + `.samgraha/` for the repo this
+    /// MCP session is bound to. Mirrors the CLI `init` command so pure-MCP
+    /// clients can bootstrap a repo without dropping to a shell.
+    fn handle_init(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let force = req.params.get("force").and_then(|v| v.as_bool()).unwrap_or(false);
+        let root = &self.runtime.context.repository_root;
+        let result = services::init::init_repository(root, force)?;
+        Ok(serde_json::json!({
+            "status": result.status,
+            "root": result.root.display().to_string(),
+            "env_path": result.env_path.display().to_string(),
+            "config": result.config,
+        }))
+    }
 
     fn handle_compile(&self, req: &McpRequest) -> Result<serde_json::Value> {
         let force = req.params.get("force").and_then(|v| v.as_bool()).unwrap_or(false);

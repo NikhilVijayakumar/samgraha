@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::{Parser, Subcommand};
 use schemas::compilation::{CompilationRequest, CompilationScope};
 use schemas::package::PackageProfile;
@@ -829,79 +829,11 @@ impl Cli {
         let root = path
             .cloned()
             .unwrap_or_else(|| std::env::current_dir().unwrap());
-        let config_path = root.join("samgraha.toml");
-        let samgraha_dir = root.join(".samgraha");
+        let result = services::init::init_repository(&root, force)?;
 
-        std::fs::create_dir_all(&samgraha_dir).context(format!(
-            "Failed to create {}",
-            samgraha_dir.display()
-        ))?;
-
-        // Full-schema template: what a fresh samgraha.toml would contain.
-        // Used as-is on first init, or as the source of missing keys/sections
-        // to backfill into an existing samgraha.toml (never overwrites a key
-        // that's already there — see `merge_missing_keys`).
-        let mut template = SamgrahaConfig::default();
-        let dir_name = root
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("repository")
-            .to_string();
-        template.repository.id = Some(dir_name.clone());
-        template.repository.name = Some(dir_name);
-        template.repository.uuid = Some(uuid::Uuid::new_v4());
-        // Declare every builtin standard by default; repos that don't use one
-        // (e.g. no `prototype` docs) add it to `domain_exclusion` instead of
-        // deleting it here, so the full catalog stays visible in the toml.
-        template.repository.documentation.domain = standards::all_builtin_standards()
-            .into_iter()
-            .map(|s| s.domain)
-            .collect();
-
-        let (config, status) = if config_path.exists() && !force {
-            let existing = std::fs::read_to_string(&config_path)
-                .context(format!("Failed to read {}", config_path.display()))?;
-            let mut doc: toml_edit::DocumentMut = existing
-                .parse()
-                .context(format!("Failed to parse {}", config_path.display()))?;
-            let template_content = toml::to_string_pretty(&template)?;
-            let template_doc: toml_edit::DocumentMut = template_content
-                .parse()
-                .context("Failed to parse generated template config")?;
-
-            let added = merge_missing_keys(doc.as_table_mut(), template_doc.as_table());
-            if added > 0 {
-                std::fs::write(&config_path, doc.to_string()).context(format!(
-                    "Failed to write config to {}",
-                    config_path.display()
-                ))?;
-            }
-
-            let merged: SamgrahaConfig = toml::from_str(&doc.to_string())
-                .context("Merged samgraha.toml failed to parse back as valid config")?;
-            let status = if added > 0 {
-                format!(
-                    "Updated {} — added {added} missing key(s), left the rest untouched",
-                    config_path.display()
-                )
-            } else {
-                format!("{} already covers every known key — nothing to add", config_path.display())
-            };
-            (merged, status)
-        } else {
-            let content = toml::to_string_pretty(&template)?;
-            std::fs::write(&config_path, content).context(format!(
-                "Failed to write config to {}",
-                config_path.display()
-            ))?;
-            (template, format!("Initialized samgraha repository at {}", root.display()))
-        };
-
-        let env_path = write_env_example(&root)?;
-
-        println!("{status}");
-        println!("Generated {}", env_path.display());
-        println!("{}", format_output(&config, format));
+        println!("{}", result.status);
+        println!("Generated {}", result.env_path.display());
+        println!("{}", format_output(&result.config, format));
         Ok(ExitCode::Success)
     }
 
@@ -909,7 +841,7 @@ impl Cli {
         let root = path
             .cloned()
             .unwrap_or_else(|| crate::config::discover_repository_root().unwrap());
-        let env_path = write_env_example(&root)?;
+        let env_path = services::init::write_env_example(&root)?;
         println!("Generated {}", env_path.display());
         Ok(ExitCode::Success)
     }
@@ -1204,100 +1136,6 @@ fn sync_registry_best_effort(root: &std::path::Path, config: &SamgrahaConfig) {
     if let Err(e) = client.sync(config) {
         tracing::warn!("Registry sync after compile failed: {e}");
     }
-}
-
-/// Recursively insert keys present in `defaults` but absent from `existing`,
-/// at any table depth. Never touches a key `existing` already has, even if
-/// its value differs from the default (a scalar/array already present wins
-/// outright; a table already present is recursed into for its own missing
-/// sub-keys, never replaced wholesale). Returns the number of keys added.
-///
-/// This is what lets `samgraha init` be re-run safely on an existing
-/// samgraha.toml: schema growth (a new section/field in a later samgraha
-/// version) gets backfilled, while every existing customization — including
-/// comments and formatting, since this operates on a `toml_edit` document —
-/// survives untouched.
-fn merge_missing_keys(existing: &mut toml_edit::Table, defaults: &toml_edit::Table) -> usize {
-    let mut added = 0;
-    for (key, default_item) in defaults.iter() {
-        if !existing.contains_key(key) {
-            existing.insert(key, default_item.clone());
-            added += 1;
-        } else if let Some(default_tbl) = default_item.as_table() {
-            if let Some(existing_tbl) = existing.get_mut(key).and_then(|i| i.as_table_mut()) {
-                added += merge_missing_keys(existing_tbl, default_tbl);
-            }
-        }
-    }
-    added
-}
-
-/// Ensure `.env.example` documents every env key samgraha reads for `${VAR}`
-/// placeholders in samgraha.toml (see `resolve_configured_dir`), values left
-/// blank/commented for the user to fill in per machine.
-///
-/// Additive, not overwriting: a repo may already have an `.env.example` with
-/// unrelated keys (e.g. this repo's own release-build settings). Only keys
-/// not already present get appended, so regenerating never clobbers existing
-/// content.
-fn write_env_example(root: &std::path::Path) -> Result<PathBuf> {
-    const KEYS: &[(&str, &str)] = &[
-        (
-            "SAMGRAHA_REPORT_DIR",
-            "# Absolute path for generated reports (e.g. `samgraha audit --report`).\n\
-             # Unset falls back to <repo>/docs/raw/reports.\n\
-             # SAMGRAHA_REPORT_DIR=\n",
-        ),
-        (
-            "SAMGRAHA_DOCS_DIR",
-            "# Absolute path to this repository's documentation root.\n\
-             # Unset falls back to <repo>/docs.\n\
-             # SAMGRAHA_DOCS_DIR=\n",
-        ),
-        (
-            "SAMGRAHA_IMPLEMENTATION_DIR",
-            "# Absolute path to this repository's implementation/source directory.\n\
-             # Reserved for future traceability checks; unset falls back to <repo>/src.\n\
-             # SAMGRAHA_IMPLEMENTATION_DIR=\n",
-        ),
-        (
-            "SAMGRAHA_SCRIPTS_DIR",
-            "# Absolute path to this repository's external scripts directory.\n\
-             # Only relevant if [repository.scripts] is set in samgraha.toml.\n\
-             # SAMGRAHA_SCRIPTS_DIR=\n",
-        ),
-        (
-            "SAMGRAHA_TESTS_DIR",
-            "# Absolute path to this repository's test directory, if kept outside\n\
-             # implementation.dir. Only relevant if [repository.tests] is set.\n\
-             # SAMGRAHA_TESTS_DIR=\n",
-        ),
-    ];
-
-    let path = root.join(".env.example");
-    let existing = std::fs::read_to_string(&path).unwrap_or_default();
-
-    let mut appended = String::new();
-    for (key, block) in KEYS {
-        if !existing.contains(key) {
-            if !appended.is_empty() || !existing.is_empty() {
-                appended.push('\n');
-            }
-            appended.push_str(block);
-        }
-    }
-
-    if appended.is_empty() {
-        return Ok(path);
-    }
-
-    let mut content = existing;
-    content.push_str(&appended);
-    if !content.contains("cp .env.example .env") {
-        content.push_str("\n# Copy this file to .env and uncomment the values to configure:\n#   cp .env.example .env\n");
-    }
-    std::fs::write(&path, content).context(format!("Failed to write {}", path.display()))?;
-    Ok(path)
 }
 
 /// Check that we are inside a samgraha repository (has `.samgraha/` dir or `samgraha.toml`).

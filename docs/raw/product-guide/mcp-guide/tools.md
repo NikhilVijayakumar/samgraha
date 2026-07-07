@@ -8,7 +8,7 @@ Complete reference for all MCP tools provided by the Samgraha MCP server.
 
 There is no `search_documents`/`search_sections`/`search_features`/`get_summary` — `search` is the one general-purpose search tool (filter by `domain` instead of calling a per-domain tool). The full method list, from `crates/mcp/src/adapter.rs`:
 
-ping, capabilities, compile, search, get_sections, audit, info, get_document, get_document_section, list_domains, list_repositories, register_repository, unregister_repository, synchronize_repository, resolve_dependencies, repository_status, workspace_status, get_documents_by_domain, get_section, get_audit_knowledge, get_audit_report, get_section_changed, check_gate, store_section_report, store_document_report, store_cross_domain_report, update_finding_status, sync, get_plan, switch_context, list_contexts.
+ping, capabilities, init, compile, search, get_sections, audit, info, get_document, get_document_section, list_domains, list_repositories, register_repository, unregister_repository, synchronize_repository, resolve_dependencies, repository_status, workspace_status, get_documents_by_domain, get_section, get_audit_knowledge, get_audit_report, get_section_changed, check_gate, store_section_report, store_document_report, store_cross_domain_report, update_finding_status, sync, get_plan, switch_context, list_contexts.
 
 Tools that return lists (`search`, `get_sections`, `list_repositories`, `repository_status`, `workspace_status`, `get_documents_by_domain`, `get_document_section`) accept `limit`/`offset` and return `{ total, offset, limit, has_more, <key>: [...] }`. `max` is accepted as a backward-compatible alias for `limit`.
 
@@ -55,6 +55,14 @@ Get the (paginated) content of a specific section.
 ### `list_domains`
 
 List domains that have compiled documents. No parameters.
+
+### `init`
+
+Initialize `samgraha.toml` and `.samgraha/` for this repo, or backfill any keys missing from an existing `samgraha.toml` (never overwrites a key already there). Also (re)generates `.env.example` with every env key samgraha reads, additive only — existing keys/content are left untouched. Mirrors the CLI `init` command; call this first in a repo with no `samgraha.toml` before `compile`/`register_repository`.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| force | boolean | no | Overwrite existing `samgraha.toml` with a fresh template instead of backfilling missing keys |
 
 ### `compile`
 
