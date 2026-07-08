@@ -90,7 +90,9 @@ foreach ($src in $builtinSources) {
         throw "$($src.name) compile failed (exit $LASTEXITCODE)"
     }
     $dbSource = Join-Path $rawPath ".samgraha\knowledge.db"
-    $dbTarget = Join-Path $pkgDir "$($src.name).db"
+    # load_builtin_stores() (crates/services/src/builtin.rs) looks next to the running
+    # binary (current_exe().parent()), i.e. bin/ — not the package root.
+    $dbTarget = Join-Path "$pkgDir\bin" "$($src.name).db"
     if (Test-Path $dbSource) {
         Copy-Item $dbSource $dbTarget -Force
         Write-Host "  -> $dbTarget" -ForegroundColor Cyan

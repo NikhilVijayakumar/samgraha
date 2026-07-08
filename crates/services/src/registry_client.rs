@@ -1,6 +1,5 @@
 use anyhow::Result;
 use common::config::{parse_ttl_duration, SamgrahaConfig};
-use common::fs::validate_path;
 use registry::registry_db::RegistryDb;
 use schemas::manifest::{CachedRepoMetadata, RepositoryManifest};
 use std::path::{Path, PathBuf};
@@ -82,7 +81,9 @@ impl FileRegistryClient {
 
 impl RegistryClient for FileRegistryClient {
     fn register(&self, manifest: &RepositoryManifest) -> Result<()> {
-        validate_path(Path::new(&manifest.repository_root), &self.root)?;
+        // Local stdio MCP server — same trust boundary as running cli.exe directly.
+        // No sandboxing: a manifest's repository_root may point anywhere on disk
+        // (e.g. registering another repo entirely, not just this server's own root).
         // If ID exists with different UUID, the manifest was regenerated (e.g., after
         // .samgraha/ recovery). Upsert with new UUID — manifest is authoritative.
         if let Some(existing) = self.db.get_by_id(&manifest.repository.id)? {

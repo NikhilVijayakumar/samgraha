@@ -60,6 +60,10 @@ fn main() -> Result<()> {
             Ok(l) => l,
             Err(_) => break,
         };
+        // PowerShell always prepends a UTF-8 BOM when piping a string literal to a
+        // native process's stdin — strip it so the first request from a plain
+        // `'...' | mcp.exe` pipe on Windows doesn't fail to parse.
+        let line = line.strip_prefix('\u{feff}').unwrap_or(&line).to_string();
         if line.trim().is_empty() {
             continue;
         }
@@ -217,11 +221,12 @@ fn tool_definitions() -> Vec<serde_json::Value> {
     vec![
         serde_json::json!({
             "name": "init",
-            "description": "Initialize samgraha.toml and .samgraha/ for this repository, or backfill any keys missing from an existing samgraha.toml (never overwrites a key that's already there). Run this first in a repo with no samgraha.toml before compile/register_repository.",
+            "description": "Initialize samgraha.toml and .samgraha/ for a repository, or backfill any keys missing from an existing samgraha.toml (never overwrites a key that's already there). Run this first in a repo with no samgraha.toml before compile/register_repository. Pass 'repo_path' to target a different repository than the one this MCP session is anchored to — required for a global/user-scope server bootstrapping a repo it wasn't started in.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "force": { "type": "boolean", "description": "Overwrite existing samgraha.toml with a fresh template instead of backfilling missing keys" }
+                    "force": { "type": "boolean", "description": "Overwrite existing samgraha.toml with a fresh template instead of backfilling missing keys" },
+                    "repo_path": { "type": "string", "description": "Absolute path to the repository to initialize, if not the one this MCP session is anchored to" }
                 }
             }
         }),
@@ -254,8 +259,24 @@ fn tool_definitions() -> Vec<serde_json::Value> {
             "inputSchema": { "type": "object", "properties": {} }
         }),
         serde_json::json!({
+            "name": "switch_context",
+            "description": "Switch the active knowledge context to an already-loaded named context (see list_contexts)",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "name": { "type": "string", "description": "Context name to activate" }
+                },
+                "required": ["name"]
+            }
+        }),
+        serde_json::json!({
+            "name": "list_contexts",
+            "description": "List loaded knowledge contexts and which one is active",
+            "inputSchema": { "type": "object", "properties": {} }
+        }),
+        serde_json::json!({
             "name": "search",
-            "description": "Search compiled knowledge",
+            "description": "Search compiled knowledge. Pass 'repo_path' to search a different local repository instead of the one this MCP session is anchored to.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -263,257 +284,302 @@ fn tool_definitions() -> Vec<serde_json::Value> {
                     "level": { "type": "string", "enum": ["metadata", "summary", "section", "full"], "description": "Retrieval level" },
                     "domain": { "type": "string", "description": "Filter by domain" },
                     "limit": { "type": "integer", "description": "Max results" },
-                    "offset": { "type": "integer", "description": "Result offset" }
+                    "offset": { "type": "integer", "description": "Result offset" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to search" }
                 },
                 "required": ["query"]
             }
         }),
         serde_json::json!({
             "name": "get_sections",
-            "description": "Get document sections by semantic type",
+            "description": "Get document sections by semantic type. Pass 'repo_path' to target a different local repository.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "semantic_type": { "type": "string", "description": "Semantic type filter" },
                     "domain": { "type": "string", "description": "Filter by domain" },
                     "limit": { "type": "integer" },
-                    "offset": { "type": "integer" }
+                    "offset": { "type": "integer" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
                 },
                 "required": ["semantic_type"]
             }
         }),
         serde_json::json!({
             "name": "audit",
-            "description": "Run audit checks on documentation",
+            "description": "Run audit checks on documentation. Pass 'repo_path' to target a different local repository.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "domain": { "type": "string", "description": "Domain to audit" },
-                    "providers": { "type": "array", "items": { "type": "string" }, "description": "Audit providers" }
+                    "providers": { "type": "array", "items": { "type": "string" }, "description": "Audit providers" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
                 }
             }
         }),
         serde_json::json!({
             "name": "info",
-            "description": "Get runtime information",
-            "inputSchema": { "type": "object", "properties": {} }
-        }),
-        serde_json::json!({
-            "name": "get_document",
-            "description": "Get document metadata and section table of contents",
+            "description": "Get runtime information. Pass 'repo_path' to target a different local repository.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "id": { "type": "integer", "description": "Document ID" }
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                }
+            }
+        }),
+        serde_json::json!({
+            "name": "get_document",
+            "description": "Get document metadata and section table of contents. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "id": { "type": "integer", "description": "Document ID" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
                 },
                 "required": ["id"]
             }
         }),
         serde_json::json!({
             "name": "get_document_section",
-            "description": "Get paginated content of a specific section",
+            "description": "Get paginated content of a specific section. Pass 'repo_path' to target a different local repository.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "id": { "type": "integer", "description": "Document ID" },
                     "section": { "description": "Section index (integer) or heading (string)" },
                     "limit": { "type": "integer" },
-                    "offset": { "type": "integer" }
+                    "offset": { "type": "integer" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
                 },
                 "required": ["id", "section"]
             }
         }),
         serde_json::json!({
             "name": "list_domains",
-            "description": "List available documentation domains",
-            "inputSchema": { "type": "object", "properties": {} }
+            "description": "List available documentation domains. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                }
+            }
         }),
         serde_json::json!({
             "name": "list_repositories",
-            "description": "List registered repositories",
+            "description": "List registered repositories. Pass 'repo_path' to read a different local repository's registry.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "limit": { "type": "integer" },
-                    "offset": { "type": "integer" }
+                    "offset": { "type": "integer" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository whose registry to read" }
                 }
             }
         }),
         serde_json::json!({
             "name": "register_repository",
-            "description": "Register a repository from its manifest JSON",
+            "description": "Register a repository from its manifest JSON. Pass 'repo_path' to register into a different local repository's registry instead of the one this MCP session is anchored to.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "manifest": { "type": "string", "description": "RepositoryManifest as JSON string" }
+                    "manifest": { "type": "string", "description": "RepositoryManifest as JSON string" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository whose registry to register into" }
                 },
                 "required": ["manifest"]
             }
         }),
         serde_json::json!({
             "name": "unregister_repository",
-            "description": "Unregister a repository by UUID",
+            "description": "Unregister a repository by UUID. Pass 'repo_path' to target a different local repository's registry.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "uuid": { "type": "string", "description": "Repository UUID" }
+                    "uuid": { "type": "string", "description": "Repository UUID" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository whose registry to target" }
                 },
                 "required": ["uuid"]
             }
         }),
         serde_json::json!({
             "name": "synchronize_repository",
-            "description": "Synchronize dependency metadata from their manifests",
-            "inputSchema": { "type": "object", "properties": {} }
+            "description": "Synchronize dependency metadata from their manifests. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                }
+            }
         }),
         serde_json::json!({
             "name": "resolve_dependencies",
-            "description": "Resolve dependency graph for all registered repositories",
-            "inputSchema": { "type": "object", "properties": {} }
+            "description": "Resolve dependency graph for all registered repositories. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                }
+            }
         }),
         serde_json::json!({
             "name": "repository_status",
-            "description": "Get computed status of all registered repositories",
+            "description": "Get computed status of all registered repositories. Pass 'repo_path' to read a different local repository's registry.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "limit": { "type": "integer" },
-                    "offset": { "type": "integer" }
+                    "offset": { "type": "integer" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository whose registry to read" }
                 }
             }
         }),
         serde_json::json!({
             "name": "workspace_status",
-            "description": "Get workspace-level status across all registered repositories",
+            "description": "Get workspace-level status across all registered repositories. Pass 'repo_path' to read a different local repository's registry.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "limit": { "type": "integer" },
-                    "offset": { "type": "integer" }
+                    "offset": { "type": "integer" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository whose registry to read" }
                 }
             }
         }),
         serde_json::json!({
             "name": "get_product_knowledge_context",
-            "description": "Get this repository's compiled Product Knowledge context (repository_metadata: source/test/scripts dirs, dependencies, pipeline commands, repo identity) — empty until compile has run at least once",
-            "inputSchema": { "type": "object", "properties": {} }
+            "description": "Get a repository's compiled Product Knowledge context (repository_metadata: source/test/scripts dirs, dependencies, pipeline commands, repo identity) — empty until compile has run at least once. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                }
+            }
         }),
         // ── Semantic Audit Tools ─────────────────────────────────────────────
         serde_json::json!({
             "name": "get_documents_by_domain",
-            "description": "List compiled documents in a domain",
+            "description": "List compiled documents in a domain. Pass 'repo_path' to target a different local repository.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "domain": { "type": "string", "description": "Domain/standard name" },
                     "limit": { "type": "integer" },
-                    "offset": { "type": "integer" }
+                    "offset": { "type": "integer" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
                 },
                 "required": ["domain"]
             }
         }),
         serde_json::json!({
             "name": "get_section",
-            "description": "Get a single section by database primary key",
+            "description": "Get a single section by database primary key. Pass 'repo_path' to target a different local repository.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "section_id": { "type": "integer", "description": "Section primary key" }
+                    "section_id": { "type": "integer", "description": "Section primary key" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
                 },
                 "required": ["section_id"]
             }
         }),
         serde_json::json!({
             "name": "get_audit_knowledge",
-            "description": "Serve audit knowledge file content for a domain section type",
+            "description": "Serve audit knowledge file content for a domain section type. Pass 'repo_path' to target a different local repository.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "domain": { "type": "string", "description": "Domain name" },
-                    "section_type": { "type": "string", "description": "Section semantic type" }
+                    "section_type": { "type": "string", "description": "Section semantic type" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
                 },
                 "required": ["domain", "section_type"]
             }
         }),
         serde_json::json!({
             "name": "get_audit_report",
-            "description": "Get the latest audit report for a scope",
+            "description": "Get the latest audit report for a scope. Pass 'repo_path' to target a different local repository.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "domain": { "type": "string", "description": "Domain name" },
                     "document_id": { "type": "integer", "description": "Optional document ID" },
                     "section_id": { "type": "integer", "description": "Optional section ID" },
-                    "stage": { "type": "string", "enum": ["deterministic", "section", "document", "cross_domain"], "description": "Audit stage" }
+                    "stage": { "type": "string", "enum": ["deterministic", "section", "document", "cross_domain"], "description": "Audit stage" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
                 },
                 "required": ["domain", "stage"]
             }
         }),
         serde_json::json!({
             "name": "get_section_changed",
-            "description": "Check if a section changed since last audit (incremental skip)",
+            "description": "Check if a section changed since last audit (incremental skip). Pass 'repo_path' to target a different local repository.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "section_id": { "type": "integer", "description": "Section primary key" }
+                    "section_id": { "type": "integer", "description": "Section primary key" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
                 },
                 "required": ["section_id"]
             }
         }),
         serde_json::json!({
             "name": "check_gate",
-            "description": "Check if a stage gate is clear before proceeding",
+            "description": "Check if a stage gate is clear before proceeding. Pass 'repo_path' to target a different local repository.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "stage": { "type": "string", "enum": ["deterministic", "section", "document", "cross_domain"], "description": "Audit stage to check" },
-                    "document_id": { "type": "integer", "description": "Optional document ID for scoped check" }
+                    "document_id": { "type": "integer", "description": "Optional document ID for scoped check" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
                 },
                 "required": ["stage"]
             }
         }),
         serde_json::json!({
             "name": "store_section_report",
-            "description": "Agent writes section audit findings; validates schema before persist",
+            "description": "Agent writes section audit findings; validates schema before persist. Pass 'repo_path' to target a different local repository.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "report_json": { "type": "object", "description": "SemanticReport as JSON object" }
+                    "report_json": { "type": "object", "description": "SemanticReport as JSON object" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
                 },
                 "required": ["report_json"]
             }
         }),
         serde_json::json!({
             "name": "store_document_report",
-            "description": "Agent writes document-level audit findings; validates schema",
+            "description": "Agent writes document-level audit findings; validates schema. Pass 'repo_path' to target a different local repository.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "report_json": { "type": "object", "description": "SemanticReport as JSON object" }
+                    "report_json": { "type": "object", "description": "SemanticReport as JSON object" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
                 },
                 "required": ["report_json"]
             }
         }),
         serde_json::json!({
             "name": "store_cross_domain_report",
-            "description": "Agent writes cross-domain audit findings; validates schema",
+            "description": "Agent writes cross-domain audit findings; validates schema. Pass 'repo_path' to target a different local repository.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "report_json": { "type": "object", "description": "SemanticReport as JSON object" }
+                    "report_json": { "type": "object", "description": "SemanticReport as JSON object" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
                 },
                 "required": ["report_json"]
             }
         }),
         serde_json::json!({
             "name": "update_finding_status",
-            "description": "Engineer marks a finding as Fixed / Accepted / False Positive",
+            "description": "Engineer marks a finding as Fixed / Accepted / False Positive. Pass 'repo_path' to target a different local repository.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "report_id": { "type": "integer", "description": "Report database ID" },
                     "criterion_id": { "type": "string", "description": "Finding criterion ID to update" },
-                    "status": { "type": "string", "enum": ["open", "fixed", "accepted", "ignored", "false_positive"], "description": "New finding status" }
+                    "status": { "type": "string", "enum": ["open", "fixed", "accepted", "ignored", "false_positive"], "description": "New finding status" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
                 },
                 "required": ["report_id", "criterion_id", "status"]
             }

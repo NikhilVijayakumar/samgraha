@@ -78,6 +78,32 @@ for dir in standards audit audit-standards; do
     fi
 done
 
+# === Built-in Knowledge Sources ===
+# load_builtin_stores() (crates/services/src/builtin.rs) looks next to the running
+# binary (current_exe().parent()), i.e. bin/ — not the package root.
+declare -A BUILTIN_SOURCES=(
+    [standards]="docs/raw/standards"
+    [help]="docs/raw/product-guide"
+)
+for name in "${!BUILTIN_SOURCES[@]}"; do
+    raw_path="$ROOT_DIR/${BUILTIN_SOURCES[$name]}"
+    if [[ ! -d "$raw_path" ]]; then
+        echo "WARNING: $name source not found at $raw_path -- skipping" >&2
+        continue
+    fi
+    echo "==> Compiling $name documentation..."
+    "$PKG_DIR/bin/cli" compile --config "$ROOT_DIR/samgraha.toml" "$raw_path" --domain "$name" --force
+    db_source="$raw_path/.samgraha/knowledge.db"
+    db_target="$PKG_DIR/bin/$name.db"
+    if [[ -f "$db_source" ]]; then
+        cp "$db_source" "$db_target"
+        echo "  -> $db_target"
+    else
+        echo "ERROR: $name compile produced no knowledge.db at $db_source" >&2
+        exit 1
+    fi
+done
+
 # Launcher scripts (Linux build: binaries have no .exe)
 cat > "$PKG_DIR/run-mcp.sh" <<SHEOF
 #!/usr/bin/env sh

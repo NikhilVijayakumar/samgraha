@@ -331,6 +331,67 @@ invoke_phase2() {
     write_phase_report "04-phase2"
 }
 
+invoke_phase2b() {
+    write_step "Phase 2b - MCP Multi-Repo Targeting (repo_path)"
+    PHASE_ID="04b-phase2b"
+    PHASE_DURATION=$(date +%s)
+    # Reproduces docs/errors-list/2026-07-08-mcp-init-targets-server-not-caller.md and
+    # 2026-07-08-no-global-repo-registration.md: the MCP server is anchored at
+    # $anchor_dir (already compiled) while every tool call targets a *different*
+    # repo ($external_dir, which starts with no samgraha.toml at all) via the
+    # 'repo_path'/'path' param. Unlike every other MCP phase, cwd never changes.
+    local anchor_dir="$TEST_TEMP/p2b-anchor"
+    local external_dir="$TEST_TEMP/p2b-external"
+    new_test_fixture "$anchor_dir" "anchor-repo"
+    pushd "$anchor_dir" > /dev/null
+    run_cli "compile" > /dev/null
+    popd > /dev/null
+
+    mkdir -p "$external_dir/docs/feature"
+    cat > "$external_dir/docs/feature/knowledge-compilation.md" << 'EOF'
+# Compilation
+
+## Purpose
+
+Transform docs.
+
+## Requirements
+
+- FTS
+- Progressive
+EOF
+
+    pushd "$anchor_dir" > /dev/null
+
+    raw_mcp() {
+        LAST_OUTPUT=$(echo "$1" | cargo run --manifest-path "$ROOT_DIR/Cargo.toml" --bin mcp 2>&1)
+        echo "$LAST_OUTPUT"
+    }
+
+    write_info "init with repo_path must create samgraha.toml in the external repo, not the anchor"
+    raw_mcp "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"init\",\"arguments\":{\"repo_path\":\"$external_dir\"}}}" > /dev/null
+    assert_file_exists "$external_dir/samgraha.toml" "init created samgraha.toml in the external repo"
+
+    write_info "compile external repo via path"
+    raw_mcp "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{\"name\":\"compile\",\"arguments\":{\"path\":\"$external_dir\"}}}" > /dev/null
+    assert_file_exists "$external_dir/.samgraha/manifest.json" "external repo compiled its own manifest.json"
+
+    write_info "register_repository must accept a manifest whose repository_root is outside the anchor"
+    local manifest r
+    manifest=$(cat "$external_dir/.samgraha/manifest.json" | tr -d '\n' | sed 's/\\/\\\\/g; s/"/\\"/g')
+    r=$(raw_mcp "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"name\":\"register_repository\",\"arguments\":{\"manifest\":\"$manifest\"}}}")
+    if echo "$r" | grep -q '"success":true'; then write_pass "register_repository accepted external repository_root"; else write_fail "register_repository did not succeed against external repository_root"; fi
+
+    write_info "search with repo_path reads the external repo, not the anchor"
+    r=$(raw_mcp "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"search\",\"arguments\":{\"query\":\"compilation\",\"repo_path\":\"$external_dir\"}}}")
+    if echo "$r" | grep -q '"results"' && ! echo "$r" | grep -q '"isError":true'; then write_pass "search via repo_path"; else write_fail "search via repo_path"; fi
+
+    popd > /dev/null
+    remove_test_fixture "$anchor_dir"
+    remove_test_fixture "$external_dir"
+    write_phase_report "04b-phase2b"
+}
+
 invoke_phase3() {
     write_step "Phase 3 - Semantic Audit Tools"
     PHASE_ID="06-phase3"
@@ -474,7 +535,7 @@ trap cleanup_test EXIT
 invoke_phase1a
 invoke_phase1b
 if $FULL; then invoke_phase1c; fi
-if $WITH_MCP; then invoke_phase2; invoke_phase25; invoke_phase3; fi
+if $WITH_MCP; then invoke_phase2; invoke_phase2b; invoke_phase25; invoke_phase3; fi
 
 END_TIME=$(date +%s)
 DURATION=$((END_TIME - START_TIME))
@@ -494,7 +555,7 @@ all_phase_rows=""
 all_failed=""
 score_sum=0
 score_count=0
-for key in 00-build 01-phase1a 02-phase1b 03-phase1c 04-phase2 05-phase25 06-phase3; do
+for key in 00-build 01-phase1a 02-phase1b 03-phase1c 04-phase2 04b-phase2b 05-phase25 06-phase3; do
     pr="${PHASE_RESULTS[$key]:-}"
     [ -z "$pr" ] && continue
     ps=""; pf=""; pe=""; pd=""
@@ -543,7 +604,7 @@ write_report "00-summary.md" "00-summary.md" "$report_vals" > /dev/null
 # Save metrics
 metrics_phase_order=(01-phase1a 02-phase1b)
 $FULL && metrics_phase_order+=(03-phase1c)
-$WITH_MCP && metrics_phase_order+=(04-phase2 05-phase25 06-phase3)
+$WITH_MCP && metrics_phase_order+=(04-phase2 04b-phase2b 05-phase25 06-phase3)
 arr='[]'
 for key in "${metrics_phase_order[@]}"; do
     pr="${PHASE_RESULTS[$key]:-}"

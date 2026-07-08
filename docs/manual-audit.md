@@ -61,7 +61,7 @@ Script: `scripts/run-tests.sh`
 Each test prints `OK` or `XX`. Exit code = number of failures.
 
 **Report output**: For each run, the previous `latest/` dir is rotated to `archive/{timestamp}/`. Reports include:
-- Per-phase report files: `01-phase1a.md`, `02-phase1b.md`, `03-phase1c.md`, `04-phase2.md`, `05-phase25.md`, `06-phase3.md`
+- Per-phase report files: `01-phase1a.md`, `02-phase1b.md`, `03-phase1c.md`, `04-phase2.md`, `04b-phase2b.md`, `05-phase25.md`, `06-phase3.md`
 - Summary: `00-summary.md`
 - Metrics: `metrics.json` (for trend analysis across runs)
 
@@ -680,6 +680,29 @@ echo '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_docume
 ```
 
 See Phase 2.5 in `scripts/run-tests.ps1` / `scripts/run-tests.sh` for protocol edge-case testing via the same method.
+
+---
+
+### 2.6 — Multi-Repo Targeting (`repo_path`)
+
+A single globally-configured `mcp.exe` is anchored to one repo at startup (`SAMGRAHA_REPO` env, or the discovered root walking up from cwd). Every tool except `compile`/`sync` (which already took a `path` param) used to be permanently stuck operating on that one repo — see
+`docs/errors-list/2026-07-08-mcp-init-targets-server-not-caller.md` and
+`docs/errors-list/2026-07-08-no-global-repo-registration.md`.
+
+Every knowledge/registry tool now accepts an optional `repo_path` argument: an absolute path to a *different* local repository to operate on for that one call, instead of the session's anchored repo. This is what makes one global, user-scope `samgraha` MCP server usable from any repo, without per-project `.mcp.json` config.
+
+```bash
+# MCP server anchored at samgraha's own root; target some other repo instead:
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"init","arguments":{"repo_path":"C:/Users/me/other-repo"}}}' | cargo run --bin mcp
+
+echo '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"search","arguments":{"query":"auth","repo_path":"C:/Users/me/other-repo"}}}' | cargo run --bin mcp
+```
+
+`register_repository`/`sync` no longer reject a manifest whose `repository_root` sits outside the server's own root — that sandboxing was the root cause of both filed bugs (`FileRegistryClient::register`, `crates/services/src/registry_client.rs`) and has been removed: this is a local stdio server, same trust boundary as running `cli.exe` directly.
+
+Automated coverage: Phase 2b (`scripts/run-tests.ps1 -WithMCP`, `scripts/run-tests.sh --with-mcp`, or `[pipelines.mcp_multirepo_test]` in `samgraha.toml`) launches `mcp.exe` anchored at one fixture repo and drives `init`/`compile`/`register_repository`/`search` against a *second*, unrelated fixture repo via `repo_path` — the exact scenario the original manual test phases never exercised (they always ran `mcp.exe` with cwd already inside the target repo).
+
+**Windows note:** PowerShell always prepends a UTF-8 BOM when piping a string literal to a native process's stdin (`'...' | mcp.exe`). The server strips a leading BOM from each stdin line so this doesn't break the first request — if you hand-test with `echo '...' | cargo run --bin mcp` in PowerShell and see a `-32700` parse error, rebuild; older binaries don't have this fix.
 
 ---
 

@@ -364,6 +364,71 @@ function Invoke-Phase3 {
     }
 }
 
+function Invoke-Phase2b {
+    Write-Step "Phase 2b - MCP Multi-Repo Targeting (repo_path)"
+    $Script:PHASE_ID = "04b-phase2b"
+    $Script:PHASE_DURATION = Get-Date
+    # Reproduces docs/errors-list/2026-07-08-mcp-init-targets-server-not-caller.md and
+    # 2026-07-08-no-global-repo-registration.md: the MCP server is anchored at $anchorDir
+    # (already compiled) while every tool call targets a *different* repo ($externalDir,
+    # which starts with no samgraha.toml at all) via the 'repo_path'/'path' param. Unlike
+    # every other MCP phase, cwd here never changes to the target repo.
+    $anchorDir = Join-Path $TestTemp "p2b-anchor"
+    $externalDir = Join-Path $TestTemp "p2b-external"
+    New-TestFixture $anchorDir "anchor-repo"
+    Push-Location $anchorDir
+    Run-Cli @("compile") | Out-Null
+    Pop-Location
+
+    [System.IO.Directory]::CreateDirectory("$externalDir\docs\feature") | Out-Null
+    [System.IO.File]::WriteAllText("$externalDir\docs\feature\knowledge-compilation.md",
+        "# Compilation`n`n## Purpose`n`nTransform docs.`n`n## Requirements`n`n- FTS`n- Progressive")
+
+    Push-Location $anchorDir
+    try {
+        function RawMcp($json) {
+            $out = $json | & cargo run --manifest-path "$RootDir\Cargo.toml" --bin mcp 2>&1
+            $Global:LastOutput = $out
+            return $out
+        }
+
+        Write-Info "init with repo_path must create samgraha.toml in the external repo, not the anchor"
+        $initReq = @{ jsonrpc = "2.0"; id = 1; method = "tools/call"
+            params = @{ name = "init"; arguments = @{ repo_path = $externalDir } } } | ConvertTo-Json -Depth 10 -Compress
+        RawMcp $initReq | Out-Null
+        Assert-FileExists "$externalDir\samgraha.toml" "init created samgraha.toml in the external repo"
+
+        Write-Info "compile external repo via path"
+        $compileReq = @{ jsonrpc = "2.0"; id = 2; method = "tools/call"
+            params = @{ name = "compile"; arguments = @{ path = $externalDir } } } | ConvertTo-Json -Depth 10 -Compress
+        RawMcp $compileReq | Out-Null
+        Assert-FileExists "$externalDir\.samgraha\manifest.json" "external repo compiled its own manifest.json"
+
+        Write-Info "register_repository must accept a manifest whose repository_root is outside the anchor"
+        $manifest = Get-Content "$externalDir\.samgraha\manifest.json" -Raw
+        # Built via manual string escaping, not ConvertTo-Json — piping a large
+        # multi-line manifest string through ConvertTo-Json has been observed to
+        # hang in this shell; plain concatenation matches the pattern the existing
+        # Phase 3 report-payload calls already use.
+        $manifestEscaped = $manifest.Replace('\', '\\').Replace('"', '\"')
+        $manifestEscaped = $manifestEscaped -replace "`r`n", '\n' -replace "`n", '\n'
+        $registerReq = '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"register_repository","arguments":{"manifest":"' + $manifestEscaped + '"}}}'
+        $r = RawMcp $registerReq
+        if ($r -match '"success":true') { Write-Pass "register_repository accepted external repository_root" } else { Write-Fail "register_repository did not succeed against external repository_root" }
+
+        Write-Info "search with repo_path reads the external repo, not the anchor"
+        $searchReq = @{ jsonrpc = "2.0"; id = 4; method = "tools/call"
+            params = @{ name = "search"; arguments = @{ query = "compilation"; repo_path = $externalDir } } } | ConvertTo-Json -Depth 10 -Compress
+        $r = RawMcp $searchReq
+        if ($r -match '"results"' -and $r -notmatch '"isError":true') { Write-Pass "search via repo_path" } else { Write-Fail "search via repo_path" }
+    } finally {
+        Pop-Location
+        Remove-TestFixture $anchorDir
+        Remove-TestFixture $externalDir
+        Write-PhaseReport "04b-phase2b"
+    }
+}
+
 function Invoke-Phase25 {
     Write-Step "Phase 2.5 - Protocol"
     $Script:PHASE_ID = "05-phase25"
@@ -434,7 +499,7 @@ try {
     Invoke-Phase1a
     Invoke-Phase1b
     if ($Full) { Invoke-Phase1c }
-    if ($WithMCP) { Invoke-Phase2; Invoke-Phase25; Invoke-Phase3 }
+    if ($WithMCP) { Invoke-Phase2; Invoke-Phase2b; Invoke-Phase25; Invoke-Phase3 }
 } finally {
     Remove-TestFixture $TestTemp
 }
@@ -451,7 +516,7 @@ $Script:PHASE_CHECKS["00-build"] = $buildChecks
 $allPhaseRows = ""
 $allFailed = ""
 $scoreSum = 0; $scoreCount = 0
-$phaseOrder = @("00-build", "01-phase1a", "02-phase1b", "03-phase1c", "04-phase2", "05-phase25", "06-phase3")
+$phaseOrder = @("00-build", "01-phase1a", "02-phase1b", "03-phase1c", "04-phase2", "04b-phase2b", "05-phase25", "06-phase3")
 foreach ($key in $phaseOrder) {
     if (-not $Script:PHASE_RESULTS.ContainsKey($key)) { continue }
     $pr = $Script:PHASE_RESULTS[$key] | ConvertFrom-Json
@@ -497,7 +562,7 @@ Write-Report "00-summary.md" "00-summary.md" $reportValsJson | Out-Null
 # Metrics
 $metricsPhaseOrder = @("01-phase1a", "02-phase1b")
 if ($Full) { $metricsPhaseOrder += "03-phase1c" }
-if ($WithMCP) { $metricsPhaseOrder += @("04-phase2", "05-phase25", "06-phase3") }
+if ($WithMCP) { $metricsPhaseOrder += @("04-phase2", "04b-phase2b", "05-phase25", "06-phase3") }
 $phaseScores = @()
 foreach ($key in $metricsPhaseOrder) {
     if (-not $Script:PHASE_RESULTS.ContainsKey($key)) { continue }

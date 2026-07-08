@@ -61,6 +61,14 @@ description = "Run the full workspace test suite"
 produces = ["test results"]
 consumes = ["source code"]
 
+[pipelines.mcp_multirepo_test]
+command = ["pwsh", "-File", "scripts/run-tests.ps1", "-WithMCP", "-SkipBuild"]
+working_directory = "${PROJECT_ROOT}"
+artifacts = ["docs/report/manual-audit/tests/latest/04b-phase2b.md"]
+description = "MCP repo_path targeting: proves init/compile/register_repository/search can target a repo other than the one the MCP server is anchored to (docs/errors-list/2026-07-08-mcp-init-targets-server-not-caller.md, 2026-07-08-no-global-repo-registration.md)"
+produces = ["test results"]
+consumes = ["mcp binary", "source code"]
+
 [compilation]
 watch = false
 

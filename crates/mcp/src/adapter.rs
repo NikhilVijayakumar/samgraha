@@ -9,7 +9,7 @@ use schemas::search::{RetrievalLevel, SearchQuery, SectionQuery};
 use services::compilation::CompilationService;
 use services::planner::write_meta_file;
 use services::project_planner::PlanOrchestrator;
-use services::registry_client::RegistryClient;
+use services::registry_client::{FileRegistryClient, RegistryClient};
 use services::resolution::KnowledgeResolver;
 use services::context_manager::ContextManager;
 use services::KnowledgeRuntime;
@@ -33,6 +33,16 @@ fn validate_target_path(repo_root: &Path, target: &Path) -> Result<()> {
         );
     }
     Ok(())
+}
+
+/// Load `<root>/samgraha.toml` if present, else defaults. Same fallback
+/// `compile_external` already used inline — extracted so `runtime_for` can share it.
+fn load_repo_config(root: &Path) -> SamgrahaConfig {
+    root.join("samgraha.toml")
+        .to_str()
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .and_then(|s| toml::from_str(&s).ok())
+        .unwrap_or_default()
 }
 
 fn parse_finding(req: &McpRequest) -> Result<AuditFinding> {
@@ -135,6 +145,30 @@ impl McpAdapter {
         );
     }
 
+    /// Optional `repo_path` param present on most tools: when given, build a fresh
+    /// runtime rooted there instead of using the session's anchored repo. Same
+    /// per-call construction `compile_external` already does for `compile`/`sync` —
+    /// this just makes the same escape hatch available to every other tool, so one
+    /// globally-configured MCP server can operate on any local repo, not just its own.
+    fn runtime_for(&self, req: &McpRequest) -> Result<Arc<KnowledgeRuntime>> {
+        match req.params.get("repo_path").and_then(|v| v.as_str()) {
+            Some(p) => {
+                let root = std::path::PathBuf::from(p);
+                let config = load_repo_config(&root);
+                Ok(Arc::new(KnowledgeRuntime::new(&root, config)?))
+            }
+            None => Ok(Arc::clone(&self.runtime)),
+        }
+    }
+
+    /// Same escape hatch as `runtime_for`, for registry-backed tools.
+    fn registry_for(&self, req: &McpRequest) -> Arc<dyn RegistryClient> {
+        match req.params.get("repo_path").and_then(|v| v.as_str()) {
+            Some(p) => Arc::new(FileRegistryClient::new(Path::new(p))),
+            None => Arc::clone(&self.registry),
+        }
+    }
+
     pub fn notify_connect(&self) {
         self.context_manager.connect();
         self.ensure_context();
@@ -172,7 +206,7 @@ impl McpAdapter {
             "info"                    => self.handle_info(&req),
             "get_document"            => self.handle_get_document(&req),
             "get_document_section"    => self.handle_get_document_section(&req),
-            "list_domains"            => self.handle_list_domains(),
+            "list_domains"            => self.handle_list_domains(&req),
             "list_repositories"       => self.handle_list_repositories(&req),
             "register_repository"     => self.handle_register_repository(&req),
             "unregister_repository"   => self.handle_unregister_repository(&req),
@@ -180,7 +214,7 @@ impl McpAdapter {
             "resolve_dependencies"    => self.handle_resolve_dependencies(&req),
             "repository_status"       => self.handle_repository_status(&req),
             "workspace_status"        => self.handle_workspace_status(&req),
-            "get_product_knowledge_context" => self.handle_get_product_knowledge_context(),
+            "get_product_knowledge_context" => self.handle_get_product_knowledge_context(&req),
             // Semantic audit handlers
             "get_documents_by_domain" => self.handle_get_documents_by_domain(&req),
             "get_section"             => self.handle_get_section(&req),
@@ -291,7 +325,14 @@ impl McpAdapter {
     /// clients can bootstrap a repo without dropping to a shell.
     fn handle_init(&self, req: &McpRequest) -> Result<serde_json::Value> {
         let force = req.params.get("force").and_then(|v| v.as_bool()).unwrap_or(false);
-        let root = &self.runtime.context.repository_root;
+        let owned_root;
+        let root: &Path = match req.params.get("repo_path").and_then(|v| v.as_str()) {
+            Some(p) => {
+                owned_root = std::path::PathBuf::from(p);
+                &owned_root
+            }
+            None => &self.runtime.context.repository_root,
+        };
         let result = services::init::init_repository(root, force)?;
         Ok(serde_json::json!({
             "status": result.status,
@@ -340,11 +381,7 @@ impl McpAdapter {
         request: &CompilationRequest,
     ) -> Result<schemas::compilation::CompilationResult> {
         // Load target repo's own config if present, else use defaults.
-        let target_config: SamgrahaConfig = root.join("samgraha.toml")
-            .to_str()
-            .and_then(|p| std::fs::read_to_string(p).ok())
-            .and_then(|s| toml::from_str(&s).ok())
-            .unwrap_or_default();
+        let target_config = load_repo_config(root);
         let db_path = root.join(".samgraha").join("knowledge.db");
         std::fs::create_dir_all(root.join(".samgraha"))?;
         let ext_registry = Arc::new(RegistryStore::open(&db_path)?);
@@ -428,10 +465,16 @@ impl McpAdapter {
             ..Default::default()
         };
 
-        self.ensure_context();
-        let results = match self.context_manager.with_context(|c| c.search(&search_query)) {
-            Some(r) => r?,
-            None => self.runtime.search(&search_query)?,
+        let has_repo_path = req.params.contains_key("repo_path");
+        let runtime = self.runtime_for(req)?;
+        let results = if has_repo_path {
+            runtime.search(&search_query)?
+        } else {
+            self.ensure_context();
+            match self.context_manager.with_context(|c| c.search(&search_query)) {
+                Some(r) => r?,
+                None => runtime.search(&search_query)?,
+            }
         };
         let mut out = Self::paginate(results.results, offset, limit, "results");
         out["query"] = serde_json::Value::String(query.to_string());
@@ -453,10 +496,16 @@ impl McpAdapter {
             document_id: None,
         };
 
-        self.ensure_context();
-        let response = match self.context_manager.with_context(|c| c.get_sections(&query)) {
-            Some(r) => r?,
-            None => self.runtime.get_sections(&query)?,
+        let has_repo_path = req.params.contains_key("repo_path");
+        let runtime = self.runtime_for(req)?;
+        let response = if has_repo_path {
+            runtime.get_sections(&query)?
+        } else {
+            self.ensure_context();
+            match self.context_manager.with_context(|c| c.get_sections(&query)) {
+                Some(r) => r?,
+                None => runtime.get_sections(&query)?,
+            }
         };
         let mut out = Self::paginate(response.sections, offset, limit, "sections");
         out["semantic_type"] = serde_json::Value::String(semantic_type.to_string());
@@ -482,7 +531,8 @@ impl McpAdapter {
             if (execute || dry_run) && pipeline_kind != schemas::audit::PipelineKind::Build {
                 anyhow::bail!("'execute'/'dry_run' only apply to the build pipeline");
             }
-            let report = self.runtime.run_pipeline(&pipeline_kind, inspect_artifact, runtime_mode, execute, dry_run)?;
+            let runtime = self.runtime_for(req)?;
+            let report = runtime.run_pipeline(&pipeline_kind, inspect_artifact, runtime_mode, execute, dry_run)?;
             return Ok(serde_json::to_value(&report)?);
         }
 
@@ -492,15 +542,23 @@ impl McpAdapter {
             .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect::<Vec<_>>())
             .unwrap_or_else(|| vec!["deterministic".to_string()]);
 
-        self.ensure_context();
-        let cross_repo_docs = self.context_manager.with_context(|c| c.package.all_documents().ok()).flatten();
-        let report = self.runtime.audit(domain, &providers, cross_repo_docs.as_deref())?;
+        let has_repo_path = req.params.contains_key("repo_path");
+        let runtime = self.runtime_for(req)?;
+        let cross_repo_docs = if has_repo_path {
+            None
+        } else {
+            self.ensure_context();
+            self.context_manager.with_context(|c| c.package.all_documents().ok()).flatten()
+        };
+        let report = runtime.audit(domain, &providers, cross_repo_docs.as_deref())?;
         Ok(serde_json::to_value(&report)?)
     }
 
-    fn handle_info(&self, _req: &McpRequest) -> Result<serde_json::Value> {
-        let mut info = serde_json::to_value(&self.runtime.info())?;
-        if self.context_manager.store_count() > 0 || self.context_manager.is_context_valid() {
+    fn handle_info(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let has_repo_path = req.params.contains_key("repo_path");
+        let runtime = self.runtime_for(req)?;
+        let mut info = serde_json::to_value(&runtime.info())?;
+        if !has_repo_path && (self.context_manager.store_count() > 0 || self.context_manager.is_context_valid()) {
             info["context_stores"] = serde_json::json!(self.context_manager.store_count());
             info["context_valid"] = serde_json::json!(self.context_manager.is_context_valid());
         }
@@ -549,7 +607,8 @@ impl McpAdapter {
             .and_then(|v| v.as_i64())
             .ok_or_else(|| anyhow::anyhow!("Missing 'id' parameter"))?;
 
-        let doc = self.runtime.get_document(doc_id)?
+        let runtime = self.runtime_for(req)?;
+        let doc = runtime.get_document(doc_id)?
             .ok_or_else(|| anyhow::anyhow!("Document not found: {}", doc_id))?;
 
         let raw = doc.body.raw();
@@ -593,7 +652,8 @@ impl McpAdapter {
             .and_then(|v| v.as_i64())
             .ok_or_else(|| anyhow::anyhow!("Missing 'id' parameter"))?;
 
-        let doc = self.runtime.get_document(doc_id)?
+        let runtime = self.runtime_for(req)?;
+        let doc = runtime.get_document(doc_id)?
             .ok_or_else(|| anyhow::anyhow!("Document not found: {}", doc_id))?;
 
         let section_param = req.params.get("section")
@@ -632,8 +692,9 @@ impl McpAdapter {
         Ok(content_page)
     }
 
-    fn handle_list_domains(&self) -> Result<serde_json::Value> {
-        let domains = self.runtime.get_domains()?;
+    fn handle_list_domains(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let runtime = self.runtime_for(req)?;
+        let domains = runtime.get_domains()?;
 
         if domains.is_empty() {
             return Ok(serde_json::json!({
@@ -653,7 +714,7 @@ impl McpAdapter {
 
     fn handle_list_repositories(&self, req: &McpRequest) -> Result<serde_json::Value> {
         let (limit, offset) = Self::page_params(req, 50);
-        let entries = self.registry.list()?;
+        let entries = self.registry_for(req).list()?;
         if entries.is_empty() {
             let mut out = Self::paginate(entries, offset, limit, "repositories");
             out["message"] = serde_json::json!(
@@ -669,7 +730,7 @@ impl McpAdapter {
             .and_then(|v| v.as_str())
             .ok_or_else(|| anyhow::anyhow!("Missing 'manifest' parameter (JSON string)"))?;
         let manifest: schemas::manifest::RepositoryManifest = serde_json::from_str(manifest_str)?;
-        self.registry.register(&manifest)?;
+        self.registry_for(req).register(&manifest)?;
 
         // Auto-compile if the repo's knowledge.db is missing — the manifest can be
         // handed to register_repository before the repo has ever been compiled.
@@ -697,7 +758,7 @@ impl McpAdapter {
             .and_then(|v| v.as_str())
             .ok_or_else(|| anyhow::anyhow!("Missing 'uuid' parameter"))?;
         let uuid = uuid::Uuid::parse_str(uuid_str)?;
-        self.registry.unregister(&uuid)?;
+        self.registry_for(req).unregister(&uuid)?;
         Ok(serde_json::json!({
             "success": true,
             "action": "unregister",
@@ -705,9 +766,11 @@ impl McpAdapter {
         }))
     }
 
-    fn handle_synchronize_repository(&self, _req: &McpRequest) -> Result<serde_json::Value> {
-        self.registry.sync(&self.runtime.context.config)?;
-        let entries = self.registry.list()?;
+    fn handle_synchronize_repository(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let runtime = self.runtime_for(req)?;
+        let registry = self.registry_for(req);
+        registry.sync(&runtime.context.config)?;
+        let entries = registry.list()?;
         Ok(serde_json::json!({
             "success": true,
             "action": "sync",
@@ -721,16 +784,17 @@ impl McpAdapter {
         }))
     }
 
-    fn handle_resolve_dependencies(&self, _req: &McpRequest) -> Result<serde_json::Value> {
+    fn handle_resolve_dependencies(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let runtime = self.runtime_for(req)?;
         let db = registry::registry_db::RegistryDb::open(
-            &self.runtime.context.repository_root
+            &runtime.context.repository_root
         ).ok();
         use common::config::parse_ttl_duration;
-        let ttl_seconds = parse_ttl_duration(&self.runtime.context.config.resolver.metadata_ttl)
+        let ttl_seconds = parse_ttl_duration(&runtime.context.config.resolver.metadata_ttl)
             .unwrap_or(86400);
         let (resolved, unresolved) = KnowledgeResolver::resolve_dependency_graph(
-            &self.runtime.context.config.repository.dependencies,
-            &self.runtime.context.repository_root,
+            &runtime.context.config.repository.dependencies,
+            &runtime.context.repository_root,
             db.as_ref(),
             ttl_seconds,
         );
@@ -749,7 +813,7 @@ impl McpAdapter {
 
     fn handle_repository_status(&self, req: &McpRequest) -> Result<serde_json::Value> {
         let (limit, offset) = Self::page_params(req, 50);
-        let entries = self.registry.list()?;
+        let entries = self.registry_for(req).list()?;
         let now = std::time::SystemTime::now();
         let statuses: Vec<serde_json::Value> = entries.iter()
             .map(|e| serde_json::json!({
@@ -778,14 +842,15 @@ impl McpAdapter {
     /// from `repository_status`: that's a workspace-wide view across every
     /// registered repository; this is single-repo depth for the repository
     /// this MCP session is bound to.
-    fn handle_get_product_knowledge_context(&self) -> Result<serde_json::Value> {
-        let metadata = self.runtime.registry.get_repository_metadata()?;
+    fn handle_get_product_knowledge_context(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let runtime = self.runtime_for(req)?;
+        let metadata = runtime.registry.get_repository_metadata()?;
         Ok(serde_json::json!({ "context": metadata }))
     }
 
     fn handle_workspace_status(&self, req: &McpRequest) -> Result<serde_json::Value> {
         let (limit, offset) = Self::page_params(req, 50);
-        let entries = self.registry.list()?;
+        let entries = self.registry_for(req).list()?;
         let now = std::time::SystemTime::now();
         let repos: Vec<serde_json::Value> = entries.iter()
             .map(|e| serde_json::json!({
@@ -806,7 +871,7 @@ impl McpAdapter {
             .and_then(|v| v.as_str())
             .ok_or_else(|| anyhow::anyhow!("Missing 'domain' parameter"))?;
         let (limit, offset) = Self::page_params(req, 50);
-        let docs = self.runtime.get_documents_by_domain(domain)?;
+        let docs = self.runtime_for(req)?.get_documents_by_domain(domain)?;
         if docs.is_empty() {
             let mut out = Self::paginate(docs, offset, limit, "documents");
             out["message"] = serde_json::json!(format!(
@@ -822,7 +887,7 @@ impl McpAdapter {
         let section_id = req.params.get("section_id")
             .and_then(|v| v.as_i64())
             .ok_or_else(|| anyhow::anyhow!("Missing 'section_id' parameter"))?;
-        let section = self.runtime.get_section_by_id(section_id)?
+        let section = self.runtime_for(req)?.get_section_by_id(section_id)?
             .ok_or_else(|| anyhow::anyhow!("Section not found: {}", section_id))?;
         Ok(serde_json::to_value(&section)?)
     }
@@ -834,7 +899,7 @@ impl McpAdapter {
         let section_type = req.params.get("section_type")
             .and_then(|v| v.as_str())
             .ok_or_else(|| anyhow::anyhow!("Missing 'section_type' parameter"))?;
-        let content = self.runtime.get_audit_knowledge(domain, section_type)?;
+        let content = self.runtime_for(req)?.get_audit_knowledge(domain, section_type)?;
         Ok(serde_json::json!({ "content": content, "domain": domain, "section_type": section_type }))
     }
 
@@ -856,7 +921,7 @@ impl McpAdapter {
             _ => return Err(anyhow::anyhow!("Invalid stage: {}", stage_str)),
         };
 
-        match self.runtime.get_audit_report(domain, document_id, section_id, stage)? {
+        match self.runtime_for(req)?.get_audit_report(domain, document_id, section_id, stage)? {
             Some(r) => Ok(serde_json::to_value(&r)?),
             None => Ok(serde_json::json!({"report": null, "domain": domain, "stage": stage_str})),
         }
@@ -866,7 +931,7 @@ impl McpAdapter {
         let section_id = req.params.get("section_id")
             .and_then(|v| v.as_i64())
             .ok_or_else(|| anyhow::anyhow!("Missing 'section_id' parameter"))?;
-        let result = self.runtime.get_section_changed(section_id)?;
+        let result = self.runtime_for(req)?.get_section_changed(section_id)?;
         Ok(serde_json::to_value(&result)?)
     }
 
@@ -884,7 +949,7 @@ impl McpAdapter {
             _ => return Err(anyhow::anyhow!("Invalid stage: {}", stage_str)),
         };
 
-        let result = self.runtime.check_gate(stage, document_id)?;
+        let result = self.runtime_for(req)?.check_gate(stage, document_id)?;
         Ok(serde_json::to_value(&result)?)
     }
 
@@ -893,7 +958,7 @@ impl McpAdapter {
             .ok_or_else(|| anyhow::anyhow!("Missing 'report_json' parameter"))?;
         let report: SemanticReport = serde_json::from_value(report_json.clone())
             .map_err(|e| anyhow::anyhow!("Invalid report schema: {}", e))?;
-        let id = self.runtime.store_section_report(&report)?;
+        let id = self.runtime_for(req)?.store_section_report(&report)?;
         Ok(serde_json::json!({"report_id": id, "status": "stored"}))
     }
 
@@ -902,7 +967,7 @@ impl McpAdapter {
             .ok_or_else(|| anyhow::anyhow!("Missing 'report_json' parameter"))?;
         let report: SemanticReport = serde_json::from_value(report_json.clone())
             .map_err(|e| anyhow::anyhow!("Invalid report schema: {}", e))?;
-        let id = self.runtime.store_document_report(&report)?;
+        let id = self.runtime_for(req)?.store_document_report(&report)?;
         Ok(serde_json::json!({"report_id": id, "status": "stored"}))
     }
 
@@ -911,7 +976,7 @@ impl McpAdapter {
             .ok_or_else(|| anyhow::anyhow!("Missing 'report_json' parameter"))?;
         let report: SemanticReport = serde_json::from_value(report_json.clone())
             .map_err(|e| anyhow::anyhow!("Invalid report schema: {}", e))?;
-        let id = self.runtime.store_cross_domain_report(&report)?;
+        let id = self.runtime_for(req)?.store_cross_domain_report(&report)?;
         Ok(serde_json::json!({"report_id": id, "status": "stored"}))
     }
 
@@ -935,7 +1000,7 @@ impl McpAdapter {
             _ => return Err(anyhow::anyhow!("Invalid status: {}", status_str)),
         };
 
-        self.runtime.update_finding_status(report_id, criterion_id, status)?;
+        self.runtime_for(req)?.update_finding_status(report_id, criterion_id, status)?;
         Ok(serde_json::json!({"success": true}))
     }
 
