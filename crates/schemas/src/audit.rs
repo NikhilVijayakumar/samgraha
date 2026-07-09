@@ -24,6 +24,7 @@ pub enum PipelineKind {
     Implementation,
     Dependency,
     Help,
+    DocumentationStructure,
 }
 
 impl PipelineKind {
@@ -49,6 +50,7 @@ impl PipelineKind {
             Self::Implementation => "implementation",
             Self::Dependency => "dependency",
             Self::Help => "help",
+            Self::DocumentationStructure => "documentation-structure",
         }
     }
 
@@ -74,6 +76,7 @@ impl PipelineKind {
             "implementation" => Some(Self::Implementation),
             "dependency" => Some(Self::Dependency),
             "help" => Some(Self::Help),
+            "documentation-structure" => Some(Self::DocumentationStructure),
             _ => None,
         }
     }

@@ -233,6 +233,21 @@ mod tests {
     }
 
     #[test]
+    fn documentation_structure_routes_to_documentation_plan() {
+        // No bespoke planner/PlanType for this pipeline — it falls through
+        // to the same generic DocPlanner every other doc pipeline uses.
+        // See G4 in docs/proposal.md.
+        for cid in ["SI1", "MC5", "AE4", "CA7", "NP6", "IT1", "GC1"] {
+            assert_eq!(
+                FixOrchestrator::resolve_plan_type("documentation-structure", cid),
+                PlanType::Documentation,
+                "check {} should route to PlanType::Documentation",
+                cid
+            );
+        }
+    }
+
+    #[test]
     fn implementation_i8_routes_to_test_plan() {
         assert_eq!(FixOrchestrator::resolve_plan_type("implementation", "I8"), PlanType::Test);
     }

@@ -1,5 +1,5 @@
 /// Knowledge registry migrations — create `knowledge.db` tables.
-pub const KNOWLEDGE_MIGRATIONS: &[&str] = &[V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30];
+pub const KNOWLEDGE_MIGRATIONS: &[&str] = &[V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31];
 
 /// Repository registry migrations — create `registry.db` tables.
 pub const REGISTRY_MIGRATIONS: &[&str] = &[REG_V1, REG_V2];
@@ -914,5 +914,33 @@ CREATE TABLE IF NOT EXISTS help_reports (
 CREATE TABLE IF NOT EXISTS repository_metadata (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
+);
+";
+
+const V31: &str = "
+-- V31: Documentation Structure report storage — mirrors the other domain
+--       report tables. Seven categories per docs/proposal.md: Structural
+--       Integrity, Mapping Consistency, Atomicity Enforcement,
+--       Cross-Document Alignment, Name Preservation, Implementation
+--       Traceability, Generation Compliance.
+
+CREATE TABLE IF NOT EXISTS documentation_structure_reports (
+    id INTEGER PRIMARY KEY,
+    session_id TEXT NOT NULL UNIQUE,
+    score REAL NOT NULL,
+    previous_score REAL,
+    git_revision TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    engineering_readiness TEXT NOT NULL DEFAULT 'NOT_READY',
+    structural_integrity_score REAL,
+    mapping_consistency_score REAL,
+    atomicity_enforcement_score REAL,
+    cross_document_alignment_score REAL,
+    name_preservation_score REAL,
+    implementation_traceability_score REAL,
+    generation_compliance_score REAL,
+    doc_scores TEXT,
+    validation_scores TEXT,
+    finding_counts TEXT DEFAULT '{\"critical\":0,\"major\":0,\"minor\":0,\"observations\":0}'
 );
 ";

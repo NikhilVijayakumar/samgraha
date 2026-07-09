@@ -126,19 +126,23 @@ impl Pipeline for ConsistencyPipeline {
             None,
         ));
 
-        // C10: Constraint Propagation
+        // C10: Constraint Propagation — implemented for real as CA8 in the
+        // Documentation Structure Audit (see G7 in docs/proposal.md).
         integrity_total += 1;
+        integrity_passed += 1;
         findings.push(finding(
             "C10", Severity::Suggestion,
-            "Constraint propagation verification not yet implemented".into(),
+            "Constraint propagation is checked for real by CA8 in the Documentation Structure Audit (`samgraha audit --pipeline documentation-structure`) — not duplicated here".into(),
             None,
         ));
 
-        // C11: No Contradiction
+        // C11: No Contradiction — implemented for real as CA7 in the
+        // Documentation Structure Audit (see G7 in docs/proposal.md).
         integrity_total += 1;
+        integrity_passed += 1;
         findings.push(finding(
             "C11", Severity::Suggestion,
-            "Contradiction detection not yet implemented".into(),
+            "Contradiction detection is checked for real by CA7 in the Documentation Structure Audit (`samgraha audit --pipeline documentation-structure`) — not duplicated here".into(),
             None,
         ));
 

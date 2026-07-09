@@ -42,6 +42,33 @@ impl FixPlanner for DocPlanner {
         let requirement = ctx.check_requirement(intent.check_id());
 
         let mut steps = Vec::new();
+        let mut step1_detail = match &requirement {
+            Some(req) => format!(
+                "Satisfy this requirement in {}:\n\n{}\n\nCurrent content:\n{}",
+                target_path,
+                req,
+                truncate(target_content, 2000)
+            ),
+            None => format!(
+                "Review audit standard and doc standard for required sections, \
+                 then add or update sections in {} to match.\n\n\
+                 Current content:\n{}",
+                target_path,
+                truncate(target_content, 2000)
+            ),
+        };
+        // Section-structure- and atomicity-aware generation (Phase 11): the
+        // check's own requirement text, read from docs/raw/audit/, tells us
+        // whether atomicity or a cross-reference applies — no per-domain
+        // special-casing needed, this works for any pipeline's checks.
+        if let Some(hint) = atomicity_reminder(requirement.as_deref()) {
+            step1_detail.push_str("\n\n");
+            step1_detail.push_str(&hint);
+        }
+        if let Some(hint) = cross_reference_hint(requirement.as_deref()) {
+            step1_detail.push_str("\n\n");
+            step1_detail.push_str(&hint);
+        }
         steps.push(PlanStep {
             id: None,
             plan_id: None,
@@ -51,21 +78,7 @@ impl FixPlanner for DocPlanner {
             rationale: requirement.clone().unwrap_or_else(|| {
                 "Document standard requires sections missing from target".into()
             }),
-            detail: match &requirement {
-                Some(req) => format!(
-                    "Satisfy this requirement in {}:\n\n{}\n\nCurrent content:\n{}",
-                    target_path,
-                    req,
-                    truncate(target_content, 2000)
-                ),
-                None => format!(
-                    "Review audit standard and doc standard for required sections, \
-                     then add or update sections in {} to match.\n\n\
-                     Current content:\n{}",
-                    target_path,
-                    truncate(target_content, 2000)
-                ),
-            },
+            detail: step1_detail,
             verification: "Re-run audit checks for this domain".into(),
             rollback: Some("git checkout the file before the fix".into()),
             status: crate::fix::types::FixStepStatus::Pending,
@@ -456,6 +469,52 @@ fn truncate(s: &str, max: usize) -> String {
     }
 }
 
+/// If the check's own requirement text signals an atomicity rule (one
+/// capability/heading per document), emit an explicit, mechanically
+/// verifiable instruction instead of leaving "be atomic" as prose.
+fn atomicity_reminder(requirement: Option<&str>) -> Option<String> {
+    let req = requirement?.to_lowercase();
+    let signals = ["one top-level heading", "exactly one", "single responsibility", "one capability"];
+    if signals.iter().any(|s| req.contains(s)) {
+        Some(
+            "Atomicity constraint: the document must have exactly one H1 (`# Title`) heading — \
+             no more, no less. If it currently describes more than one capability, split it into \
+             separate documents instead of adding subsections."
+                .to_string(),
+        )
+    } else {
+        None
+    }
+}
+
+/// If the check's own requirement text names a sibling `docs/raw/<domain>/`
+/// directory, suggest a concrete cross-reference into it rather than a
+/// generic "add cross-references" instruction.
+fn cross_reference_hint(requirement: Option<&str>) -> Option<String> {
+    let req = requirement?;
+    let mut dirs = Vec::new();
+    let mut rest = req;
+    while let Some(idx) = rest.find("docs/raw/") {
+        let after = &rest[idx + "docs/raw/".len()..];
+        let name: String = after.chars().take_while(|c| c.is_ascii_alphanumeric() || *c == '-').collect();
+        let name_len = name.len();
+        if !name.is_empty() && !dirs.contains(&name) {
+            dirs.push(name);
+        }
+        rest = &after[name_len..];
+    }
+    if dirs.is_empty() {
+        return None;
+    }
+    Some(format!(
+        "Cross-reference hint: this requirement references {}. Add a markdown link to the \
+         relevant document(s) there (e.g. `[Title](../{}/stem.md)`) rather than duplicating \
+         their content.",
+        dirs.iter().map(|d| format!("`docs/raw/{d}/`")).collect::<Vec<_>>().join(", "),
+        dirs[0],
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -526,6 +585,62 @@ mod tests {
         assert!(!plan.steps[0].detail.contains("Other body."));
         // Old generic sentence must not appear once a real requirement is found.
         assert!(!plan.steps[0].detail.contains("Review audit standard and doc standard"));
+    }
+
+    #[test]
+    fn doc_planner_adds_atomicity_reminder_when_requirement_mentions_it() {
+        let ctx = test_ctx_with_spec(
+            "atomic-domain",
+            "# Spec\n\n## SI7. Feature Atomicity\n\nEach document must have exactly one top-level heading.\n",
+        );
+        let intent = Intent::restore_compliance("atomic-domain", "SI7");
+        let session = FixSession {
+            id: None, report_id: 1, report_type: "deterministic".into(),
+            criterion_id: "SI7".into(), finding_json: "{}".into(),
+            domain: "atomic-domain".into(), plan_type: PlanType::Documentation,
+            target_file: None, attempt_count: 0, max_attempts: 3,
+            status: SessionStatus::InProgress, created_at: None, updated_at: None,
+        };
+        let plan = DocPlanner.plan(&ctx, &intent, &session).unwrap();
+        assert!(plan.steps[0].detail.contains("Atomicity constraint"));
+    }
+
+    #[test]
+    fn doc_planner_adds_cross_reference_hint_when_requirement_names_a_domain() {
+        let ctx = test_ctx_with_spec(
+            "ca-domain",
+            "# Spec\n\n## CA4. Applies Architecture\n\nMust reference docs/raw/architecture/ content.\n",
+        );
+        let intent = Intent::restore_compliance("ca-domain", "CA4");
+        let session = FixSession {
+            id: None, report_id: 1, report_type: "deterministic".into(),
+            criterion_id: "CA4".into(), finding_json: "{}".into(),
+            domain: "ca-domain".into(), plan_type: PlanType::Documentation,
+            target_file: None, attempt_count: 0, max_attempts: 3,
+            status: SessionStatus::InProgress, created_at: None, updated_at: None,
+        };
+        let plan = DocPlanner.plan(&ctx, &intent, &session).unwrap();
+        assert!(plan.steps[0].detail.contains("Cross-reference hint"));
+        assert!(plan.steps[0].detail.contains("docs/raw/architecture/"));
+    }
+
+    #[test]
+    fn doc_planner_omits_hints_when_requirement_has_neither_signal() {
+        let ctx = test_ctx_with_spec(
+            "plain-domain",
+            "# Spec\n\n## P1. Plain Requirement\n\nJust needs a Purpose section.\n",
+        );
+        let intent = Intent::restore_compliance("plain-domain", "P1");
+        let session = FixSession {
+            id: None, report_id: 1, report_type: "deterministic".into(),
+            criterion_id: "P1".into(), finding_json: "{}".into(),
+            domain: "plain-domain".into(), plan_type: PlanType::Documentation,
+            target_file: None, attempt_count: 0, max_attempts: 3,
+            status: SessionStatus::InProgress, created_at: None, updated_at: None,
+        };
+        let plan = DocPlanner.plan(&ctx, &intent, &session).unwrap();
+        assert!(!plan.steps[0].detail.contains("Atomicity constraint"));
+        assert!(!plan.steps[0].detail.contains("Cross-reference hint"));
     }
 
     #[test]

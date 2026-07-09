@@ -2677,6 +2677,123 @@ impl RegistryStore {
         }))
     }
 
+    // ── Documentation Structure ───────────────────────────────────────────
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn insert_documentation_structure_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        previous_score: Option<f64>,
+        engineering_readiness: &str,
+        structural_integrity_score: Option<f64>,
+        mapping_consistency_score: Option<f64>,
+        atomicity_enforcement_score: Option<f64>,
+        cross_document_alignment_score: Option<f64>,
+        name_preservation_score: Option<f64>,
+        implementation_traceability_score: Option<f64>,
+        generation_compliance_score: Option<f64>,
+        doc_scores: Option<&str>,
+        validation_scores: Option<&str>,
+        finding_counts: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.conn.execute(
+            "INSERT INTO documentation_structure_reports (session_id, score, git_revision, previous_score, engineering_readiness, structural_integrity_score, mapping_consistency_score, atomicity_enforcement_score, cross_document_alignment_score, name_preservation_score, implementation_traceability_score, generation_compliance_score, doc_scores, validation_scores, finding_counts)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+            params![
+                session_id, score, git_revision, previous_score, engineering_readiness,
+                structural_integrity_score, mapping_consistency_score, atomicity_enforcement_score,
+                cross_document_alignment_score, name_preservation_score,
+                implementation_traceability_score, generation_compliance_score,
+                doc_scores, validation_scores, finding_counts,
+            ],
+        )?;
+        let report_id = self.conn.last_insert_rowid();
+        if !findings.is_empty() {
+            self.insert_report_findings("documentation-structure", report_id, findings)?;
+        }
+        Ok(report_id)
+    }
+
+    pub fn query_documentation_structure_sessions(&self, limit: usize) -> Result<Vec<DocumentationStructureSessionInfo>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT d.id, d.session_id, d.score, d.previous_score, d.git_revision, d.created_at,
+                    d.engineering_readiness, d.structural_integrity_score, d.mapping_consistency_score,
+                    d.atomicity_enforcement_score, d.cross_document_alignment_score,
+                    d.name_preservation_score, d.implementation_traceability_score,
+                    d.generation_compliance_score,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'documentation-structure' AND f.report_id = d.id AND f.severity = 'error'), 0) as err_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'documentation-structure' AND f.report_id = d.id AND f.severity = 'warning'), 0) as warn_count,
+                    COALESCE((SELECT COUNT(*) FROM report_findings f WHERE f.report_type = 'documentation-structure' AND f.report_id = d.id AND f.severity = 'suggestion'), 0) as sug_count
+             FROM documentation_structure_reports d ORDER BY d.id DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit as i64], |row| {
+            Ok(DocumentationStructureSessionInfo {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                score: row.get(2)?,
+                previous_score: row.get(3)?,
+                git_revision: row.get(4)?,
+                created_at: row.get(5)?,
+                engineering_readiness: row.get(6)?,
+                structural_integrity_score: row.get(7)?,
+                mapping_consistency_score: row.get(8)?,
+                atomicity_enforcement_score: row.get(9)?,
+                cross_document_alignment_score: row.get(10)?,
+                name_preservation_score: row.get(11)?,
+                implementation_traceability_score: row.get(12)?,
+                generation_compliance_score: row.get(13)?,
+                finding_counts: FindingCounts {
+                    errors: row.get::<_, i64>(14)? as usize,
+                    warnings: row.get::<_, i64>(15)? as usize,
+                    suggestions: row.get::<_, i64>(16)? as usize,
+                },
+            })
+        })?;
+        let mut sessions = Vec::new();
+        for row in rows {
+            sessions.push(row?);
+        }
+        Ok(sessions)
+    }
+
+    pub fn get_documentation_structure_report_with_findings(&self, report_id: i64) -> Result<Option<DocumentationStructureReportWithFindings>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session_id, score, previous_score, git_revision, created_at,
+                    engineering_readiness, structural_integrity_score, mapping_consistency_score,
+                    atomicity_enforcement_score, cross_document_alignment_score,
+                    name_preservation_score, implementation_traceability_score,
+                    generation_compliance_score, doc_scores, validation_scores, finding_counts
+             FROM documentation_structure_reports WHERE id = ?1",
+        )?;
+        let mut rows = stmt.query(params![report_id])?;
+        let Some(row) = rows.next()? else { return Ok(None); };
+        let findings = self.query_findings("documentation-structure", report_id)?;
+        Ok(Some(DocumentationStructureReportWithFindings {
+            id: row.get(0)?,
+            session_id: row.get(1)?,
+            score: row.get(2)?,
+            previous_score: row.get(3)?,
+            git_revision: row.get(4)?,
+            created_at: row.get(5)?,
+            engineering_readiness: row.get(6)?,
+            structural_integrity_score: row.get(7)?,
+            mapping_consistency_score: row.get(8)?,
+            atomicity_enforcement_score: row.get(9)?,
+            cross_document_alignment_score: row.get(10)?,
+            name_preservation_score: row.get(11)?,
+            implementation_traceability_score: row.get(12)?,
+            generation_compliance_score: row.get(13)?,
+            doc_scores: row.get(14)?,
+            validation_scores: row.get(15)?,
+            finding_counts: row.get(16)?,
+            findings,
+            recommendations: self.query_recommendations("documentation-structure", report_id)?,
+        }))
+    }
+
     // ── Implementation ───────────────────────────────────────────────────
 
     #[allow(clippy::too_many_arguments)]
@@ -4107,6 +4224,48 @@ pub struct ExternalContextOwnershipReportWithFindings {
     pub dependency_coverage_score: Option<f64>,
     pub documentation_integration_score: Option<f64>,
     pub consistency_score: Option<f64>,
+    pub doc_scores: Option<String>,
+    pub validation_scores: Option<String>,
+    pub finding_counts: Option<String>,
+    pub findings: Vec<StoredFinding>,
+    pub recommendations: Vec<ReportRecommendation>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DocumentationStructureSessionInfo {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub previous_score: Option<f64>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub structural_integrity_score: Option<f64>,
+    pub mapping_consistency_score: Option<f64>,
+    pub atomicity_enforcement_score: Option<f64>,
+    pub cross_document_alignment_score: Option<f64>,
+    pub name_preservation_score: Option<f64>,
+    pub implementation_traceability_score: Option<f64>,
+    pub generation_compliance_score: Option<f64>,
+    pub finding_counts: FindingCounts,
+}
+
+#[derive(Serialize)]
+pub struct DocumentationStructureReportWithFindings {
+    pub id: i64,
+    pub session_id: String,
+    pub score: f64,
+    pub previous_score: Option<f64>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub structural_integrity_score: Option<f64>,
+    pub mapping_consistency_score: Option<f64>,
+    pub atomicity_enforcement_score: Option<f64>,
+    pub cross_document_alignment_score: Option<f64>,
+    pub name_preservation_score: Option<f64>,
+    pub implementation_traceability_score: Option<f64>,
+    pub generation_compliance_score: Option<f64>,
     pub doc_scores: Option<String>,
     pub validation_scores: Option<String>,
     pub finding_counts: Option<String>,

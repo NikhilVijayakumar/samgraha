@@ -1,4 +1,9 @@
 [repository]
+dependencies = []
+id = "samgraha"
+name = "samgraha"
+uuid = "b64ef95b-9b24-4d59-9b4c-e47848242af9"
+source_exclude = []
 
 [repository.ignore]
 patterns = [
@@ -7,6 +12,7 @@ patterns = [
     "**/.git/**",
     "**/audit-standards/**",
     "**/report/**",
+    "**/reports/**",
     "**/test.md",
     "**/manual-audit.md",
     "**/standards/**",
@@ -42,8 +48,18 @@ dir = "${SAMGRAHA_SCRIPTS_DIR}"
 [repository.tests]
 dir = "${SAMGRAHA_TESTS_DIR}"
 
+[compilation.documentation]
+standards = []
+
 [pipelines]
 version = "1.0"
+
+[resolver]
+metadata_cache = true
+metadata_ttl = "24h"
+knowledge_ttl = "720h"
+auto_refresh = true
+registry_type = "file"
 
 [pipelines.build]
 command = ["cargo", "build", "--release", "-p", "cli"]
@@ -53,6 +69,10 @@ description = "Build the release CLI binary"
 produces = ["release binary"]
 consumes = ["source code", "dependencies"]
 
+[knowledge]
+dependencies = []
+interests = []
+
 [pipelines.test]
 command = ["pwsh", "-File", "scripts/test-coverage.ps1"]
 working_directory = "${PROJECT_ROOT}"
@@ -60,6 +80,8 @@ artifacts = ["docs/report/test-results.json"]
 description = "Run unit+e2e tests with cargo-llvm-cov, emit structured TestRunReport JSON (docs/raw/audit/test-report-schema.md)"
 produces = ["test results", "coverage report"]
 consumes = ["source code"]
+
+[ai]
 
 [pipelines.mcp_multirepo_test]
 command = ["pwsh", "-File", "scripts/run-tests.ps1", "-WithMCP", "-SkipBuild"]
@@ -71,12 +93,19 @@ consumes = ["mcp binary", "source code"]
 
 [compilation]
 watch = false
+debounce_ms = 100
+batch_size = 100
+
+[audit.gates]
 
 [audit]
 default-severity = "suggestion"
+default_severity = "suggestion"
+providers = ["deterministic"]
 
 [output]
 format = "text"
+color = true
 
 [report]
 # Base dir for generated reports (e.g. `samgraha audit --report`).

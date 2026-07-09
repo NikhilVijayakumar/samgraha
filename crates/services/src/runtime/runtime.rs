@@ -16,7 +16,7 @@ use audit_crate::fix::types::{FixPlan, FixSession, PlanType, SessionStatus};
 use audit_crate::fix::verifier::Verifier;
 use audit_crate::pipeline::PipelineContext;
 use uuid::Uuid;
-use audit_crate::pipelines::{architecture::ArchitecturePipeline, build::BuildPipeline, consistency::ConsistencyPipeline, coverage::CoveragePipeline, design::DesignPipeline, deterministic_runtime::DeterministicRuntimePipeline, engineering::EngineeringPipeline, external_context::ExternalContextPipeline, external_context_ownership::ExternalContextOwnershipPipeline, feature::FeaturePipeline, feature_design::FeatureDesignPipeline, feature_technical::FeatureTechnicalPipeline, help::HelpPipeline, implementation::ImplementationPipeline, prototype::PrototypePipeline, readme::ReadmePipeline, security::SecurityPipeline, vision::VisionPipeline};
+use audit_crate::pipelines::{architecture::ArchitecturePipeline, build::BuildPipeline, consistency::ConsistencyPipeline, coverage::CoveragePipeline, design::DesignPipeline, deterministic_runtime::DeterministicRuntimePipeline, documentation_structure::DocumentationStructurePipeline, engineering::EngineeringPipeline, external_context::ExternalContextPipeline, external_context_ownership::ExternalContextOwnershipPipeline, feature::FeaturePipeline, feature_design::FeatureDesignPipeline, feature_technical::FeatureTechnicalPipeline, help::HelpPipeline, implementation::ImplementationPipeline, prototype::PrototypePipeline, readme::ReadmePipeline, security::SecurityPipeline, vision::VisionPipeline};
 use audit_crate::AuditFramework;
 use common::config::SamgrahaConfig;
 use registry::RegistryStore;
@@ -194,6 +194,7 @@ impl KnowledgeRuntime {
             PipelineKind::DeterministicRuntime => AuditService::run_pipeline(&DeterministicRuntimePipeline, &ctx),
             PipelineKind::ExternalContextOwnership => AuditService::run_pipeline(&ExternalContextOwnershipPipeline, &ctx),
             PipelineKind::Implementation => AuditService::run_pipeline(&ImplementationPipeline, &ctx),
+            PipelineKind::DocumentationStructure => AuditService::run_pipeline(&DocumentationStructurePipeline, &ctx),
             PipelineKind::Dependency => {
                 let mut findings = Vec::new();
                 let mut cats = std::collections::HashMap::new();
@@ -275,6 +276,7 @@ impl KnowledgeRuntime {
             PipelineKind::DeterministicRuntime => AuditService::run_pipeline(&DeterministicRuntimePipeline, &ctx),
             PipelineKind::ExternalContextOwnership => AuditService::run_pipeline(&ExternalContextOwnershipPipeline, &ctx),
             PipelineKind::Implementation => AuditService::run_pipeline(&ImplementationPipeline, &ctx),
+            PipelineKind::DocumentationStructure => AuditService::run_pipeline(&DocumentationStructurePipeline, &ctx),
             PipelineKind::Dependency => {
                 let mut findings = Vec::new();
                 let mut cats = std::collections::HashMap::new();
@@ -735,6 +737,29 @@ impl KnowledgeRuntime {
                 if !recommendations.is_empty() {
                     let _ = self.registry.insert_recommendations(
                         "implementation", report_id, &recommendations,
+                    );
+                }
+                Ok(report_id)
+            }
+            PipelineKind::DocumentationStructure => {
+                let report_id = self.store_documentation_structure_report(
+                    report.score, session_id,
+                    None, None,
+                    report.metadata.get("engineering_readiness").map(|s| s.as_str()).unwrap_or("NOT_READY"),
+                    report.categories.get("Structural Integrity").copied(),
+                    report.categories.get("Mapping Consistency").copied(),
+                    report.categories.get("Atomicity Enforcement").copied(),
+                    report.categories.get("Cross-Document Alignment").copied(),
+                    report.categories.get("Name Preservation").copied(),
+                    report.categories.get("Implementation Traceability").copied(),
+                    report.categories.get("Generation Compliance").copied(),
+                    None, None,
+                    &report.findings,
+                )?;
+                let recommendations = generate_recommendations(&report.findings);
+                if !recommendations.is_empty() {
+                    let _ = self.registry.insert_recommendations(
+                        "documentation-structure", report_id, &recommendations,
                     );
                 }
                 Ok(report_id)
@@ -1333,6 +1358,42 @@ impl KnowledgeRuntime {
         self.registry.get_implementation_report_with_findings(report_id)
     }
 
+    #[allow(clippy::too_many_arguments)]
+    pub fn store_documentation_structure_report(
+        &self,
+        score: f64,
+        session_id: &str,
+        git_revision: Option<&str>,
+        previous_score: Option<f64>,
+        engineering_readiness: &str,
+        structural_integrity_score: Option<f64>,
+        mapping_consistency_score: Option<f64>,
+        atomicity_enforcement_score: Option<f64>,
+        cross_document_alignment_score: Option<f64>,
+        name_preservation_score: Option<f64>,
+        implementation_traceability_score: Option<f64>,
+        generation_compliance_score: Option<f64>,
+        doc_scores: Option<&str>,
+        validation_scores: Option<&str>,
+        findings: &[schemas::audit::AuditFinding],
+    ) -> Result<i64> {
+        self.registry.insert_documentation_structure_report(
+            score, session_id, git_revision, previous_score, engineering_readiness,
+            structural_integrity_score, mapping_consistency_score, atomicity_enforcement_score,
+            cross_document_alignment_score, name_preservation_score,
+            implementation_traceability_score, generation_compliance_score,
+            doc_scores, validation_scores, None, findings,
+        )
+    }
+
+    pub fn query_documentation_structure_sessions(&self, limit: usize) -> Result<Vec<registry::store::DocumentationStructureSessionInfo>> {
+        self.registry.query_documentation_structure_sessions(limit)
+    }
+
+    pub fn get_documentation_structure_report_with_findings(&self, report_id: i64) -> Result<Option<registry::store::DocumentationStructureReportWithFindings>> {
+        self.registry.get_documentation_structure_report_with_findings(report_id)
+    }
+
     pub fn update_report_finding_status(&self, finding_id: i64, status: &str) -> Result<()> {
         self.registry.update_finding_status_by_id(finding_id, status)
     }
@@ -1361,6 +1422,8 @@ impl KnowledgeRuntime {
             "prototype" => self.query_prototype_sessions(limit)
                 .map(|v| v.into_iter().map(|s| serde_json::to_value(s).unwrap()).collect()),
             "help" => self.query_help_sessions(limit)
+                .map(|v| v.into_iter().map(|s| serde_json::to_value(s).unwrap()).collect()),
+            "documentation-structure" => self.query_documentation_structure_sessions(limit)
                 .map(|v| v.into_iter().map(|s| serde_json::to_value(s).unwrap()).collect()),
             "external-context" => self.query_external_context_sessions(limit)
                 .map(|v| v.into_iter().map(|s| serde_json::to_value(s).unwrap()).collect()),

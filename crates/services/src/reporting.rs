@@ -2755,6 +2755,163 @@ fn build_external_context_ownership_context(
     }
 }
 
+// Documentation Structure spans seven categories (Structural Integrity,
+// Mapping Consistency, Atomicity Enforcement, Cross-Document Alignment,
+// Name Preservation, Implementation Traceability, Generation Compliance)
+// per docs/proposal.md — mirrors ExternalContextOwnershipTeraContext's shape
+// with more category fields instead of a Structural Compliance Matrix.
+#[derive(Debug, Clone, Serialize)]
+pub struct DocumentationStructureTeraContext {
+    pub session_id: String,
+    pub score: f64,
+    pub rating: String,
+    pub rating_description: String,
+    pub previous_score: Option<f64>,
+    pub score_change_display: String,
+    pub trend_text: String,
+    pub git_revision: String,
+    pub created_at: String,
+    pub engineering_readiness: String,
+    pub structural_integrity_score: f64,
+    pub structural_integrity_rating: String,
+    pub mapping_consistency_score: f64,
+    pub mapping_consistency_rating: String,
+    pub atomicity_enforcement_score: f64,
+    pub atomicity_enforcement_rating: String,
+    pub cross_document_alignment_score: f64,
+    pub cross_document_alignment_rating: String,
+    pub name_preservation_score: f64,
+    pub name_preservation_rating: String,
+    pub implementation_traceability_score: f64,
+    pub implementation_traceability_rating: String,
+    pub generation_compliance_score: f64,
+    pub generation_compliance_rating: String,
+    pub validation_scores: Vec<TeraValidationScore>,
+    pub critical_findings: Vec<TeraFindingItem>,
+    pub major_findings: Vec<TeraFindingItem>,
+    pub minor_findings: Vec<TeraFindingItem>,
+    pub observations: Vec<TeraFindingItem>,
+    pub recommendations: Vec<TeraRecommendationItem>,
+    pub total_checks: usize,
+}
+
+fn build_documentation_structure_context(
+    session: registry::store::DocumentationStructureSessionInfo,
+    report: registry::store::DocumentationStructureReportWithFindings,
+) -> DocumentationStructureTeraContext {
+    let score_change_display = match report.previous_score {
+        Some(prev) => {
+            let diff = report.score - prev;
+            if diff > 0.0 {
+                format!("+{:.1} (improvement)", diff)
+            } else if diff < 0.0 {
+                format!("{:.1} (regression)", diff)
+            } else {
+                "0 (no change)".to_string()
+            }
+        }
+        None => "N/A (baseline)".to_string(),
+    };
+
+    let trend_text = match report.previous_score {
+        Some(prev) => {
+            if report.score > prev {
+                "Documentation structure has improved since the last audit.".to_string()
+            } else if report.score < prev {
+                "Documentation structure has regressed since the last audit. Review findings below.".to_string()
+            } else {
+                "The documentation structure score is unchanged from the last audit.".to_string()
+            }
+        }
+        None => String::new(),
+    };
+
+    let mut critical_findings = Vec::new();
+    let mut major_findings = Vec::new();
+    let mut minor_findings = Vec::new();
+    let mut observations = Vec::new();
+
+    for f in &report.findings {
+        let item = TeraFindingItem {
+            check_id: f.check_id.clone(),
+            message: f.message.clone(),
+            location: f.location.clone(),
+            evidence_excerpt: f.evidence_excerpt.clone(),
+            evidence_source: f.evidence_source.clone(),
+        };
+        match f.severity.as_str() {
+            "critical" => critical_findings.push(item),
+            "error" | "major" => major_findings.push(item),
+            "warning" | "minor" => minor_findings.push(item),
+            _ => observations.push(item),
+        }
+    }
+
+    let mut validation_scores: Vec<TeraValidationScore> = report.validation_scores
+        .as_deref()
+        .and_then(|s| serde_json::from_str(s).ok())
+        .unwrap_or_default();
+    for v in &mut validation_scores {
+        v.rating = rating_word(v.score).to_string();
+    }
+
+    DocumentationStructureTeraContext {
+        session_id: report.session_id.clone(),
+        score: report.score,
+        rating: rating_word(report.score).to_string(),
+        rating_description: rating_description(report.score).to_string(),
+        previous_score: report.previous_score,
+        score_change_display,
+        trend_text,
+        git_revision: report.git_revision.unwrap_or_default(),
+        created_at: session.created_at.clone(),
+        engineering_readiness: report.engineering_readiness.clone(),
+        structural_integrity_score: report.structural_integrity_score.unwrap_or(0.0),
+        structural_integrity_rating: rating_word(report.structural_integrity_score.unwrap_or(0.0)).to_string(),
+        mapping_consistency_score: report.mapping_consistency_score.unwrap_or(0.0),
+        mapping_consistency_rating: rating_word(report.mapping_consistency_score.unwrap_or(0.0)).to_string(),
+        atomicity_enforcement_score: report.atomicity_enforcement_score.unwrap_or(0.0),
+        atomicity_enforcement_rating: rating_word(report.atomicity_enforcement_score.unwrap_or(0.0)).to_string(),
+        cross_document_alignment_score: report.cross_document_alignment_score.unwrap_or(0.0),
+        cross_document_alignment_rating: rating_word(report.cross_document_alignment_score.unwrap_or(0.0)).to_string(),
+        name_preservation_score: report.name_preservation_score.unwrap_or(0.0),
+        name_preservation_rating: rating_word(report.name_preservation_score.unwrap_or(0.0)).to_string(),
+        implementation_traceability_score: report.implementation_traceability_score.unwrap_or(0.0),
+        implementation_traceability_rating: rating_word(report.implementation_traceability_score.unwrap_or(0.0)).to_string(),
+        generation_compliance_score: report.generation_compliance_score.unwrap_or(0.0),
+        generation_compliance_rating: rating_word(report.generation_compliance_score.unwrap_or(0.0)).to_string(),
+        validation_scores,
+        critical_findings,
+        major_findings,
+        minor_findings,
+        observations,
+        recommendations: report.recommendations.iter().map(|r| {
+            let priority_label = match r.priority.as_str() {
+                "P1" => "Critical",
+                "P2" => "High",
+                "P3" => "Medium",
+                "P4" => "Low",
+                _ => &r.priority,
+            };
+            TeraRecommendationItem {
+                category: r.category.clone(),
+                priority: priority_label.to_string(),
+                description: r.description.clone(),
+                file_path: r.file_path.clone(),
+            }
+        }).collect(),
+        total_checks: report.findings.len(),
+    }
+}
+
+fn render_documentation_structure_template(ctx: &DocumentationStructureTeraContext, template: &str) -> Result<String> {
+    let tera = tera::Tera::default();
+    let context = tera::Context::from_serialize(ctx)
+        .map_err(|e| anyhow::anyhow!("Failed to serialize Tera context: {}", e))?;
+    tera.render_str(template, &context, false)
+        .map_err(|e| anyhow::anyhow!("Tera render error: {}", e))
+}
+
 fn render_external_context_ownership_template(ctx: &ExternalContextOwnershipTeraContext, template: &str) -> Result<String> {
     let tera = tera::Tera::default();
     let context = tera::Context::from_serialize(ctx)
@@ -3354,6 +3511,17 @@ pub fn render_report(
                 }
             }
             Err(anyhow::anyhow!("No implementation report available"))
+        }
+        "documentation-structure" => {
+            let sessions = store.query_documentation_structure_sessions(1)?;
+            if let Some(s) = sessions.into_iter().next() {
+                let report = store.get_documentation_structure_report_with_findings(s.id)?;
+                if let Some(r) = report {
+                    let ctx = build_documentation_structure_context(s, r);
+                    return render_documentation_structure_template(&ctx, &template);
+                }
+            }
+            Err(anyhow::anyhow!("No documentation-structure report available"))
         }
         _ => Err(anyhow::anyhow!("Unknown report type: {}", report_type)),
     }

@@ -66,15 +66,14 @@ impl Pipeline for ReadmePipeline {
             ));
         }
 
-        // R3: Repository Identity Consistent — cross-doc check not
-        // implemented (requires comparing terminology against Vision/
-        // Architecture); reports presence of those docs as a proxy signal.
+        // R3: Repository Identity Consistent — implemented for real as CA1
+        // in the Documentation Structure Audit (see G7 in docs/proposal.md).
         ri_total += 1;
         let has_vision = ctx.project_root.join("docs/raw/vision").exists();
         if has_vision {
             findings.push(finding(
                 "R3", Severity::Suggestion,
-                "Vision documentation exists — cross-document identity consistency requires semantic comparison, not yet implemented".into(),
+                "README↔Vision identity consistency is checked for real by CA1 in the Documentation Structure Audit (`samgraha audit --pipeline documentation-structure`) — not duplicated here".into(),
                 None,
             ));
         }
