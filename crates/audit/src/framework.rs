@@ -4,14 +4,17 @@ use schemas::audit::{
     AuditFinding, AuditReport, AuditScore, QualityGate, ReadinessAssessment, Severity,
 };
 use schemas::document::Document;
-use schemas::standard::AuditRuleDef;
+use schemas::standard::{AuditRuleDef, StandardDefinition};
 use standards::StandardRegistry;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::info;
 
-pub type AuditProviderFn =
-    Arc<dyn Fn(&[Document], &[AuditRuleDef]) -> Vec<AuditFinding> + Send + Sync>;
+pub type AuditProviderFn = Arc<
+    dyn Fn(&[Document], &[AuditRuleDef], Option<&StandardDefinition>) -> Vec<AuditFinding>
+        + Send
+        + Sync,
+>;
 
 pub struct AuditFramework {
     providers: HashMap<String, AuditProviderFn>,
@@ -60,6 +63,10 @@ impl AuditFramework {
             .iter()
             .map(|s| (s.domain.clone(), s.audit_rules.iter().cloned().collect()))
             .collect();
+        let standard_by_domain: HashMap<String, StandardDefinition> = standards
+            .iter()
+            .map(|s| (s.domain.clone(), s.clone()))
+            .collect();
 
         let domain_docs: Vec<Document> = match domain {
             Some(d) => documents
@@ -73,12 +80,13 @@ impl AuditFramework {
         let all_findings: Vec<AuditFinding> = match domain {
             Some(d) => {
                 let rules = rules_by_domain.get(d).cloned().unwrap_or_default();
+                let standard = standard_by_domain.get(d);
                 providers
                     .par_iter()
                     .flat_map(|provider_name| {
                         self.providers
                             .get(provider_name.as_str())
-                            .map(|provider_fn| provider_fn(&domain_docs, &rules))
+                            .map(|provider_fn| provider_fn(&domain_docs, &rules, standard))
                             .unwrap_or_default()
                     })
                     .collect()
@@ -95,12 +103,13 @@ impl AuditFramework {
                     .into_par_iter()
                     .flat_map(|(std_name, docs)| {
                         let rules = rules_by_domain.get(&std_name).cloned().unwrap_or_default();
+                        let standard = standard_by_domain.get(&std_name);
                         providers
                             .par_iter()
                             .flat_map(|provider_name| {
                                 self.providers
                                     .get(provider_name.as_str())
-                                    .map(|provider_fn| provider_fn(&docs, &rules))
+                                    .map(|provider_fn| provider_fn(&docs, &rules, standard))
                                     .unwrap_or_default()
                             })
                             .collect::<Vec<_>>()

@@ -2,15 +2,39 @@
 
 ## Purpose
 
-Step-by-step: select which built-in standards a repository uses, and what "custom" standards currently means in Samgraha.
+Step-by-step: select which built-in standards a repository uses, and how to override or extend them with your own `StandardDefinition`.
 
 ## Content
 
-### What's Actually Configurable Today
+### What's Configurable Today
 
-Samgraha ships a fixed catalog of built-in standards (`readme`, `vision`, `philosophy`, `architecture`, `feature`, `feature-design`, `feature-technical`, `design`, `engineering`, `external-context`, `prototype`, `help`, `standards`, ...). A repository doesn't declare wholly new standards — it selects a subset of the built-in catalog via `samgraha.toml`.
+Samgraha ships a fixed catalog of built-in standards (`readme`, `vision`, `philosophy`, `architecture`, `feature`, `feature-design`, `feature-technical`, `design`, `engineering`, `external-context`, `prototype`, `help`, `standards`, ...). A repository selects a subset of the built-in catalog via `samgraha.toml`, and can additionally supply its own `StandardDefinition` JSON/TOML files to override a built-in's rules or add net-new ones.
 
-There is a `StandardLoader` in the `standards` crate (`discover_from_path` / `load_from_declarations`) capable of reading `StandardDefinition` JSON/TOML files, but nothing in the compile pipeline currently calls it — it isn't wired up yet. Don't expect hand-written standard definitions to be picked up automatically.
+### Step 0 (Optional): Override or Add a Standard
+
+Drop one `StandardDefinition` JSON or TOML file per standard under `.samgraha/standards/` at the repository root. Every compile and audit run picks these up automatically (`StandardRegistry::with_builtins_and_overrides`) — a file whose `id`+`version` matches a built-in **replaces** it; anything else is **added** alongside the built-in catalog.
+
+```json
+// .samgraha/standards/architecture.json
+{
+  "id": "architecture",
+  "name": "Architecture Standard",
+  "version": "1.0.0",
+  "domain": "architecture",
+  "description": "Structural organization of the system.",
+  "required_sections": [
+    { "canonical_name": "System Overview", "semantic_type": "system_overview", "aliases": ["Overview"], "required": true, "description": "High-level system description" }
+  ],
+  "prohibited_content": ["TODO", "FIXME"],
+  "relationships": [],
+  "audit_rules": [
+    { "id": "A1", "name": "Corpus Exists", "description": "At least one architecture document must exist", "severity": "error", "check_type": "corpus_exists", "scope": "" }
+  ],
+  "profiles": []
+}
+```
+
+Fields mirror `StandardDefinition` in `crates/schemas/src/standard.rs`. Nothing else needs configuring — a missing `.samgraha/standards/` directory is fine and behaves exactly like the plain built-in catalog.
 
 ### Step 1: Check `samgraha init`'s Default
 
@@ -43,9 +67,9 @@ samgraha compile --domain feature
 
 ### What You Learned
 
-- Samgraha's standards are a fixed built-in catalog, not user-declared standards
+- Samgraha ships a fixed built-in catalog, and a repository can override or extend it via `.samgraha/standards/*.json|.toml`
 - How to opt a repository out of a built-in standard via `domain_exclusion`
-- That runtime-loaded custom standard definitions exist as scaffolding (`StandardLoader`) but aren't connected to compilation yet
+- Repo-supplied standards win over a built-in of the same `id`+`version`; anything else is added alongside
 
 ## Related
 

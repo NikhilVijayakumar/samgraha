@@ -1,6 +1,6 @@
 use schemas::audit::{AuditFinding, Severity};
 use schemas::document::Document;
-use schemas::standard::AuditRuleDef;
+use schemas::standard::{AuditRuleDef, StandardDefinition};
 
 /// Heuristic-based semantic audit provider.
 ///
@@ -10,7 +10,11 @@ use schemas::standard::AuditRuleDef;
 pub struct SemanticAuditProvider;
 
 impl SemanticAuditProvider {
-    pub fn execute(docs: &[Document], _rules: &[AuditRuleDef]) -> Vec<AuditFinding> {
+    pub fn execute(
+        docs: &[Document],
+        _rules: &[AuditRuleDef],
+        _standard: Option<&StandardDefinition>,
+    ) -> Vec<AuditFinding> {
         let mut findings = Vec::new();
         for doc in docs {
             findings.extend(check_quality(&doc));

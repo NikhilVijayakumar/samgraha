@@ -1,4 +1,4 @@
-use crate::pipeline::{find_unnegated_keywords, finding, make_report, strip_code_fences, Pipeline, PipelineContext};
+use crate::pipeline::{find_unnegated_keywords, finding, load_test_report, make_report, strip_code_fences, Pipeline, PipelineContext};
 use schemas::audit::{PipelineKind, PipelineReport, Severity};
 use std::collections::HashMap;
 use std::fs;
@@ -152,17 +152,43 @@ impl Pipeline for ImplementationPipeline {
         let mut ec_passed = 0u32;
         let mut ec_total = 0u32;
 
-        // I8: Engineering Standards Applied — Testing Standards should be
-        // reflected by actual test code existing in the implementation.
+        // I8: Engineering Standards Applied — real pass/fail from the repo's
+        // declared [pipelines.test] contract when available. Coverage
+        // Audit's CV6 is the primary surface for contract errors, so I8
+        // falls back to the file-presence heuristic on None/Err/no-data
+        // rather than duplicating that noise.
         ec_total += 1;
-        if !impl_dir.exists() || has_test_code(&impl_dir) {
-            ec_passed += 1;
-        } else {
-            findings.push(finding(
-                "I8", Severity::Warning,
-                "No test code found under the implementation folder — Engineering's Testing Standards are not reflected in the implementation".into(),
-                None,
-            ));
+        match load_test_report(ctx) {
+            Some(Ok(report)) if report.unit.total > 0 || report.e2e.total > 0 => {
+                let mut failures: Vec<String> = Vec::new();
+                failures.extend(report.unit.failures.iter().map(|f| format!("unit:{}", f.name)));
+                failures.extend(report.e2e.failures.iter().map(|f| format!("e2e:{}", f.name)));
+                if failures.is_empty() {
+                    ec_passed += 1;
+                } else {
+                    findings.push(finding(
+                        "I8", Severity::Warning,
+                        format!(
+                            "Tests failing under the implementation folder — unit {}/{} passed, e2e {}/{} passed: {}",
+                            report.unit.passed, report.unit.total,
+                            report.e2e.passed, report.e2e.total,
+                            failures.join(", "),
+                        ),
+                        Some(failures.join(", ")),
+                    ));
+                }
+            }
+            _ => {
+                if !impl_dir.exists() || has_test_code(&impl_dir) {
+                    ec_passed += 1;
+                } else {
+                    findings.push(finding(
+                        "I8", Severity::Warning,
+                        "No test code found under the implementation folder — Engineering's Testing Standards are not reflected in the implementation".into(),
+                        None,
+                    ));
+                }
+            }
         }
 
         // I9: Repository Organization Conforms — crates that exist in
@@ -467,6 +493,29 @@ mod tests {
             config.repository.implementation.dir = "crates".to_string();
             PipelineContext::new(self.root.clone(), config)
         }
+
+        fn ctx_with_test_report(&self, json: &str) -> PipelineContext {
+            std::fs::write(self.root.join("results.json"), json).unwrap();
+            let mut config = common::config::SamgrahaConfig::default();
+            config.repository.implementation.dir = "crates".to_string();
+            config.pipelines = Some(common::config::PipelineContractConfig {
+                version: "1.0".to_string(),
+                build: None,
+                test: Some(common::config::ContractSpec {
+                    command: vec!["true".into()],
+                    working_directory: "${PROJECT_ROOT}".to_string(),
+                    artifacts: vec!["${PROJECT_ROOT}/results.json".to_string()],
+                    success_exit_code: None,
+                    timeout: None,
+                    description: None,
+                    produces: vec![],
+                    consumes: vec![],
+                }),
+                package: None,
+                deploy: None,
+            });
+            PipelineContext::new(self.root.clone(), config)
+        }
     }
 
     impl Drop for TempProject {
@@ -492,6 +541,30 @@ mod tests {
             .with_root_manifest();
         let report = ImplementationPipeline.run(&proj.ctx());
         assert!(!report.findings.iter().any(|f| f.check_id == "I8"));
+    }
+
+    #[test]
+    fn i8_uses_real_results_over_grep_when_test_contract_present() {
+        // Even with no test *code* on disk (which the grep fallback would
+        // warn about), real passing results from the contract should win.
+        let proj = TempProject::new()
+            .with_crate("widgets", "widgets", false)
+            .with_root_manifest();
+        let json = r#"{"unit":{"total":2,"passed":2,"failed":0,"skipped":0,"failures":[]},"e2e":{"total":0,"passed":0,"failed":0,"skipped":0,"failures":[]}}"#;
+        let report = ImplementationPipeline.run(&proj.ctx_with_test_report(json));
+        assert!(!report.findings.iter().any(|f| f.check_id == "I8"));
+    }
+
+    #[test]
+    fn i8_warns_on_real_test_failures() {
+        let proj = TempProject::new()
+            .with_crate("widgets", "widgets", true)
+            .with_root_manifest();
+        let json = r#"{"unit":{"total":2,"passed":1,"failed":1,"skipped":0,"failures":[{"name":"test_bar","message":"boom"}]},"e2e":{"total":0,"passed":0,"failed":0,"skipped":0,"failures":[]}}"#;
+        let report = ImplementationPipeline.run(&proj.ctx_with_test_report(json));
+        let i8_finding = report.findings.iter().find(|f| f.check_id == "I8").unwrap();
+        assert_eq!(i8_finding.severity, Severity::Warning);
+        assert!(i8_finding.message.contains("test_bar"));
     }
 
     #[test]

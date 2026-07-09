@@ -15,6 +15,7 @@ pub mod quality;
 pub mod registry;
 pub mod search;
 pub mod standard;
+pub mod test_run;
 pub mod urn;
 
 pub use audit::*;
@@ -31,4 +32,5 @@ pub use quality::*;
 pub use registry::*;
 pub use search::*;
 pub use standard::*;
+pub use test_run::*;
 pub use urn::*;

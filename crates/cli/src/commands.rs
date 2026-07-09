@@ -87,7 +87,7 @@ pub enum Commands {
 
         #[arg(
             long = "pipeline",
-            help = "Audit pipeline to run (doc, build, security, consistency, coverage, dependency)"
+            help = "Audit pipeline to run (doc, build, security, consistency, coverage, architecture, vision, design, readme, prototype, external-context, engineering, feature, feature-technical, feature-design, deterministic-runtime, external-context-ownership, implementation, dependency, help)"
         )]
         pipeline: Option<String>,
 
@@ -600,14 +600,7 @@ impl Cli {
         if pipeline_kind == schemas::audit::PipelineKind::Doc {
             // Standard Documentation Audit path
             ensure_compiled(&root, &config)?;
-            let mut runtime = KnowledgeRuntime::new(&root, config)?;
-
-            runtime.register_audit_provider("deterministic", |docs, rules| {
-                services::DeterministicAuditProvider::execute(docs, rules)
-            });
-            runtime.register_audit_provider("semantic", |docs, rules| {
-                providers::SemanticAuditProvider::execute(docs, rules)
-            });
+            let runtime = KnowledgeRuntime::new(&root, config)?;
 
             let audit_domain = if _all { None } else { domain };
             let provider_names: Vec<String> = if providers.is_empty() {

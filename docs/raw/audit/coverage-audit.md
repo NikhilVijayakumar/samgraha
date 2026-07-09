@@ -9,7 +9,9 @@ Bidirectional contract verification between documentation and implementation: ev
 Coverage Audit **owns all orphan detection**. No other audit spec (Build, Security, Implementation, Dependency) contains orphan checks. Orphans found by Coverage are the single source of truth for undocumented code or unimplemented features.
 
 **Phase 1 scope:** documentation ↔ implementation (manifest + simple pattern parser).
-**Future phases** (noted but not implemented): documentation ↔ tests, documentation ↔ configuration, documentation ↔ build.
+**Future phases** (noted but not implemented): documentation ↔ configuration, documentation ↔ build.
+
+Documentation ↔ tests (CV6) is implemented — see CV6 below for the `[pipelines.test]` contract.
 
 ---
 
@@ -106,12 +108,24 @@ Severity: Error (missing config key)
 
 ## CV6. Documented Capabilities Tested
 
-Every documented capability has test coverage.
+Every documented capability has test coverage. Backed by a repo-declared `[pipelines.test]` contract (same shape as `[pipelines.build]`): the repository supplies a script (`pwsh`/`sh`, whatever fits its own stack — `cargo test` + `tarpaulin`, `pytest` + `coverage.py`, etc.) that runs its unit and e2e suites and writes structured JSON results to the contract's first declared `artifacts` path:
 
-**Phase 1:** advisory — tests are not enforced in Phase 1. Implemented as a data point rather than a gate.
+```jsonc
+{
+  "unit": { "total": 42, "passed": 40, "failed": 2, "skipped": 0, "failures": [{"name": "test_foo", "message": "assertion failed"}] },
+  "e2e":  { "total": 5,  "passed": 5,  "failed": 0, "skipped": 0, "failures": [] },
+  "coverage_percent": 78.4
+}
+```
+
+Run with `samgraha audit --pipeline coverage --execute` to run the script and read results, or without `--execute` to read a previously-produced results file if one exists. No `[pipelines.test]` declared, or no results produced yet, falls back to the advisory "not adopted" message.
+
+Full field-by-field reference and the machine-validatable JSON Schema: [Test Report Schema](test-report-schema.md).
+
+**Advisory** — real results, but still non-blocking: CV6 never contributes to the Forward Coverage pass/fail count (weight 0.0, see Severity Weighting below), only to its own finding severity (Warning when tests are failing, Suggestion otherwise).
 
 Producer: Feature / Engineering documentation → Consumer: Test suite
-Severity: Suggestion
+Severity: Suggestion (passing) / Warning (failures present)
 
 ---
 

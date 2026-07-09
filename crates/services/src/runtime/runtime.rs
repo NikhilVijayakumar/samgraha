@@ -59,8 +59,14 @@ impl KnowledgeRuntime {
             RegistryStore::open(&registry_path).context("Failed to open knowledge registry")?,
         );
 
-        let standard_registry = Arc::new(StandardRegistry::with_builtins());
-        let audit_framework = AuditFramework::new(Arc::clone(&standard_registry));
+        let standard_registry = Arc::new(StandardRegistry::with_builtins_and_overrides(&root)?);
+        let mut audit_framework = AuditFramework::new(Arc::clone(&standard_registry));
+        audit_framework.register_provider("deterministic", Arc::new(|docs, rules, standard| {
+            audit_crate::DeterministicAuditProvider::execute(docs, rules, standard)
+        }));
+        audit_framework.register_provider("semantic", Arc::new(|docs, rules, standard| {
+            providers::SemanticAuditProvider::execute(docs, rules, standard)
+        }));
         let services = ServiceRegistry::new();
         let policy = RuntimePolicy::default();
 
@@ -92,7 +98,11 @@ impl KnowledgeRuntime {
 
     pub fn register_audit_provider<F>(&mut self, name: &str, provider: F)
     where
-        F: Fn(&[Document], &[schemas::standard::AuditRuleDef]) -> Vec<schemas::audit::AuditFinding>
+        F: Fn(
+                &[Document],
+                &[schemas::standard::AuditRuleDef],
+                Option<&schemas::standard::StandardDefinition>,
+            ) -> Vec<schemas::audit::AuditFinding>
             + Send
             + Sync
             + 'static,
@@ -409,7 +419,8 @@ impl KnowledgeRuntime {
     }
 
     pub fn get_audit_knowledge(&self, domain: &str, section_type: &str) -> Result<String> {
-        self.registry.get_audit_knowledge(domain, section_type)
+        self.registry
+            .get_audit_knowledge(&self.context.repository_root, domain, section_type)
     }
 
     pub fn get_section_changed(&self, section_id: i64) -> Result<SectionChangedResult> {
@@ -1599,6 +1610,7 @@ impl KnowledgeRuntime {
         // must apply whether a finding goes through preview or full apply.
         let plan_type = match (domain, finding.check_id.as_str()) {
             ("coverage", "CV6") => PlanType::Test,
+            ("implementation", "I8") => PlanType::Test,
             ("build", _) => PlanType::Build,
             ("security", _) => PlanType::Security,
             ("implementation", _) | ("deterministic-runtime", _) => PlanType::Implementation,

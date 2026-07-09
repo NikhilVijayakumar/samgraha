@@ -54,11 +54,11 @@ produces = ["release binary"]
 consumes = ["source code", "dependencies"]
 
 [pipelines.test]
-command = ["cargo", "test", "--workspace"]
+command = ["pwsh", "-File", "scripts/test-coverage.ps1"]
 working_directory = "${PROJECT_ROOT}"
-artifacts = []
-description = "Run the full workspace test suite"
-produces = ["test results"]
+artifacts = ["docs/report/test-results.json"]
+description = "Run unit+e2e tests with cargo-llvm-cov, emit structured TestRunReport JSON (docs/raw/audit/test-report-schema.md)"
+produces = ["test results", "coverage report"]
 consumes = ["source code"]
 
 [pipelines.mcp_multirepo_test]

@@ -2,7 +2,7 @@ use crate::fix::types::{
     FixPlan, FixPlanStatus, FixSession, Intent, PlanStep, PlanType, PlanningContext,
 };
 use anyhow::Result;
-use schemas::audit::PipelineKind;
+use schemas::audit::{AuditFinding, PipelineKind};
 
 pub trait FixPlanner {
     fn domain(&self) -> PipelineKind;
@@ -376,11 +376,42 @@ impl FixPlanner for TestPlanner {
         &self,
         ctx: &PlanningContext,
         intent: &Intent,
-        _session: &FixSession,
+        session: &FixSession,
     ) -> Result<FixPlan> {
-        let target_path = ctx.target_path.to_string_lossy().to_string();
         let plan_type = self.plan_type();
         let requirement = ctx.check_requirement(intent.check_id());
+        // The finding carries the real, specific failure (which test, what
+        // message) — `session.finding_json` is always populated by the
+        // caller (generate_fix_plan / FixOrchestrator::execute), so a real
+        // CV6/I8 finding turns this into "fix failing test X" instead of
+        // the generic "add test cases" fallback used when there's no
+        // finding-level detail to work with (e.g. audit is a stub result).
+        let finding: Option<AuditFinding> = serde_json::from_str(&session.finding_json).ok();
+
+        let target_path = finding
+            .as_ref()
+            .and_then(|f| f.location.clone())
+            .unwrap_or_else(|| ctx.target_path.to_string_lossy().to_string());
+
+        let (rationale, detail) = match finding.as_ref().filter(|f| !f.message.is_empty()) {
+            Some(f) => (
+                f.message.clone(),
+                format!(
+                    "Fix the specific failure reported by the audit finding:\n\n{}",
+                    f.message
+                ),
+            ),
+            None => (
+                requirement.clone().unwrap_or_else(|| {
+                    "Coverage audit finding requires additional test coverage".into()
+                }),
+                match &requirement {
+                    Some(req) => format!("Implement test cases to satisfy:\n\n{}", req),
+                    None => "Implement test cases as described in the audit finding".into(),
+                },
+            ),
+        };
+
         Ok(FixPlan {
             id: None,
             session_id: String::new(),
@@ -400,13 +431,8 @@ impl FixPlanner for TestPlanner {
                 step_order: 1,
                 action: "add_test_case".into(),
                 target: target_path,
-                rationale: requirement.clone().unwrap_or_else(|| {
-                    "Coverage audit finding requires additional test coverage".into()
-                }),
-                detail: match &requirement {
-                    Some(req) => format!("Implement test cases to satisfy:\n\n{}", req),
-                    None => "Implement test cases as described in the audit finding".into(),
-                },
+                rationale,
+                detail,
                 verification: "Re-run coverage audit checks".into(),
                 rollback: Some("git checkout before changes".into()),
                 status: crate::fix::types::FixStepStatus::Pending,
@@ -575,6 +601,40 @@ mod tests {
         };
         let plan = TestPlanner.plan(&ctx, &intent, &session).unwrap();
         assert_valid_plan(&plan, PlanType::Test);
+    }
+
+    #[test]
+    fn test_planner_uses_real_finding_message_when_present() {
+        // Regression: TestPlanner used to ignore the session entirely and
+        // always produce the generic "add test cases" template, even when
+        // the finding carried a specific failing-test message.
+        let ctx = test_ctx("coverage");
+        let intent = Intent::restore_compliance("coverage", "CV6");
+        let finding = schemas::audit::AuditFinding {
+            check_id: "CV6".into(),
+            severity: schemas::audit::Severity::Warning,
+            message: "Tests failing: unit 2/3 passed — unit:test_foo".into(),
+            location: Some("unit:test_foo".into()),
+            document_id: None,
+            provider: "pipeline".into(),
+            stage: None,
+            section_id: None,
+            confidence: None,
+            evidence: None,
+            status: None,
+            strategy: None,
+        };
+        let session = FixSession {
+            id: None, report_id: 1, report_type: "coverage".into(),
+            criterion_id: "CV6".into(),
+            finding_json: serde_json::to_string(&finding).unwrap(),
+            domain: "coverage".into(), plan_type: PlanType::Test,
+            target_file: None, attempt_count: 0, max_attempts: 3,
+            status: SessionStatus::InProgress, created_at: None, updated_at: None,
+        };
+        let plan = TestPlanner.plan(&ctx, &intent, &session).unwrap();
+        assert!(plan.steps[0].rationale.contains("test_foo"));
+        assert_eq!(plan.steps[0].target, "unit:test_foo");
     }
 
     #[test]

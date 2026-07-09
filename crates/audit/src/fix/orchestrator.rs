@@ -180,13 +180,19 @@ impl FixOrchestrator {
         // checks), so callers reject it before a session is ever created —
         // see `KnowledgeRuntime::reject_stub_domain`.
         //
-        // "coverage"+"CV6" is the one real Test-plan trigger: per
+        // "coverage"+"CV6" is a real Test-plan trigger: per
         // docs/raw/audit/coverage-audit.md, CV6 ("Documented Capabilities
         // Tested") is the only Coverage check whose fix is adding a test —
         // CV1-CV5/CV7 need code (out of scope) and CV8-CV15 are orphan
         // checks fixed by documenting, correctly staying on DocPlanner.
+        //
+        // "implementation"+"I8" is the other: once real [pipelines.test]
+        // results are available, I8's fix is "make a failing test pass" —
+        // a testing concern, not "implement a function" (the generic
+        // Implementation-domain default every other I-check still uses).
         match (domain, check_id) {
             ("coverage", "CV6") => PlanType::Test,
+            ("implementation", "I8") => PlanType::Test,
             ("help", _) => PlanType::Documentation,
             ("build", _) => PlanType::Build,
             ("security", _) => PlanType::Security,
@@ -224,5 +230,22 @@ mod tests {
         assert_eq!(FixOrchestrator::resolve_plan_type("implementation", "I1"), PlanType::Implementation);
         assert_eq!(FixOrchestrator::resolve_plan_type("deterministic-runtime", "S1"), PlanType::Implementation);
         assert_eq!(FixOrchestrator::resolve_plan_type("architecture", "A1"), PlanType::Documentation);
+    }
+
+    #[test]
+    fn implementation_i8_routes_to_test_plan() {
+        assert_eq!(FixOrchestrator::resolve_plan_type("implementation", "I8"), PlanType::Test);
+    }
+
+    #[test]
+    fn implementation_other_checks_stay_implementation() {
+        for cid in ["I1", "I7", "I9", "I14"] {
+            assert_eq!(
+                FixOrchestrator::resolve_plan_type("implementation", cid),
+                PlanType::Implementation,
+                "check {} should stay Implementation",
+                cid
+            );
+        }
     }
 }

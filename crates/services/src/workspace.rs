@@ -46,7 +46,7 @@ impl WorkspaceService {
         workspace_config: &WorkspaceConfig,
         request: &CompilationRequest,
     ) -> Result<WorkspaceBuildResult> {
-        let standard_registry = StandardRegistry::with_builtins();
+        let standard_registry = StandardRegistry::with_builtins_and_overrides(workspace_root)?;
         let mut results = Vec::new();
         let mut total_docs = 0;
         let mut total_errors = 0;

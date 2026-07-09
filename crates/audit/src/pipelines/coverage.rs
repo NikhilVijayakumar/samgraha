@@ -1,4 +1,4 @@
-use crate::pipeline::{finding, make_report, Pipeline, PipelineContext};
+use crate::pipeline::{finding, load_test_report, make_report, Pipeline, PipelineContext};
 use schemas::audit::{PipelineKind, PipelineReport, Severity};
 use std::collections::HashMap;
 
@@ -83,12 +83,59 @@ impl Pipeline for CoveragePipeline {
             None,
         ));
 
-        // CV6: Documented Capabilities Tested
-        findings.push(finding(
-            "CV6", Severity::Suggestion,
-            "Test coverage verification — advisory in Phase 1".into(),
-            None,
-        ));
+        // CV6: Documented Capabilities Tested — real results from the
+        // repo's declared [pipelines.test] contract when available, still
+        // advisory (never touches fwd_passed/fwd_total — weight 0.0 per
+        // docs/raw/audit/coverage-audit.md's Severity Weighting table).
+        match load_test_report(ctx) {
+            None => {
+                findings.push(finding(
+                    "CV6", Severity::Suggestion,
+                    "No [pipelines.test] contract declared (or results not produced yet) — run with `--execute` to capture real test/coverage results".into(),
+                    None,
+                ));
+            }
+            Some(Err(e)) => {
+                findings.push(finding(
+                    "CV6", Severity::Warning,
+                    format!("[pipelines.test] declared but results unreadable: {}", e),
+                    None,
+                ));
+            }
+            Some(Ok(report)) => {
+                let mut failures: Vec<String> = Vec::new();
+                failures.extend(report.unit.failures.iter().map(|f| format!("unit:{}", f.name)));
+                failures.extend(report.e2e.failures.iter().map(|f| format!("e2e:{}", f.name)));
+                let coverage_str = report
+                    .coverage_percent
+                    .map(|c| format!(", coverage {:.1}%", c))
+                    .unwrap_or_default();
+                if failures.is_empty() {
+                    findings.push(finding(
+                        "CV6", Severity::Suggestion,
+                        format!(
+                            "Tests passing: unit {}/{}, e2e {}/{}{}",
+                            report.unit.passed, report.unit.total,
+                            report.e2e.passed, report.e2e.total,
+                            coverage_str,
+                        ),
+                        None,
+                    ));
+                } else {
+                    findings.push(finding(
+                        "CV6", Severity::Warning,
+                        format!(
+                            "Tests failing: unit {}/{} passed, e2e {}/{} passed{} — {}",
+                            report.unit.passed, report.unit.total,
+                            report.e2e.passed, report.e2e.total,
+                            coverage_str,
+                            failures.join(", "),
+                        ),
+                        Some(failures.join(", ")),
+                    ));
+                }
+            }
+        }
 
         // CV7: Documented Build Targets Exist
         if build_contract.is_some() {
@@ -241,6 +288,28 @@ mod tests {
             config.repository.implementation.dir = dir.to_string();
             PipelineContext::new(self.root.clone(), config)
         }
+
+        fn ctx_with_test_report(&self, json: &str) -> PipelineContext {
+            std::fs::write(self.root.join("results.json"), json).unwrap();
+            let mut config = common::config::SamgrahaConfig::default();
+            config.pipelines = Some(common::config::PipelineContractConfig {
+                version: "1.0".to_string(),
+                build: None,
+                test: Some(common::config::ContractSpec {
+                    command: vec!["true".into()],
+                    working_directory: "${PROJECT_ROOT}".to_string(),
+                    artifacts: vec!["${PROJECT_ROOT}/results.json".to_string()],
+                    success_exit_code: None,
+                    timeout: None,
+                    description: None,
+                    produces: vec![],
+                    consumes: vec![],
+                }),
+                package: None,
+                deploy: None,
+            });
+            PipelineContext::new(self.root.clone(), config)
+        }
     }
 
     impl Drop for TempProject {
@@ -296,6 +365,39 @@ mod tests {
         let report = CoveragePipeline.run(&proj.ctx());
         let cv1 = report.findings.iter().find(|f| f.check_id == "CV1").unwrap();
         assert_eq!(cv1.severity, Severity::Warning);
+    }
+
+    #[test]
+    fn cv6_is_suggestion_stub_without_test_contract() {
+        let proj = TempProject::new();
+        let report = CoveragePipeline.run(&proj.ctx());
+        let cv6 = report.findings.iter().find(|f| f.check_id == "CV6").unwrap();
+        assert_eq!(cv6.severity, Severity::Suggestion);
+        assert!(cv6.message.contains("--execute"));
+    }
+
+    #[test]
+    fn cv6_warns_on_real_test_failures() {
+        // Regression: this is the original "audit says 100/0 despite real
+        // test failures" complaint — CV6 used to say the same static
+        // "advisory in Phase 1" message no matter what.
+        let proj = TempProject::new();
+        let json = r#"{"unit":{"total":3,"passed":2,"failed":1,"skipped":0,"failures":[{"name":"test_foo","message":"boom"}]},"e2e":{"total":0,"passed":0,"failed":0,"skipped":0,"failures":[]},"coverage_percent":55.0}"#;
+        let report = CoveragePipeline.run(&proj.ctx_with_test_report(json));
+        let cv6 = report.findings.iter().find(|f| f.check_id == "CV6").unwrap();
+        assert_eq!(cv6.severity, Severity::Warning);
+        assert!(cv6.message.contains("test_foo"));
+        assert!(cv6.message.contains("55.0%"));
+    }
+
+    #[test]
+    fn cv6_is_suggestion_when_tests_pass() {
+        let proj = TempProject::new();
+        let json = r#"{"unit":{"total":3,"passed":3,"failed":0,"skipped":0,"failures":[]},"e2e":{"total":1,"passed":1,"failed":0,"skipped":0,"failures":[]},"coverage_percent":90.0}"#;
+        let report = CoveragePipeline.run(&proj.ctx_with_test_report(json));
+        let cv6 = report.findings.iter().find(|f| f.check_id == "CV6").unwrap();
+        assert_eq!(cv6.severity, Severity::Suggestion);
+        assert!(cv6.message.contains("3/3"));
     }
 
     #[test]

@@ -45,6 +45,30 @@ fn compile_populates_repository_metadata() {
 }
 
 #[test]
+fn audit_registers_default_providers() {
+    // Regression: KnowledgeRuntime::new() previously never registered any
+    // audit providers — every provider lookup in AuditFramework::execute
+    // silently missed, so `audit` returned 0 findings / 100 score for every
+    // domain, every repo, every time (via MCP; the CLI masked it by
+    // registering providers locally right before calling audit()).
+    let config = SamgrahaConfig::default();
+    let root = std::env::current_dir().unwrap();
+    let runtime = KnowledgeRuntime::new(&root, config).unwrap();
+
+    let request = CompilationRequest {
+        scope: CompilationScope::Repository,
+        force: false,
+        watch: false,
+    };
+    runtime.compile(&request).unwrap();
+
+    let report = runtime
+        .audit(Some("architecture"), &["deterministic".to_string()], None)
+        .unwrap();
+    assert_eq!(report.provider, "deterministic");
+}
+
+#[test]
 fn test_standard_registry_builtins() {
     use standards::StandardRegistry;
     let registry = StandardRegistry::with_builtins();

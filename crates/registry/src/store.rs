@@ -723,8 +723,9 @@ impl RegistryStore {
         }
     }
 
-    pub fn get_audit_knowledge(&self, domain: &str, section_type: &str) -> Result<String> {
-        let knowledge_path = PathBuf::from("docs/raw/audit-standards")
+    pub fn get_audit_knowledge(&self, repo_root: &Path, domain: &str, section_type: &str) -> Result<String> {
+        let knowledge_path = repo_root
+            .join("docs/raw/audit-standards")
             .join(domain)
             .join(format!("{}.md", section_type));
         let content = std::fs::read_to_string(&knowledge_path)
@@ -4796,5 +4797,29 @@ mod tests {
         // A second overlapping caller must not also "win" — the phase is no
         // longer pending.
         assert!(!store.try_start_phase("phase-race").unwrap());
+    }
+
+    #[test]
+    fn get_audit_knowledge_reads_from_repo_root_not_cwd() {
+        // Regression: get_audit_knowledge used to resolve
+        // "docs/raw/audit-standards/..." as a bare relative path against the
+        // process's current working directory instead of the target repo —
+        // an MCP server launched from anywhere other than the audited repo
+        // silently read the wrong repo's (or no) knowledge.
+        let store = RegistryStore::open_in_memory().unwrap();
+        let repo_root = std::env::temp_dir().join(format!(
+            "samgraha-audit-knowledge-test-{}",
+            std::process::id()
+        ));
+        let knowledge_dir = repo_root.join("docs/raw/audit-standards/architecture");
+        std::fs::create_dir_all(&knowledge_dir).unwrap();
+        std::fs::write(knowledge_dir.join("purpose.md"), "expected content").unwrap();
+
+        let content = store
+            .get_audit_knowledge(&repo_root, "architecture", "purpose")
+            .unwrap();
+        assert_eq!(content, "expected content");
+
+        std::fs::remove_dir_all(&repo_root).ok();
     }
 }
