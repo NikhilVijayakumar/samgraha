@@ -130,14 +130,24 @@ fn collect_markdown_files(
     for entry in std::fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
+        let relative = path.strip_prefix(root).unwrap_or(&path).to_path_buf();
+        let relative_str = relative.to_string_lossy().replace('\\', "/");
 
         if path.is_dir() {
-            let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
-            if !exclude.iter().any(|p| common::glob::matches_glob(p, name)) {
+            if !exclude.iter().any(|p| common::glob::matches_glob(p, &relative_str)) {
                 collect_markdown_files(root, &path, _include, exclude, documents)?;
             }
         } else if path.extension().map_or(false, |e| e == "md") {
-            let relative = path.strip_prefix(root).unwrap_or(&path).to_path_buf();
+            // `matches_glob` matches full relative paths, not bare filenames —
+            // file-level patterns like "**/manual-audit.md" need the same
+            // check directories get above. Without it, a file matching an
+            // exclude pattern still gets discovered and compiled here, then
+            // deleted later by compilation.rs's post-insert ignore-pattern
+            // cleanup — but enrichment has already queued a row for it by
+            // then, so that row's document_id FK breaks on insert.
+            if exclude.iter().any(|p| common::glob::matches_glob(p, &relative_str)) {
+                continue;
+            }
             let standard = DiscoveryEngine::infer_standard(&relative);
             documents.push(DiscoveredDocument {
                 path,

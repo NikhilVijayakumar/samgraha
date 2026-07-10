@@ -1,212 +1,111 @@
-# Audit Plan for Samgraha
+# Audit Runbook — Trigger, Test, Fix via MCP `samgraha`
 
-## Overview
-
-Samgraha's audit system verifies documentation quality against standard-defined rules and produces actionable findings across multiple pipelines. Two models exist: **Documentation Audit** (15 domains against standards) and **Custom Pipelines** (build, security, consistency, coverage, dependency).
+Every call below is concrete and complete — copy the cell, paste, run, no placeholders to fill in. Where a value is repo-specific (a real domain, real ids), it's a real value captured from a live run against this repo, not a stand-in. 🔧 = deterministic-only. 🤖 = bundles LLM review work (`semantic_review`) in the same response.
 
 ---
 
-## 1. Audit Pipelines — What and Why
+## 0. Prerequisites
 
-### 1.1 Documentation Audit (default, `--pipeline doc`)
-
-Checks compiled documentation against standard-defined rules using configurable providers.
-
-| Domain | Why needed |
-|--------|-----------|
-| `architecture` | Ensure component model, communication, data flow, security, constraints are documented |
-| `vision` | Verify problem statement, solution, success criteria, target audience are clear |
-| `philosophy` | Validate guiding principles, values, tradeoffs are articulated |
-| `readme` | Ensure README exists, has title, getting-started, documentation links |
-| `feature` | Check FRs have purpose, acceptance criteria, inputs/outputs, constraints |
-| `feature-design` | Validate UX principles, workflows, states, constraints |
-| `feature-technical` | Verify component responsibilities, interactions, data governance, security |
-| `design` | Check design principles, accessibility, UX principles, constraints |
-| `engineering` | Validate code/build/test/security standards, guiding principles |
-| `external-context` | Check integration contracts, dependencies, constraints |
-| `prototype` | Verify scope, data model, mock APIs, constraints |
-| `help` | Ensure help documentation quality |
-| `build-guide` | Check build process is documented |
-| `configuration` | Verify configuration docs exist |
-| `tutorials` | Check tutorial coverage |
-
-**Providers:**
-- `deterministic` (default) — rule-based: section presence (`has_section`), title checks (`has_title`), corpus existence (`corpus_exists`), implementation leakage detection (`no_implementation`), compile diagnostic promotion (missing sections, prohibited content)
-- `semantic` — heuristic: short docs (<50 words), placeholder text (TBD/TODO), technology references in vision/feature docs, missing rationale
-
-### 1.2 Architecture Audit (`--pipeline architecture`)
-
-Deep structural analysis of `docs/raw/architecture/` markdown files. 13 checks across 4 weighted categories (25/30/30/15):
-
-| Check | Category | Weight | What it verifies |
-|-------|----------|--------|-----------------|
-| A1 | Collection Integrity | 6.25% | Modular architecture (≥2 files, or single doc with ≥3 H2 sections) |
-| A2 | Collection Integrity | 6.25% | Completeness: system overview, component model, communication, data flow, security |
-| A3 | Collection Integrity | 6.25% | Responsibility separation (each doc has clear H1 title) |
-| A4 | Collection Integrity | 6.25% | No duplicate H1 titles across files |
-| A5 | Structural Integrity | 7.5% | Ownership explicit (owns/responsible/boundary keywords) |
-| A6 | Structural Integrity | 7.5% | Boundaries explicit (boundary/interface keywords) |
-| A7 | Structural Integrity | 7.5% | Relationships documented (dependencies/interactions) |
-| A8 | Structural Integrity | 7.5% | Communication & knowledge flow documented |
-| A9 | Consistency | 7.5% | Shared terminology across documents (≥3 common terms) |
-| A10 | Consistency | 7.5% | Traceability chain (cross-references, derived-from) |
-| A11 | Consistency | 7.5% | Technology independence (no implementation keywords) |
-| A12 | Consistency | 7.5% | Feature independence (no feature-specific language) |
-| A13 | Cross-Repository | 15% | External architecture references documented |
-
-### 1.3 Build Audit (`--pipeline build`)
-
-Verifies build configuration matches documentation. Three levels:
-- **Config-level**: checks `[pipelines.build]` contract exists, command is valid, working directory exists
-- **Artifact inspection** (`--inspect-artifact`): verifies binary exists at declared path, has expected metadata
-- **Execution** (`--execute`): runs the declared build command, verifies output
-
-### 1.4 Security Audit (`--pipeline security`)
-
-Checks security documentation against config and code. Two modes:
-- **Static** (`--security`): verifies security docs exist, threat model present, security configuration matches
-- **Runtime** (`--runtime`): connects to running app, verifies auth, TLS, rate limiting
-
-### 1.5 Consistency Audit (`--pipeline consistency`)
-
-Verifies alignment across adjacent documentation layers:
-- Layer inventory → pairwise comparison → traceability check → contradiction scan → terminology check
-- Detects: terminology drift, contradictory statements, missing cross-references
-
-### 1.6 Coverage Audit (`--pipeline coverage`)
-
-Bidirectional traceability between documentation and source code:
-- **Forward** (doc→code): documented capabilities must have corresponding implementation
-- **Reverse** (code→doc): code without documentation → orphan (warning, not error)
-- Orphan resolution: Document / Remove / Suppress via `[audit.suppress]`
-
-### 1.7 Dependency Governance (`--pipeline dependency`)
-
-Spec-only (enabled = false by default). Verifies dependency justification, policy compliance, and health.
-
-### 1.8 Semantic Audit Stages (MCP-only)
-
-Four-stage pipeline for AI coding agents via MCP, gated by previous stage:
-
-| Stage | How populated | Gate condition |
-|-------|--------------|----------------|
-| Deterministic | `samgraha audit` (CLI) | Always passes (no ERROR findings) |
-| Section | `store_section_report` (MCP) | Deterministic gate passes |
-| Document | `store_document_report` (MCP) | Section gate passes |
-| Cross-Domain | `store_cross_domain_report` (MCP) | Document gate passes |
-
-Each stage stores findings with status (`Open` / `Fixed` / `Accepted` / `Ignored` / `FalsePositive`).
+| Step | Call |
+|---|---|
+| Bootstrap config (only if `samgraha.toml` missing) | `init()` |
+| Compile docs → knowledge.db (required before any audit; re-run after editing docs) | `compile()` |
 
 ---
 
-## 2. How to Trigger Audits
+## 1A. Documentation Audit — per domain, 🔧 + 🤖 bundled
 
-### CLI
+| Domain | Call |
+|---|---|
+| architecture | `audit(domain: "architecture", providers: ["deterministic"])` |
+| vision | `audit(domain: "vision", providers: ["deterministic"])` |
+| philosophy | `audit(domain: "philosophy", providers: ["deterministic"])` |
+| readme | `audit(domain: "readme", providers: ["deterministic"])` |
+| feature | `audit(domain: "feature", providers: ["deterministic"])` |
+| feature-design | `audit(domain: "feature-design", providers: ["deterministic"])` |
+| feature-technical | `audit(domain: "feature-technical", providers: ["deterministic"])` |
+| design | `audit(domain: "design", providers: ["deterministic"])` |
+| engineering | `audit(domain: "engineering", providers: ["deterministic"])` |
+| external-context | `audit(domain: "external-context", providers: ["deterministic"])` |
+| prototype | `audit(domain: "prototype", providers: ["deterministic"])` |
+| help | `audit(domain: "help", providers: ["deterministic"])` |
+| build-guide | `audit(domain: "build-guide", providers: ["deterministic"])` |
+| configuration | `audit(domain: "configuration", providers: ["deterministic"])` |
+| tutorials | `audit(domain: "tutorials", providers: ["deterministic"])` |
+| all 15 domains in one call | `audit(providers: ["deterministic"])` |
+| vision, with the extra heuristic pass too (still 🔧, not LLM) | `audit(domain: "vision", providers: ["deterministic", "semantic"])` |
+| vision, targeting a different local repo | `audit(domain: "vision", providers: ["deterministic"], repo_path: "E:\\Python\\other-repo")` |
 
-```bash
-# Documentation audit (all domains, deterministic provider)
-samgraha audit
+**Response fields:** `score`, `findings[]` (🔧) plus `semantic_review.tasks[]` / `semantic_review.rubrics{}` / `semantic_review.instruction` (🤖 — one task per document section, its rubric inlined, and the exact next-step text).
 
-# Single domain
-samgraha audit architecture
+### Doing the LLM judgment (real example, captured from a live `audit(domain: "vision")` run)
 
-# All domains explicitly
-samgraha audit --all
+One task from that response looked like this — `document_id: 224`, `section_id: 8877`, `domain: "vision"`, `semantic_type: "purpose"`. The rubric to judge it against was already inlined at `rubrics["vision/purpose"]` in the same response — no extra fetch needed. Judge the content against that rubric's Scoring Criteria table, then:
 
-# With semantic provider
-samgraha audit --provider deterministic --provider semantic
+| Step | Call |
+|---|---|
+| (optional) skip if unchanged since last judged | `get_section_changed(section_id: 8877)` |
+| store the judgment for that section | `store_section_report(report_json: {"report_id":"vision-224-purpose-1","stage":"section","domain":"vision","document_id":224,"section_id":8877,"score":70,"findings":[{"check_id":"C1","severity":"error","message":"Purpose doesn't distinguish document intent from product mission","location":"docs/raw/vision/vision.md","document_id":224,"provider":"semantic","stage":"section","section_id":8877,"confidence":0.9,"evidence":null,"status":"open","strategy":null}],"created_at":"2026-07-10T00:00:00Z"})` |
+| all sections in the domain done → gate | `check_gate(stage: "section")` |
+| store the doc-level synthesis | `store_document_report(report_json: {"report_id":"vision-224-doc-1","stage":"document","domain":"vision","document_id":224,"section_id":null,"score":75,"findings":[],"created_at":"2026-07-10T00:00:00Z"})` |
+| all docs in the domain done → gate | `check_gate(stage: "document")` |
+| store the cross-domain synthesis | `store_cross_domain_report(report_json: {"report_id":"vision-crossdomain-1","stage":"cross_domain","domain":"vision","document_id":null,"section_id":null,"score":80,"findings":[],"created_at":"2026-07-10T00:00:00Z"})` |
+| verify section-stage report persisted | `get_audit_report(domain: "vision", stage: "section")` |
+| verify document-stage report persisted | `get_audit_report(domain: "vision", stage: "document")` |
+| verify cross-domain report persisted | `get_audit_report(domain: "vision", stage: "cross_domain")` |
 
-# Quality gate (fail if score < 80)
-samgraha audit --gate 80
-
-# Generate markdown report
-samgraha audit --report
-
-# Pipeline-specific
-samgraha audit --pipeline architecture
-samgraha audit --pipeline build --inspect-artifact
-samgraha audit --pipeline security --runtime
-samgraha audit --pipeline consistency
-samgraha audit --pipeline coverage
-
-# Build execution (runs the declared build command)
-samgraha audit --pipeline build --execute
-```
-
-### MCP Tools (for AI agents)
-
-| Tool | Purpose |
-|------|---------|
-| `audit` | Run audit programmatically |
-| `check_gate` | Verify stage gate is clear |
-| `get_audit_knowledge` | Get audit criteria for a section type |
-| `get_audit_report` | Read stored report |
-| `get_section_changed` | Check if section changed since last audit |
-| `store_section_report` | Submit section-level findings |
-| `store_document_report` | Submit document-level findings |
-| `store_cross_domain_report` | Submit cross-domain findings |
-| `update_finding_status` | Mark finding as fixed/accepted/ignored |
-
-### Samgraha Tools (via MCP)
-
-```rust
-samgraha_audit(domain: "architecture", providers: ["deterministic"])
-samgraha_check_gate(stage: "section", document_id: 1)
-samgraha_get_audit_knowledge(domain: "architecture", section_type: "component_model")
-```
+`docs/raw/audit-standards/_meta.md` governs mandatory-vs-conditional per doc type and conflict order (security > mandatory constraint > specific standard > documented exception).
 
 ---
 
-## 3. Reports Generated
+## 1B. Custom Pipelines — 🔧 only, no semantic_review
 
-### Output Locations
+Returns `PipelineReport { score, categories, findings[] }` directly — no `semantic_review` field ever appears here, these are collection-level/structural checks, not per-section content judgment.
 
-| Audit type | Report path (default) |
-|-----------|----------------------|
-| Documentation Audit | `docs/raw/reports/audit/latest/report.md` |
-| Architecture Pipeline | `docs/raw/reports/architecture/latest/report.md` |
-| Build Pipeline | `docs/raw/reports/build/latest/report.md` |
-| Security Pipeline | `docs/raw/reports/security/latest/report.md` |
-| Consistency Pipeline | `docs/raw/reports/consistency/latest/report.md` |
-| Coverage Pipeline | `docs/raw/reports/coverage/latest/report.md` |
-| Dependency Pipeline | `docs/raw/reports/dependency/latest/report.md` |
+| Pipeline | Call |
+|---|---|
+| doc | `audit(pipeline: "doc")` |
+| architecture — structural A1–A13, distinct from 1A's per-section domain audit of the same name | `audit(pipeline: "architecture")` |
+| build — verify-only | `audit(pipeline: "build")` |
+| build — also check the declared binary artifact exists | `audit(pipeline: "build", inspect_artifact: true)` |
+| build — actually run the declared build command | `audit(pipeline: "build", execute: true)` |
+| build — print the resolved build command without running it | `audit(pipeline: "build", dry_run: true)` |
+| security — static docs/config check | `audit(pipeline: "security")` |
+| security — also connect to the running app (auth/TLS/rate-limit) | `audit(pipeline: "security", runtime: true)` |
+| consistency | `audit(pipeline: "consistency")` |
+| coverage | `audit(pipeline: "coverage")` |
+| dependency | `audit(pipeline: "dependency")` |
+| documentation-structure — 39 checks (SI/MC/AE/CA/NP/IT/GC), corpus-as-one-system | `audit(pipeline: "documentation-structure")` |
+| vision | `audit(pipeline: "vision")` |
+| design | `audit(pipeline: "design")` |
+| readme | `audit(pipeline: "readme")` |
+| prototype | `audit(pipeline: "prototype")` |
+| external-context | `audit(pipeline: "external-context")` |
+| engineering | `audit(pipeline: "engineering")` |
+| feature | `audit(pipeline: "feature")` |
+| feature-technical | `audit(pipeline: "feature-technical")` |
+| feature-design | `audit(pipeline: "feature-design")` |
+| deterministic-runtime | `audit(pipeline: "deterministic-runtime")` |
+| external-context-ownership | `audit(pipeline: "external-context-ownership")` |
+| implementation | `audit(pipeline: "implementation")` |
+| help | `audit(pipeline: "help")` |
 
-Each has `archive/` subdirectory with timestamped copies.
+---
 
-### Report Structure
+## 2. Verify without re-running
 
-```
-# Audit Report
-- Date, pipeline, provider
-- Overall score
-- Category scores (per domain or per check group)
-- Findings table:
-  [SEVERITY] check_id — message (location)
-```
+| Source | Call |
+|---|---|
+| 1A deterministic findings, vision example | `audit(domain: "vision", providers: ["deterministic"])` — re-call, read `findings[]` |
+| 1A semantic findings, section stage | `get_audit_report(domain: "vision", stage: "section")` |
+| 1A semantic findings, document stage | `get_audit_report(domain: "vision", stage: "document")` |
+| 1A semantic findings, cross-domain stage | `get_audit_report(domain: "vision", stage: "cross_domain")` |
+| 1B pipeline findings, architecture example | `audit(pipeline: "architecture")` — re-call, read `findings[]` (no persisted-report fetch tool yet, see Known Gaps) |
 
-### Finding Format
+Readiness bands (both `AuditReport` and `PipelineReport`):
 
-```
-Producer:   <source artifact + path>
-Consumer:   <target artifact + path>
-Contract:   <check ID + description>
-Evidence:   <specific evidence>
-Severity:   error | warning | suggestion
-Status:     open | fixed | accepted | ignored | false_positive
-```
-
-### Severity Impact
-
-| Severity | Effect on score |
-|----------|----------------|
-| `error` | Counts against score |
-| `warning` | Reported, does not affect score |
-| `suggestion` | Reported, does not affect score |
-
-### Readiness Levels
-
-| Score Range | Readiness |
-|------------|-----------|
+| Score | Readiness |
+|---|---|
 | ≥90%, no errors | Production |
 | ≥80% | Implementation |
 | ≥70% | Engineering |
@@ -214,110 +113,58 @@ Status:     open | fixed | accepted | ignored | false_positive
 | ≥50% | Architecture |
 | <50% | Product |
 
----
-
-## 4. How to Fix Issues in Reports
-
-### Workflow
-
-1. **Run** `samgraha audit --report` to generate full findings
-2. **Prioritize**: fix errors first (highest severity), then warnings, then suggestions
-3. **Fix** the underlying document or code issue
-4. **Recompile**: `samgraha compile`
-5. **Re-audit**: `samgraha audit` to verify fixes
-6. **Repeat** until gate passes (`--gate 80`)
-
-### Finding Type → Fix
-
-| Finding pattern | check_id prefix | Fix |
-|----------------|----------------|-----|
-| Missing required section | `compile-missing-section` | Add the missing `## Heading` to the document |
-| Prohibited content in section | `compile-prohibited-content` | Remove implementation details from the section |
-| Must document purpose | `*-001` (has_section) | Add `## Purpose` section |
-| Must have a top-level title | `*-002` (has_title) | Add `# Title` as first H1 |
-| Must not specify technology | `*-004` (no_implementation) | Move code/technology details to feature-technical doc |
-| Document body under 50 words | `sem-001` | Add more context/content |
-| Placeholder text found | `sem-002` | Replace TBD/TODO/FIXME with real content |
-| Names specific technology | `sem-003` | Describe capability instead of technology |
-| Architecture not modular | `A1` | Split single doc into multiple focused docs |
-| Missing architectural concern | `A2` | Add missing sections: System Overview, Component Model, etc. |
-| Technology independence | `A11` | Remove implementation keywords, describe responsibilities |
-| Architecture lacks traceability | `A10` | Add cross-references to higher/lower-level docs |
-| Coverage orphan | Coverage | Document the code, remove dead code, or suppress via config |
-| Config mismatch | Build/Security | Update doc or config to match |
-
-### MCP Finding Status Updates (for AI agents)
-
-After fixing a documented finding, update its status:
-
-```rust
-samgraha_update_finding_status(
-    report_id: <id>,
-    criterion_id: "<check_id>",
-    status: "fixed"           // or "accepted", "ignored", "false_positive"
-)
-```
-
-### Suppressing False Positives
-
-For findings that are intentional (e.g., a documented tech choice that looks like implementation leakage), use `[audit.suppress]` in `samgraha.toml`:
-
-```toml
-[audit.suppress]
-patterns = ["feat-004:docs/raw/feature/specific-feature.md"]
-```
+`error` counts against score; `warning`/`suggestion` don't. Orphan findings (code without docs) are always `warning`. Every `check_id` traces to a spec file in `docs/raw/audit/*.md` (index: `docs/raw/audit/README.md`).
 
 ---
 
-## 5. Configuration
+## 3. Fix — once a report exists
 
-```toml
-[audit]
-default_severity = "suggestion"
-providers = ["deterministic"]
+Concrete example: this real finding came back from `audit(domain: "vision")` — `{"check_id":"vision-002","severity":"Warning","message":"Vision must define target audience: 'docs\\raw\\product-guide\\documentation-guide\\vision.md'","location":"docs\\raw\\product-guide\\documentation-guide\\vision.md","document_id":163,"provider":"deterministic","stage":null,"section_id":null,"confidence":null,"evidence":null,"status":null,"strategy":null}`.
 
-[audit.gates.feature]
-enabled = true
-min_score = 80.0
-min_readiness = "implementation"
+| Action | Call | Modifies files? |
+|---|---|---|
+| Preview a fix plan for that finding | `audit_fix_plan(finding: {"check_id":"vision-002","severity":"Warning","message":"Vision must define target audience","location":"docs/raw/product-guide/documentation-guide/vision.md","document_id":163,"provider":"deterministic","stage":null,"section_id":null,"confidence":null,"evidence":null,"status":null,"strategy":null}, domain: "vision", report_id: 0, report_type: "vision", target_path: "docs/raw/product-guide/documentation-guide/vision.md")` | No |
+| Plan + execute + verify + retry that finding | `audit_fix_apply(finding: {"check_id":"vision-002","severity":"Warning","message":"Vision must define target audience","location":"docs/raw/product-guide/documentation-guide/vision.md","document_id":163,"provider":"deterministic","stage":null,"section_id":null,"confidence":null,"evidence":null,"status":null,"strategy":null}, domain: "vision", report_id: 0, report_type: "vision", target_path: "docs/raw/product-guide/documentation-guide/vision.md")` | Yes |
+| Check the fix session `audit_fix_apply` returned (example id 1 — use the real `session.id` from your response) | `audit_fix_status(session_id: 1)` | No |
+| List all fix sessions | `audit_fix_list(limit: 20, offset: 0)` | No |
+| List plans generated in session 1 | `audit_fix_plan_list(session_id: 1)` | No |
+| Get plan 1 and its steps | `audit_fix_plan_get(plan_id: 1)` | No |
+| Render plan 1 as markdown | `audit_fix_plan_render(plan_id: 1, template: "documentation")` | No |
+| List available fix-plan templates | `audit_fix_templates()` | No |
 
-[audit.pipelines.build]
-enabled = true
-artifact_inspection = "optional"
+`report_id`/`report_type` are **bookkeeping tags on the fix session, not a foreign key** — never validated against a stored report, so any values that identify the source are fine (`report_type: "vision"`, `report_id: 0` for a plain domain audit is a valid literal choice, not a placeholder).
 
-[audit.pipelines.security]
-enabled = true
-runtime_verification = "optional"
+**Marking a finding's status — two tools, not interchangeable:**
 
-[audit.pipelines.consistency]
-enabled = true
+| Tool | Call | Works on |
+|---|---|---|
+| Mark a semantic-stage finding fixed | `update_finding_status(report_id: 1, criterion_id: "C1", status: "fixed")` | Findings from `store_section_report`/`store_document_report`/`store_cross_domain_report` — `report_id` must be the numeric id of that stored `SemanticReport` |
+| Same, shorthand | `audit_fix_accept(report_id: 1, criterion_id: "C1")` | Same as above, forces `status: "fixed"` |
+| Same, shorthand for accepted-not-fixed | `audit_fix_reject(report_id: 1, criterion_id: "C1")` | Same as above, forces `status: "accepted"` |
+| Mark a pipeline-report finding fixed | `update_report_finding_status(finding_id: 1, status: "fixed")` | Pipeline-report findings (architecture/documentation-structure/build/security/consistency/coverage/help) — `finding_id` must be a row id in `report_findings`, **no MCP tool returns this yet** (see Known Gaps) |
 
-[audit.pipelines.coverage]
-enabled = true
-scanner = "simple"
-```
+`status` values: `open`, `fixed`, `accepted`, `ignored`, `false_positive`. Plain 1A deterministic findings and 1B pipeline findings otherwise have no round-tripping status tool — track fix completion via the `FixSession`'s own status (`audit_fix_status`) instead.
 
 ---
 
-## 6. Quick Reference
+## 4. Quick reference — run everything
 
-```bash
-# Discover + compile docs (prerequisite)
-samgraha compile
+| Step | Call |
+|---|---|
+| 1 | `init()` then `compile()` |
+| 2 | Run every row in §1A's domain table |
+| 3 | For each `semantic_review.tasks[]` in those responses: judge against `rubrics`, `store_section_report(...)` per §1A's worked example |
+| 4 | `check_gate(stage: "section")` → `store_document_report(...)` → `check_gate(stage: "document")` → `store_cross_domain_report(...)` |
+| 5 | Run every row in §1B's pipeline table |
+| 6 | For findings worth fixing: `audit_fix_plan(...)` → review → `audit_fix_apply(...)` → `audit_fix_status(session_id: ...)` |
 
-# Full doc audit with report and quality gate
-samgraha audit --all --report --gate 80
+CLI equivalents for local/non-agent use: `samgraha audit`, `samgraha audit --pipeline documentation-structure --report`, `samgraha compile`, `samgraha report --pipeline architecture` (Tera-rendered version with rubric summaries baked into the template).
 
-# Architecture deep-dive
-samgraha audit --pipeline architecture --report
+---
 
-# Build verification
-samgraha audit --pipeline build --inspect-artifact
+## Known gaps (code, not docs)
 
-# Coverage check (bidirectional doc↔code)
-samgraha audit --pipeline coverage --report
-
-# List available pipeline reports
-samgraha report --list-sessions
-samgraha report --list-templates
-```
+| Gap | Detail |
+|---|---|
+| No query tool returns `report_findings.id` | `update_report_finding_status` exists but nothing hands back the row id it needs for pipeline-report findings — each pipeline has its own stored-report getter (`get_architecture_report_with_findings`, etc.) but none are exposed over MCP. Track via `FixSession` status instead, or query the registry directly. |
+| `docs/raw/audit/*.md` never parsed at runtime | The Rust code in `crates/audit/src/pipelines/*.rs` is the real implementation, written to match what the `.md` describes. Only the fix planner (`crates/audit/src/fix/planning_context.rs`) reads these files live, to pull a check's requirement text when building a fix plan. |

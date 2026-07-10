@@ -1,7 +1,7 @@
 use anyhow::Result;
 use rayon::prelude::*;
 use schemas::audit::{
-    AuditFinding, AuditReport, AuditScore, QualityGate, ReadinessAssessment, Severity,
+    AuditFinding, AuditReport, AuditScore, QualityGate, ReadinessAssessment, SemanticReviewBundle, Severity,
 };
 use schemas::document::Document;
 use schemas::standard::{AuditRuleDef, StandardDefinition};
@@ -197,6 +197,7 @@ impl AuditFramework {
             findings: all_findings,
             readiness,
             metadata: HashMap::new(),
+            semantic_review: SemanticReviewBundle::default(),
         };
 
         info!(

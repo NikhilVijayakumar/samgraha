@@ -327,7 +327,8 @@ impl KnowledgeRuntime {
             None => self.registry.get_all_documents()?,
         };
 
-        let result = AuditService::execute(&self.audit_framework, domain, &docs, providers)?;
+        let mut result = AuditService::execute(&self.audit_framework, domain, &docs, providers)?;
+        result.semantic_review = self.build_semantic_review(&docs, domain);
 
         self.registry.clear_audit_results()?;
         self.registry.insert_audit_findings(&result.findings)?;
@@ -361,6 +362,62 @@ impl KnowledgeRuntime {
         }
 
         Ok(result)
+    }
+
+    /// Bundles per-section LLM review work into every domain audit — the
+    /// deterministic providers above only check structural presence, not
+    /// content quality. Skips a section silently if its domain has no
+    /// audit-standards rubric for that semantic_type (nothing to judge it
+    /// against yet).
+    fn build_semantic_review(&self, docs: &[Document], domain: Option<&str>) -> schemas::audit::SemanticReviewBundle {
+        let mut rubrics = std::collections::HashMap::new();
+        let mut tasks = Vec::new();
+
+        for doc in docs.iter().filter(|d| domain.map_or(true, |dom| d.standard == dom)) {
+            let sections = self.registry.get_all_sections_for_document(doc.id).unwrap_or_default();
+            for sec in sections {
+                let key = format!("{}/{}", doc.standard, sec.semantic_type);
+                if !rubrics.contains_key(&key) {
+                    match self.get_audit_knowledge(&doc.standard, &sec.semantic_type) {
+                        Ok(content) => {
+                            rubrics.insert(key.clone(), content);
+                        }
+                        Err(_) => continue, // no rubric for this domain/section_type
+                    }
+                }
+                tasks.push(schemas::audit::SemanticReviewTask {
+                    document_id: sec.document_id,
+                    section_id: sec.id,
+                    document_title: sec.document_title,
+                    document_path: sec.document_path,
+                    domain: doc.standard.clone(),
+                    semantic_type: sec.semantic_type,
+                    content: sec.content,
+                });
+            }
+        }
+
+        let instruction = if tasks.is_empty() {
+            String::new()
+        } else {
+            "Deterministic findings above only check structural presence (sections exist, \
+             titles present, no obvious tech leakage) — they do not judge content quality. \
+             For each task, look up its rubric in rubrics[\"{domain}/{semantic_type}\"] \
+             (Engineering Intent / Audit Objectives / Expected Quality / Red Flags / Scoring \
+             Criteria / Output Schema), judge the section's content against every row of that \
+             rubric's Scoring Criteria table, then call store_section_report with a \
+             SemanticReport (stage: \"section\", domain, document_id, section_id, score, \
+             findings — one finding per criterion, in the rubric's Output Schema shape). Call \
+             get_section_changed(section_id) first to skip sections unchanged since their last \
+             stored report."
+                .to_string()
+        };
+
+        schemas::audit::SemanticReviewBundle {
+            instruction,
+            rubrics,
+            tasks,
+        }
     }
 
     /// Checks the primary store first; falls back to built-in stores.

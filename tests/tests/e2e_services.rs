@@ -30,6 +30,7 @@ fn test_quality_gate_passes() {
         findings: vec![],
         readiness: ReadinessAssessment::Production,
         metadata: HashMap::new(),
+        semantic_review: Default::default(),
     };
     let gate = QualityGate {
         enabled: true,

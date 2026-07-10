@@ -307,12 +307,17 @@ fn tool_definitions() -> Vec<serde_json::Value> {
         }),
         serde_json::json!({
             "name": "audit",
-            "description": "Run audit checks on documentation. Pass 'repo_path' to target a different local repository.",
+            "description": "Run audit checks on documentation. For a domain audit (no 'pipeline', or pipeline: 'doc'), the response's semantic_review.tasks bundles per-section LLM review work (section content + rubric) that the calling agent should judge and report via store_section_report — see semantic_review.instruction for the exact next step. Pass 'pipeline' to run a structural pipeline instead (e.g. 'architecture', 'documentation-structure', 'build', 'security', 'consistency', 'coverage', 'dependency', or any domain name) — those return a PipelineReport directly, no semantic_review. Pass 'repo_path' to target a different local repository.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "domain": { "type": "string", "description": "Domain to audit" },
-                    "providers": { "type": "array", "items": { "type": "string" }, "description": "Audit providers" },
+                    "domain": { "type": "string", "description": "Domain to audit (Documentation Audit only, ignored if 'pipeline' is set)" },
+                    "providers": { "type": "array", "items": { "type": "string" }, "description": "Audit providers, e.g. [\"deterministic\"] or [\"deterministic\", \"semantic\"]" },
+                    "pipeline": { "type": "string", "description": "Run a custom pipeline instead of the Documentation Audit: doc, architecture, build, security, consistency, coverage, dependency, documentation-structure, vision, design, readme, prototype, external-context, engineering, feature, feature-technical, feature-design, deterministic-runtime, external-context-ownership, implementation, help" },
+                    "inspect_artifact": { "type": "boolean", "description": "build pipeline only: verify the declared binary artifact exists" },
+                    "runtime": { "type": "boolean", "description": "security pipeline only: connect to the running app and verify auth/TLS/rate-limiting" },
+                    "execute": { "type": "boolean", "description": "build pipeline only: actually run the declared build command" },
+                    "dry_run": { "type": "boolean", "description": "build pipeline only: dry-run the declared build command" },
                     "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
                 }
             }
@@ -572,16 +577,164 @@ fn tool_definitions() -> Vec<serde_json::Value> {
         }),
         serde_json::json!({
             "name": "update_finding_status",
-            "description": "Engineer marks a finding as Fixed / Accepted / False Positive. Pass 'repo_path' to target a different local repository.",
+            "description": "Mark a semantic-stage finding (from store_section_report/store_document_report/store_cross_domain_report) as Fixed / Accepted / Ignored / False Positive. 'report_id' must be the numeric id of a stored SemanticReport — this does NOT apply to plain domain-audit findings or pipeline (architecture/documentation-structure/build/security/consistency/coverage/help) findings; use audit_fix_accept/audit_fix_reject for those instead. Pass 'repo_path' to target a different local repository.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "report_id": { "type": "integer", "description": "Report database ID" },
+                    "report_id": { "type": "integer", "description": "Numeric id of a stored SemanticReport (Section/Document/CrossDomain stage)" },
                     "criterion_id": { "type": "string", "description": "Finding criterion ID to update" },
                     "status": { "type": "string", "enum": ["open", "fixed", "accepted", "ignored", "false_positive"], "description": "New finding status" },
                     "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
                 },
                 "required": ["report_id", "criterion_id", "status"]
+            }
+        }),
+        // ── Fix Plan Tools ──────────────────────────────────────────────────
+        // Work for a finding from ANY audit source (domain audit, pipeline,
+        // or semantic stage) — 'report_id'/'report_type' here are bookkeeping
+        // tags on the fix session, not a foreign key, so any string/number
+        // identifying where the finding came from is valid (e.g. the domain
+        // name and 0 for a plain `audit` call, or a stored pipeline report_id).
+        serde_json::json!({
+            "name": "audit_fix_plan",
+            "description": "Generate a fix plan for one finding, for human review — does not modify files. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "finding": { "type": "object", "description": "AuditFinding JSON object, e.g. one entry from an audit response's findings[] array" },
+                    "domain": { "type": "string", "description": "Domain the finding belongs to" },
+                    "report_id": { "type": "integer", "description": "Bookkeeping id for the source report (not validated against a table)" },
+                    "report_type": { "type": "string", "description": "Bookkeeping label for the source report, e.g. 'doc', 'architecture', 'documentation-structure', 'section'" },
+                    "target_path": { "type": "string", "description": "File the fix should target" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["finding", "domain", "report_id", "report_type", "target_path"]
+            }
+        }),
+        serde_json::json!({
+            "name": "audit_fix_apply",
+            "description": "Run the full fix pipeline for one finding: plan, execute, verify, retry up to the configured max attempts. Modifies files. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "finding": { "type": "object", "description": "AuditFinding JSON object, e.g. one entry from an audit response's findings[] array" },
+                    "domain": { "type": "string", "description": "Domain the finding belongs to" },
+                    "report_id": { "type": "integer", "description": "Bookkeeping id for the source report (not validated against a table)" },
+                    "report_type": { "type": "string", "description": "Bookkeeping label for the source report, e.g. 'doc', 'architecture', 'documentation-structure', 'section'" },
+                    "target_path": { "type": "string", "description": "File the fix should target" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["finding", "domain", "report_id", "report_type", "target_path"]
+            }
+        }),
+        serde_json::json!({
+            "name": "audit_fix_accept",
+            "description": "Shorthand for update_finding_status(status: 'fixed') — same report_id constraint applies (must be a stored SemanticReport id, not a pipeline/domain-audit report_id). Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "report_id": { "type": "integer", "description": "Report database ID (must be a stored SemanticReport id)" },
+                    "criterion_id": { "type": "string", "description": "Finding criterion ID to mark fixed" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["report_id", "criterion_id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "audit_fix_reject",
+            "description": "Shorthand for update_finding_status(status: 'accepted') — same report_id constraint as audit_fix_accept. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "report_id": { "type": "integer", "description": "Report database ID (must be a stored SemanticReport id)" },
+                    "criterion_id": { "type": "string", "description": "Finding criterion ID to mark accepted" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["report_id", "criterion_id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "audit_fix_status",
+            "description": "Get a fix session's status and its attempt history. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "session_id": { "type": "integer", "description": "Fix session id, returned by audit_fix_apply" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["session_id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "audit_fix_list",
+            "description": "List fix sessions, paginated. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "limit": { "type": "integer", "description": "Page size, default 20" },
+                    "offset": { "type": "integer", "description": "Page offset" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                }
+            }
+        }),
+        serde_json::json!({
+            "name": "audit_fix_plan_list",
+            "description": "List fix plans generated within a fix session. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "session_id": { "type": "integer", "description": "Fix session id" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["session_id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "audit_fix_plan_get",
+            "description": "Get a single fix plan and its steps. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "plan_id": { "type": "integer", "description": "Fix plan id" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["plan_id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "audit_fix_plan_render",
+            "description": "Render a fix plan as markdown using a fix-plan-templates template. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "plan_id": { "type": "integer", "description": "Fix plan id" },
+                    "template": { "type": "string", "description": "Template name under docs/raw/fix-plan-templates, default 'documentation'" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["plan_id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "audit_fix_templates",
+            "description": "List available fix-plan-templates. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                }
+            }
+        }),
+        serde_json::json!({
+            "name": "update_report_finding_status",
+            "description": "Mark a stored pipeline-report finding (architecture/documentation-structure/build/security/consistency/coverage/help — the report_findings table) as fixed/accepted/ignored/false_positive by its row id. Note: no MCP tool currently returns that row id from a live audit call; it must be read from the registry directly (report_findings.id) until a query tool is added. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "finding_id": { "type": "integer", "description": "report_findings.id — the stored finding's row id" },
+                    "status": { "type": "string", "enum": ["open", "fixed", "accepted", "ignored", "false_positive"], "description": "New finding status" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["finding_id", "status"]
             }
         }),
         // ── Project Planner Tools ─────────────────────────────────────────

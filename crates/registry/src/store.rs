@@ -723,6 +723,41 @@ impl RegistryStore {
         }
     }
 
+    /// All sections for one document, any semantic_type — unlike
+    /// `get_sections_by_type`, which requires a single type filter.
+    pub fn get_all_sections_for_document(&self, document_id: i64) -> Result<Vec<SemanticSection>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT ds.id, ds.document_id, d.title, d.path, d.standard,
+                    ds.semantic_type, ds.canonical_name, ds.content, ds.required, ds.section_order, ds.hash
+             FROM document_sections ds
+             JOIN documents d ON ds.document_id = d.id
+             WHERE ds.document_id = ?1
+             ORDER BY ds.section_order",
+        )?;
+
+        let rows = stmt.query_map(params![document_id], |row| {
+            Ok(SemanticSection {
+                id: row.get(0)?,
+                document_id: row.get(1)?,
+                document_title: row.get(2)?,
+                document_path: row.get(3)?,
+                standard: row.get(4)?,
+                semantic_type: row.get(5)?,
+                canonical_name: row.get(6)?,
+                content: row.get(7)?,
+                required: row.get::<_, i64>(8)? != 0,
+                section_order: row.get(9)?,
+                hash: row.get(10)?,
+            })
+        })?;
+
+        let mut sections = Vec::new();
+        for row in rows {
+            sections.push(row?);
+        }
+        Ok(sections)
+    }
+
     pub fn get_audit_knowledge(&self, repo_root: &Path, domain: &str, section_type: &str) -> Result<String> {
         let knowledge_path = repo_root
             .join("docs/raw/audit-standards")

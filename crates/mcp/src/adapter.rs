@@ -97,6 +97,7 @@ impl McpAdapter {
         caps.methods.push("store_document_report".to_string());
         caps.methods.push("store_cross_domain_report".to_string());
         caps.methods.push("update_finding_status".to_string());
+        caps.methods.push("update_report_finding_status".to_string());
         caps.methods.push("sync".to_string());
         caps.methods.push("get_plan".to_string());
         caps.methods.push("switch_context".to_string());
@@ -226,6 +227,7 @@ impl McpAdapter {
             "store_document_report"   => self.handle_store_document_report(&req),
             "store_cross_domain_report" => self.handle_store_cross_domain_report(&req),
             "update_finding_status"   => self.handle_update_finding_status(&req),
+            "update_report_finding_status" => self.handle_update_report_finding_status(&req),
             "sync"                    => self.handle_sync(&req),
             "get_plan"                => self.handle_get_plan(),
             "switch_context"          => self.handle_switch_context(&req),
@@ -517,7 +519,10 @@ impl McpAdapter {
         let pipeline_kind = match pipeline_name {
             Some(name) => schemas::audit::PipelineKind::from_str(name)
                 .ok_or_else(|| anyhow::anyhow!(
-                    "Unknown pipeline '{}'. Valid values: doc, build, security, consistency, coverage, dependency",
+                    "Unknown pipeline '{}'. Valid values: doc, build, security, consistency, coverage, \
+                     architecture, dependency, documentation-structure, vision, design, readme, prototype, \
+                     external-context, engineering, feature, feature-technical, feature-design, \
+                     deterministic-runtime, external-context-ownership, implementation, help",
                     name
                 ))?,
             None => schemas::audit::PipelineKind::Doc,
@@ -1001,6 +1006,21 @@ impl McpAdapter {
         };
 
         self.runtime_for(req)?.update_finding_status(report_id, criterion_id, status)?;
+        Ok(serde_json::json!({"success": true}))
+    }
+
+    fn handle_update_report_finding_status(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let finding_id = req.params.get("finding_id")
+            .and_then(|v| v.as_i64())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'finding_id' parameter"))?;
+        let status = req.params.get("status")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'status' parameter"))?;
+        if !matches!(status, "open" | "fixed" | "accepted" | "ignored" | "false_positive") {
+            return Err(anyhow::anyhow!("Invalid status: {}", status));
+        }
+
+        self.runtime_for(req)?.update_report_finding_status(finding_id, status)?;
         Ok(serde_json::json!({"success": true}))
     }
 
