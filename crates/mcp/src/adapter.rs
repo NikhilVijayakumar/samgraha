@@ -96,6 +96,10 @@ impl McpAdapter {
         caps.methods.push("store_section_report".to_string());
         caps.methods.push("store_document_report".to_string());
         caps.methods.push("store_cross_domain_report".to_string());
+        caps.methods.push("store_pipeline_check_report".to_string());
+        caps.methods.push("get_pipeline_check_report".to_string());
+        caps.methods.push("check_pipeline_gate".to_string());
+        caps.methods.push("get_summary_report".to_string());
         caps.methods.push("update_finding_status".to_string());
         caps.methods.push("update_report_finding_status".to_string());
         caps.methods.push("sync".to_string());
@@ -226,6 +230,10 @@ impl McpAdapter {
             "store_section_report"    => self.handle_store_section_report(&req),
             "store_document_report"   => self.handle_store_document_report(&req),
             "store_cross_domain_report" => self.handle_store_cross_domain_report(&req),
+            "store_pipeline_check_report" => self.handle_store_pipeline_check_report(&req),
+            "get_pipeline_check_report" => self.handle_get_pipeline_check_report(&req),
+            "check_pipeline_gate"     => self.handle_check_pipeline_gate(&req),
+            "get_summary_report"      => self.handle_get_summary_report(&req),
             "update_finding_status"   => self.handle_update_finding_status(&req),
             "update_report_finding_status" => self.handle_update_report_finding_status(&req),
             "sync"                    => self.handle_sync(&req),
@@ -536,8 +544,16 @@ impl McpAdapter {
             if (execute || dry_run) && pipeline_kind != schemas::audit::PipelineKind::Build {
                 anyhow::bail!("'execute'/'dry_run' only apply to the build pipeline");
             }
+            let providers = req.params.get("providers")
+                .and_then(|v| v.as_array())
+                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect::<Vec<_>>())
+                .unwrap_or_else(|| vec!["deterministic".to_string()]);
+
             let runtime = self.runtime_for(req)?;
-            let report = runtime.run_pipeline(&pipeline_kind, inspect_artifact, runtime_mode, execute, dry_run)?;
+            let mut report = runtime.run_pipeline(&pipeline_kind, inspect_artifact, runtime_mode, execute, dry_run)?;
+            if providers.iter().any(|p| p == "semantic") {
+                report.semantic_review = runtime.build_pipeline_semantic_review(&pipeline_kind)?;
+            }
             return Ok(serde_json::to_value(&report)?);
         }
 
@@ -983,6 +999,47 @@ impl McpAdapter {
             .map_err(|e| anyhow::anyhow!("Invalid report schema: {}", e))?;
         let id = self.runtime_for(req)?.store_cross_domain_report(&report)?;
         Ok(serde_json::json!({"report_id": id, "status": "stored"}))
+    }
+
+    fn handle_store_pipeline_check_report(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let report_json = req.params.get("report_json")
+            .ok_or_else(|| anyhow::anyhow!("Missing 'report_json' parameter"))?;
+        let report: schemas::audit::PipelineCheckReport = serde_json::from_value(report_json.clone())
+            .map_err(|e| anyhow::anyhow!("Invalid report schema: {}", e))?;
+        let id = self.runtime_for(req)?.store_pipeline_check_report(&report)?;
+        Ok(serde_json::json!({"report_id": id, "status": "stored"}))
+    }
+
+    fn handle_get_pipeline_check_report(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let pipeline = req.params.get("pipeline")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'pipeline' parameter"))?;
+        let check_id = req.params.get("check_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'check_id' parameter"))?;
+        match self.runtime_for(req)?.get_pipeline_check_report(pipeline, check_id)? {
+            Some(r) => Ok(serde_json::to_value(&r)?),
+            None => Ok(serde_json::json!({"report": null, "pipeline": pipeline, "check_id": check_id})),
+        }
+    }
+
+    fn handle_check_pipeline_gate(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let pipeline = req.params.get("pipeline")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'pipeline' parameter"))?;
+        let result = self.runtime_for(req)?.check_pipeline_gate(pipeline)?;
+        Ok(serde_json::to_value(&result)?)
+    }
+
+    fn handle_get_summary_report(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let target_type = req.params.get("target_type")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'target_type' parameter"))?;
+        let target_name = req.params.get("target_name")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'target_name' parameter"))?;
+        let report = self.runtime_for(req)?.get_summary_report(target_type, target_name)?;
+        Ok(serde_json::to_value(&report)?)
     }
 
     fn handle_update_finding_status(&self, req: &McpRequest) -> Result<serde_json::Value> {

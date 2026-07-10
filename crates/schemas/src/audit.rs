@@ -90,6 +90,11 @@ pub struct PipelineReport {
     pub findings: Vec<AuditFinding>,
     pub timestamp: String,
     pub metadata: std::collections::HashMap<String, String>,
+    /// Spec-layer (docs/raw/audit/*.md checklist) LLM review work, populated
+    /// only when the caller requests `providers: ["semantic"]` — mirrors
+    /// `AuditReport::semantic_review`. See docs/proposal.md.
+    #[serde(default)]
+    pub semantic_review: PipelineSemanticReviewBundle,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -190,6 +195,20 @@ pub struct SemanticReport {
     pub document_hash: Option<String>,
 }
 
+/// A judged Spec-layer check (one A1/V1/BC10/... item), the pipeline
+/// counterpart to `SemanticReport`. No `stage`/`document_id`/`section_id` —
+/// Spec-layer checks judge a whole collection, not one section.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PipelineCheckReport {
+    pub report_id: String,
+    pub pipeline: String,
+    pub check_id: String,
+    pub score: i64,
+    pub findings: Vec<AuditFinding>,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AuditScore {
     pub overall: f64,
@@ -217,6 +236,17 @@ pub struct AuditReport {
     pub semantic_review: SemanticReviewBundle,
 }
 
+/// On-disk scorecard snapshot written by `audit()` and kept in sync by
+/// `store_section_report`/`store_document_report`/`store_cross_domain_report` — `report` is
+/// frozen at the last deterministic audit run, `semantic_results` is refreshed each time a
+/// semantic review lands so the rendered Markdown can show pending vs. done without
+/// re-running the audit.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AuditScorecard {
+    pub report: AuditReport,
+    pub semantic_results: Vec<SemanticReport>,
+}
+
 /// Section-level LLM review work bundled into every domain `AuditReport`.
 /// `rubrics` is keyed `"{domain}/{semantic_type}"` — the same content
 /// `get_audit_knowledge(domain, semantic_type)` would return, inlined here so
@@ -237,6 +267,32 @@ pub struct SemanticReviewTask {
     pub domain: String,
     pub semantic_type: String,
     pub content: String,
+}
+
+/// Pipeline-level (Spec-layer) counterpart to `SemanticReviewBundle` — one
+/// task per checklist item (A1, V1, BC10, ...) in a pipeline's
+/// `docs/raw/audit/{pipeline}-audit.md`, judged against the whole document
+/// collection rather than one section. See docs/proposal.md — "Three-Layer
+/// Audit Model".
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct PipelineSemanticReviewBundle {
+    pub instruction: String,
+    /// Document path → raw content, for every document in this pipeline's
+    /// matching domain. Empty for pipelines with no 1:1 domain (build,
+    /// security, consistency, coverage, dependency, documentation-structure,
+    /// deterministic-runtime, external-context-ownership, implementation) —
+    /// those need their own evidence collection, not yet built (see
+    /// docs/proposal.md §8, phase 5).
+    pub evidence: std::collections::HashMap<String, String>,
+    pub tasks: Vec<PipelineSemanticReviewTask>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PipelineSemanticReviewTask {
+    pub pipeline: String,
+    pub check_id: String,
+    pub title: String,
+    pub audit_rule: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -262,6 +318,24 @@ impl std::fmt::Display for ReadinessAssessment {
             Self::None => write!(f, "none"),
         }
     }
+}
+
+/// Rolls up whichever of the three audit layers ran for a target (a domain
+/// name or a pipeline name) into one score + readiness verdict. Any of the
+/// three `*_score` fields may be `None` — a domain never has `spec_score`
+/// (that layer belongs to pipelines only, see docs/proposal.md §3), and a
+/// target with only the deterministic layer run still gets a summary with
+/// the other two `None`. See docs/proposal.md — "Three-Layer Audit Model".
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SummaryReport {
+    pub target_type: String,
+    pub target_name: String,
+    pub deterministic_score: Option<f64>,
+    pub standard_score: Option<f64>,
+    pub spec_score: Option<f64>,
+    pub overall_score: f64,
+    pub readiness: ReadinessAssessment,
+    pub created_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

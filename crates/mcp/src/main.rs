@@ -576,6 +576,56 @@ fn tool_definitions() -> Vec<serde_json::Value> {
             }
         }),
         serde_json::json!({
+            "name": "store_pipeline_check_report",
+            "description": "Agent writes a Spec-layer judgment for one pipeline checklist item (e.g. architecture's A1) from audit(pipeline: ..., providers: [\"semantic\"])'s semantic_review.tasks; validates schema before persist. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "report_json": { "type": "object", "description": "PipelineCheckReport as JSON object (report_id, pipeline, check_id, score, findings, git_revision, created_at)" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["report_json"]
+            }
+        }),
+        serde_json::json!({
+            "name": "get_pipeline_check_report",
+            "description": "Get the latest stored Spec-layer judgment for one pipeline checklist item. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "pipeline": { "type": "string", "description": "Pipeline name, e.g. 'architecture'" },
+                    "check_id": { "type": "string", "description": "Checklist item id, e.g. 'A1'" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["pipeline", "check_id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "check_pipeline_gate",
+            "description": "Check whether a pipeline's Spec-layer checks have all converged (no stored check scored below 100) before proceeding. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "pipeline": { "type": "string", "description": "Pipeline name, e.g. 'architecture'" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["pipeline"]
+            }
+        }),
+        serde_json::json!({
+            "name": "get_summary_report",
+            "description": "Rolls up whichever of the three audit layers (deterministic, standard/rubric, spec/checklist) are available for a target into one score + readiness verdict. Recomputes the deterministic (and, for pipelines, spec) layer live rather than reading a cache — it's cheap to recompute and this avoids serving a stale score. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "target_type": { "type": "string", "enum": ["domain", "pipeline"], "description": "Whether target_name is a domain (e.g. 'vision') or a pipeline (e.g. 'architecture')" },
+                    "target_name": { "type": "string", "description": "Domain or pipeline name" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["target_type", "target_name"]
+            }
+        }),
+        serde_json::json!({
             "name": "update_finding_status",
             "description": "Mark a semantic-stage finding (from store_section_report/store_document_report/store_cross_domain_report) as Fixed / Accepted / Ignored / False Positive. 'report_id' must be the numeric id of a stored SemanticReport — this does NOT apply to plain domain-audit findings or pipeline (architecture/documentation-structure/build/security/consistency/coverage/help) findings; use audit_fix_accept/audit_fix_reject for those instead. Pass 'repo_path' to target a different local repository.",
             "inputSchema": {

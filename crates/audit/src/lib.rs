@@ -4,6 +4,7 @@ pub mod framework;
 pub mod pipeline;
 pub mod pipelines;
 pub mod providers;
+pub mod spec_parser;
 
 pub use framework::*;
 pub use pipeline::*;

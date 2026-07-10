@@ -87,6 +87,7 @@ pub(crate) fn make_report(
         findings,
         timestamp: chrono::Utc::now().to_rfc3339(),
         metadata: HashMap::new(),
+        semantic_review: Default::default(),
     }
 }
 

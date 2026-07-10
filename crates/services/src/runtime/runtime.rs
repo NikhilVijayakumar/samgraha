@@ -16,7 +16,7 @@ use audit_crate::fix::types::{FixPlan, FixSession, PlanType, SessionStatus};
 use audit_crate::fix::verifier::Verifier;
 use audit_crate::pipeline::PipelineContext;
 use uuid::Uuid;
-use audit_crate::pipelines::{architecture::ArchitecturePipeline, build::BuildPipeline, consistency::ConsistencyPipeline, coverage::CoveragePipeline, design::DesignPipeline, deterministic_runtime::DeterministicRuntimePipeline, documentation_structure::DocumentationStructurePipeline, engineering::EngineeringPipeline, external_context::ExternalContextPipeline, external_context_ownership::ExternalContextOwnershipPipeline, feature::FeaturePipeline, feature_design::FeatureDesignPipeline, feature_technical::FeatureTechnicalPipeline, help::HelpPipeline, implementation::ImplementationPipeline, prototype::PrototypePipeline, readme::ReadmePipeline, security::SecurityPipeline, vision::VisionPipeline};
+use audit_crate::pipelines::{architecture::ArchitecturePipeline, build::BuildPipeline, consistency::ConsistencyPipeline, coverage::CoveragePipeline, dependency::DependencyPipeline, design::DesignPipeline, deterministic_runtime::DeterministicRuntimePipeline, documentation_structure::DocumentationStructurePipeline, engineering::EngineeringPipeline, external_context::ExternalContextPipeline, external_context_ownership::ExternalContextOwnershipPipeline, feature::FeaturePipeline, feature_design::FeatureDesignPipeline, feature_technical::FeatureTechnicalPipeline, help::HelpPipeline, implementation::ImplementationPipeline, prototype::PrototypePipeline, readme::ReadmePipeline, security::SecurityPipeline, vision::VisionPipeline};
 use audit_crate::AuditFramework;
 use common::config::SamgrahaConfig;
 use registry::RegistryStore;
@@ -28,7 +28,7 @@ use schemas::package::{PackageLayout, PackageProfile};
 use schemas::search::{SearchQuery, SearchResponse, SectionQuery, SectionQueryResponse};
 use serde::Serialize;
 use standards::StandardRegistry;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 pub struct KnowledgeRuntime {
@@ -195,33 +195,7 @@ impl KnowledgeRuntime {
             PipelineKind::ExternalContextOwnership => AuditService::run_pipeline(&ExternalContextOwnershipPipeline, &ctx),
             PipelineKind::Implementation => AuditService::run_pipeline(&ImplementationPipeline, &ctx),
             PipelineKind::DocumentationStructure => AuditService::run_pipeline(&DocumentationStructurePipeline, &ctx),
-            PipelineKind::Dependency => {
-                let mut findings = Vec::new();
-                let mut cats = std::collections::HashMap::new();
-                findings.push(schemas::audit::AuditFinding {
-                    check_id: "D0".into(),
-                    severity: schemas::audit::Severity::Suggestion,
-                    message: "Dependency Governance is specification only — automated checks not yet implemented".into(),
-                    location: None,
-                    document_id: None,
-                    provider: "pipeline".into(),
-                    stage: None,
-                    section_id: None,
-                    confidence: None,
-                    evidence: None,
-                    status: None,
-                    strategy: None,
-                });
-                cats.insert("Governance".into(), 100.0);
-                schemas::audit::PipelineReport {
-                    pipeline: PipelineKind::Dependency,
-                    score: 100.0,
-                    categories: cats,
-                    findings,
-                    timestamp: chrono::Utc::now().to_rfc3339(),
-                    metadata: std::collections::HashMap::new(),
-                }
-            }
+            PipelineKind::Dependency => AuditService::run_pipeline(&DependencyPipeline, &ctx),
             PipelineKind::Help => AuditService::run_pipeline(&HelpPipeline, &ctx),
             PipelineKind::Doc => {
                 anyhow::bail!("Use the standard audit() method for Documentation Audit");
@@ -277,33 +251,7 @@ impl KnowledgeRuntime {
             PipelineKind::ExternalContextOwnership => AuditService::run_pipeline(&ExternalContextOwnershipPipeline, &ctx),
             PipelineKind::Implementation => AuditService::run_pipeline(&ImplementationPipeline, &ctx),
             PipelineKind::DocumentationStructure => AuditService::run_pipeline(&DocumentationStructurePipeline, &ctx),
-            PipelineKind::Dependency => {
-                let mut findings = Vec::new();
-                let mut cats = std::collections::HashMap::new();
-                findings.push(schemas::audit::AuditFinding {
-                    check_id: "D0".into(),
-                    severity: schemas::audit::Severity::Suggestion,
-                    message: "Dependency Governance is specification only — automated checks not yet implemented".into(),
-                    location: None,
-                    document_id: None,
-                    provider: "pipeline".into(),
-                    stage: None,
-                    section_id: None,
-                    confidence: None,
-                    evidence: None,
-                    status: None,
-                    strategy: None,
-                });
-                cats.insert("Governance".into(), 100.0);
-                schemas::audit::PipelineReport {
-                    pipeline: PipelineKind::Dependency,
-                    score: 100.0,
-                    categories: cats,
-                    findings,
-                    timestamp: chrono::Utc::now().to_rfc3339(),
-                    metadata: std::collections::HashMap::new(),
-                }
-            }
+            PipelineKind::Dependency => AuditService::run_pipeline(&DependencyPipeline, &ctx),
             PipelineKind::Help => AuditService::run_pipeline(&HelpPipeline, &ctx),
             PipelineKind::Doc => {
                 anyhow::bail!("Use the standard audit() method for Documentation Audit");
@@ -314,6 +262,21 @@ impl KnowledgeRuntime {
         let report_id = self.store_pipeline_to_db(kind, &report, &session_id)?;
 
         Ok((report, report_id))
+    }
+
+    /// Resolves `[report] dir` (env-substituted, falls back to `docs/raw/reports` under the
+    /// repo root) — see `common::config::resolve_configured_dir`. Shared by `audit()`'s
+    /// scorecard write and the semantic-report store methods' scorecard regeneration.
+    fn reports_root(&self) -> PathBuf {
+        common::config::resolve_configured_dir(
+            &self.context.config.report.dir,
+            &self.context.repository_root,
+            "docs/raw/reports",
+        )
+    }
+
+    fn report_templates_dir(&self) -> PathBuf {
+        self.context.repository_root.join("docs/raw/report-templates")
     }
 
     pub fn audit(
@@ -332,6 +295,18 @@ impl KnowledgeRuntime {
 
         self.registry.clear_audit_results()?;
         self.registry.insert_audit_findings(&result.findings)?;
+
+        if let Some(d) = domain {
+            if let Err(e) = crate::reporting::write_audit_scorecard(
+                &self.reports_root(),
+                &self.report_templates_dir(),
+                d,
+                &result,
+                &[],
+            ) {
+                tracing::warn!("Failed to write audit scorecard for domain '{}': {}", d, e);
+            }
+        }
 
         // Phase F4: Update manifest audit status after audit run.
         let audit_status = if result
@@ -420,6 +395,62 @@ impl KnowledgeRuntime {
         }
     }
 
+    /// Spec-layer counterpart to `build_semantic_review` — one task per
+    /// checklist item in `docs/raw/audit/{pipeline}-audit.md` (parsed by
+    /// `audit_crate::spec_parser`), evidenced by the pipeline's matching
+    /// domain's documents when one exists. See docs/proposal.md §6.1.
+    ///
+    /// Phase 3 scope: proven for pipelines with a 1:1 domain (e.g.
+    /// `architecture`) only — pipelines with no matching domain (build,
+    /// security, consistency, coverage, dependency, documentation-structure,
+    /// deterministic-runtime, external-context-ownership, implementation)
+    /// get an empty `evidence` map until their own evidence collection is
+    /// built (docs/proposal.md §8, phase 5).
+    pub fn build_pipeline_semantic_review(
+        &self,
+        pipeline: &PipelineKind,
+    ) -> Result<schemas::audit::PipelineSemanticReviewBundle> {
+        let pipeline_name = pipeline.as_str();
+        let pctx = PlanningContextBuilder::new(self.context.repository_root.clone());
+        let raw_spec = pctx.read_audit_spec(pipeline_name)?;
+        let checks = audit_crate::spec_parser::parse_audit_spec_checks(&raw_spec);
+
+        let tasks: Vec<schemas::audit::PipelineSemanticReviewTask> = checks
+            .iter()
+            .map(|c| schemas::audit::PipelineSemanticReviewTask {
+                pipeline: pipeline_name.to_string(),
+                check_id: c.id.clone(),
+                title: c.title.clone(),
+                audit_rule: c.audit_rule.clone(),
+            })
+            .collect();
+
+        let evidence: std::collections::HashMap<String, String> = self
+            .get_documents_by_domain(pipeline_name)
+            .unwrap_or_default()
+            .iter()
+            .map(|doc| (doc.path.0.to_string_lossy().to_string(), doc.body.raw().to_string()))
+            .collect();
+
+        let instruction = if tasks.is_empty() {
+            String::new()
+        } else {
+            "Deterministic findings above only check the mechanical heuristics implemented in \
+             Rust — they do not judge whether this collection of documents coheres as one \
+             system. For each task, judge `evidence` (every document in this pipeline's \
+             matching domain, path → raw content) against that check's `audit_rule` (when \
+             present) and `title`, then call store_pipeline_check_report with a score and \
+             findings for that check_id."
+                .to_string()
+        };
+
+        Ok(schemas::audit::PipelineSemanticReviewBundle {
+            instruction,
+            evidence,
+            tasks,
+        })
+    }
+
     /// Checks the primary store first; falls back to built-in stores.
     /// Note: ids are only unique per-store, so an id collision across a
     /// primary store and a built-in store would resolve to the primary's
@@ -500,16 +531,140 @@ impl KnowledgeRuntime {
         self.registry.get_audit_report(domain, document_id, section_id, stage)
     }
 
+    /// Re-renders the domain scorecard against every stored semantic report so far — called
+    /// after each `store_*_report` lands, so pending tasks in the scorecard move to done
+    /// without needing another `audit()` run. Best-effort: a failure here must not fail the
+    /// store call that triggered it.
+    fn regenerate_scorecard_for(&self, domain: &str) {
+        match self.registry.get_semantic_reports_by_domain(domain) {
+            Ok(semantic_results) => {
+                if let Err(e) = crate::reporting::regenerate_audit_scorecard(
+                    &self.reports_root(),
+                    &self.report_templates_dir(),
+                    domain,
+                    &semantic_results,
+                ) {
+                    tracing::warn!("Failed to regenerate audit scorecard for domain '{}': {}", domain, e);
+                }
+            }
+            Err(e) => tracing::warn!("Failed to load semantic reports for domain '{}': {}", domain, e),
+        }
+    }
+
     pub fn store_section_report(&self, report: &SemanticReport) -> Result<i64> {
-        self.registry.store_section_report(report)
+        let id = self.registry.store_section_report(report)?;
+        self.regenerate_scorecard_for(&report.domain);
+        Ok(id)
     }
 
     pub fn store_document_report(&self, report: &SemanticReport) -> Result<i64> {
-        self.registry.store_document_report(report)
+        let id = self.registry.store_document_report(report)?;
+        self.regenerate_scorecard_for(&report.domain);
+        Ok(id)
     }
 
     pub fn store_cross_domain_report(&self, report: &SemanticReport) -> Result<i64> {
-        self.registry.store_cross_domain_report(report)
+        let id = self.registry.store_cross_domain_report(report)?;
+        self.regenerate_scorecard_for(&report.domain);
+        Ok(id)
+    }
+
+    pub fn store_pipeline_check_report(&self, report: &schemas::audit::PipelineCheckReport) -> Result<i64> {
+        self.registry.store_pipeline_check_report(report)
+    }
+
+    pub fn get_pipeline_check_report(
+        &self,
+        pipeline: &str,
+        check_id: &str,
+    ) -> Result<Option<schemas::audit::PipelineCheckReport>> {
+        self.registry.get_pipeline_check_report(pipeline, check_id)
+    }
+
+    pub fn check_pipeline_gate(&self, pipeline: &str) -> Result<GateResult> {
+        self.registry.check_pipeline_gate(pipeline)
+    }
+
+    /// Rolls up whichever of the three audit layers are available for a
+    /// target into one score + readiness verdict, persists the rollup, and
+    /// returns it. See docs/proposal.md §4/§6.3.
+    ///
+    /// Deliberately does *not* read the 20 pipelines' own dedicated report
+    /// tables (`architecture_reports`, `vision_reports`, ...) for the
+    /// deterministic layer — there's no single accessor across their
+    /// differently-shaped schemas yet (see docs/proposal.md's Known gaps),
+    /// and every layer here is cheap to recompute live, which is also
+    /// exactly what §4 "Verify without re-running" already tells callers to
+    /// do. So this always re-runs the deterministic layer fresh rather than
+    /// fetching a possibly-stale stored one — "build lazily on read", not
+    /// "build lazily on read if stale", because there's no cheap way to
+    /// tell if it's stale without already having recomputed it.
+    pub fn get_summary_report(
+        &self,
+        target_type: &str,
+        target_name: &str,
+    ) -> Result<schemas::audit::SummaryReport> {
+        let (deterministic_score, standard_score, spec_score) = match target_type {
+            "domain" => {
+                let det = self.audit(Some(target_name), &["deterministic".to_string()], None)?;
+                let standard = self
+                    .get_audit_report(target_name, None, None, AuditStage::CrossDomain)?
+                    .map(|r| r.score as f64);
+                (Some(det.score.overall), standard, None)
+            }
+            "pipeline" => {
+                let kind = PipelineKind::from_str(target_name).ok_or_else(|| {
+                    anyhow::anyhow!("Unknown pipeline '{}'", target_name)
+                })?;
+                if kind == PipelineKind::Doc {
+                    anyhow::bail!(
+                        "'doc' is not a real pipeline (it's the audit() sentinel for \"no pipeline\") — \
+                         use target_type: \"domain\" instead"
+                    );
+                }
+                let report = self.run_pipeline(&kind, false, false, false, false)?;
+                let spec = self.registry.get_pipeline_spec_score(target_name)?;
+                (Some(report.score), None, spec)
+            }
+            other => anyhow::bail!("Unknown target_type '{}': expected \"domain\" or \"pipeline\"", other),
+        };
+
+        let available: Vec<f64> = [deterministic_score, standard_score, spec_score]
+            .into_iter()
+            .flatten()
+            .collect();
+        let overall_score = available.iter().sum::<f64>() / available.len() as f64;
+
+        let readiness = if overall_score >= 90.0 {
+            schemas::audit::ReadinessAssessment::Production
+        } else if overall_score >= 80.0 {
+            schemas::audit::ReadinessAssessment::Implementation
+        } else if overall_score >= 70.0 {
+            schemas::audit::ReadinessAssessment::Engineering
+        } else if overall_score >= 60.0 {
+            schemas::audit::ReadinessAssessment::Design
+        } else if overall_score >= 50.0 {
+            schemas::audit::ReadinessAssessment::Architecture
+        } else {
+            schemas::audit::ReadinessAssessment::Product
+        };
+
+        let report = schemas::audit::SummaryReport {
+            target_type: target_type.to_string(),
+            target_name: target_name.to_string(),
+            deterministic_score,
+            standard_score,
+            spec_score,
+            overall_score,
+            readiness,
+            created_at: chrono::Utc::now().to_rfc3339(),
+        };
+
+        if let Err(e) = self.registry.store_summary_report(&report) {
+            tracing::warn!("Failed to persist summary report: {}", e);
+        }
+
+        Ok(report)
     }
 
     pub fn update_finding_status(&self, report_id: i64, criterion_id: &str, status: FindingStatus) -> Result<()> {
@@ -1660,15 +1815,17 @@ impl KnowledgeRuntime {
 
     // ── Audit-Fix Pipeline ─────────────────────────────────────────────────
 
-    /// Reject domains whose pipeline has no real checks yet — currently only
-    /// Dependency (`PipelineKind::Dependency` always returns a placeholder
-    /// "D0" finding). Fixing a placeholder finding is meaningless, so the
-    /// fix pipeline refuses it outright rather than silently "succeeding".
+    /// Reject domains the fix pipeline has no planner logic for yet.
+    /// `DependencyPipeline` (docs/proposal.md Phase 7) now produces real
+    /// findings (D1/D4/D5/D7) plus honest Suggestion-severity stubs for
+    /// what's still deferred (D2/D3/D6/D8) — but no fix planner branch
+    /// exists for any dependency check_id yet, so still refuse outright
+    /// rather than silently no-op "succeeding".
     fn reject_stub_domain(domain: &str) -> Result<()> {
         if domain == "dependency" {
             anyhow::bail!(
                 "Domain 'dependency' is excluded from the audit-fix pipeline: \
-                 its audit pipeline is a stub (no real checks implemented yet)"
+                 no fix planner logic exists for its checks yet"
             );
         }
         Ok(())

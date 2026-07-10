@@ -129,8 +129,23 @@ impl PlanningContextBuilder {
         Ok(files)
     }
 
-    fn audit_spec_path(&self, domain: &str) -> PathBuf {
-        let file_name = match domain {
+    /// `docs/raw/audit/*.md` is written per **pipeline**, not per domain —
+    /// its checklist (A1-A13, V1-V12, ...) judges a whole collection, which
+    /// is pipeline-scoped even for the 11 names that are also a domain (see
+    /// docs/proposal.md §3). The caller still passes the same identifier it
+    /// uses for `audit_standard_path`/`doc_standard_path` (those two really
+    /// are domain-scoped) — `pipeline_name` here is that same string reused
+    /// under its pipeline meaning, not a different value.
+    /// Reads `docs/raw/audit/{pipeline_name}-audit.md` verbatim — the
+    /// Spec-layer source for `build_pipeline_semantic_review` (see
+    /// docs/proposal.md §6.1). Reuses this builder's path resolution
+    /// (including the feature-design exception) instead of duplicating it.
+    pub fn read_audit_spec(&self, pipeline_name: &str) -> Result<String> {
+        read_file_optional(&self.audit_spec_path(pipeline_name))
+    }
+
+    fn audit_spec_path(&self, pipeline_name: &str) -> PathBuf {
+        let file_name = match pipeline_name {
             "feature-design" => "feature-design-validation.md".to_string(),
             other => format!("{}-audit.md", other),
         };

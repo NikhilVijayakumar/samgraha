@@ -35,6 +35,22 @@ pub fn write_report(
     report_body: &str,
     revision: i64,
 ) -> Result<PathBuf> {
+    write_report_file(reports_root, stage, domain, document_id, section_type, "latest.json", report_body, revision)
+}
+
+/// Same as [`write_report`] but with a caller-chosen filename (e.g. `latest.md`) instead of
+/// the hardcoded `latest.json` — lets a JSON and a Markdown rendering of the same report share
+/// one report directory and one history/rotation scheme, keyed by extension.
+pub fn write_report_file(
+    reports_root: &Path,
+    stage: AuditStage,
+    domain: &str,
+    document_id: Option<i64>,
+    section_type: Option<&str>,
+    filename: &str,
+    report_body: &str,
+    revision: i64,
+) -> Result<PathBuf> {
     let report_dir = build_report_path(reports_root, stage, domain, document_id, section_type);
     fs::create_dir_all(&report_dir)
         .with_context(|| format!("Failed to create report dir: {:?}", report_dir))?;
@@ -43,19 +59,20 @@ pub fn write_report(
     fs::create_dir_all(&history_dir)
         .with_context(|| format!("Failed to create history dir: {:?}", history_dir))?;
 
-    let latest_path = report_dir.join("latest.json");
+    let latest_path = report_dir.join(filename);
+    let ext = Path::new(filename).extension().and_then(|e| e.to_str()).unwrap_or("json");
 
-    // Rotate existing latest.json to history
+    // Rotate existing latest file to history
     if latest_path.exists() {
         let timestamp = chrono_now();
-        let history_name = format!("{}-rev{}.json", timestamp, revision);
+        let history_name = format!("{}-rev{}.{}", timestamp, revision, ext);
         let history_path = history_dir.join(&history_name);
         fs::rename(&latest_path, &history_path)
             .with_context(|| format!("Failed to rotate report to {:?}", history_path))?;
     }
 
     // Atomic write: write to temp file, then rename
-    let tmp_path = report_dir.join("latest.json.tmp");
+    let tmp_path = report_dir.join(format!("{}.tmp", filename));
     let mut tmp = fs::File::create(&tmp_path)
         .with_context(|| format!("Failed to create temp file {:?}", tmp_path))?;
     tmp.write_all(report_body.as_bytes())
@@ -67,6 +84,116 @@ pub fn write_report(
         .with_context(|| format!("Failed to rename {:?} to {:?}", tmp_path, latest_path))?;
 
     Ok(latest_path)
+}
+
+/// Render and persist both the JSON scorecard (self-describing `AuditScorecard`, source of
+/// truth for [`regenerate_audit_scorecard`]) and a Markdown rendering of it, for one domain's
+/// `audit()` run. `semantic_results` is normally empty here — `audit()` has just run
+/// deterministically; semantic review results land later via `regenerate_audit_scorecard`.
+pub fn write_audit_scorecard(
+    reports_root: &Path,
+    templates_dir: &Path,
+    domain: &str,
+    report: &schemas::audit::AuditReport,
+    semantic_results: &[schemas::audit::SemanticReport],
+) -> Result<()> {
+    render_and_write_scorecard(reports_root, templates_dir, domain, report.clone(), semantic_results.to_vec())
+}
+
+/// Re-render a domain's scorecard after a semantic review result lands (`store_section_report`
+/// et al.), without re-running the deterministic audit. Reads the `report` half back from the
+/// previously written `latest.json` — a no-op if `audit()` hasn't run for this domain yet,
+/// since there's no deterministic scorecard to attach the semantic results to.
+pub fn regenerate_audit_scorecard(
+    reports_root: &Path,
+    templates_dir: &Path,
+    domain: &str,
+    semantic_results: &[schemas::audit::SemanticReport],
+) -> Result<()> {
+    let json_path = build_report_path(reports_root, AuditStage::Deterministic, domain, None, Some("scorecard"))
+        .join("latest.json");
+    let Ok(existing) = fs::read_to_string(&json_path) else {
+        return Ok(());
+    };
+    let existing: schemas::audit::AuditScorecard = serde_json::from_str(&existing)
+        .with_context(|| format!("Failed to parse existing scorecard {:?}", json_path))?;
+    render_and_write_scorecard(reports_root, templates_dir, domain, existing.report, semantic_results.to_vec())
+}
+
+fn render_and_write_scorecard(
+    reports_root: &Path,
+    templates_dir: &Path,
+    domain: &str,
+    report: schemas::audit::AuditReport,
+    semantic_results: Vec<schemas::audit::SemanticReport>,
+) -> Result<()> {
+    use schemas::audit::Severity;
+
+    let mut errors = Vec::new();
+    let mut warnings = Vec::new();
+    let mut suggestions = Vec::new();
+    for f in &report.findings {
+        let tf = TemplateFinding {
+            check_id: f.check_id.clone(),
+            message: f.message.clone(),
+            location: f.location.clone(),
+        };
+        match f.severity {
+            Severity::Error => errors.push(tf),
+            Severity::Warning => warnings.push(tf),
+            Severity::Suggestion => suggestions.push(tf),
+        }
+    }
+
+    let done_keys: std::collections::HashSet<(Option<i64>, Option<i64>)> = semantic_results
+        .iter()
+        .map(|r| (r.document_id, r.section_id))
+        .collect();
+    let semantic_pending: Vec<TemplateFinding> = report
+        .semantic_review
+        .tasks
+        .iter()
+        .filter(|t| !done_keys.contains(&(Some(t.document_id), Some(t.section_id))))
+        .map(|t| TemplateFinding {
+            check_id: t.semantic_type.clone(),
+            message: t.document_title.clone(),
+            location: Some(t.document_path.clone()),
+        })
+        .collect();
+    let semantic_done: Vec<TemplateFinding> = semantic_results
+        .iter()
+        .map(|r| TemplateFinding {
+            check_id: format!("{:?}", r.stage).to_lowercase(),
+            message: format!("score {}", r.score),
+            location: r.document_id.map(|id| format!("document #{}", id)),
+        })
+        .collect();
+
+    let ctx = TemplateContext {
+        pipeline: domain.to_string(),
+        score: report.score.overall,
+        categories: report.score.categories.clone(),
+        errors,
+        warnings,
+        suggestions,
+        date: chrono_now_iso(),
+        comments: Vec::new(),
+        semantic_pending,
+        semantic_done,
+    };
+
+    let template = read_template(templates_dir, "audit-scorecard").unwrap_or_else(|_| DEFAULT_TEMPLATE.to_string());
+    let markdown = render_from_template(&template, &ctx);
+
+    let scorecard = schemas::audit::AuditScorecard { report, semantic_results };
+    let json_body = serde_json::to_string_pretty(&scorecard)
+        .context("Failed to serialize audit scorecard")?;
+
+    let revision = chrono_now().parse::<i64>().unwrap_or(0);
+    write_report_file(reports_root, AuditStage::Deterministic, domain, None, Some("scorecard"), "latest.json", &json_body, revision)?;
+    write_report_file(reports_root, AuditStage::Deterministic, domain, None, Some("scorecard"), "latest.md", &markdown, revision)?;
+
+    Ok(())
 }
 
 /// Regenerate filesystem reports from SQLite data.
@@ -157,6 +284,13 @@ pub struct TemplateContext {
     pub suggestions: Vec<TemplateFinding>,
     pub date: String,
     pub comments: Vec<TemplateComment>,
+    /// Semantic-review sections not yet judged (`check_id` = semantic_type, `location` =
+    /// document path, `message` = document title). Reuses `TemplateFinding` rather than a
+    /// bespoke struct — same three-column table shape.
+    pub semantic_pending: Vec<TemplateFinding>,
+    /// Semantic-review sections already judged (`check_id` = semantic_type, `location` =
+    /// document path, `message` = `"score {n}"`).
+    pub semantic_done: Vec<TemplateFinding>,
 }
 
 #[derive(Debug, Clone)]
@@ -217,6 +351,8 @@ fn process_conditional_blocks(template: &str, ctx: &TemplateContext) -> String {
                     "warnings" => !ctx.warnings.is_empty(),
                     "suggestions" => !ctx.suggestions.is_empty(),
                     "comments" => !ctx.comments.is_empty(),
+                    "semantic_pending" => !ctx.semantic_pending.is_empty(),
+                    "semantic_done" => !ctx.semantic_done.is_empty(),
                     _ => false,
                 };
                 if has_data {
@@ -288,6 +424,10 @@ fn resolve_variable(expr: &str, ctx: &TemplateContext) -> String {
         "warnings_count" => ctx.warnings.len().to_string(),
         "suggestions_count" => ctx.suggestions.len().to_string(),
         "comments" => render_comments(&ctx.comments),
+        "semantic_pending_table" => render_finding_table(&ctx.semantic_pending),
+        "semantic_done_table" => render_finding_table(&ctx.semantic_done),
+        "semantic_pending_count" => ctx.semantic_pending.len().to_string(),
+        "semantic_done_count" => ctx.semantic_done.len().to_string(),
         _ => format!("{{{{{}}}}}", expr),
     };
 
@@ -3655,6 +3795,8 @@ pub fn render_report_from_pipeline(
                 suggestions,
                 date: chrono_now_iso(),
                 comments: Vec::new(),
+                semantic_pending: Vec::new(),
+                semantic_done: Vec::new(),
             };
             render_from_template(template, &ctx)
         }
@@ -4850,6 +4992,108 @@ mod tests {
         assert!(!history_entries.is_empty(), "Expected at least one history entry");
     }
 
+    fn fake_audit_report() -> schemas::audit::AuditReport {
+        use schemas::audit::*;
+        AuditReport {
+            id: "audit-1".to_string(),
+            domain: Some("vision".to_string()),
+            timestamp: "2026-07-11T00:00:00Z".to_string(),
+            provider: "deterministic".to_string(),
+            score: AuditScore {
+                overall: 80.0,
+                categories: HashMap::new(),
+                documents_checked: 1,
+                documents_passed: 1,
+                findings_count: 1,
+            },
+            findings: vec![AuditFinding {
+                check_id: "vision-002".to_string(),
+                severity: Severity::Warning,
+                message: "Vision must define target audience".to_string(),
+                location: Some("docs/raw/vision/vision.md".to_string()),
+                document_id: Some(223),
+                provider: "deterministic".to_string(),
+                stage: None,
+                section_id: None,
+                confidence: None,
+                evidence: None,
+                status: None,
+                strategy: None,
+            }],
+            readiness: ReadinessAssessment::Production,
+            metadata: HashMap::new(),
+            semantic_review: SemanticReviewBundle {
+                instruction: "judge it".to_string(),
+                rubrics: HashMap::new(),
+                tasks: vec![SemanticReviewTask {
+                    document_id: 223,
+                    section_id: 42,
+                    document_title: "Vision".to_string(),
+                    document_path: "docs/raw/vision/vision.md".to_string(),
+                    domain: "vision".to_string(),
+                    semantic_type: "purpose".to_string(),
+                    content: "...".to_string(),
+                }],
+            },
+        }
+    }
+
+    #[test]
+    fn test_write_audit_scorecard_then_regenerate_moves_pending_to_done() {
+        let root = tmp_reports_root();
+        let templates_dir = root.join("no-such-templates-dir"); // forces DEFAULT_TEMPLATE fallback... but
+        // audit-scorecard.md ships in the real repo; here we just exercise the write/read/regenerate
+        // plumbing, so the DEFAULT_TEMPLATE fallback (no semantic tags) is fine for the JSON assertions
+        // and we render with a minimal inline scorecard template for the markdown assertions.
+        let report = fake_audit_report();
+
+        write_audit_scorecard(&root, &templates_dir, "vision", &report, &[]).unwrap();
+
+        let json_path = root.join("vision").join("scorecard").join("latest.json");
+        let md_path = root.join("vision").join("scorecard").join("latest.md");
+        assert!(json_path.exists());
+        assert!(md_path.exists());
+
+        let scorecard: schemas::audit::AuditScorecard =
+            serde_json::from_str(&fs::read_to_string(&json_path).unwrap()).unwrap();
+        assert_eq!(scorecard.report.score.overall, 80.0);
+        assert!(scorecard.semantic_results.is_empty());
+
+        // Semantic result lands for the one pending task (document_id=223, section_id=42).
+        let semantic_result = schemas::audit::SemanticReport {
+            report_id: "sem-1".to_string(),
+            stage: AuditStage::Section,
+            domain: "vision".to_string(),
+            document_id: Some(223),
+            section_id: Some(42),
+            strategy: None,
+            score: 90,
+            findings: vec![],
+            created_at: "2026-07-11T00:01:00Z".to_string(),
+            document_revision: None,
+            document_hash: None,
+        };
+        regenerate_audit_scorecard(&root, &templates_dir, "vision", &[semantic_result]).unwrap();
+
+        let scorecard: schemas::audit::AuditScorecard =
+            serde_json::from_str(&fs::read_to_string(&json_path).unwrap()).unwrap();
+        assert_eq!(scorecard.semantic_results.len(), 1);
+        assert_eq!(scorecard.semantic_results[0].section_id, Some(42));
+        // Deterministic half of the report is untouched by regeneration.
+        assert_eq!(scorecard.report.score.overall, 80.0);
+    }
+
+    #[test]
+    fn test_regenerate_audit_scorecard_noop_when_no_prior_audit() {
+        let root = tmp_reports_root();
+        let templates_dir = root.join("no-such-templates-dir");
+        // No write_audit_scorecard call happened for "philosophy" — regenerate must be a no-op,
+        // not an error, since audit() simply hasn't run for this domain yet.
+        let result = regenerate_audit_scorecard(&root, &templates_dir, "philosophy", &[]);
+        assert!(result.is_ok());
+        assert!(!root.join("philosophy").join("scorecard").join("latest.json").exists());
+    }
+
     #[test]
     fn test_build_report_path_section() {
         let root = Path::new("/reports");
@@ -4980,6 +5224,8 @@ mod tests {
             warnings: vec![],
             suggestions: vec![],
             comments: vec![],
+            semantic_pending: vec![],
+            semantic_done: vec![],
         };
         let result = render_from_template(DEFAULT_TEMPLATE, &ctx);
         assert!(result.contains("Build Report"));

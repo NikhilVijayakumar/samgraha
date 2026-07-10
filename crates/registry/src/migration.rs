@@ -1,5 +1,5 @@
 /// Knowledge registry migrations — create `knowledge.db` tables.
-pub const KNOWLEDGE_MIGRATIONS: &[&str] = &[V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31];
+pub const KNOWLEDGE_MIGRATIONS: &[&str] = &[V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32];
 
 /// Repository registry migrations — create `registry.db` tables.
 pub const REGISTRY_MIGRATIONS: &[&str] = &[REG_V1, REG_V2];
@@ -943,4 +943,43 @@ CREATE TABLE IF NOT EXISTS documentation_structure_reports (
     validation_scores TEXT,
     finding_counts TEXT DEFAULT '{\"critical\":0,\"major\":0,\"minor\":0,\"observations\":0}'
 );
+";
+
+const V32: &str = "
+-- V32: Spec-layer (docs/raw/audit/*.md checklist) report storage for
+--       pipeline audits, plus a cross-layer summary rollup. See
+--       docs/proposal.md — 'Three-Layer Audit Model' — for the design.
+--       Mirrors semantic_reports (V11) but keyed by pipeline + check_id
+--       instead of domain + section_id, since Spec-layer checks (A1-A13,
+--       V1-V12, ...) judge a whole collection, not one section.
+
+CREATE TABLE IF NOT EXISTS pipeline_semantic_reports (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    report_uuid     TEXT    NOT NULL UNIQUE,
+    pipeline        TEXT    NOT NULL,
+    check_id        TEXT    NOT NULL,
+    score           INTEGER NOT NULL DEFAULT 0,
+    findings        TEXT    NOT NULL DEFAULT '[]',
+    git_revision    TEXT,
+    created_at      TEXT    NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_pipeline_semantic_reports_pipeline ON pipeline_semantic_reports(pipeline);
+CREATE INDEX IF NOT EXISTS idx_pipeline_semantic_reports_check ON pipeline_semantic_reports(pipeline, check_id);
+
+-- One row per (target, generated-at). The three *_report_ref columns are
+-- nullable bookkeeping tags, not enforced foreign keys — same convention
+-- report_findings.report_id already uses — because a target may have only
+-- 1 or 2 of the 3 layers available (see docs/proposal.md §2's matrix).
+CREATE TABLE IF NOT EXISTS summary_reports (
+    id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+    target_type             TEXT    NOT NULL,
+    target_name             TEXT    NOT NULL,
+    deterministic_report_ref TEXT,
+    standard_report_ref     TEXT,
+    spec_report_ref         TEXT,
+    overall_score           REAL,
+    readiness               TEXT,
+    created_at              TEXT    NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_summary_reports_target ON summary_reports(target_type, target_name);
 ";

@@ -2,6 +2,7 @@ pub mod architecture;
 pub mod build;
 pub mod consistency;
 pub mod coverage;
+pub mod dependency;
 pub mod design;
 pub mod deterministic_runtime;
 pub mod documentation_structure;

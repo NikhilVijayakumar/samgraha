@@ -943,6 +943,52 @@ impl RegistryStore {
         }
     }
 
+    /// All stored semantic reports for a domain, latest revision only per
+    /// `(stage, document_id, section_id)` — unlike `get_audit_report`, which returns a single
+    /// row for one exact key, this powers scorecard regeneration where every pending task
+    /// across the domain needs to be checked against what's already been judged.
+    pub fn get_semantic_reports_by_domain(&self, domain: &str) -> Result<Vec<SemanticReport>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT report_uuid, stage, domain, document_id, section_id, score, findings, strategy, document_revision, document_hash, created_at
+             FROM semantic_reports WHERE domain = ?1 ORDER BY id DESC",
+        )?;
+        let rows = stmt.query_map(params![domain], |row| {
+            let stage_str: String = row.get(1)?;
+            let stage = match stage_str.as_str() {
+                "deterministic" => AuditStage::Deterministic,
+                "section" => AuditStage::Section,
+                "document" => AuditStage::Document,
+                _ => AuditStage::CrossDomain,
+            };
+            let findings_str: String = row.get(6)?;
+            let findings: Vec<AuditFinding> = serde_json::from_str(&findings_str).unwrap_or_default();
+            Ok(SemanticReport {
+                report_id: row.get(0)?,
+                stage,
+                domain: row.get(2)?,
+                document_id: row.get(3)?,
+                section_id: row.get(4)?,
+                score: row.get(5)?,
+                findings,
+                strategy: row.get(7)?,
+                document_revision: row.get(8)?,
+                document_hash: row.get(9)?,
+                created_at: row.get(10)?,
+            })
+        })?;
+
+        let mut seen: std::collections::HashSet<(String, Option<i64>, Option<i64>)> = std::collections::HashSet::new();
+        let mut out = Vec::new();
+        for row in rows {
+            let report = row?;
+            let key = (format!("{:?}", report.stage), report.document_id, report.section_id);
+            if seen.insert(key) {
+                out.push(report);
+            }
+        }
+        Ok(out)
+    }
+
     // ── Semantic Audit: Write Methods ───────────────────────────────────────
 
     fn store_report(&self, report: &SemanticReport) -> Result<i64> {
@@ -998,6 +1044,122 @@ impl RegistryStore {
 
     pub fn store_cross_domain_report(&self, report: &SemanticReport) -> Result<i64> {
         self.store_report(report)
+    }
+
+    // ── Spec-Layer (Pipeline Checklist) Reports ─────────────────────────────
+
+    pub fn store_pipeline_check_report(&self, report: &schemas::audit::PipelineCheckReport) -> Result<i64> {
+        let findings_json = serde_json::to_string(&report.findings)?;
+        self.conn.execute(
+            "INSERT INTO pipeline_semantic_reports (report_uuid, pipeline, check_id, score, findings, git_revision, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                report.report_id,
+                report.pipeline,
+                report.check_id,
+                report.score,
+                findings_json,
+                report.git_revision,
+                report.created_at,
+            ],
+        )?;
+        Ok(self.conn.last_insert_rowid())
+    }
+
+    pub fn get_pipeline_check_report(
+        &self,
+        pipeline: &str,
+        check_id: &str,
+    ) -> Result<Option<schemas::audit::PipelineCheckReport>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT report_uuid, pipeline, check_id, score, findings, git_revision, created_at
+             FROM pipeline_semantic_reports WHERE pipeline = ?1 AND check_id = ?2
+             ORDER BY id DESC LIMIT 1",
+        )?;
+        let mut rows = stmt.query(params![pipeline, check_id])?;
+
+        if let Some(row) = rows.next()? {
+            let findings_str: String = row.get(4)?;
+            let findings: Vec<schemas::audit::AuditFinding> =
+                serde_json::from_str(&findings_str).unwrap_or_default();
+            Ok(Some(schemas::audit::PipelineCheckReport {
+                report_id: row.get(0)?,
+                pipeline: row.get(1)?,
+                check_id: row.get(2)?,
+                score: row.get(3)?,
+                findings,
+                git_revision: row.get(5)?,
+                created_at: row.get(6)?,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Pipeline counterpart to `check_gate`'s Section/Document/CrossDomain
+    /// branch — blocks while any of this pipeline's judged checks scored
+    /// below 100. Kept separate from `check_gate`/`AuditStage` rather than
+    /// adding a `Pipeline` variant there: Spec-layer checks have no
+    /// section/document/cross_domain distinction, so reusing that enum would
+    /// force every exhaustive `AuditStage` match to grow a meaningless arm.
+    pub fn check_pipeline_gate(&self, pipeline: &str) -> Result<GateResult> {
+        let count: i64 = self.conn.query_row(
+            "SELECT COUNT(*) FROM pipeline_semantic_reports WHERE pipeline = ?1 AND score < 100",
+            params![pipeline],
+            |row| row.get(0),
+        ).unwrap_or(0);
+
+        if count > 0 {
+            Ok(GateResult {
+                blocked: true,
+                reason: Some(format!("{} '{}' spec-layer checks not converged (score < 100)", count, pipeline)),
+                blocking_ids: Vec::new(),
+            })
+        } else {
+            Ok(GateResult { blocked: false, reason: None, blocking_ids: Vec::new() })
+        }
+    }
+
+    /// Averages the *latest* judged score per check_id for a pipeline —
+    /// not a flat average over every row, which would let a re-judged
+    /// check's stale earlier scores skew the result (same append-only shape
+    /// `check_pipeline_gate` has to account for). `None` means no check has
+    /// been judged yet, not a score of 0.
+    pub fn get_pipeline_spec_score(&self, pipeline: &str) -> Result<Option<f64>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT score FROM pipeline_semantic_reports p1
+             WHERE pipeline = ?1 AND id = (
+                 SELECT MAX(id) FROM pipeline_semantic_reports p2
+                 WHERE p2.pipeline = p1.pipeline AND p2.check_id = p1.check_id
+             )",
+        )?;
+        let scores: Vec<i64> = stmt
+            .query_map(params![pipeline], |row| row.get(0))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+
+        if scores.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(scores.iter().sum::<i64>() as f64 / scores.len() as f64))
+        }
+    }
+
+    pub fn store_summary_report(&self, report: &schemas::audit::SummaryReport) -> Result<i64> {
+        self.conn.execute(
+            "INSERT INTO summary_reports (target_type, target_name, deterministic_report_ref, standard_report_ref, spec_report_ref, overall_score, readiness, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                report.target_type,
+                report.target_name,
+                report.deterministic_score.map(|s| s.to_string()),
+                report.standard_score.map(|s| s.to_string()),
+                report.spec_score.map(|s| s.to_string()),
+                report.overall_score,
+                report.readiness.to_string(),
+                report.created_at,
+            ],
+        )?;
+        Ok(self.conn.last_insert_rowid())
     }
 
     pub fn update_finding_status(
@@ -4460,6 +4622,104 @@ mod tests {
         assert_eq!(stored.len(), 1);
         assert_eq!(stored[0].evidence_excerpt.as_deref(), Some("This system does things."));
         assert!(stored[0].evidence_source.as_deref().unwrap().contains("section_id=5"));
+    }
+
+    #[test]
+    fn test_pipeline_check_report_round_trip_and_gate() {
+        let store = RegistryStore::open_in_memory().unwrap();
+
+        let report = schemas::audit::PipelineCheckReport {
+            report_id: "arch-a1-1".into(),
+            pipeline: "architecture".into(),
+            check_id: "A1".into(),
+            score: 70,
+            findings: vec![schemas::audit::AuditFinding {
+                check_id: "A1".into(),
+                severity: schemas::audit::Severity::Warning,
+                message: "Terminology drifts between two architecture docs".into(),
+                location: None,
+                document_id: None,
+                provider: "semantic".into(),
+                stage: None,
+                section_id: None,
+                confidence: Some(0.8),
+                evidence: None,
+                status: None,
+                strategy: None,
+            }],
+            git_revision: Some("deadbeef".into()),
+            created_at: "2026-01-01T00:00:00Z".into(),
+        };
+        let id = store.store_pipeline_check_report(&report).unwrap();
+        assert!(id > 0);
+
+        // Below 100 → gate blocks.
+        let blocked = store.check_pipeline_gate("architecture").unwrap();
+        assert!(blocked.blocked);
+
+        let fetched = store.get_pipeline_check_report("architecture", "A1").unwrap().unwrap();
+        assert_eq!(fetched.score, 70);
+        assert_eq!(fetched.findings.len(), 1);
+        assert_eq!(fetched.git_revision.as_deref(), Some("deadbeef"));
+
+        // A different pipeline's checks don't affect this one's report/gate.
+        assert!(store.get_pipeline_check_report("vision", "V1").unwrap().is_none());
+        assert!(!store.check_pipeline_gate("vision").unwrap().blocked);
+
+        // Re-judging A1 at 100 adds a second row rather than replacing the
+        // first — same append-only shape `semantic_reports`/`check_gate`
+        // already use for domain audits, so the gate still counts the
+        // earlier score=70 row and stays blocked.
+        let converged = schemas::audit::PipelineCheckReport {
+            report_id: "arch-a1-2".into(),
+            score: 100,
+            findings: vec![],
+            ..report
+        };
+        store.store_pipeline_check_report(&converged).unwrap();
+        assert!(store.check_pipeline_gate("architecture").unwrap().blocked);
+    }
+
+    #[test]
+    fn test_pipeline_spec_score_averages_latest_per_check_not_every_row() {
+        let store = RegistryStore::open_in_memory().unwrap();
+
+        assert_eq!(store.get_pipeline_spec_score("architecture").unwrap(), None);
+
+        let make = |report_id: &str, check_id: &str, score: i64| schemas::audit::PipelineCheckReport {
+            report_id: report_id.into(),
+            pipeline: "architecture".into(),
+            check_id: check_id.into(),
+            score,
+            findings: vec![],
+            git_revision: None,
+            created_at: "2026-01-01T00:00:00Z".into(),
+        };
+
+        store.store_pipeline_check_report(&make("r1", "A1", 60)).unwrap();
+        store.store_pipeline_check_report(&make("r2", "A2", 100)).unwrap();
+        // A1 re-judged higher — the stale 60 must not count toward the average.
+        store.store_pipeline_check_report(&make("r3", "A1", 100)).unwrap();
+
+        let score = store.get_pipeline_spec_score("architecture").unwrap().unwrap();
+        assert!((score - 100.0).abs() < 0.01, "expected avg(A1=100, A2=100) = 100, got {score}");
+    }
+
+    #[test]
+    fn test_summary_report_round_trips() {
+        let store = RegistryStore::open_in_memory().unwrap();
+        let report = schemas::audit::SummaryReport {
+            target_type: "pipeline".into(),
+            target_name: "architecture".into(),
+            deterministic_score: Some(85.0),
+            standard_score: None,
+            spec_score: Some(70.0),
+            overall_score: 77.5,
+            readiness: schemas::audit::ReadinessAssessment::Engineering,
+            created_at: "2026-01-01T00:00:00Z".into(),
+        };
+        let id = store.store_summary_report(&report).unwrap();
+        assert!(id > 0);
     }
 
     #[test]
