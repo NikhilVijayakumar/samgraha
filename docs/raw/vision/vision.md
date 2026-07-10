@@ -12,7 +12,7 @@ Its objective is to ensure that engineering knowledge remains consistent, tracea
 
 ---
 
-# Vision
+## Vision
 
 Every engineering repository should become **self-describing**.
 
@@ -36,7 +36,7 @@ Knowledge guides implementation.
 
 ---
 
-# Problem
+## Problem
 
 Modern engineering knowledge is fragmented.
 
@@ -85,7 +85,7 @@ It exposes an existing engineering knowledge problem.
 
 ---
 
-# Solution
+## Solution
 
 Saṃgraha transforms engineering documentation into verified engineering knowledge through deterministic standards, reusable knowledge services, and reproducible knowledge compilation.
 

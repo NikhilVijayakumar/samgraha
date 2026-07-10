@@ -4,30 +4,30 @@
 
 How to write Vision documentation — product vision and long-term direction.
 
-## Content
+## Vision
 
-### Purpose of Vision Docs
+The long-term vision statement describing the desired future state.
 
-Vision documentation defines the long-term direction of the product. It answers: "What are we building, for whom, and why?"
+## Problem
 
-### Required Sections
+The specific problem or pain point being addressed.
 
-| Section | Required | Description |
-|---------|----------|-------------|
-| Purpose | Yes | Why this document exists |
-| Vision | Yes | The long-term vision statement |
-| Problem | Yes | The problem being solved |
-| Solution | Yes | How the problem is solved |
-| Target Audience | Yes | Who the product serves |
+## Solution
 
-### Writing Tips
+How the problem is solved at a high level.
+
+## Target Audience
+
+Who the product serves, including primary and secondary audiences.
+
+## Guidelines
 
 - Vision docs should be stable — they change slowly over time.
-- Avoid implementation details. Vision explains "what" and "why", not "how".
+- Vision explains "what" and "why", not "how".
 - Every feature should trace back to the Vision.
 - Be specific about the problem and target audience.
 
-### Example Structure
+## Example Structure
 
 ```markdown
 # Product Name Vision
