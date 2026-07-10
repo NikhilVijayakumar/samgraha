@@ -18,7 +18,6 @@ patterns = [
     "**/standards/**",
     "**/help/**",
     "**/release/**",
-    "**/philosophy/**",
 ]
 
 [repository.documentation]
