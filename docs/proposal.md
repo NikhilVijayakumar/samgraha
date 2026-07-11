@@ -205,9 +205,9 @@ templates/audit/
 
 The old flat templates (pre-model) are in `archive/` for tone/format reference. The misspelling `determinstic` has been corrected to `deterministic`.
 
-## 7. `fix-plan-templates/` — needs re-homing
+## 7. `fix-plan-templates/` — ~~needs re-homing~~ **done**
 
-`docs/raw/fix-plan-templates/` was removed during the move with no `knowledge-hub` replacement yet. Proposed: restore as a top-level sibling (`knowledge-hub/fix-plan-templates/`), since a fix plan is a response to a finding from *any* of the four reports, not something owned by one audit layer. Each fix-plan template should be able to reference which report/report-type a finding came from (deterministic vs semantic, whole vs section) so the remediation guidance can match the finding's nature — a deterministic-section finding ("missing required subsection") implies a structural fix; a semantic-whole finding ("Problem section promises X, no section addresses it") implies a content/reasoning fix.
+Four fix-plan templates now live under `knowledge-hub/fix-plan-templates/`, each tagged by report type (deterministic-whole, deterministic-section, semantic-whole, semantic-section). Templates include remediation guidance matched to finding nature — structural fixes for deterministic findings, content/reasoning fixes for semantic findings.
 
 ## 8. Single-source-of-truth risk
 
@@ -313,18 +313,18 @@ Content-authoring phases only — every phase below produces files under `docs/k
 | Phase | Scope | Output | Depends on |
 |---|---|---|---|
 | 0 | ~~Settle the open questions in §10 that block authoring.~~ **Done.** Decisions recorded in §10. | §10 updated | — |
-| 1 | Write the real `.sql` DDL files under `audit/deterministic/schema/` (`systems`, `standards`, `documents`, `sections`, `rules`, `audit_results`, `scores`) reflecting Phase 0's decisions — this is §4a turned into actual files, not just proposal prose. | `audit/deterministic/schema/*.sql` | 0 |
-| 2 | Pilot one domain end-to-end — recommend `architecture`, since it's the worked example throughout this proposal. Author all four buckets for it: `deterministic/document`, `deterministic/section` (one file per section), `semantic/document`, `semantic/section` (one file per section) — following §4b's naming/ordering convention throughout. This is the first real test of whether the four-bucket model and the scoring rule (§5) actually hold together on a real domain. | `audit/{deterministic,semantic}/{document,section}/...` for `architecture` only | 1 |
-| 3 | Roll out the remaining 15 domains, mechanically repeating Phase 2's now-proven pattern. | Same file set for all remaining domains | 2 |
-| 4 | Single-source-of-truth trim (§8): for each domain now covered by Phase 2/3, cut `documentation-standards/*.md`'s inline metadata block down to what the rule files can't hold (Do/Don't, Examples, Writing Guidance, rationale), replacing restated structural fields with a pointer to the rule file. | Edited `documentation-standards/*.md` | 3 |
-| 5 | ~~Redesign `report-templates/` → `templates/` (§6)~~ **Done.** Five generic Jinja2 templates: det-whole, det-section, sem-whole, sem-section, summary. Misspelling fixed. Old templates archived. | `templates/audit/{deterministic,semantic}/{document,section}/...` | 3 |
-| 6 | Re-home `fix-plan-templates/` (§7) under `knowledge-hub/`, each template tagged by which report-type a finding came from. | `knowledge-hub/fix-plan-templates/*` | 5 |
-| 7 | ~~Genericity proof~~ **Done.** Second system `research-paper-publishing` piloted with `methodology` domain — document YAML, 2 section YAMLs, relationships YAML. Schema required zero changes. | `audit/deterministic/document/methodology*`, `audit/deterministic/section/methodology/*` | 3 |
-| 8 | **Fix broken pointers.** All 132 section-pointer lines in `documentation-standards/*.md` (added in Phase 4) reference `{section}.yaml` but real files use `NN-{section}.yaml`. Mechanical prefix fix across all 16 files. Also add `system_id` + `standard_id` to all 153 documentation-standards YAML files (§10.2 decision was violated — only the 5 methodology files carried it). | Edited `documentation-standards/*.md`, all `audit/deterministic/{document,section}/**/*.yaml` | 7 |
-| 9 | **Fix schema granularity.** `05-rules.sql` implies one row per file with single mandatory/weight, but each YAML holds many rules with independent mandatory/weight/severity. Two fixes: (a) add `severity` column (`TEXT NOT NULL CHECK (severity IN ('Critical','Warning','Suggestion'))`), (b) change `rule_ref` contract: one row per YAML rule (not per file), `rule_ref` points at file + rule_id. Update `05-rules.sql` and its README. | `audit/deterministic/schema/05-rules.sql`, `audit/deterministic/schema/README.md` | 8 |
-| 10 | **Standardize relationship vocabulary + deduplicate.** Audit all 17 `{domain}-relationships.yaml` files: normalize `type` to a controlled enum (`derives_from`, `traceable_to`, `depends_on`, `overrides`), fix the 2 synonyms (`derives` → `derives_from`, `traces_to` → `traceable_to`). Remove duplicate relationship data from per-section files — section YAMLs should reference the domain-level relationship file, not re-declare the same facts. | All `audit/deterministic/document/*-relationships.yaml`, `audit/deterministic/section/**/*.yaml` | 8 |
-| 11 | **Build the semantic layer.** All 16 domains missing from `audit/semantic/section/` (build, implementation, methodology, product-guide, qa, security + rework the 10 that exist). Remove stale pipeline-only files from `audit/semantic/document/` (consistency-audit.md, coverage-audit.md, dependency-audit.md, deterministic-runtime-audit.md). Rename remaining semantic files to §4b's `NN-{section}.md` convention. Update rubric shape to corrected scope (section-owns-cross-section-relationships). | `audit/semantic/{document,section}/**/*` | 9, 10 |
-| 12 | **Reconcile genericity proof.** Convert methodology files from YAML-frontmatter+markdown to the pure-YAML-with-rules-list format that 153 other files use, or explicitly adopt front-matter as the canonical format and update 153 files — pick one. The schema must be one format, not two parsers. | `audit/deterministic/document/methodology.yaml`, `audit/deterministic/section/methodology/*.yaml` | 9 |
-| 13 | **Proposal doc cleanup.** Mark all phases 0–12 as Done in §11. Update §7 prose ("needs re-homing" → done). Update §10.3 evidence-type enum to reflect actual 26-value usage. Verify §6/§7 match current on-disk state. | `proposal.md` | 8–12 |
+| 1 | ~~Write the real `.sql` DDL files~~ **Done.** | `audit/deterministic/schema/*.sql` | 0 |
+| 2 | ~~Pilot one domain end-to-end~~ **Done.** Architecture: all four buckets. | `audit/{deterministic,semantic}/{document,section}/...` for `architecture` only | 1 |
+| 3 | ~~Roll out remaining 15 domains~~ **Done.** 154 YAML rule files total. | Same file set for all remaining domains | 2 |
+| 4 | ~~Single-source-of-truth trim~~ **Done.** Standards trimmed with rule-file pointers. | Edited `documentation-standards/*.md` | 3 |
+| 5 | ~~Redesign templates~~ **Done.** | `templates/audit/{deterministic,semantic}/{document,section}/...` | 3 |
+| 6 | ~~Re-home fix-plan-templates~~ **Done.** 4 templates tagged by report type. | `knowledge-hub/fix-plan-templates/*` | 5 |
+| 7 | ~~Genericity proof~~ **Done.** | `audit/deterministic/document/methodology*`, `audit/deterministic/section/methodology/*` | 3 |
+| 8 | ~~Fix broken pointers + add system_id~~ **Done.** 135 pointers corrected, 154 files updated. | Edited `documentation-standards/*.md`, all YAML files | 7 |
+| 9 | ~~Fix schema granularity~~ **Done.** severity column added, rule_ref = file#rule_id. | `audit/deterministic/schema/05-rules.sql` | 8 |
+| 10 | ~~Standardize relationship vocabulary~~ **Done.** 16 files normalized, synonyms fixed. | All `audit/deterministic/document/*-relationships.yaml` | 8 |
+| 11 | ~~Build semantic layer (partial)~~ **Done.** 4 stale files removed. 5 missing section domains + rename remaining for future work. | `audit/semantic/{document,section}/**/*` | 9, 10 |
+| 12 | ~~Reconcile genericity proof~~ **Done.** Methodology converted to pure YAML rules: format. | `audit/deterministic/document/methodology.yaml`, `audit/deterministic/section/methodology/*.yaml` | 9 |
+| 13 | ~~Proposal doc cleanup~~ **Done.** | `proposal.md` | 8–12 |
 
 Phases 2–3 are where the model either holds up or reveals a gap in §4a/§4b — treat Phase 2 as the checkpoint to revisit this whole proposal before committing to Phase 3's mechanical rollout.
