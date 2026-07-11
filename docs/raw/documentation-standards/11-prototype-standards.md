@@ -2,6 +2,7 @@
 
 ## Table of Contents
 - [Purpose](#purpose)
+- [Plan Scenarios](#plan-scenarios)
 - [Mock APIs](#mock-apis)
 - [Data Model](#data-model)
 - [Constraints](#constraints)
@@ -54,6 +55,50 @@ A Prototype is **not** production implementation.
 It is a disposable artifact scoped to one question, evaluated once, and discarded or replaced.
 
 Prototype validates Feature Design and Feature Technical Design by exercising them against real interaction before Engineering builds the production version.
+
+---
+
+## Plan Scenarios
+
+Not every prototype plan covers the entire project. The plan type depends on what is being prototyped and why.
+
+### Full Generation
+
+> **scenario:** New project or major feature set — prototype all uncertain features before implementation begins
+> **scope:** Entire project or feature set
+> **inputs:** Feature(04) requirements, Architecture(05) system boundaries, Design(06) UX direction
+> **outputs:** Complete prototype plan covering all features, with separate frontend and backend prototypes per feature
+
+Use Full Generation when:
+- Starting a new project with significant unknowns
+- Multiple features have technical uncertainty
+- The team needs to validate the overall approach before committing
+
+Full Generation produces a per-feature prototype plan. Each feature gets its own prototype with separate frontend and backend scopes.
+
+### Enhancement
+
+> **scenario:** Existing project — prototype a specific new feature or improve an existing one
+> **scope:** Per feature or per section (UI only, backend only)
+> **inputs:** Feature(04) for the specific feature, relevant upstream docs
+> **outputs:** Targeted prototype plan for the specific feature or section
+
+Use Enhancement when:
+- Adding a new feature that has technical uncertainty
+- Improving an existing feature's approach
+- Prototyping a specific section (UI interaction, API contract, data flow)
+
+Enhancement produces a focused prototype plan. Scope is limited to the feature or section being prototyped.
+
+### Scope Options
+
+| Scope | When to Use | Required Inputs |
+|-------|-------------|-----------------|
+| Entire project | New project with multiple unknowns | All upstream docs |
+| Per feature | New uncertain feature | Feature(04) + relevant upstream |
+| Frontend only | UI/UX uncertainty | Feature Design(09) + Design(06) |
+| Backend only | API/data uncertainty | Architecture(05) + Engineering(07) |
+| Per section | Specific component uncertainty | Component-specific upstream docs |
 
 ---
 

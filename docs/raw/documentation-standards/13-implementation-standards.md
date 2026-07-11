@@ -2,6 +2,7 @@
 
 ## Table of Contents
 - [Purpose](#purpose)
+- [Plan Scenarios](#plan-scenarios)
 - [Generation Plan](#generation-plan)
 - [Refactor Plan](#refactor-plan)
 - [Change Request Plan](#change-request-plan)
@@ -48,6 +49,93 @@
 This document defines the standard for Implementation Plans — per-feature documents that record how code was generated, what deviations were made, and why.
 
 Implementation is the generation point where all upstream documentation converges into working code. Unlike other standards that define what to build, Implementation records what was actually built and how it satisfies (or intentionally deviates from) every upstream decision.
+
+---
+
+## Plan Scenarios
+
+Not every implementation plan covers the entire project. The plan type depends on what is being implemented and why.
+
+### Full Generation
+
+> **scenario:** New repo or major feature set — implement all features from scratch using Feature Technical(10) and Feature Design(09)
+> **scope:** Entire project or feature set
+> **inputs:** Feature(04), Feature Design(09), Prototype(11), Architecture(05), Design(06), Engineering(07), External Context(08), Security(03)
+> **outputs:** Complete implementation plan covering all features, with per-feature generation plans
+
+Use Full Generation when:
+- Starting a new repository
+- Implementing a major feature set from scratch
+- The team needs a complete implementation roadmap
+
+Full Generation produces per-feature implementation plans. Each feature gets its own generation plan using Feature Technical(10) and Feature Design(09).
+
+### Per Feature
+
+> **scenario:** New feature — implement a specific feature using its upstream documentation
+> **scope:** Per feature
+> **inputs:** Feature(04), Feature Design(09), Prototype(11) (if available), relevant upstream docs
+> **outputs:** Implementation plan for the specific feature
+
+Use Per Feature when:
+- Adding a new feature to an existing project
+- The feature has unique implementation requirements
+- Feature-specific deviation tracking is needed
+
+Per Feature produces a focused implementation plan. Upstream verification is limited to the feature's scope.
+
+### Enhancement
+
+> **scenario:** Existing feature improvement — enhance a specific feature or section
+> **scope:** Per feature or per section (UI, backend, data layer)
+> **inputs:** Feature(04) updated requirements, specific upstream docs
+> **outputs:** Enhancement plan for the specific feature/section
+
+Use Enhancement when:
+- Improving performance of an existing feature
+- Enhancing UX for a specific section
+- Optimizing a specific component
+
+Enhancement produces a targeted implementation plan. Scope is limited to what changed.
+
+### Refactor
+
+> **scenario:** Structural improvement — restructure code without changing behavior
+> **scope:** Per module or per section
+> **inputs:** Architecture(05) target structure, Engineering(07) code standards
+> **outputs:** Refactor plan with behavior preservation verification
+
+Use Refactor when:
+- Improving code structure without changing behavior
+- Aligning code with updated Architecture(05)
+- Reducing technical debt in a specific module
+
+Refactor produces a structural improvement plan. Behavior preservation is verified through existing tests.
+
+### Change Request
+
+> **scenario:** Behavior modification — change existing functionality to meet new requirements
+> **scope:** Per feature or per behavior
+> **inputs:** Feature(04) updated requirements, Feature Design(09) updated UX
+> **outputs:** Change request plan with impact analysis and rollback strategy
+
+Use Change Request when:
+- Modifying existing behavior per stakeholder request
+- Changing API contracts
+- Updating business logic
+
+Change Request produces a modification plan. Impact analysis and rollback strategy are mandatory.
+
+### Scope Options
+
+| Scope | When to Use | Required Inputs |
+|-------|-------------|-----------------|
+| Entire project | New repo or major version | All upstream docs |
+| Per feature | New or changed feature | Feature(04) + relevant upstream |
+| Per module | Module-level refactor | Architecture(05) + Engineering(07) |
+| UI section | Frontend changes | Feature Design(09) + Design(06) |
+| Backend section | API/data changes | Architecture(05) + Engineering(07) |
+| Security section | Security fix | Security(03) + QA(12) |
 
 ---
 

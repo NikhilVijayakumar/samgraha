@@ -2,6 +2,7 @@
 
 ## Table of Contents
 - [Purpose](#purpose)
+- [Plan Scenarios](#plan-scenarios)
 - [Test Strategy](#test-strategy)
 - [Unit Testing](#unit-testing)
 - [Integration Testing](#integration-testing)
@@ -52,6 +53,65 @@ This document defines the standard for Quality Assurance documentation within th
 QA Documentation defines how features are verified against their specifications — the testing strategy, test types, and verification chain from feature requirements to implementation.
 
 Unlike other standards that define what to build, QA defines how to verify that what was built matches what was specified.
+
+---
+
+## Plan Scenarios
+
+Not every QA plan covers the entire project. The plan type depends on what is being tested and why.
+
+### Full Generation
+
+> **scenario:** New project or major version — define the complete test strategy for all features
+> **scope:** Entire project
+> **inputs:** Feature(04) requirements, Architecture(05) system boundaries, Design(06) UX, Security(03) requirements
+> **outputs:** Complete QA plan covering all test types for all features, with applicability conditions
+
+Use Full Generation when:
+- Starting a new project
+- Releasing a major version with significant changes
+- The team needs a complete test strategy from scratch
+
+Full Generation produces a comprehensive test strategy. All applicable test types are defined with coverage targets.
+
+### Per Feature
+
+> **scenario:** New feature — define QA plan for that specific feature
+> **scope:** Per feature
+> **inputs:** Feature(04) for the specific feature, Feature Design(09), relevant upstream docs
+> **outputs:** QA plan covering applicable test types for the specific feature
+
+Use Per Feature when:
+- Adding a new feature to an existing project
+- The feature has unique testing requirements
+- Feature-specific test coverage needs to be defined
+
+Per Feature produces a focused QA plan. Test types are selected based on the feature's risk profile.
+
+### Enhancement
+
+> **scenario:** Existing feature change — add or update tests for specific section
+> **scope:** Per feature or per section (UI tests, API tests, etc.)
+> **inputs:** Feature(04) updated requirements, specific upstream docs
+> **outputs:** Updated test coverage for the changed feature/section
+
+Use Enhancement when:
+- Modifying an existing feature
+- Adding tests for a specific section (UI, API, data layer)
+- Improving test coverage for an existing area
+
+Enhancement produces targeted test additions. Scope is limited to what changed.
+
+### Scope Options
+
+| Scope | When to Use | Required Inputs |
+|-------|-------------|-----------------|
+| Entire project | New project or major version | All upstream docs |
+| Per feature | New feature | Feature(04) + relevant upstream |
+| UI section | UI/UX changes | Feature Design(09) + Design(06) |
+| API section | Backend changes | Architecture(05) + Engineering(07) |
+| Security section | Security-related changes | Security(03) |
+| Data section | Data layer changes | Architecture(05) data flow |
 
 ---
 

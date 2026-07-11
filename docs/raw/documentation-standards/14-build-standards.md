@@ -2,6 +2,7 @@
 
 ## Table of Contents
 - [Purpose](#purpose)
+- [Plan Scenarios](#plan-scenarios)
 - [Documentation Quality](#documentation-quality)
 - [Security Checks](#security-checks)
 - [Size Checks](#size-checks)
@@ -50,6 +51,94 @@
 This document defines the standard for Build Plans — artifact generation and validation pipelines that take verified code and produce shippable packages.
 
 Unlike other standards that define what to build or how to verify it, Build defines how to package, validate, and deliver what was built. Not every build stage applies to every project — the plan defines applicability conditions.
+
+---
+
+## Plan Scenarios
+
+Not every build plan covers the entire pipeline. The plan type depends on what is changing and why.
+
+### Full Generation
+
+> **scenario:** New project or major version — define the complete build pipeline from scratch
+> **scope:** Entire project
+> **inputs:** Engineering(07) CI/CD standards, Security(03) requirements, Implementation(13) artifact types
+> **outputs:** Complete build plan covering all applicable stages with quality gates
+
+Use Full Generation when:
+- Starting a new project
+- Rebuilding the pipeline from scratch
+- The team needs a complete build strategy
+
+Full Generation produces a comprehensive build plan. All applicable stages are defined with quality gates.
+
+### New Build Rule
+
+> **scenario:** Adding a new build stage or quality gate to the existing pipeline
+> **scope:** Specific build stage
+> **inputs:** The specific upstream docs for the new stage
+> **outputs:** Build plan addition for the specific stage
+
+Use New Build Rule when:
+- Adding ML artifact management (DVC versioning)
+- Adding a new security check category
+- Adding obfuscation for release builds
+- Adding size constraints for mobile/embedded
+
+New Build Rule produces a targeted build plan addition. Scope is limited to the new stage.
+
+### New Integration
+
+> **scenario:** Integrating a new tool or service into the build pipeline
+> **scope:** Specific integration
+> **inputs:** External Context(08) for the new tool, Engineering(07) for pipeline config
+> **outputs:** Build plan for the specific integration
+
+Use New Integration when:
+- Adding a new CI/CD tool
+- Integrating a new security scanner
+- Adding a new deployment target
+- Connecting a new artifact repository
+
+New Integration produces a focused integration plan. Scope is limited to the new tool/service.
+
+### Environment Change
+
+> **scenario:** Adapting the build pipeline for a new environment or deployment target
+> **scope:** Specific environment
+> **inputs:** External Context(08) environment constraints, Security(03) environment requirements
+> **outputs:** Build plan adaptation for the specific environment
+
+Use Environment Change when:
+- Adding a new deployment environment (staging, production, edge)
+- Adapting for a new platform (mobile, desktop, cloud)
+- Meeting new compliance requirements for a target environment
+
+Environment Change produces an adaptation plan. Scope is limited to the new environment.
+
+### Security Threat
+
+> **scenario:** Responding to a new security threat or vulnerability category
+> **scope:** Specific security check
+> **inputs:** Security(03) updated threat model, QA(12) security test requirements
+> **outputs:** Build plan for the specific security check
+
+Use Security Threat when:
+- A new vulnerability category is discovered
+- Security(03) threat model is updated
+- A new security compliance requirement is added
+
+Security Threat produces a targeted security check plan. Scope is limited to the new threat category.
+
+### Scope Options
+
+| Scope | When to Use | Required Inputs |
+|-------|-------------|-----------------|
+| Entire pipeline | New project or major rebuild | All upstream docs |
+| Specific stage | Adding/modifying one stage | Stage-specific upstream docs |
+| Specific tool | New integration | External Context(08) for tool |
+| Specific environment | New deployment target | External Context(08) environment |
+| Security check | New threat category | Security(03) |
 
 ---
 
