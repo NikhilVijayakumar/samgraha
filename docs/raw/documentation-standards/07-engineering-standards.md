@@ -2,6 +2,10 @@
 
 ## Table of Contents
 - [Purpose](#purpose)
+- [Build Standards](#build-standards)
+- [Testing Standards](#testing-standards)
+- [Code Standards](#code-standards)
+- [Constraints](#constraints)
 - [Required Sections](#required-sections)
 - [Goals](#goals)
 - [Non-Goals](#non-goals)
@@ -37,6 +41,17 @@
 
 ## Purpose
 
+> **semantic_type:** `purpose`
+> **scope:** Why Engineering Documentation exists — its role in the documentation ecosystem and what it uniquely covers
+> **out_of_scope:** Specific engineering standards, technology choices, implementation details, feature-specific engineering
+> **contributes:** Establishes the root intent that all engineering sections derive from and constrains what engineering docs may contain
+> **relationships:** Purpose(01) root; derived from Architecture(05); governs all engineering sections
+> **responsibilities:** Define Engineering Documentation's reason for being in terms of its relationship to the broader documentation ecosystem
+> **generation_rules:** Start with the role in the ecosystem; distinguish from Feature Technical Design; explain the "why" before the "what"
+> **enhancement_rules:** Strengthen the distinction from adjacent standards; remove ambiguity about scope boundaries
+> **validation_rules:** Purpose is clearly defined; boundaries with adjacent standards are explicit; no implementation detail leakage
+> **audit_rules:** Must exist; must not contain specific technology choices; must distinguish Engineering from Feature Technical Design
+
 This document defines the standard for Engineering Documentation within the engineering documentation ecosystem.
 
 Engineering Documentation describes the repository-wide engineering decisions, implementation standards, technology selection rationale, development conventions, and operational practices required to realize the documented architecture.
@@ -48,6 +63,74 @@ Instead, it provides reusable engineering knowledge that governs the implementat
 Engineering Documentation explains **why the repository is engineered this way**.
 
 It does not describe feature implementations.
+
+---
+
+## Build Standards
+
+> **semantic_type:** `build_standards`
+> **scope:** Repository-wide build process, CI/CD pipeline, and build tooling standards
+> **out_of_scope:** Feature-specific build steps, deployment scripts, release automation details
+> **contributes:** Ensures consistent, reproducible builds across the entire repository
+> **relationships:** Derived from Architecture(05); referenced by Implementation for build conformance; connected to Testing Standards
+> **responsibilities:** Define the build toolchain, pipeline stages, and build quality gates
+> **generation_rules:** Identify the build system and pipeline stages; explain rationale for each stage; document quality gates
+> **enhancement_rules:** Add stages when new concerns emerge; remove obsolete steps; preserve pipeline stability
+> **validation_rules:** Build process is documented end-to-end; quality gates are explicit; rationale is present for each choice
+> **audit_rules:** Must exist; must document the build toolchain; must include pipeline stages; must connect to Architecture
+
+*(To be written by the domain expert. This section defines the repository-wide build process, CI/CD pipeline, and build tooling standards.)*
+
+---
+
+## Testing Standards
+
+> **semantic_type:** `testing_standards`
+> **scope:** Repository-wide testing strategy, test types, coverage expectations, and test tooling standards
+> **out_of_scope:** Feature-specific test cases, individual test implementations, test data details
+> **contributes:** Ensures consistent, comprehensive testing practices across the entire repository
+> **relationships:** Derived from Architecture(05) and Build Standards; referenced by Implementation for test conformance
+> **responsibilities:** Define the testing strategy, test types, coverage expectations, and test tooling
+> **generation_rules:** Identify test types and their purpose; define coverage expectations; document test tooling and conventions
+> **enhancement_rules:** Add test types when new concerns emerge; refine coverage expectations; preserve testing stability
+> **validation_rules:** Testing strategy is documented; coverage expectations are explicit; tooling is identified; rationale is present
+> **audit_rules:** Must exist; must document the testing strategy; must include test types; must connect to Architecture
+
+*(To be written by the domain expert. This section defines the repository-wide testing strategy, test types, and testing tooling standards.)*
+
+---
+
+## Code Standards
+
+> **semantic_type:** `code_standards`
+> **scope:** Repository-wide coding style, conventions, linting rules, and code quality standards
+> **out_of_scope:** Feature-specific implementation patterns, algorithm details, API usage examples
+> **contributes:** Ensures consistent, readable, maintainable code across the entire repository
+> **relationships:** Derived from Engineering Principles; referenced by Implementation for code conformance; connected to Testing Standards
+> **responsibilities:** Define coding style, naming conventions, linting rules, and code quality expectations
+> **generation_rules:** Identify the language-specific style guide; document linting configuration; explain non-obvious conventions
+> **enhancement_rules:** Add conventions when new patterns emerge; remove obsolete rules; preserve style stability
+> **validation_rules:** Coding standards are documented; conventions are explicit; tooling is identified; rationale is present
+> **audit_rules:** Must exist; must document coding conventions; must identify linting tooling; must connect to Engineering Principles
+
+*(To be written by the domain expert. This section defines the repository-wide coding style, conventions, and code quality standards.)*
+
+---
+
+## Constraints
+
+> **semantic_type:** `constraints`
+> **scope:** Non-functional requirements and engineering limitations that bound all implementation decisions
+> **out_of_scope:** Feature-specific constraints, business rules, UI requirements, user-facing limitations
+> **contributes:** Provides the hard boundaries within which all engineering decisions must operate
+> **relationships:** Derived from Architecture(05) and External Context; referenced by Technology Selection and all engineering standards
+> **responsibilities:** Define non-functional requirements, performance bounds, security constraints, and regulatory limitations
+> **generation_rules:** Extract from Architecture and External Context; categorize by type (performance, security, compliance); make constraints verifiable
+> **enhancement_rules:** Add constraints when new external requirements emerge; remove obsolete constraints; preserve constraint clarity
+> **validation_rules:** Constraints are documented; constraints are verifiable; constraints connect to their source; no contradictions between constraints
+> **audit_rules:** Must exist; must document non-functional requirements; must be verifiable; must connect to Architecture or External Context
+
+*(To be written by the domain expert. This section defines the non-functional requirements and engineering limitations that bound all implementation decisions.)*
 
 ---
 
@@ -226,6 +309,17 @@ Implementation should conform to the documented engineering standards.
 ---
 
 ## Traceability
+
+> **semantic_type:** `traceability`
+> **scope:** How Engineering Documentation connects to the documentation hierarchy — derivation chain from Architecture through Engineering to Implementation
+> **out_of_scope:** Implementation traceability, test traceability, version history, bug tracking
+> **contributes:** Makes engineering decisions' lineage visible and verifiable across the documentation ecosystem
+> **relationships:** Engineering(07) sits between Feature Technical Design(10) and Implementation; derived from Architecture(05)
+> **responsibilities:** Show the derivation path from Architecture to Engineering to Implementation; assert no downstream document contradicts engineering standards
+> **generation_rules:** Use the derivation diagram; list upstream sources and downstream consumers; state non-contradiction constraint
+> **enhancement_rules:** Update the diagram when new standards are added; ensure derivation paths remain accurate
+> **validation_rules:** Derivation paths are complete; no orphaned standards; non-contradiction rule is stated
+> **audit_rules:** Must exist; must include derivation diagram; must list upstream and downstream standards; must state non-contradiction constraint
 
 Engineering Documentation remains traceable.
 
@@ -480,6 +574,17 @@ Large documents should be decomposed into smaller focused documents.
 
 ## Engineering Principles
 
+> **semantic_type:** `guiding_principles`
+> **scope:** Repository-wide engineering principles that govern all implementation decisions — values that survive technology changes
+> **out_of_scope:** Technology-specific rules, framework guidelines, coding standards, feature-specific principles
+> **contributes:** Provides the stable judgment foundation for all engineering decisions across the repository
+> **relationships:** Derived from Architecture(05) and Vision(01); referenced by Technology Selection and all engineering standards
+> **responsibilities:** Define principles that remain true even as specific technologies and features change
+> **generation_rules:** Extract from architectural intent and product philosophy; express as stable values; use memorable phrasing; keep count manageable
+> **enhancement_rules:** Add principles when new engineering concerns emerge; remove obsolete principles; preserve core intent
+> **validation_rules:** Principles are technology-independent; stable across features; memorable; actionable when an engineering decision is ambiguous
+> **audit_rules:** Must exist; must not reference specific technologies; must be evaluable against real engineering decisions; must be stable
+
 Engineering Documentation should establish reusable principles such as:
 
 * Documentation First
@@ -502,6 +607,17 @@ Projects may define additional engineering principles appropriate to their domai
 ---
 
 ## Technology Selection
+
+> **semantic_type:** `rationale`
+> **scope:** Why specific technologies were selected — engineering rationale for language, framework, database, and tool choices
+> **out_of_scope:** Implementation details, API usage, code examples, feature-specific technology decisions, migration plans
+> **contributes:** Justifies every technology choice so engineers and AI systems understand the reasoning, not just the list
+> **relationships:** Derived from Architecture(05) and External Context; referenced by Implementation for technology conformance
+> **responsibilities:** Explain the engineering rationale behind each technology choice; ensure rationale is stable and auditable
+> **generation_rules:** Start from architectural constraints and external context; explain "why" for each choice; group by engineering concern
+> **enhancement_rules:** Strengthen rationale when new context emerges; remove outdated justification; preserve decision stability
+> **validation_rules:** Every technology choice has rationale; rationale is engineering-focused, not business-focused; rationale is stable
+> **audit_rules:** Must exist; must include rationale for each choice; must not be a bare list; must connect to Architecture and External Context
 
 Engineering Documentation should explain **why** technologies were selected.
 

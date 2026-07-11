@@ -2,6 +2,9 @@
 
 ## Table of Contents
 - [Purpose](#purpose)
+- [Integration Contract](#integration-contract)
+- [Constraints](#constraints)
+- [Dependencies](#dependencies)
 - [Required Sections](#required-sections)
 - [Goals](#goals)
 - [Non-Goals](#non-goals)
@@ -40,6 +43,17 @@
 
 ## Purpose
 
+> **semantic_type:** `purpose`
+> **scope:** Why External Context Documentation exists — its role in capturing knowledge dependencies that live outside the repository but materially influence implementation
+> **out_of_scope:** Internal architecture, feature specifications, package management, implementation details, API reference manuals
+> **contributes:** Establishes the root intent for all External Context sections and distinguishes knowledge dependencies from traditional dependency documentation
+> **relationships:** Derived from project integrations; feeds Feature Technical Design(10) and Engineering(07); referenced by Architecture(05) for constraint awareness
+> **responsibilities:** Define External Context Documentation's reason for being and its boundary within the documentation ecosystem
+> **generation_rules:** State what External Context is; explain what it documents and what it does not; distinguish from package dependency documentation
+> **enhancement_rules:** Strengthen scope boundaries; remove overlap with Engineering or Architecture standards; keep stable over time
+> **validation_rules:** Purpose is clearly defined; no internal architecture present; boundary with other standards is explicit
+> **audit_rules:** Must exist; must not contain internal design or implementation; must define what External Context is and is not
+
 This document defines the standard for External Context Documentation within the engineering documentation ecosystem.
 
 External Context Documentation describes knowledge that exists **outside the current repository** but is required to correctly understand, design, implement, or maintain the repository.
@@ -51,6 +65,57 @@ Instead, it documents **knowledge dependencies**.
 Each External Context document describes one external system, library, platform, protocol, or project that materially influences the repository.
 
 Projects may contain zero, one, or many External Context documents depending on their dependencies.
+
+---
+
+## Integration Contract
+
+> **semantic_type:** `integration_contract`
+> **scope:** The formal interface agreement between the repository and the external system — APIs, protocols, data formats, authentication, and communication patterns
+> **out_of_scope:** Internal implementation of the integration, code-level details, build configuration, library versioning
+> **contributes:** Makes the external system's contract explicit so downstream design and engineering can implement integrations correctly
+> **relationships:** Consumed by Feature Technical Design(10) and Engineering(07); references Constraints; may be referenced by Architecture(05)
+> **responsibilities:** Define the integration surface: endpoints, protocols, data formats, authentication mechanisms, error behaviors, and versioning policies
+> **generation_rules:** Identify the integration surface from external documentation; describe contract elements in implementation-neutral terms; reference authoritative API docs
+> **enhancement_rules:** Update when external contracts change; clarify ambiguous contract elements; remove internal implementation details that leaked in
+> **validation_rules:** Contract covers all integration points used by the repository; external documentation is referenced; no internal implementation details present
+> **audit_rules:** Must exist for each external dependency with a programmatic interface; must reference authoritative documentation; must not contain code or implementation specifics
+
+*(To be written by the integrating engineer. This section defines the formal interface contract with the external system.)*
+
+---
+
+## Constraints
+
+> **semantic_type:** `constraints`
+> **scope:** Limitations and boundaries imposed by the external system — rate limits, platform requirements, protocol restrictions, licensing, compliance obligations
+> **out_of_scope:** Internal project constraints, design decisions, implementation trade-offs, technology selection rationale
+> **contributes:** Makes external constraints visible so downstream standards can design within known boundaries
+> **relationships:** May reference or be referenced by Feature(04) Constraints; feeds Architecture(05) and Feature Design(09); referenced by Engineering(07)
+> **responsibilities:** Document every constraint the external system imposes on the repository, including functional, performance, legal, and compliance constraints
+> **generation_rules:** Identify constraints from external documentation and platform characteristics; categorize by type (functional, performance, legal, compliance); state each as a clear limitation
+> **enhancement_rules:** Add constraints when external systems change; remove constraints that no longer apply; clarify ambiguous constraint descriptions
+> **validation_rules:** Constraints are real, sourced from the external system, clearly stated, and categorized; no internal design decisions disguised as constraints
+> **audit_rules:** Must exist if the external system imposes constraints; must not contain internal design decisions; must be sourced from external documentation
+
+*(To be written by the integrating engineer. This section defines the limitations imposed by the external dependency.)*
+
+---
+
+## Dependencies
+
+> **semantic_type:** `dependencies`
+> **scope:** What this external dependency itself depends on — transitive requirements, platform prerequisites, required companion systems
+> **out_of_scope:** Internal project dependencies, package version management, build-time dependencies, development tooling
+> **contributes:** Makes transitive dependency chains visible so integration planning accounts for the full dependency surface
+> **relationships:** May reference other External Context documents; feeds Architecture(05) and Engineering(07); connects to dependency resolution workflows
+> **responsibilities:** List transitive dependencies required by the external system, including platform prerequisites and required companion services
+> **generation_rules:** Identify transitive requirements from external documentation; distinguish runtime from build-time dependencies; note version or platform requirements
+> **enhancement_rules:** Add transitive dependencies when discovered; remove dependencies that are not relevant to the repository; clarify dependency criticality
+> **validation_rules:** Dependencies are real and relevant to the repository; dependency criticality is noted; no internal dependencies disguised as external
+> **audit_rules:** Must exist if the external system has transitive requirements relevant to the repository; must not list internal project dependencies
+
+*(To be written by the integrating engineer. This section defines what the external dependency itself requires.)*
 
 ---
 
@@ -204,6 +269,17 @@ Any document may reference External Context rather than duplicating external kno
 ---
 
 ## Traceability
+
+> **semantic_type:** `traceability`
+> **scope:** How External Context connects to the documentation hierarchy — which downstream standards consume external knowledge and how
+> **out_of_scope:** Internal implementation traceability, version history, change tracking, test traceability
+> **contributes:** Makes External Context's influence visible and verifiable across the documentation ecosystem
+> **relationships:** Informed by external documentation; feeds Feature Technical Design(10), Engineering(07), and Architecture(05); may be referenced by Feature(04) and Feature Design(09)
+> **responsibilities:** Show which documentation domains consume External Context; assert that downstream standards reference rather than duplicate external knowledge
+> **generation_rules:** Use the tier diagram showing External Context's lateral influence; list which standards may reference External Context; state the non-duplication rule
+> **enhancement_rules:** Update the diagram when new standards reference External Context; ensure influence paths remain accurate
+> **validation_rules:** Influence paths are complete; no orphaned references; non-duplication rule is stated
+> **audit_rules:** Must exist; must include tier diagram; must list consuming standards; must state that External Context informs but does not redefine downstream documentation
 
 External Context supports multiple documentation domains.
 

@@ -2,6 +2,11 @@
 
 ## Table of Contents
 - [Purpose](#purpose)
+- [Versioning Policy](#versioning-policy)
+- [Packaging & Distribution](#packaging--distribution)
+- [Release Process](#release-process)
+- [Artifact Provenance](#artifact-provenance)
+- [Constraints](#constraints)
 - [Required Sections](#required-sections)
 - [Goals](#goals)
 - [Non-Goals](#non-goals)
@@ -32,6 +37,17 @@
 
 ## Purpose
 
+> **semantic_type:** `purpose`
+> **scope:** Why the Build standard exists — its role as the project-wide release policy governing versioning, packaging, distribution, and artifact provenance
+> **out_of_scope:** CI/CD pipeline mechanics, per-feature implementation details, source code, architecture decisions
+> **contributes:** Establishes Build's identity as the single authoritative release policy that Implementation(12) output gets turned into shippable artifacts
+> **relationships:** Derived from Implementation(12) and Security(03); consumed by Readme(14) for install/run instructions; distinct from Engineering(07) CI/CD mechanics
+> **responsibilities:** Define what Build is, what it is not, and how it relates to Implementation, Security, Engineering, and Readme
+> **generation_rules:** Start with the relationship to Implementation and Security; state the project-wide scope; distinguish from Engineering's CI/CD mechanics
+> **enhancement_rules:** Keep the scope boundary between Build and Engineering sharp; remove any CI/CD pipeline language that leaked in
+> **validation_rules:** Purpose is clearly defined; no CI/CD mechanics present; project-wide scope stated; relationship to Implementation and Security established
+> **audit_rules:** Must exist; must not contain CI/CD pipeline configuration; must state the relationship to Implementation(12) and Security(03)
+
 This document defines the standard for Build documentation within the engineering documentation ecosystem.
 
 Build establishes the project-wide release policy: versioning scheme, packaging format, distribution channels, and artifact provenance for turning what Implementation (12) produced into a shippable artifact.
@@ -39,6 +55,91 @@ Build establishes the project-wide release policy: versioning scheme, packaging 
 It defines **how a release is versioned, packaged, and distributed**, once, at the project level — the same way Security (03) defines the project-wide threat model once rather than per component.
 
 It does not define the CI/CD mechanics of how commits get built and tested. That belongs to Engineering's own Build Standards section.
+
+---
+
+## Versioning Policy
+
+> **semantic_type:** `versioning_policy`
+> **scope:** The project's versioning scheme, bump triggers, and version numbering rules
+> **out_of_scope:** CI/CD pipeline mechanics, per-feature release notes, changelog generation tooling
+> **contributes:** Makes versioning predictable for consumers and contributors; eliminates ambiguity about what triggers a bump
+> **relationships:** Derived from Implementation(12) release semantics; referenced by Release Process for tagging rules; consumed by Readme(14) for version references
+> **responsibilities:** Define the versioning scheme (semver or equivalent), what constitutes a major/minor/patch bump, and pre-release conventions
+> **generation_rules:** Choose a versioning scheme; define bump rules with concrete examples; document pre-release and build metadata conventions if applicable
+> **enhancement_rules:** Update bump rules when the project's release semantics change; preserve examples that clarify edge cases
+> **validation_rules:** Versioning scheme is named and specific; every bump type has a definition with examples; no ambiguous or implicit rules remain
+> **audit_rules:** Must exist as a required section (error if missing); must define at least one bump rule; must not be vague or implicit
+
+*(To be populated by the domain expert. This section defines the versioning scheme and bump rules.)*
+
+---
+
+## Packaging & Distribution
+
+> **semantic_type:** `packaging`
+> **scope:** How release artifacts are packaged, named, and distributed — formats, registries, channels, and naming conventions
+> **out_of_scope:** Build tooling configuration, CI/CD pipeline steps, source compilation mechanics
+> **contributes:** Tells consumers exactly how to obtain and install a release; makes distribution channels explicit and verifiable
+> **relationships:** Derived from Implementation(12) build outputs; referenced by Release Process for packaging steps; consumed by Readme(14) for install instructions
+> **responsibilities:** Name every packaging format, distribution channel, and artifact naming convention the project uses
+> **generation_rules:** List each package format with its distribution channel; specify artifact naming conventions; document any platform-specific variants
+> **enhancement_rules:** Add new distribution channels as they are introduced; remove deprecated channels; keep format specifications current with what is actually shipped
+> **validation_rules:** Every mentioned artifact format has a concrete distribution channel; naming conventions are documented; no vague references to "packages" without specifics
+> **audit_rules:** Must exist as a required section (error if missing); must name concrete formats and channels; must not be vague
+
+*(To be populated by the domain expert. This section defines packaging formats and distribution channels.)*
+
+---
+
+## Release Process
+
+> **semantic_type:** `release_process`
+> **scope:** The repeatable sequence from tagged commit to published artifact — the release checklist
+> **out_of_scope:** CI/CD pipeline configuration, per-feature release notes, changelog generation
+> **contributes:** Makes releases repeatable and auditable; prevents tribal knowledge about how to ship
+> **relationships:** References Versioning Policy for tagging rules and Packaging & Distribution for artifact steps; implemented by Engineering's CI/CD mechanics
+> **responsibilities:** Define a step-by-step release process from tag to publication, including rollback and deprecation procedures
+> **generation_rules:** Write the process as a numbered sequence, not prose; include rollback and deprecation steps; reference Versioning Policy and Packaging & Distribution
+> **enhancement_rules:** Update steps when the release toolchain changes; preserve rollback procedures; keep the checklist current with actual practice
+> **validation_rules:** Process is a numbered sequence, not narrative prose; each step is concrete and actionable; rollback and deprecation are included
+> **audit_rules:** Must exist as a required section (error if missing); must be a numbered sequence; must not be prose narrative; must include rollback
+
+*(To be populated by the domain expert. This section defines the release checklist.)*
+
+---
+
+## Artifact Provenance
+
+> **semantic_type:** `provenance`
+> **scope:** How release artifacts are signed, checksummed, and verified — supply chain integrity practices
+> **out_of_scope:** Security threat model details, signing infrastructure implementation, key management procedures
+> **contributes:** Makes artifact integrity verifiable for consumers; satisfies supply chain security requirements
+> **relationships:** References Security(03) threat model for signing practices; referenced by Readme(14) for verification instructions; aligned with Release Process
+> **responsibilities:** Define signing, checksum, SBOM, and verification practices for published artifacts
+> **generation_rules:** Reference Security(03) for threat model context; define what is signed and how; document verification steps consumers can follow
+> **enhancement_rules:** Update signing practices when Security(03) posture changes; add new provenance mechanisms as they are adopted; preserve consumer-facing verification steps
+> **validation_rules:** Provenance practices reference Security(03) rather than re-deriving a threat model; verification steps are consumer-actionable; signing scope is explicit
+> **audit_rules:** Must reference Security(03) rather than restating a threat model (warning if duplicated); must define verification steps; must not be absent if signing is practiced
+
+*(To be populated by the domain expert. This section defines artifact provenance and signing practices.)*
+
+---
+
+## Constraints
+
+> **semantic_type:** `constraints`
+> **scope:** Hard limitations that shaped the build and release policy — infrastructure, regulatory, or organizational constraints
+> **out_of_scope:** Soft preferences, technology choices, CI/CD pipeline details, architectural decisions
+> **contributes:** Prevents downstream domains from proposing release practices that violate hard constraints; makes limitations visible upfront
+> **relationships:** May reflect constraints from Security(03) compliance requirements; influenced by Engineering(07) infrastructure constraints
+> **responsibilities:** Document non-negotiable limitations that materially affect versioning, packaging, or distribution decisions
+> **generation_rules:** Identify constraints from regulatory, infrastructure, and organizational sources; state each as a hard boundary; avoid prescribing solutions
+> **enhancement_rules:** Add constraints when new obligations are discovered; remove constraints that no longer apply; preserve the hard-boundary framing
+> **validation_rules:** Each constraint is specific enough to evaluate a release practice against; constraints are not disguised preferences; no implementation solutions embedded
+> **audit_rules:** Must not embed implementation solutions; must be evaluable as pass/fail against a proposed release practice
+
+*(To be populated by the domain expert. This section documents hard constraints on the build and release policy.)*
 
 ---
 
@@ -160,6 +261,17 @@ Build provides:
 ---
 
 ## Traceability
+
+> **semantic_type:** `traceability`
+> **scope:** How Build derives from upstream sources and feeds downstream consumers — the dependency chain
+> **out_of_scope:** Per-feature traceability, internal implementation provenance, CI/CD pipeline lineage
+> **contributes:** Makes the Build document's place in the documentation ecosystem explicit; ensures readers know where Build comes from and who consumes it
+> **relationships:** Derived from Implementation(12); informed by Security(03); consumed by Readme(14)
+> **responsibilities:** Show the traceability chain from Implementation through Build to Readme; reference Security(03) for provenance context
+> **generation_rules:** Map the chain: Implementation → Build → Readme; note Security(03) as an informed-by relationship; use a diagram if the chain is complex
+> **enhancement_rules:** Update the chain when new consumers or sources are added; preserve the diagram as a quick reference
+> **validation_rules:** Every upstream source and downstream consumer is named; the chain is visually clear; Security(03) is referenced, not restated
+> **audit_rules:** Must exist; must name Implementation(12) as upstream; must name Readme(14) as consumer; must reference Security(03) for provenance
 
 ```text
 Implementation (12)

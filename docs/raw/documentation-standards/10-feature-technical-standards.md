@@ -2,6 +2,21 @@
 
 ## Table of Contents
 - [Purpose](#purpose)
+- [Participating Components](#participating-components)
+- [Component Interactions](#component-interactions)
+- [Data Ownership](#data-ownership)
+- [Feature Specification](#feature-specification)
+- [Component Responsibilities](#component-responsibilities)
+- [Runtime Behavior](#runtime-behavior)
+- [Communication Paths](#communication-paths)
+- [Integration Points](#integration-points)
+- [External Dependency Integration](#external-dependency-integration)
+- [Runtime Constraints](#runtime-constraints)
+- [Architectural Constraints](#architectural-constraints)
+- [Security Considerations](#security-considerations)
+- [Performance Considerations](#performance-considerations)
+- [Failure Handling](#failure-handling)
+- [Extension Points](#extension-points)
 - [Required Sections](#required-sections)
 - [Goals](#goals)
 - [Non-Goals](#non-goals)
@@ -36,6 +51,17 @@
 
 ## Purpose
 
+> **semantic_type:** `purpose`
+> **scope:** Why Feature Technical Design Documentation exists — its role in translating Feature Specifications into architectural realization
+> **out_of_scope:** Implementation details, source code, shared architecture definitions, technology selection decisions
+> **contributes:** Establishes the root intent for all Feature Technical Design sections and defines its boundary within the documentation ecosystem
+> **relationships:** Derived from Feature(04) and Architecture(05); feeds Engineering(07) and Implementation; references External Context(08)
+> **responsibilities:** Define Feature Technical Design's reason for being and its boundary between feature requirements and implementation
+> **generation_rules:** State what Feature Technical Design is; explain its one-to-one relationship with Feature Specifications; distinguish from shared Architecture
+> **enhancement_rules:** Strengthen clarity of scope boundaries; remove overlap with Architecture and Engineering standards; keep stable over time
+> **validation_rules:** Purpose is clearly defined; one-to-one relationship with Feature is stated; boundary with Architecture is explicit
+> **audit_rules:** Must exist; must define Feature Technical Design as architectural realization; must not contain feature lists or implementation details
+
 This document defines the standard for Feature Technical Design Documentation within the engineering documentation ecosystem.
 
 Feature Technical Design translates a single Feature Specification into its architectural realization by applying the shared principles, boundaries, and constraints defined by the Architecture Documentation together with any relevant External Context.
@@ -47,8 +73,262 @@ It is the application of reusable architectural principles to one specific featu
 Every Feature Technical Design document has a strict one-to-one relationship with a Feature Specification.
 
 Feature Technical Design explains **how the system architecture realizes a feature**.
-
 It does not describe implementation details or source code.
+
+---
+
+## Participating Components
+
+> **semantic_type:** `participating_components`
+> **scope:** The system components involved in realizing this feature — which components participate and why each is needed
+> **out_of_scope:** Component internals, implementation details, library choices, API signatures, class hierarchies
+> **contributes:** Establishes the component boundary for the feature so interactions, data ownership, and responsibilities can be assigned
+> **relationships:** Derived from Architecture(05) component model; feeds Component Interactions, Component Responsibilities, and Data Ownership; references Feature Specification inputs
+> **responsibilities:** List every component that participates in the feature with a brief statement of why it is involved
+> **generation_rules:** Start from the Feature Specification; apply Architecture's component model; include only components necessary for this feature; reference shared components by name from Architecture
+> **enhancement_rules:** Remove components that are not directly involved; add components when missing interactions are discovered; keep component names consistent with Architecture
+> **validation_rules:** Every listed component exists in Architecture; every component has a reason for participation; no implementation-specific components appear
+> **audit_rules:** Must exist; must be marked required; must list components from Architecture; must not contain implementation details; every component must have a stated purpose
+
+*(To be written. This section lists the components involved in realizing the feature.)*
+
+---
+
+## Component Interactions
+
+> **semantic_type:** `component_interactions`
+> **scope:** How participating components communicate and interact to realize the feature — the sequence and nature of component exchanges
+> **out_of_scope:** Implementation protocols, message formats, serialization details, library-specific communication, source code
+> **contributes:** Defines the behavioral contract between components so Implementation can realize the correct communication patterns
+> **relationships:** Derived from Participating Components and Architecture(05) communication model; feeds Runtime Behavior and Communication Paths; references Component Responsibilities
+> **responsibilities:** Describe every interaction between components, including the triggering condition, the nature of the exchange, and the expected outcome
+> **generation_rules:** Derive interactions from Feature Specification behaviors; map each behavior to component exchanges; use Architecture's communication model; keep interactions at the architectural level
+> **enhancement_rules:** Add interactions when missing behaviors are discovered; remove interactions that duplicate existing ones; clarify the nature of each exchange
+> **validation_rules:** Every component interaction is traceable to a Feature Specification behavior; no implementation details appear; interactions are consistent with Architecture
+> **audit_rules:** Must exist; must be marked required; must trace to Feature Specification behaviors; must not contain implementation details; must be consistent with Architecture communication model
+
+*(To be written. This section describes how components interact to realize the feature.)*
+
+---
+
+## Data Ownership
+
+> **semantic_type:** `data_ownership`
+> **scope:** Which components own which data in the feature's realization — the boundaries of data responsibility and access
+> **out_of_scope:** Database schemas, table structures, column definitions, ORM mappings, data access implementations
+> **contributes:** Prevents data ownership conflicts and defines clear boundaries for data responsibility across components
+> **relationships:** Derived from Architecture(05) ownership rules and Persistence Architecture; feeds Component Responsibilities and Runtime Constraints; references Participating Components
+> **responsibilities:** Define which component owns each piece of data, who can read it, who can write it, and what constraints govern access
+> **generation_rules:** Identify all data the feature uses; assign ownership to the appropriate component per Architecture ownership rules; state read/write access for each data element; reference Architecture for ownership principles
+> **enhancement_rules:** Clarify ownership when conflicts arise; add access rules when new data flows are discovered; keep ownership consistent with Architecture
+> **validation_rules:** Every data element has a clear owner; access rules are defined; ownership is consistent with Architecture; no implementation details appear
+> **audit_rules:** Must exist; must be marked required; must assign clear ownership; must define access patterns; must not contain database schemas or implementation details
+
+*(To be written. This section defines data ownership boundaries for the feature.)*
+
+---
+
+## Feature Specification
+
+> **semantic_type:** `feature_specification`
+> **scope:** The Feature Specification this design realizes — the reference to the upstream functional specification being architected
+> **out_of_scope:** Feature requirements content, acceptance criteria, business rules (these belong in the Feature document itself)
+> **contributes:** Establishes the one-to-one traceability link between this technical design and its corresponding Feature Specification
+> **relationships:** References Feature(04) directly; feeds Traceability; consumed by Audit Rules to verify one-to-one mapping
+> **responsibilities:** Reference exactly one Feature Specification by name; confirm the scope of this design matches the Feature scope
+> **generation_rules:** Reference the Feature document by name; confirm one-to-one mapping; state the Feature's purpose briefly without duplicating its content
+> **enhancement_rules:** Update the reference when Feature scope changes; ensure the reference remains current; remove stale references
+> **validation_rules:** Exactly one Feature Specification is referenced; the reference is valid; no Feature content is duplicated
+> **audit_rules:** Must reference exactly one Feature Specification; must not duplicate Feature content; must maintain one-to-one mapping
+
+*(To be written. This section references the Feature Specification this design realizes.)*
+
+---
+
+## Component Responsibilities
+
+> **semantic_type:** `component_responsibilities`
+> **scope:** What each participating component is responsible for in the feature's realization — the assignment of duties to components
+> **out_of_scope:** Implementation details, function signatures, class responsibilities, code-level separation of concerns
+> **contributes:** Makes component duties explicit so Implementation can realize the correct separation of concerns
+> **relationships:** Derived from Participating Components and Component Interactions; feeds Implementation and Testing; references Architecture(05) component model
+> **responsibilities:** Define the primary responsibility of each participating component; ensure responsibilities do not overlap inappropriately; align with Architecture ownership rules
+> **generation_rules:** Assign responsibilities based on Architecture component model; derive responsibilities from Feature Specification behaviors; ensure each component has a clear primary responsibility
+> **enhancement_rules:** Clarify ambiguous responsibilities; remove overlapping duties; add responsibilities when new interactions are discovered
+> **validation_rules:** Every component has a defined responsibility; responsibilities are non-overlapping; responsibilities align with Architecture; no implementation details appear
+> **audit_rules:** Must exist; must assign responsibility to every participating component; must not overlap; must align with Architecture; must not contain implementation details
+
+*(To be written. This section defines what each component is responsible for.)*
+
+---
+
+## Runtime Behavior
+
+> **semantic_type:** `runtime_behavior`
+> **scope:** The runtime execution model for the feature — how components behave at runtime, including lifecycle, state, and execution flow
+> **out_of_scope:** Code execution details, threading implementations, specific runtime frameworks, performance metrics, profiling data
+> **contributes:** Defines the runtime contract so Implementation can build the correct execution model
+> **relationships:** Derived from Component Interactions and Architecture(05) runtime boundaries; feeds Communication Paths and Runtime Constraints; references Component Responsibilities
+> **responsibilities:** Describe the runtime lifecycle of the feature, including initialization, execution flow, state transitions, and shutdown
+> **generation_rules:** Derive runtime behavior from Component Interactions; apply Architecture runtime boundaries; describe execution at the architectural level; keep implementation independent
+> **enhancement_rules:** Clarify lifecycle phases; add state transitions when missing; remove implementation-specific runtime details
+> **validation_rules:** Runtime behavior is consistent with Architecture; lifecycle is complete; no implementation details appear; state transitions are defined
+> **audit_rules:** Must exist; must describe runtime lifecycle; must be consistent with Architecture runtime boundaries; must not contain implementation details
+
+*(To be written. This section describes the runtime execution model for the feature.)*
+
+---
+
+## Communication Paths
+
+> **semantic_type:** `communication_paths`
+> **scope:** The communication channels and protocols between components — how data and signals flow between participants
+> **out_of_scope:** Message serialization formats, protocol buffer definitions, HTTP header details, socket implementations, library-specific communication
+> **contributes:** Defines the communication contract so Implementation can realize the correct message flows
+> **relationships:** Derived from Component Interactions and Architecture(05) communication model; feeds Integration Points and Runtime Constraints; references Participating Components
+> **responsibilities:** Define every communication path between components, including the direction, nature, and architectural protocol
+> **generation_rules:** Derive paths from Component Interactions; apply Architecture communication model; state the architectural protocol (e.g., event bus, REST gateway, message queue); keep paths at the architectural level
+> **enhancement_rules:** Add paths when missing communication is discovered; remove paths that are not used by the feature; clarify the nature of each path
+> **validation_rules:** Every communication path is traceable to a Component Interaction; protocol references are architectural; no implementation details appear
+> **audit_rules:** Must exist; must define communication paths for all component interactions; must use architectural protocol references; must not contain implementation details
+
+*(To be written. This section defines communication paths between components.)*
+
+---
+
+## Integration Points
+
+> **semantic_type:** `integration_points`
+> **scope:** Where this feature integrates with other systems, services, or components — the boundaries between this feature and the external world
+> **out_of_scope:** API endpoint implementations, authentication token formats, request/response schemas, client library usage
+> **contributes:** Makes integration boundaries explicit so Implementation can realize the correct external connections
+> **relationships:** Derived from Feature Specification dependencies and Architecture(05) boundaries; feeds External Dependency Integration and Security Considerations; references Component Interactions
+> **responsibilities:** Identify every integration point, the systems involved, the nature of the integration, and the architectural boundary it crosses
+> **generation_rules:** Identify integrations from Feature Specification dependencies; classify each by boundary type (internal, external, third-party); state the architectural nature of each integration
+> **enhancement_rules:** Add integration points when new dependencies are discovered; remove integration points that are not part of this feature; clarify the nature of each integration
+> **validation_rules:** Every integration point is traceable to a Feature Specification dependency or Architecture boundary; integration types are defined; no implementation details appear
+> **audit_rules:** Must exist; must identify all integration points; must classify by boundary type; must not contain API implementations or implementation details
+
+*(To be written. This section identifies where the feature integrates with external systems.)*
+
+---
+
+## External Dependency Integration
+
+> **semantic_type:** `external_dependencies`
+> **scope:** How external systems and dependencies participate in the feature's architectural realization — the role of external context in the design
+> **out_of_scope:** External system internals, API implementation details, authentication token formats, specific library versions
+> **contributes:** Makes external dependencies explicit so Implementation understands what external systems are required and how they participate
+> **relationships:** References External Context(08); derived from Integration Points and Feature Specification dependencies; feeds Security Considerations and Runtime Constraints
+> **responsibilities:** Describe each external dependency, its role in the feature, the nature of the integration, and any constraints it imposes
+> **generation_rules:** Reference External Context documents by name; describe the role of each dependency; state constraints imposed by external systems; avoid duplicating External Context content
+> **enhancement_rules:** Add dependencies when new external systems are discovered; remove dependencies that are not part of this feature; update references when External Context changes
+> **validation_rules:** Every external dependency is referenced (not duplicated); the role of each dependency is stated; constraints are documented; no implementation details appear
+> **audit_rules:** Must exist if external dependencies are involved; must reference External Context by name; must not duplicate External Context content; must state the role of each dependency
+
+*(To be written. This section describes how external dependencies participate in the feature.)*
+
+---
+
+## Runtime Constraints
+
+> **semantic_type:** `runtime_constraints`
+> **scope:** Operational constraints on the feature's runtime behavior — the limits and requirements that govern how the feature operates at runtime
+> **out_of_scope:** Performance benchmarks, specific resource limits, deployment configurations, infrastructure specifications
+> **contributes:** Defines the operational boundaries within which the feature must function, ensuring reliability and correctness
+> **relationships:** Derived from Architecture(05) runtime boundaries and External Context(08) platform constraints; feeds Performance Considerations and Failure Handling; references Runtime Behavior
+> **responsibilities:** Define every operational constraint that affects runtime behavior, including concurrency limits, resource boundaries, and operational requirements
+> **generation_rules:** Derive constraints from Architecture runtime boundaries; apply External Context platform constraints; state each constraint as a clear operational limitation
+> **enhancement_rules:** Add constraints when new operational requirements are discovered; remove constraints that no longer apply; clarify ambiguous constraints
+> **validation_rules:** Constraints are consistent with Architecture; constraints are traceable to External Context where applicable; no implementation details appear
+> **audit_rules:** Must exist; must define runtime constraints; must be consistent with Architecture; must not contain deployment configurations or implementation details
+
+*(To be written. This section defines operational constraints on runtime behavior.)*
+
+---
+
+## Architectural Constraints
+
+> **semantic_type:** `architectural_constraints`
+> **scope:** Architectural constraints this feature must respect — the shared architectural rules and boundaries that apply to this feature's realization
+> **out_of_scope:** Implementation constraints, coding standards, framework limitations, technology-specific constraints
+> **contributes:** Ensures the feature respects shared architectural principles and does not introduce architectural violations
+> **relationships:** Derived from Architecture(05) principles and constraints; feeds Component Responsibilities and Runtime Behavior; references Participating Components
+> **responsibilities:** List every architectural constraint that applies to this feature, with the source principle from Architecture
+> **generation_rules:** Extract relevant constraints from Architecture Documentation; reference each constraint by its Architecture source; state how the constraint applies to this specific feature
+> **enhancement_rules:** Add constraints when Architecture evolves; remove constraints that no longer apply; update references when Architecture is reorganized
+> **validation_rules:** Every constraint traces to Architecture; the application to this feature is stated; no architectural principles are redefined; no implementation details appear
+> **audit_rules:** Must exist; must reference Architecture constraints by source; must not redefine architectural principles; must not contain implementation details
+
+*(To be written. This section defines architectural constraints the feature must respect.)*
+
+---
+
+## Security Considerations
+
+> **semantic_type:** `security_considerations`
+> **scope:** Security boundaries, authentication, and authorization for the feature — how the feature respects and implements security architecture
+> **out_of_scope:** Encryption implementations, authentication token formats, specific security library usage, code-level security patterns
+> **contributes:** Ensures the feature respects security architecture and identifies security-relevant decisions for Implementation
+> **relationships:** Derived from Architecture(05) security boundaries and External Context(08) security constraints; feeds Failure Handling and Runtime Constraints; references Security Documentation(03) if applicable
+> **responsibilities:** Define security boundaries, authentication requirements, authorization rules, and data protection needs for the feature
+> **generation_rules:** Apply Architecture security boundaries; identify security-relevant interactions; state authentication and authorization requirements at the architectural level; reference Security Documentation where applicable
+> **enhancement_rules:** Add security considerations when new sensitive data flows are discovered; remove considerations that are already covered by Architecture; clarify authorization rules
+> **validation_rules:** Security boundaries are consistent with Architecture; authentication and authorization are defined; no implementation details appear; sensitive data is identified
+> **audit_rules:** Must exist if the feature involves authentication, authorization, or sensitive data; must reference Architecture security boundaries; must not contain implementation details
+
+*(To be written. This section defines security considerations for the feature.)*
+
+---
+
+## Performance Considerations
+
+> **semantic_type:** `performance_considerations`
+> **scope:** Performance requirements and constraints for the feature — the non-functional performance expectations that affect architectural decisions
+> **out_of_scope:** Profiling results, specific latency numbers, throughput benchmarks, optimization techniques, caching implementations
+> **contributes:** Makes performance expectations explicit so Implementation can build with appropriate performance characteristics
+> **relationships:** Derived from Feature Specification requirements and Architecture(05) performance patterns; feeds Runtime Constraints and Failure Handling; references Component Interactions
+> **responsibilities:** Define performance expectations, throughput requirements, latency constraints, and resource limitations at the architectural level
+> **generation_rules:** Derive performance needs from Feature Specification; apply Architecture performance patterns; state expectations as architectural constraints; avoid implementation-specific optimization
+> **enhancement_rules:** Add performance considerations when requirements clarify; remove considerations that are implementation details; update expectations when Architecture evolves
+> **validation_rules:** Performance expectations are traceable to Feature Specification; expectations are architectural (not implementation); no profiling data or benchmarks appear
+> **audit_rules:** Must exist if the feature has performance requirements; must be architectural in nature; must not contain benchmarks, profiling data, or implementation details
+
+*(To be written. This section defines performance considerations for the feature.)*
+
+---
+
+## Failure Handling
+
+> **semantic_type:** `failure_handling`
+> **scope:** How failures, errors, and faults are handled in the feature — the error propagation, recovery, and resilience strategy at the architectural level
+> **out_of_scope:** Exception types, error codes, try/catch patterns, retry implementations, logging frameworks, specific error handling libraries
+> **contributes:** Defines the resilience contract so Implementation can realize correct error handling without redefining architectural boundaries
+> **relationships:** Derived from Component Interactions and Architecture(05) error boundaries; feeds Runtime Constraints and Testing; references Component Responsibilities and Communication Paths
+> **responsibilities:** Define failure modes, error propagation paths, recovery strategies, and resilience boundaries for the feature
+> **generation_rules:** Identify failure modes from Component Interactions; apply Architecture error boundaries; define error propagation at the architectural level; state recovery strategies without implementation details
+> **enhancement_rules:** Add failure modes when new interactions are discovered; clarify recovery strategies; remove implementation-specific error handling
+> **validation_rules:** Failure modes cover all component interactions; error propagation is consistent with Architecture; recovery strategies are defined; no implementation details appear
+> **audit_rules:** Must exist; must define failure modes for component interactions; must be consistent with Architecture error boundaries; must not contain exception types or implementation details
+
+*(To be written. This section defines how failures and errors are handled.)*
+
+---
+
+## Extension Points
+
+> **semantic_type:** `extension_points`
+> **scope:** Where the feature can be extended without modification — the plugin points, hooks, and extensibility boundaries in the feature's architecture
+> **out_of_scope:** Plugin implementations, hook callbacks, specific extension mechanisms, library APIs for extension
+> **contributes:** Makes extensibility explicit so future features can extend this feature without modifying its architecture
+> **relationships:** Derived from Architecture(05) plugin architecture and extensibility patterns; feeds Future Extensions and Testing; references Component Responsibilities
+> **responsibilities:** Identify every point where the feature can be extended, the type of extension supported, and the constraints on extensions
+> **generation_rules:** Identify extension points from Architecture plugin model; state the type of extension (plugin, hook, event, configuration); define constraints on extensions; keep extension descriptions architectural
+> **enhancement_rules:** Add extension points when Architecture evolves; remove extension points that are not supported; clarify extension constraints
+> **validation_rules:** Extension points are consistent with Architecture plugin model; constraints are defined; no implementation details appear; extension points are architecturally sound
+> **audit_rules:** Must exist if the feature has extensibility; must reference Architecture plugin model; must not contain implementation details; must define extension constraints
+
+*(To be written. This section identifies where the feature can be extended.)*
 
 ---
 
@@ -229,6 +509,17 @@ Implementation should conform to the documented technical design.
 ---
 
 ## Traceability
+
+> **semantic_type:** `traceability`
+> **scope:** How Feature Technical Design connects to the documentation hierarchy — the derivation chain from Vision through Feature to Implementation
+> **out_of_scope:** Implementation traceability, test traceability, bug tracking, version history
+> **contributes:** Makes Feature Technical Design's position in the documentation ecosystem visible and verifiable
+> **relationships:** Vision(01) → Feature(04) → Feature Technical Design(10) → Engineering(07) → Implementation; references Architecture(05) and External Context(08)
+> **responsibilities:** Show the derivation path; assert one-to-one mapping with Feature Specification; show how Architecture and External Context are applied
+> **generation_rules:** Use the tier model diagram; list which standards derive from or feed into Feature Technical Design; state the one-to-one constraint
+> **enhancement_rules:** Update the diagram when new standards are added; ensure derivation paths remain accurate
+> **validation_rules:** Derivation paths are complete; one-to-one mapping is stated; no orphaned references
+> **audit_rules:** Must exist; must include tier diagram; must show one-to-one Feature mapping; must reference Architecture and External Context as inputs
 
 Feature Technical Design remains traceable.
 

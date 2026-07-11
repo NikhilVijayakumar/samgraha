@@ -3,6 +3,10 @@
 ## Table of Contents
 - [Purpose](#purpose)
 - [Required Sections](#required-sections)
+- [Deviations From Plan](#deviations-from-plan)
+- [Module Boundaries](#module-boundaries)
+- [Known Debt](#known-debt)
+- [Constraints](#constraints)
 - [Goals](#goals)
 - [Non-Goals](#non-goals)
 - [Success Criteria](#success-criteria)
@@ -33,6 +37,17 @@
 
 ## Purpose
 
+> **semantic_type:** `purpose`
+> **scope:** Why the Implementation standard exists — its role as the as-built record of a Feature Technical Design
+> **out_of_scope:** Feature lists, architecture decisions, repo-wide code standards, implementation mechanics
+> **contributes:** Establishes Implementation's identity as the honest post-build counterpart to Feature Technical Design (10)
+> **relationships:** Derived from the ecosystem need to close the loop between planned and built; referenced by Build(13) and audit pipelines
+> **responsibilities:** Define what Implementation is, what it is not, and how it relates to Feature Technical and Prototype
+> **generation_rules:** Start with the relationship to Feature Technical Design; state the one-to-one constraint; distinguish from Engineering's repo-wide scope
+> **enhancement_rules:** Strengthen the distinction from Feature Technical without losing the connection; remove any overlap with repo-wide Engineering scope
+> **validation_rules:** Purpose is clearly defined; no implementation details present; no repo-wide policy leaked in; one-to-one relationship stated
+> **audit_rules:** Must exist; must not contain feature lists or technology choices; must state the one-to-one relationship with Feature Technical Design
+
 This document defines the standard for Implementation documentation within the engineering documentation ecosystem.
 
 Implementation is the as-built record of a single Feature Technical Design (10) once Prototype (11) has de-risked the approach: what was actually built, where it diverged from the plan, and why.
@@ -60,6 +75,74 @@ Sections are identified by heading text; the compiler maps each to a semantic ty
 | Traceability | `traceability` | | Traces To, Derived From |
 
 Section headings are case-insensitive. Sections not listed here are stored as `generic` type — preserved but not queryable by type.
+
+---
+
+## Deviations From Plan
+
+> **semantic_type:** `deviations`
+> **scope:** Every material divergence between the Feature Technical Design plan and what was actually built, with rationale
+> **out_of_scope:** Repo-wide code style changes, build configuration tweaks, unrelated refactors, implementation details without rationale
+> **contributes:** Makes the gap between plan and reality visible and auditable; prevents hidden drift
+> **relationships:** Compares directly against Feature Technical Design (10); may reference Prototype (11) findings that caused the deviation
+> **responsibilities:** List each deviation, explain why it occurred, and note whether Prototype informed the change
+> **generation_rules:** Walk the Feature Technical Design plan section by section; note every material change; write rationale for each; if none exist, explicitly state so
+> **enhancement_rules:** Add newly discovered deviations; refine rationale; remove non-material items only with documented justification
+> **validation_rules:** Each deviation has rationale; deviations are material, not trivial; section exists even if empty (states no deviations)
+> **audit_rules:** Must exist as a section (error if missing); must not be absent silently; rationale required for each entry
+
+*(To be populated after the feature ships. This section records every material deviation from the Feature Technical Design with rationale.)*
+
+---
+
+## Module Boundaries
+
+> **semantic_type:** `module_boundaries`
+> **scope:** Module and component boundaries as actually realized in code — the structural truth of what was built
+> **out_of_scope:** Architectural intent from Feature Technical Design, planned boundaries that were never implemented, repo-wide module conventions
+> **contributes:** Provides the as-built structural record that Build (13) and future engineers can verify against
+> **relationships:** Realizes the boundaries planned in Feature Technical Design (10); may differ from Architecture's (05) intended structure
+> **responsibilities:** Describe modules, their responsibilities, interfaces, and how they map to the planned boundaries
+> **generation_rules:** Document modules as they exist in code; map to Feature Technical Design plan; note where structure diverged from plan
+> **enhancement_rules:** Update when module structure changes materially; keep boundary descriptions aligned with actual code; note divergences from plan
+> **validation_rules:** Boundaries described match actual code; divergences from plan noted; each module has a stated responsibility
+> **audit_rules:** Must exist as a section (error if missing); must describe actual code structure, not planned structure
+
+*(To be populated after the feature ships. This section describes module and component boundaries as actually realized in code.)*
+
+---
+
+## Known Debt
+
+> **semantic_type:** `known_debt`
+> **scope:** Technical debt, shortcuts taken, and deferred work — what was consciously traded away and the intended resolution
+> **out_of_scope:** Permanent architectural tradeoffs, repo-wide quality standards, implementation details without debt implications
+> **contributes:** Makes technical debt visible and trackable rather than hidden; enables informed future decisions
+> **relationships:** May reference shortcuts from Feature Technical Design (10) tradeoffs; feeds future work tracked by Backlog or Engineering(07)
+> **responsibilities:** Document each known debt item, its impact, and the intended resolution path
+> **generation_rules:** List every conscious shortcut; explain the tradeoff made; state the intended resolution; note impact if unresolved
+> **enhancement_rules:** Add newly identified debt; update resolution status; remove items that have been resolved
+> **validation_rules:** Each debt item has an impact statement and resolution intent; debt is honest, not minimized
+> **audit_rules:** Must not silently omit known debt; warning if suspected missing; each entry must have resolution intent
+
+*(To be populated after the feature ships. This section records known debt, shortcuts taken, and their intended resolution.)*
+
+---
+
+## Constraints
+
+> **semantic_type:** `constraints`
+> **scope:** Limitations that shaped the implementation — runtime, operational, or resource constraints that affected what was built
+> **out_of_scope:** Architectural constraints from Architecture (05), technology rationale from Engineering (07), repo-wide policy
+> **contributes:** Records the practical boundaries the implementation operated within, explaining why certain choices were made
+> **relationships:** May reflect constraints from Feature Technical Design (10); influenced by Engineering (07) technology rationale
+> **responsibilities:** Document constraints that materially affected the implementation and how they were addressed
+> **generation_rules:** Identify constraints that shaped decisions; explain how they were addressed; distinguish from architectural constraints
+> **enhancement_rules:** Add newly identified constraints; update resolution status; remove constraints that no longer apply
+> **validation_rules:** Constraints are real and documented; each has a resolution or acceptance; not duplicating architectural constraints
+> **audit_rules:** Must not duplicate repo-wide Engineering constraints; must reflect per-feature constraints only
+
+*(To be populated after the feature ships. This section documents constraints that materially shaped the implementation.)*
 
 ---
 
@@ -164,6 +247,17 @@ Implementation provides:
 ---
 
 ## Traceability
+
+> **semantic_type:** `traceability`
+> **scope:** How this Implementation traces back to its Feature Technical Design and forward to Build
+> **out_of_scope:** Detailed code lineage, commit history, CI/CD pipeline tracing, cross-feature dependencies
+> **contributes:** Enables auditability by linking the as-built record to the plan it realized and the package it feeds
+> **relationships:** Traces to Feature Technical Design (10); records which Prototype (11) validated the approach; feeds Build (13)
+> **responsibilities:** Establish the one-to-one trace link and record which Prototype findings (if any) were carried forward
+> **generation_rules:** Map to the single Feature Technical Design; note Prototype involvement; show forward link to Build
+> **enhancement_rules:** Verify trace links remain accurate after changes; update Prototype reference if approach source changes
+> **validation_rules:** Exactly one Feature Technical Design traced; Build forward link present; Prototype noted when applicable
+> **audit_rules:** Must trace to exactly one Feature Technical Design; must not reference multiple unrelated plans
 
 ```text
 Feature Technical (10) ──┐

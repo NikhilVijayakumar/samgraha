@@ -2,6 +2,13 @@
 
 ## Table of Contents
 - [Purpose](#purpose)
+- [System Overview](#system-overview)
+- [Component Model](#component-model)
+- [Communication](#communication)
+- [Data Flow](#data-flow)
+- [Security](#security)
+- [Rationale](#rationale)
+- [Constraints](#constraints)
 - [Required Sections](#required-sections)
 - [Goals](#goals)
 - [Non-Goals](#non-goals)
@@ -36,6 +43,17 @@
 
 ## Purpose
 
+> **semantic_type:** `purpose`
+> **scope:** Why Architecture Documentation exists — its reason for being within the documentation ecosystem
+> **out_of_scope:** Feature lists, implementation details, technology choices, component specifics
+> **contributes:** Establishes the root intent that all Architecture sections and downstream decisions derive from
+> **relationships:** Architecture(05) is Tier 2; derived from Vision(01) and Philosophy(02); constrains Feature Technical Design(10)
+> **responsibilities:** Define why Architecture Documentation is needed and what it achieves for the project
+> **generation_rules:** Start from the project's structural needs; describe the purpose without referencing specific components or technologies
+> **enhancement_rules:** Strengthen clarity without adding scope; remove ambiguity; ensure purpose survives component and technology changes
+> **validation_rules:** Purpose is clearly defined; no implementation details present; understandable without code knowledge; stable over time
+> **audit_rules:** Must exist; must not contain feature lists; must not reference specific technologies; must be technology-independent
+
 This document defines the standard for Architecture Documentation within the engineering documentation ecosystem.
 
 Architecture Documentation describes the structural organization of a system.
@@ -47,6 +65,125 @@ Instead, it is a structured collection of related documents that collectively de
 Architecture explains **how responsibilities are organized**.
 
 It does not explain implementation details.
+
+---
+
+## System Overview
+
+> **semantic_type:** `system_overview`
+> **scope:** High-level description of the system — what it is, what it does, and how it is organized at the top level
+> **out_of_scope:** Component internals, implementation details, class hierarchies, API contracts, code organization
+> **contributes:** Provides the entry point for understanding the system; grounds all subsequent architectural sections in a shared context
+> **relationships:** Derived from Vision(01); referenced by Component Model and all downstream architecture sections; consumed by Feature Technical Design(10)
+> **responsibilities:** Describe the system's purpose, primary capabilities, and structural approach in terms a new contributor can grasp quickly
+> **generation_rules:** Start from the Vision and project scope; describe the system at the highest abstraction level; use diagrams where helpful; avoid technology specifics
+> **enhancement_rules:** Clarify scope boundaries; remove implementation leakage; ensure the overview remains accurate as the system evolves
+> **validation_rules:** Overview is concise and accurate; no component internals described; no technology specifics; serves as a reliable entry point
+> **audit_rules:** Must exist; must not describe component internals; must not reference specific libraries or frameworks; must be understandable without code knowledge
+
+*(To be written by the domain expert. This section defines the high-level system description and structural approach.)*
+
+---
+
+## Component Model
+
+> **semantic_type:** `component_model`
+> **scope:** The system's components — what they are, what each owns, and how they relate to one another
+> **out_of_scope:** Internal class design, function implementations, algorithm details, code structure
+> **contributes:** Makes component responsibilities and ownership explicit; provides the structural foundation for Feature Technical Design
+> **relationships:** Derived from System Overview; referenced by Communication Paths and Data Flow; constrains Feature Technical Design(10)
+> **responsibilities:** Define each component's responsibility, ownership boundaries, and relationship to other components
+> **generation_rules:** Identify major system responsibilities; assign each to a component; define boundaries explicitly; avoid implementation detail
+> **enhancement_rules:** Split components when responsibilities grow; merge overlapping components; strengthen ownership definitions
+> **validation_rules:** Each component has a clear responsibility; responsibilities do not overlap; boundaries are explicit; ownership is assigned
+> **audit_rules:** Must exist; must not describe class hierarchies or function signatures; must define responsibility and ownership for each component; must not duplicate Communication or Data Flow content
+
+*(To be written by the domain expert. This section defines the system's components, their responsibilities, and how they relate.)*
+
+---
+
+## Communication
+
+> **semantic_type:** `communication_paths`
+> **scope:** How components communicate — the paths, patterns, and contracts that govern inter-component interaction
+> **out_of_scope:** Network protocols, API implementations, message serialization formats, transport layer details
+> **contributes:** Makes inter-component interaction explicit and predictable; prevents hidden dependencies and coupling
+> **relationships:** Derived from Component Model; referenced by Data Flow; constrains Feature Technical Design(10) integration decisions
+> **responsibilities:** Define communication paths, interaction patterns, and the contracts that govern component communication
+> **generation_rules:** Map component interactions; define patterns (sync, async, event-driven); specify contracts without implementation detail
+> **enhancement_rules:** Clarify interaction contracts; remove hidden communication paths; strengthen predictability of component interaction
+> **validation_rules:** All component interactions are documented; communication contracts are explicit; no hidden coupling; patterns are consistent
+> **audit_rules:** Must exist; must not describe network protocols or serialization; must define contracts for all inter-component communication; must not duplicate Data Flow content
+
+*(To be written by the domain expert. This section defines how system components communicate and interact.)*
+
+---
+
+## Data Flow
+
+> **semantic_type:** `data_flow`
+> **scope:** How data moves through the system — the paths, transformations, and ownership boundaries for data
+> **out_of_scope:** Database schemas, query implementations, serialization formats, data structure internals
+> **contributes:** Makes data movement transparent; ensures data ownership and lifecycle are explicit across component boundaries
+> **relationships:** Derived from Component Model and Communication; referenced by Security; constrains Feature Technical Design(10) data decisions
+> **responsibilities:** Describe how data enters, moves through, and exits the system; identify data ownership boundaries and transformations
+> **generation_rules:** Trace data paths through components; identify ownership boundaries; describe transformations at the architectural level
+> **enhancement_rules:** Clarify data ownership; remove undocumented data paths; strengthen lifecycle documentation
+> **validation_rules:** Data paths are complete; ownership is explicit; transformations are documented; no orphaned data flows
+> **audit_rules:** Must exist; must not describe database schemas or query implementations; must identify data ownership; must cover all major data paths
+
+*(To be written by the domain expert. This section defines how data moves through the system and who owns it.)*
+
+---
+
+## Security
+
+> **semantic_type:** `security_considerations`
+> **scope:** Architectural security — the boundaries, controls, and threat model that govern system security posture
+> **out_of_scope:** Implementation-level security (auth libraries, encryption APIs, specific CVE mitigations), coding practices
+> **contributes:** Ensures security is a first-class architectural concern; provides the threat model that Engineering(07) implements
+> **relationships:** Guided by Philosophy(02); informed by External Context threat models; constrains Engineering(07) and Feature Technical Design(10)
+> **responsibilities:** Define security boundaries, threat model, access control model, and data protection requirements at the architectural level
+> **generation_rules:** Identify trust boundaries; define the threat model; specify security controls architecturally; avoid implementation specifics
+> **enhancement_rules:** Update threat model as the system evolves; strengthen security boundaries; remove implementation leakage
+> **validation_rules:** Trust boundaries are defined; threat model is documented; security controls are architecturally specified; no implementation details
+> **audit_rules:** Must exist; must define trust boundaries; must reference threat model; must not describe specific security libraries or implementations
+
+*(To be written by the domain expert. This section defines the architectural security posture, boundaries, and threat model.)*
+
+---
+
+## Rationale
+
+> **semantic_type:** `rationale`
+> **scope:** Why architectural decisions were made — the reasoning, trade-offs, and alternatives considered
+> **out_of_scope:** Implementation trade-offs, code-level performance analysis, library comparison details
+> **contributes:** Preserves the intent behind architectural choices; prevents regression through uninformed re-architecture
+> **relationships:** Derived from Vision(01) and Philosophy(02); referenced by Architecture sections to justify structural choices
+> **responsibilities:** Document the reasoning behind significant architectural decisions, including alternatives considered and rejected
+> **generation_rules:** Record decisions at the point they are made; capture alternatives and rejection reasons; keep rationale tied to architectural concerns
+> **enhancement_rules:** Update rationale when decisions change; remove outdated reasoning; keep rationale current with architectural state
+> **validation_rules:** Key decisions have documented rationale; alternatives are recorded; reasoning is tied to architectural goals
+> **audit_rules:** Must exist for significant decisions; must not describe implementation trade-offs; must reference architectural goals; must capture alternatives
+
+*(To be written by the domain expert. This section defines the reasoning behind architectural decisions.)*
+
+---
+
+## Constraints
+
+> **semantic_type:** `constraints`
+> **scope:** Architectural constraints — the non-functional requirements, platform limitations, and organizational rules that bound the architecture
+> **out_of_scope:** Implementation constraints, coding standards, library version requirements, build system limitations
+> **contributes:** Makes architectural boundaries explicit; prevents designs that violate fundamental system constraints
+> **relationships:** Derived from External Context and Platform Pillars(01); constrains Component Model and all downstream architecture decisions
+> **responsibilities:** Document non-functional requirements, platform constraints, and organizational rules that shape architectural decisions
+> **generation_rules:** Identify hard constraints first; distinguish constraints from preferences; document the source and reason for each constraint
+> **enhancement_rules:** Remove obsolete constraints; clarify constraint severity; ensure constraints remain aligned with External Context
+> **validation_rules:** Constraints are explicit and sourced; hard constraints are distinguished from soft preferences; no implementation constraints included
+> **audit_rules:** Must exist; must not describe implementation limitations; must distinguish hard from soft constraints; must reference their source
+
+*(To be written by the domain expert. This section defines the non-functional requirements and constraints that bound the architecture.)*
 
 ---
 
@@ -211,6 +348,17 @@ Implementation should conform to Architecture.
 ---
 
 ## Traceability
+
+> **semantic_type:** `traceability`
+> **scope:** How Architecture connects to the documentation hierarchy — the derivation chain from Vision to Implementation
+> **out_of_scope:** Code-level traceability, test traceability, bug tracking, version history
+> **contributes:** Makes Architecture's influence visible and verifiable across the documentation ecosystem
+> **relationships:** Architecture(05) is Tier 2; derived from Vision(01); constrains Feature Technical Design(10); consumed by Engineering(07)
+> **responsibilities:** Show the derivation path from Vision through Architecture to Implementation; assert that no downstream document contradicts Architecture
+> **generation_rules:** Use the tier model diagram; list which documents Architecture feeds; state the non-contradiction rule
+> **enhancement_rules:** Update the diagram when new standards are added; ensure derivation paths remain accurate
+> **validation_rules:** Derivation paths are complete; no orphaned standards; non-contradiction rule is stated
+> **audit_rules:** Must exist; must include tier diagram; must list downstream standards; must state non-contradiction constraint
 
 Architecture should remain traceable.
 

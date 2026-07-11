@@ -2,6 +2,10 @@
 
 ## Table of Contents
 - [Purpose](#purpose)
+- [User Experience](#user-experience)
+- [Workflow](#workflow)
+- [States](#states)
+- [Constraints](#constraints)
 - [Required Sections](#required-sections)
 - [Goals](#goals)
 - [Non-Goals](#non-goals)
@@ -35,6 +39,17 @@
 
 ## Purpose
 
+> **semantic_type:** `purpose`
+> **scope:** Why Feature Design Documentation exists — its role in translating a single Feature Specification into a user-centered design by applying shared Design principles and External Context
+> **out_of_scope:** Feature specifications, implementation details, architecture decisions, technology choices, reusable design guidance
+> **contributes:** Establishes the root intent for all Feature Design sections and downstream standards; grounds every UX decision in the documentation ecosystem
+> **relationships:** Derived from Vision(01), Feature(04), and Design(06); feeds Feature Technical Design(10) and Engineering(07)
+> **responsibilities:** Define what Feature Design is, what it covers, what it does not cover, and how it relates to other documentation standards
+> **generation_rules:** State what Feature Design is; explain what it defines and what it does not; reference the one-to-one relationship with Feature; reference the broader ecosystem
+> **enhancement_rules:** Strengthen clarity of scope boundaries; remove overlap with downstream standards; keep stable over time
+> **validation_rules:** Purpose is clearly defined; no implementation details present; one-to-one relationship with Feature is stated; boundary with Design and Architecture is explicit
+> **audit_rules:** Must exist; must not contain feature specifications; must define what Feature Design is and is not; must state the one-to-one relationship
+
 This document defines the standard for Feature Design Documentation within the engineering documentation ecosystem.
 
 Feature Design translates a single Feature Specification into a complete user-centered design by applying the shared principles defined by the Design Documentation together with any relevant External Context.
@@ -48,6 +63,74 @@ Every Feature Design document has a strict one-to-one relationship with a Featur
 Feature Design explains **how users should experience a feature**.
 
 It does not define implementation, architecture, or engineering decisions.
+
+---
+
+## User Experience
+
+> **semantic_type:** `user_experience`
+> **scope:** The complete user-facing experience of the feature — how users discover, interact with, and complete the feature's purpose from start to finish
+> **out_of_scope:** Implementation details, framework choices, component internals, technical architecture, backend logic
+> **contributes:** Defines the primary deliverable of Feature Design — the authoritative UX specification that Architecture and Engineering must realize
+> **relationships:** Derived from Feature Specification functional requirements; applies Design(06) UX Principles and Accessibility; feeds Feature Technical Design(10) and UI Prototypes
+> **responsibilities:** Describe the complete user experience including discovery, interaction, feedback, error handling, empty states, loading states, and success states
+> **generation_rules:** Start from Feature Specification functional requirements; apply Design UX Principles; describe user interactions without referencing technology; include all states and transitions
+> **enhancement_rules:** Improve clarity of user interactions; remove implementation leakage; strengthen consistency with Design Principles; ensure all states are covered
+> **validation_rules:** User experience is complete and technology-independent; all functional requirements have corresponding UX behaviors; Design Principles are applied not redefined
+> **audit_rules:** Must exist; must cover all functional requirements; must not reference specific technologies or frameworks; must include error, empty, and loading states
+
+*(To be written by the domain expert. This section defines the complete user experience for the feature.)*
+
+---
+
+## Workflow
+
+> **semantic_type:** `workflow`
+> **scope:** The step-by-step user workflow for completing the feature's primary task — the ordered sequence of user actions and system responses
+> **out_of_scope:** Implementation sequence, API call order, database transaction flow, internal processing steps
+> **contributes:** Provides the behavioral contract that engineers implement and testers validate; ensures users can complete the feature end-to-end
+> **relationships:** Derived from Feature Specification functional requirements and User Experience; feeds Feature Technical Design(10) and Acceptance Criteria
+> **responsibilities:** Document every user workflow as a clear sequence of user actions and system responses, including branching and error recovery
+> **generation_rules:** Start from the Feature Specification; map each functional requirement to a workflow step; describe actions from the user's perspective; include decision points and error paths
+> **enhancement_rules:** Simplify workflow steps; remove unnecessary steps; clarify branching logic; ensure every functional requirement maps to at least one workflow
+> **validation_rules:** Workflows are complete and unambiguous; every functional requirement is covered; error recovery is documented; no implementation details present
+> **audit_rules:** Must exist; must cover all primary user tasks; must include error recovery; must not reference implementation internals; must be written from user perspective
+
+*(To be written by the domain expert. This section defines the step-by-step user workflow for the feature.)*
+
+---
+
+## States
+
+> **semantic_type:** `states`
+> **scope:** The observable states of the feature's UI and behavior — what users see and experience in each state and how transitions between states occur
+> **out_of_scope:** Internal application state management, database state, caching strategies, memory management, component lifecycle
+> **contributes:** Ensures every possible feature state is designed rather than left to implementation improvisation; prevents missing states from reaching production
+> **relationships:** Derived from User Experience and Workflow; referenced by Feature Technical Design(10) for implementation; validated against Acceptance Criteria
+> **responsibilities:** Define every observable state including initial, active, waiting, empty, error, success, and terminal states; document transitions between them
+> **generation_rules:** Enumerate all observable states from the User Experience; define what users see in each state; document valid transitions; include empty and error states explicitly
+> **enhancement_rules:** Add missing states discovered during implementation; clarify transition triggers; remove states that duplicate other features; ensure every transition has a clear trigger
+> **validation_rules:** All observable states are documented; transitions are explicit; empty and error states exist for every applicable state; no internal state management described
+> **audit_rules:** Must exist; must include empty and error states; must document all state transitions; must not reference internal state management; must be observable from user perspective
+
+*(To be written by the domain expert. This section defines the observable states and state transitions for the feature.)*
+
+---
+
+## Constraints
+
+> **semantic_type:** `constraints`
+> **scope:** User-facing constraints introduced by external systems — limitations on the feature's design that originate from platform, regulatory, or external system requirements
+> **out_of_scope:** Implementation constraints, technical limitations, framework restrictions, coding standards, infrastructure requirements
+> **contributes:** Makes external design limitations explicit so Architecture and Engineering do not discover them late; prevents designs that violate platform or regulatory requirements
+> **relationships:** Derived from External Context and Platform requirements; referenced by Feature Technical Design(10) and Architecture(05) as binding constraints
+> **responsibilities:** Document every user-facing constraint that limits how the feature can be designed, including platform rules, regulatory requirements, and external system behaviors
+> **generation_rules:** Identify constraints from External Context and platform requirements; state each constraint as a binding limitation; distinguish constraints from preferences; cite the source
+> **enhancement_rules:** Add constraints when new external requirements emerge; remove constraints that no longer apply; clarify ambiguous constraints; update source citations
+> **validation_rules:** Constraints are explicit and sourced; binding constraints are distinguished from preferences; no implementation constraints included; applicable to the feature
+> **audit_rules:** Must exist if the feature has external constraints; must cite the source of each constraint; must not describe implementation limitations; must distinguish hard from soft constraints
+
+*(To be written by the domain expert. This section defines user-facing constraints from external systems.)*
 
 ---
 
@@ -81,6 +164,17 @@ Feature Design aims to:
 ---
 
 ## Non-Goals
+
+> **semantic_type:** `non_goals`
+> **scope:** What Feature Design Documentation explicitly does not define — boundaries that prevent scope creep into other documentation standards
+> **out_of_scope:** Goals, success criteria, any positive framing of intent; this section only lists exclusions
+> **contributes:** Prevents Feature Design from conflating with Architecture, Engineering, or Design Documentation; clarifies ownership of excluded responsibilities
+> **relationships:** Mirrors Goals; referenced by Audit Rules to detect scope violations in Feature Design documents
+> **responsibilities:** List every responsibility that belongs to a different documentation standard, with the owning standard identified
+> **generation_rules:** Invert the Goals list; reference the specific downstream standard that owns each excluded responsibility; keep the list current with ecosystem changes
+> **enhancement_rules:** Add new exclusions when scope creep is detected; remove exclusions for responsibilities that migrate to Feature Design; ensure no ambiguity in ownership
+> **validation_rules:** All excluded responsibilities have a clear owner in another standard; no overlap between excluded items and defined scope
+> **audit_rules:** Must exist; each excluded item must name its owning standard; must not contradict the Goals list; must not contain positive scope statements
 
 Feature Design does not define:
 
@@ -212,6 +306,17 @@ Implementation should realize the documented feature design.
 ---
 
 ## Traceability
+
+> **semantic_type:** `traceability`
+> **scope:** How Feature Design connects to the documentation hierarchy — the derivation chain from Vision through Feature and Design to Engineering
+> **out_of_scope:** Implementation traceability, test traceability, bug tracking, version history, code-level tracing
+> **contributes:** Makes Feature Design's influence visible and verifiable; ensures every design decision can be traced to its originating feature and shared design principles
+> **relationships:** Derived from Feature(04) and Design(06); feeds Feature Technical Design(10); constrained by Architecture(05); consumed by Engineering(07)
+> **responsibilities:** Show the derivation path from Vision through Feature and Design to Feature Design; assert the one-to-one relationship with Feature; show downstream consumers
+> **generation_rules:** Use the tier diagram; list which standards derive from or reference Feature Design; state the one-to-one mapping constraint; reference non-contradiction rule
+> **enhancement_rules:** Update the diagram when new standards are added; ensure derivation paths remain accurate; keep the one-to-one mapping explicit
+> **validation_rules:** Derivation paths are complete; one-to-one mapping is stated; no orphaned standards; non-contradiction rule is documented
+> **audit_rules:** Must exist; must include tier diagram; must list downstream standards; must state the one-to-one mapping constraint; must state non-contradiction rule
 
 Feature Design remains traceable.
 
