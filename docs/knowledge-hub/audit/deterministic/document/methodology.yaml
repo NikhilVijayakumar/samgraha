@@ -1,31 +1,48 @@
----
 system_id: research-paper-publishing
 standard_id: rp-methodology
 domain: methodology
 document_type: research-paper
-rule_id: RP-M-D1
-rule_type: deterministic
-severity: Critical
 scope: document
-description: Paper must have a methodology section
-applies_to:
-  - research-paper
-  - technical-report
-tags:
-  - document-presence
-  - methodology
-created_at: "2026-07-12"
----
+kind: deterministic
 
-Document of type `research-paper` must contain a section titled `Methodology`
-(or equivalent heading such as `Methods`, `Approach`, `Experimental Design`).
+rules:
+  - id: RP-M-D1
+    description: "Paper has a methodology section"
+    condition: "document contains a section titled 'Methodology' (or equivalent: Methods, Approach, Experimental Design)"
+    message: "Research paper is missing a Methodology section"
+    severity: Critical
+    weight: 2.0
+    mandatory: true
+    evidence:
+      type: section_presence
+      semantic_types:
+        - methodology
+        - methods
+        - approach
+        - experimental_design
 
-## Pass
+  - id: RP-M-D2
+    description: "Methodology section appears in correct position"
+    condition: "Methodology section appears after Introduction and before Results"
+    message: "Methodology section is not positioned between Introduction and Results"
+    severity: Warning
+    weight: 1.0
+    mandatory: false
+    evidence:
+      type: section_order
+      expected_after: introduction
+      expected_before: results
 
-- Section exists with recognized heading variant
-- Section appears after Introduction and before Results
-
-## Fail
-
-- No methodology section found
-- Methodology section appears after Results/Conclusion
+  - id: RP-M-D3
+    description: "Methodology cites prior work"
+    condition: "Methodology section contains at least one citation or reference to prior work"
+    message: "Methodology section does not reference prior work"
+    severity: Warning
+    weight: 0.5
+    mandatory: false
+    evidence:
+      type: content_check
+      patterns:
+        - "\\[\\d+\\]"
+        - "et al."
+        - "et al"
