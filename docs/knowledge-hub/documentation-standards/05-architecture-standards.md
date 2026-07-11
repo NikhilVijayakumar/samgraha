@@ -75,6 +75,24 @@ Unlike [related type], [distinctive characteristic].
 **Required diagrams:** none
 **Required cross-references:** none
 
+### Examples
+
+**Correct:**
+> This document defines the standard for Architecture Documentation within the engineering documentation ecosystem. Architecture Documentation describes the structural organization of a system — how responsibilities are divided among components and how those components relate. Unlike a single Vision or Feature document, Architecture is a collection of focused documents, each covering one structural concern.
+
+**Incorrect:**
+> Architecture Documentation covers the microservices layout, the React component tree, the PostgreSQL schema, and the Kubernetes deployment manifests used by the system.
+> *Why wrong: names specific technologies and implementation artifacts instead of stating the document type's role and boundary — that belongs in the sections themselves, not the Purpose statement.*
+
+### Writing Guidance
+
+- **Tone:** structural
+- **Voice:** third person
+- **Structure:** paragraphs
+- **Audience:** architect
+- **Do:** State what Architecture Documentation is and what it is not in the same breath; describe it as a collection rather than a single artifact; keep the boundary with Engineering and Feature Technical Design explicit
+- **Don't:** Name specific components, technologies, or frameworks; describe how any particular system is organized; list features or capabilities
+
 This document defines the standard for Architecture Documentation within the engineering documentation ecosystem.
 
 Architecture Documentation describes the structural organization of a system.
@@ -468,6 +486,29 @@ It does not explain implementation details.
 **Required diagrams:** none
 **Required cross-references:** Vision(01), Philosophy(02)
 
+### Examples
+
+**Correct:**
+> **Event-Driven Ingestion**
+> - **Context:** Multiple external systems submit data at unpredictable rates and volumes.
+> - **Decision:** Ingestion publishes events asynchronously rather than processing synchronously.
+> - **Alternatives Considered:** Synchronous request/response ingestion with backpressure.
+> - **Rejection Reason:** Synchronous processing would couple external system availability to ingestion availability, violating the reliability pillar.
+> - **Architectural Goal:** Resilient Connections.
+
+**Incorrect:**
+> We chose Kafka over RabbitMQ because it has better throughput benchmarks and our team already knows the Java client library.
+> *Why wrong: justifies a specific technology choice by implementation-level benchmarks and team familiarity — that belongs in Engineering's rationale, not Architecture's. Architecture rationale should justify structural decisions (sync vs async, ownership boundaries) against architectural goals, not product-specific tooling.*
+
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** third person
+- **Structure:** bullet lists
+- **Audience:** architect
+- **Do:** Record the context that prompted each decision; name the alternatives that were actually considered; tie every decision back to an architectural goal or pillar
+- **Don't:** Justify decisions by technology benchmarks, licensing, or team familiarity; record decisions without a rejected alternative; let rationale entries go stale once a decision is superseded
+
 *(To be written by the domain expert. This section defines the reasoning behind architectural decisions.)*
 
 ---
@@ -510,6 +551,29 @@ It does not explain implementation details.
 **Optional subsections:** Soft Constraints, Platform Constraints
 **Required diagrams:** none
 **Required cross-references:** External Context, Platform Pillars(01)
+
+### Examples
+
+**Correct:**
+> **Hard Constraints**
+> - **Offline-first operation** (source: Platform Pillars) — the system must remain functional with no network connection; no component may assume live connectivity.
+> - **Single-writer data ownership** (source: External Context) — the upstream partner system requires exactly one writer per record to avoid conflict resolution on their side.
+>
+> **Soft Constraints**
+> - Prefer components that can be tested in isolation, unless a hard constraint makes isolation impractical.
+
+**Incorrect:**
+> The system must use Rust 1.75+ and target a minimum of 4GB RAM.
+> *Why wrong: states a language version and hardware minimum as if they were architectural constraints, without a source or architectural reason — these are either Engineering-level technology decisions or unsourced assertions, not sourced structural bounds.*
+
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** third person
+- **Structure:** bullet lists
+- **Audience:** architect
+- **Do:** Attribute every constraint to its source (External Context, Platform Pillars, organizational rule); separate hard constraints from soft preferences explicitly; state the consequence of violating a hard constraint
+- **Don't:** List a constraint without a source; mix implementation-level limits (language versions, dependency pins) into architectural constraints; present preferences as if they were immovable
 
 *(To be written by the domain expert. This section defines the non-functional requirements and constraints that bound the architecture.)*
 
@@ -713,6 +777,28 @@ Implementation should conform to Architecture.
 **Optional subsections:** Downstream Impact
 **Required diagrams:** tier model diagram
 **Required cross-references:** Vision(01), Feature Technical Design(10), Engineering(07)
+
+### Examples
+
+**Correct:**
+> Tier 2: Architecture (System Overview, Component Model, Security)
+>     ├──→ Tier 3: Feature Technical Design
+>     └──→ Tier 5: Engineering (soft, non-mandatory)
+>
+> **Non-contradiction rule:** No downstream document may describe a component boundary, ownership assignment, or communication path that contradicts this Architecture. When a Feature Technical Design needs a boundary Architecture doesn't define, Architecture is updated first.
+
+**Incorrect:**
+> Architecture traces to the `src/components/` directory and the deployment YAML files.
+> *Why wrong: references source code and deployment configuration instead of the documentation hierarchy — Traceability connects Architecture to other standards, not to the codebase it eventually governs.*
+
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** diagrams
+- **Audience:** architect
+- **Do:** Show Architecture's tier position and every standard it feeds; state the non-contradiction rule explicitly; keep the diagram in sync when new standards derive from Architecture
+- **Don't:** Reference source code, deployment artifacts, or CI/CD configuration; omit downstream standards from the diagram; leave the non-contradiction rule implicit
 
 Architecture should remain traceable.
 

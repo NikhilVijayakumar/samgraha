@@ -1,4 +1,4 @@
-# README Audit Report — {{ created_at }}
+# Vision Audit Report — {{ created_at }}
 
 **Overall Score:** {{ score }} / 100 — **{{ rating }}**
 **Previous Score:** {% if previous_score %}{{ previous_score }} / 100{% else %}— (baseline){% endif %}
@@ -6,10 +6,6 @@
 **Engineering Readiness:** {{ engineering_readiness }}
 
 {{ rating_description }}
-
-Unlike every other domain report, this one audits a single repo-root file
-(`README.md`), not a `docs/raw/<domain>/` collection — there is no
-Structural Compliance Matrix here for that reason.
 
 ---
 
@@ -36,16 +32,17 @@ Structural Compliance Matrix here for that reason.
 
 ## 2. Score Rubric
 
-Every score in this report is rated against the same bands, taken from
-`docs/raw/audit/readme-audit.md`'s Scoring Model:
+Every score in this report — overall, category, per-document, and
+per-validation — is rated against the same bands, taken from
+`docs/raw/audit/vision-audit.md`'s Scoring Model:
 
 | Range | Rating | What it means |
 |---|---|---|
-| 95–100 | Excellent | The README orients a new reader in minutes, navigates cleanly to detailed docs, and stays in sync with the repository. |
-| 90–94 | Very Good | Minor gaps only — safe as the repository's front door with light follow-up. |
-| 80–89 | Good | Solid entry point — a few navigation or scope issues to resolve. |
-| 70–79 | Acceptable | Core purpose present but gaps in navigation or documentation quality — onboarding is harder than it should be. |
-| Below 70 | Needs Improvement | Significant gaps — the README fails as a repository entry point. |
+| 95–100 | Excellent | Purpose, direction, philosophy, and principles are unambiguous, technology-independent, and ready to guide feature development with no reservations. |
+| 90–94 | Very Good | Minor gaps only — safe to guide feature work with light follow-up. |
+| 80–89 | Good | Solid foundation — a few completeness, independence, or consistency issues to resolve. |
+| 70–79 | Acceptable | Core direction present but gaps in philosophy, principles, or technology independence — feature work should wait for fixes. |
+| Below 70 | Needs Improvement | Significant gaps — not ready to guide feature development. |
 
 ---
 
@@ -53,16 +50,37 @@ Every score in this report is rated against the same bands, taken from
 
 | Category | Score | Rating | Weight |
 |----------|------:|--------|------:|
-| Repository Introduction | {{ repo_introduction_score }} | {{ repo_introduction_rating }} | 30% |
-| Documentation Navigation | {{ doc_navigation_score }} | {{ doc_navigation_rating }} | 30% |
-| Documentation Quality | {{ doc_quality_score }} | {{ doc_quality_rating }} | 25% |
-| Maintainability | {{ maintainability_score }} | {{ maintainability_rating }} | 15% |
+| Vision Content | {{ vision_content_score }} | {{ vision_content_rating }} | 35% |
+| Technology Independence | {{ tech_independence_score }} | {{ tech_independence_rating }} | 30% |
+| Traceability and Consistency | {{ traceability_consistency_score }} | {{ traceability_consistency_rating }} | 20% |
+| Documentation Quality | {{ doc_quality_score }} | {{ doc_quality_rating }} | 15% |
 
-Category weights and definitions: `docs/raw/audit/readme-audit.md#category-weights`.
+Category weights and definitions: `docs/raw/audit/vision-audit.md#category-weights`.
 
 ---
 
-## 4. Document Scores
+## 4. Structural Compliance Matrix
+
+Checks the compiled documentation collection against
+`docs/raw/documentation-standards/01-vision-standards.md`'s Required Sections table — not
+document-by-document scoring, but whether the *collection as a whole*
+actually has each required concern somewhere in it.
+
+| Section Type | Required | Documents With It | Status |
+|---|:---:|:---:|---|
+{% for s in section_compliance -%}
+| {{ s.semantic_type }} | {% if s.required %}✓{% else %}—{% endif %} | {{ s.doc_count }} / {{ s.total_docs }} | {{ s.status }} |
+{% endfor %}
+
+**Missing** = no document in the collection has this section at all.
+**Partial** = some but not all documents have it (acceptable for optional
+types; a finding for required types — see Section 9).
+**Complete** = every document in the collection has it, or it's an
+optional type with no expectation of universal presence.
+
+---
+
+## 5. Document Scores
 
 {% if doc_scores | length > 0 %}
 | Document | Score | Rating |
@@ -76,10 +94,10 @@ _No document scores recorded._
 
 ---
 
-## 5. Validation Scores
+## 6. Validation Scores
 
-Each validation rule (R1–R12) checks one property of the README — see
-`docs/raw/audit/readme-audit.md` for the full definition of each.
+Each validation rule (V1–V12) checks one property of the Vision — see
+`docs/raw/audit/vision-audit.md` for the full definition of each.
 
 {% if validation_scores | length > 0 %}
 | Rule | Score | Rating |
@@ -93,11 +111,12 @@ _No validation scores recorded._
 
 ---
 
-## 6. Audit Standard Rubrics
+## 7. Audit Standard Rubrics
 
-What "good" looks like for each README concern, drawn directly from
-`docs/raw/audit-standards/readme/*.md` — the same rubrics the semantic
-audit provider checks findings against.
+What "good" looks like for each vision concern, drawn directly from
+`docs/raw/audit-standards/vision/*.md` — the same rubrics the semantic
+audit provider checks findings against. Use this to understand *why* a
+section scored the way it did without opening 10 separate files.
 
 {% for a in audit_standards %}
 ### {{ a.semantic_type }}
@@ -113,7 +132,7 @@ Checked for:
 
 ---
 
-## 7. Trend Analysis
+## 8. Trend Analysis
 
 {% if previous_score %}
 **Previous Score:** {{ previous_score }} / 100
@@ -127,12 +146,14 @@ Baseline audit established. No previous report for comparison.
 
 ---
 
-## 8. Findings
+## 9. Findings
 
 Every finding includes an Evidence column: the excerpt the audit provider
 captured to justify the finding, when one was captured. Deterministic
-checks (heading presence, word counts) typically don't carry an excerpt —
-that's expected, not a gap in this report.
+checks (heading presence, keyword scans) typically don't carry an
+excerpt — that's expected, not a gap in this report. Semantic checks
+(tone, aspiration quality, philosophy substance) do, when the provider
+that raised them supports it.
 
 {% if critical_findings | length > 0 %}
 ### Critical
@@ -180,7 +201,7 @@ _No findings recorded._
 
 ---
 
-## 9. Recommendations
+## 10. Recommendations
 
 {% if recommendations | length > 0 %}
 {% for r in recommendations %}
@@ -196,27 +217,27 @@ _No recommendations._
 
 ---
 
-## 10. Readiness Assessment
+## 11. Readiness Assessment
 
 | Area | Status |
 |------|--------|
-| Repository Introduction | {% if repo_introduction_score >= 70 %}PASS{% else %}FAIL{% endif %} |
-| Documentation Navigation | {% if doc_navigation_score >= 70 %}PASS{% else %}FAIL{% endif %} |
-| Onboarding Experience | {% if score >= 70 %}PASS{% else %}FAIL{% endif %} |
-| Repository Discoverability | {% if engineering_readiness == "READY" %}READY{% else %}NOT READY{% endif %} |
-| Documentation Synchronization | {% if maintainability_score >= 70 %}PASS{% else %}FAIL{% endif %} |
+| Vision Content | {% if vision_content_score >= 70 %}PASS{% else %}FAIL{% endif %} |
+| Technology Independence | {% if tech_independence_score >= 70 %}PASS{% else %}FAIL{% endif %} |
+| Downstream Consistency | {% if traceability_consistency_score >= 70 %}PASS{% else %}FAIL{% endif %} |
+| Feature Development Readiness | {% if engineering_readiness == "READY" %}READY{% else %}NOT READY{% endif %} |
+| Architectural Drift Risk | {% if score >= 90 %}LOW{% elif score >= 70 %}MEDIUM{% else %}HIGH{% endif %} |
 
 ---
 
-## 11. Audit Metadata
+## 12. Audit Metadata
 
 | Field | Value |
 |-------|-------|
-| Audit Type | README |
+| Audit Type | Vision |
 | Session | {{ session_id }} |
 | Git Revision | {{ git_revision }} |
 | Audit Date | {{ created_at }} |
-| Validation Rules | R1–R12 (`docs/raw/audit/readme-audit.md`) |
-| Structure Standard | `docs/raw/standards/readme.md` |
-| Semantic Audit Rubrics | `docs/raw/audit-standards/readme/*.md` |
+| Validation Rules | V1–V12 (`docs/raw/audit/vision-audit.md`) |
+| Structure Standard | `docs/raw/documentation-standards/01-vision-standards.md` |
+| Semantic Audit Rubrics | `docs/raw/audit-standards/vision/*.md` |
 | {% if previous_score %}Previous Report| Available{% else %}Previous Report| None (baseline){% endif %} |

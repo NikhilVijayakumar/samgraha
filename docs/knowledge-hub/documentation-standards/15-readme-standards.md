@@ -6,9 +6,12 @@
 - [Short Description](#short-description)
 - [Overview](#overview)
 - [Key Capabilities](#key-capabilities)
+- [Repository Structure](#repository-structure)
 - [Documentation Structure](#documentation-structure)
 - [Installation](#installation)
 - [Build](#build)
+- [Usage](#usage)
+- [Getting Started](#getting-started)
 - [Configuration](#configuration)
 - [Development](#development)
 - [Contributing](#contributing)
@@ -32,12 +35,10 @@
 - [Summary](#summary)
 - [Common Mistakes](#common-mistakes)
 - [Documentation Folder](#documentation-folder)
-- [Repository Structure](#repository-structure)
-- [Usage](#usage)
+- [Standard Usage](#standard-usage)
 - [Related](#related)
 - [Repository Overview](#repository-overview)
 - [Documentation Navigation](#documentation-navigation)
-- [Getting Started](#getting-started)
 - [Ecosystem Context](#ecosystem-context)
 - [Quality Requirements](#quality-requirements)
 
@@ -356,6 +357,71 @@ It does not replace project documentation.
 
 ---
 
+## Repository Structure
+
+> **semantic_type:** `repository_structure`
+> **scope:** The high-level organization of the repository — what the major directories contain and their purpose
+> **out_of_scope:** Detailed file listings, internal module organization, implementation details, code architecture
+> **contributes:** Helps readers understand where to find specific types of files and how the codebase is organized
+> **relationships:** References Documentation Structure; feeds Getting Started and Development; connected to Documentation Folder
+> **responsibilities:** Describe the purpose of major directories and provide a high-level map of the repository
+> **generation_rules:** List major directories with one-sentence descriptions; keep descriptions high-level; focus on purpose not contents
+> **enhancement_rules:** Update when directory structure changes; add new directories as needed; remove references to deleted directories
+> **validation_rules:** Directory descriptions match actual structure; descriptions are high-level; no implementation details present
+> **audit_rules:** Must exist; must describe major directories; descriptions must be high-level; must match actual repository structure
+
+### Template
+
+> **minimum_content:** 1 subsection
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+## Repository Structure
+
+- `src/` — <!-- purpose -->
+- `tests/` — <!-- purpose -->
+- `docs/` — <!-- purpose -->
+- `scripts/` — <!-- purpose -->
+<!-- High-level descriptions only; no file-level detail -->
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Documentation Structure, Getting Started, Development
+
+### Examples
+
+**Correct:**
+> ## Repository Structure
+>
+> - `src/` — Application source code
+> - `tests/` — Unit and integration tests
+> - `docs/` — Documentation by standard
+> - `scripts/` — Build and automation scripts
+> - `examples/` — Usage examples and templates
+
+**Incorrect:**
+> ## Repository Structure
+>
+> - `src/core/scheduler/worker.py` — The main worker loop that processes tasks
+> - `src/api/routes/v2/health.py` — Health check endpoint returning 200 OK
+> *Why wrong: Repository Structure must provide high-level directory descriptions, not file-level implementation details.*
+
+### Writing Guidance
+
+- **Tone:** structural
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** new contributor
+- **Do:** List major directories with one-sentence purpose descriptions; keep descriptions high-level and focused on purpose
+- **Don't:** List individual files or modules; include implementation details; describe internal code organization
+
+*(To be written by the domain expert. This section describes the repository's directory layout.)*
+
+---
+
 ## Documentation Structure
 
 > **semantic_type:** `documentation_structure`
@@ -570,6 +636,156 @@ It does not replace project documentation.
 - **Don't:** Omit prerequisite versions; use ambiguous build commands; skip expected output descriptions
 
 *(To be written by the domain expert. This section explains how to build the project.)*
+
+---
+
+## Usage
+
+> **semantic_type:** `usage`
+> **scope:** How to use the project after installation — basic commands, common workflows, and typical usage patterns
+> **out_of_scope:** Advanced configuration, API documentation, internal implementation details, development workflows
+> **contributes:** Enables users to start using the project immediately after installation
+> **relationships:** Derived from Build(14) and Installation; feeds Getting Started; referenced by Configuration
+> **responsibilities:** Provide clear, working usage examples that demonstrate the project's primary functions
+> **generation_rules:** Provide basic usage examples; show common commands; include expected output; keep examples minimal
+> **enhancement_rules:** Update when CLI or API changes; add new usage patterns as needed; keep examples working
+> **validation_rules:** Usage examples work; commands are correct; expected output is shown; examples cover primary functions
+> **audit_rules:** Must exist; must provide working examples; must cover primary functions; must show expected output
+
+### Template
+
+> **minimum_content:** 1 subsection
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+## Usage
+
+### Basic Usage
+
+<!-- Working command examples with expected output -->
+
+### Common Workflows
+
+<!-- Typical usage patterns -->
+```
+
+**Required subsections:** Basic Usage
+**Optional subsections:** Common Workflows
+**Required diagrams:** none
+**Required cross-references:** Build, Installation, Configuration
+
+### Examples
+
+**Correct:**
+> ## Usage
+>
+> ### Basic Usage
+>
+> ```bash
+> acme-scheduler run --config config.yaml
+> # Started scheduler on port 8080
+> ```
+>
+> ### Common Workflows
+>
+> ```bash
+> acme-scheduler status
+> # Active pipelines: 3, Completed: 12, Failed: 0
+> ```
+
+**Incorrect:**
+> ## Usage
+>
+> The scheduler can be used to run pipelines. It supports many options. Check `--help` for more information.
+> *Why wrong: Usage must provide working command examples with expected output demonstrating primary functions, not vague descriptions that require the reader to explore help text.*
+
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** mixed
+- **Audience:** engineer
+- **Do:** Provide working command examples with expected output; cover primary functions; show common workflows
+- **Don't:** Use vague descriptions like "check --help"; omit expected output; skip primary function examples
+
+*(To be written by the domain expert. This section provides usage examples.)*
+
+---
+
+## Getting Started
+
+> **semantic_type:** `getting_started`
+> **scope:** The fastest path from zero to a working project — prerequisites, installation, build, and first run in one place
+> **out_of_scope:** Detailed development workflows, contribution guidelines, architecture documentation, advanced configuration
+> **contributes:** Provides the onboarding entry point that minimizes time to first successful run
+> **relationships:** Aggregates Installation, Build, and Usage; references Development and Contributing; feeds Repository Overview
+> **responsibilities:** Provide a concise, linear path from clone to running project with all necessary steps
+> **generation_rules:** List prerequisites; provide step-by-step commands; verify each step works; include expected outcomes
+> **enhancement_rules:** Update when setup process changes; keep steps minimal; add platform-specific notes as needed
+> **validation_rules:** Steps work on a clean machine; prerequisites are complete; commands are correct; expected outcomes are described
+> **audit_rules:** Must exist; must provide a complete path from zero to running; must be tested; must not skip steps
+
+### Template
+
+> **minimum_content:** 1 subsection
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+## Getting Started
+
+### Prerequisites
+
+- <!-- Required tools and versions -->
+
+### Quick Start
+
+<!-- Step-by-step from clone to running project -->
+<!-- Prerequisites, install, build, first run in one place -->
+```
+
+**Required subsections:** Prerequisites, Quick Start
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Installation, Build, Usage, Development, Contributing
+
+### Examples
+
+**Correct:**
+> ## Getting Started
+>
+> ### Prerequisites
+>
+> - Python 3.10+
+> - Docker 24+
+>
+> ### Quick Start
+>
+> ```bash
+> git clone https://github.com/acme/scheduler.git
+> cd scheduler
+> docker compose up
+> curl http://localhost:8080/health
+> # Expected: {"status":"ok"}
+> ```
+
+**Incorrect:**
+> ## Getting Started
+>
+> Clone the repo, install dependencies, and run the app. See Installation and Build sections for details.
+> *Why wrong: Getting Started must provide a complete, linear zero-to-running path with prerequisites and working commands, not delegate the reader to other sections.*
+
+### Writing Guidance
+
+- **Tone:** conversational
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** new contributor
+- **Do:** Provide a complete linear path from clone to running project; include all prerequisites and version numbers; verify each step works
+- **Don't:** Delegate readers to other sections; omit prerequisites; skip verification steps or expected outcomes
+
+*(To be written by the domain expert. This section provides a zero-to-running quick start.)*
 
 ---
 
@@ -1173,150 +1389,7 @@ There is exactly one README per repository. It is not placed under `docs/raw/`.
 
 ---
 
-## Repository Structure
-
-> **semantic_type:** `repository_structure`
-> **scope:** The high-level organization of the repository — what the major directories contain and their purpose
-> **out_of_scope:** Detailed file listings, internal module organization, implementation details, code architecture
-> **contributes:** Helps readers understand where to find specific types of files and how the codebase is organized
-> **relationships:** References Documentation Structure; feeds Getting Started and Development; connected to Documentation Folder
-> **responsibilities:** Describe the purpose of major directories and provide a high-level map of the repository
-> **generation_rules:** List major directories with one-sentence descriptions; keep descriptions high-level; focus on purpose not contents
-> **enhancement_rules:** Update when directory structure changes; add new directories as needed; remove references to deleted directories
-> **validation_rules:** Directory descriptions match actual structure; descriptions are high-level; no implementation details present
-> **audit_rules:** Must exist; must describe major directories; descriptions must be high-level; must match actual repository structure
-
-### Template
-
-> **minimum_content:** 1 subsection
-> **length_guidance:** concise
-> **diagram_requirements:** none
-
-```markdown
-## Repository Structure
-
-- `src/` — <!-- purpose -->
-- `tests/` — <!-- purpose -->
-- `docs/` — <!-- purpose -->
-- `scripts/` — <!-- purpose -->
-<!-- High-level descriptions only; no file-level detail -->
-```
-
-**Required subsections:** none
-**Optional subsections:** none
-**Required diagrams:** none
-**Required cross-references:** Documentation Structure, Getting Started, Development
-
-### Examples
-
-**Correct:**
-> ## Repository Structure
->
-> - `src/` — Application source code
-> - `tests/` — Unit and integration tests
-> - `docs/` — Documentation by standard
-> - `scripts/` — Build and automation scripts
-> - `examples/` — Usage examples and templates
-
-**Incorrect:**
-> ## Repository Structure
->
-> - `src/core/scheduler/worker.py` — The main worker loop that processes tasks
-> - `src/api/routes/v2/health.py` — Health check endpoint returning 200 OK
-> *Why wrong: Repository Structure must provide high-level directory descriptions, not file-level implementation details.*
-
-### Writing Guidance
-
-- **Tone:** structural
-- **Voice:** imperative
-- **Structure:** bullet lists
-- **Audience:** new contributor
-- **Do:** List major directories with one-sentence purpose descriptions; keep descriptions high-level and focused on purpose
-- **Don't:** List individual files or modules; include implementation details; describe internal code organization
-
-The README should explain the purpose of major directories.
-
-Examples:
-
-* docs/
-* src/
-* tests/
-* scripts/
-* examples/
-
-Only high-level descriptions are required.
-
----
-
-## Usage
-
-> **semantic_type:** `usage`
-> **scope:** How to use the project after installation — basic commands, common workflows, and typical usage patterns
-> **out_of_scope:** Advanced configuration, API documentation, internal implementation details, development workflows
-> **contributes:** Enables users to start using the project immediately after installation
-> **relationships:** Derived from Build(14) and Installation; feeds Getting Started; referenced by Configuration
-> **responsibilities:** Provide clear, working usage examples that demonstrate the project's primary functions
-> **generation_rules:** Provide basic usage examples; show common commands; include expected output; keep examples minimal
-> **enhancement_rules:** Update when CLI or API changes; add new usage patterns as needed; keep examples working
-> **validation_rules:** Usage examples work; commands are correct; expected output is shown; examples cover primary functions
-> **audit_rules:** Must exist; must provide working examples; must cover primary functions; must show expected output
-
-### Template
-
-> **minimum_content:** 1 subsection
-> **length_guidance:** moderate
-> **diagram_requirements:** none
-
-```markdown
-## Usage
-
-### Basic Usage
-
-<!-- Working command examples with expected output -->
-
-### Common Workflows
-
-<!-- Typical usage patterns -->
-```
-
-**Required subsections:** Basic Usage
-**Optional subsections:** Common Workflows
-**Required diagrams:** none
-**Required cross-references:** Build, Installation, Configuration
-
-### Examples
-
-**Correct:**
-> ## Usage
->
-> ### Basic Usage
->
-> ```bash
-> acme-scheduler run --config config.yaml
-> # Started scheduler on port 8080
-> ```
->
-> ### Common Workflows
->
-> ```bash
-> acme-scheduler status
-> # Active pipelines: 3, Completed: 12, Failed: 0
-> ```
-
-**Incorrect:**
-> ## Usage
->
-> The scheduler can be used to run pipelines. It supports many options. Check `--help` for more information.
-> *Why wrong: Usage must provide working command examples with expected output demonstrating primary functions, not vague descriptions that require the reader to explore help text.*
-
-### Writing Guidance
-
-- **Tone:** technical
-- **Voice:** imperative
-- **Structure:** mixed
-- **Audience:** engineer
-- **Do:** Provide working command examples with expected output; cover primary functions; show common workflows
-- **Don't:** Use vague descriptions like "check --help"; omit expected output; skip primary function examples
+## Standard Usage
 
 Written once at repository creation, updated whenever the repository's purpose, structure, or getting-started steps change. Use `samgraha audit --domain readme` to check the README has a title and a getting-started section before merging.
 
@@ -1355,93 +1428,6 @@ Development Guide
 ```
 
 The README should act as a documentation index.
-
----
-
-## Getting Started
-
-> **semantic_type:** `getting_started`
-> **scope:** The fastest path from zero to a working project — prerequisites, installation, build, and first run in one place
-> **out_of_scope:** Detailed development workflows, contribution guidelines, architecture documentation, advanced configuration
-> **contributes:** Provides the onboarding entry point that minimizes time to first successful run
-> **relationships:** Aggregates Installation, Build, and Usage; references Development and Contributing; feeds Repository Overview
-> **responsibilities:** Provide a concise, linear path from clone to running project with all necessary steps
-> **generation_rules:** List prerequisites; provide step-by-step commands; verify each step works; include expected outcomes
-> **enhancement_rules:** Update when setup process changes; keep steps minimal; add platform-specific notes as needed
-> **validation_rules:** Steps work on a clean machine; prerequisites are complete; commands are correct; expected outcomes are described
-> **audit_rules:** Must exist; must provide a complete path from zero to running; must be tested; must not skip steps
-
-### Template
-
-> **minimum_content:** 1 subsection
-> **length_guidance:** moderate
-> **diagram_requirements:** none
-
-```markdown
-## Getting Started
-
-### Prerequisites
-
-- <!-- Required tools and versions -->
-
-### Quick Start
-
-<!-- Step-by-step from clone to running project -->
-<!-- Prerequisites, install, build, first run in one place -->
-```
-
-**Required subsections:** Prerequisites, Quick Start
-**Optional subsections:** none
-**Required diagrams:** none
-**Required cross-references:** Installation, Build, Usage, Development, Contributing
-
-### Examples
-
-**Correct:**
-> ## Getting Started
->
-> ### Prerequisites
->
-> - Python 3.10+
-> - Docker 24+
->
-> ### Quick Start
->
-> ```bash
-> git clone https://github.com/acme/scheduler.git
-> cd scheduler
-> docker compose up
-> curl http://localhost:8080/health
-> # Expected: {"status":"ok"}
-> ```
-
-**Incorrect:**
-> ## Getting Started
->
-> Clone the repo, install dependencies, and run the app. See Installation and Build sections for details.
-> *Why wrong: Getting Started must provide a complete, linear zero-to-running path with prerequisites and working commands, not delegate the reader to other sections.*
-
-### Writing Guidance
-
-- **Tone:** conversational
-- **Voice:** imperative
-- **Structure:** bullet lists
-- **Audience:** new contributor
-- **Do:** Provide a complete linear path from clone to running project; include all prerequisites and version numbers; verify each step works
-- **Don't:** Delegate readers to other sections; omit prerequisites; skip verification steps or expected outcomes
-
-The README should provide enough information to begin using or contributing to the repository.
-
-Examples include:
-
-* Prerequisites
-* Installation
-* Build
-* Running the project
-* Development environment
-* Testing
-
-Detailed procedures should be placed in dedicated guides.
 
 ---
 

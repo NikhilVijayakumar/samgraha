@@ -933,6 +933,8 @@ It does not describe implementation details or source code.
 
 ---
 
+## Required Sections
+
 Every Feature Technical Design document must contain the following sections.
 Sections are identified by heading text; the compiler maps each to a semantic type.
 

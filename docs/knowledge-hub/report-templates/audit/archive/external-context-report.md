@@ -1,4 +1,4 @@
-# Prototype Audit Report — {{ created_at }}
+# External Context Audit Report — {{ created_at }}
 
 **Overall Score:** {{ score }} / 100 — **{{ rating }}**
 **Previous Score:** {% if previous_score %}{{ previous_score }} / 100{% else %}— (baseline){% endif %}
@@ -33,15 +33,15 @@
 ## 2. Score Rubric
 
 Every score in this report is rated against the same bands, taken from
-`docs/raw/audit/prototype-audit.md`'s Scoring Model:
+`docs/raw/audit/external-context-audit.md`'s Scoring Model:
 
 | Range | Rating | What it means |
 |---|---|---|
-| 95–100 | Excellent | The prototype fully validates documented Features, Feature Design, and Feature Technical Design with no reservations. |
-| 90–94 | Very Good | Minor gaps only — safe to treat as validated with light follow-up. |
-| 80–89 | Good | Solid validation coverage — a few workflow or contract gaps to resolve. |
-| 70–79 | Acceptable | Core validation present but gaps in coverage or isolation — treat conclusions cautiously. |
-| Below 70 | Needs Improvement | Significant gaps — the prototype doesn't yet provide reliable validation. |
+| 95–100 | Excellent | Every material dependency is documented atomically, with justified purpose, constraints, and authoritative references. |
+| 90–94 | Very Good | Minor gaps only — safe to reference with light follow-up. |
+| 80–89 | Good | Solid coverage — a few completeness or integrity issues to resolve. |
+| 70–79 | Acceptable | Core dependencies documented but gaps in constraints or references — downstream docs should verify before relying on this. |
+| Below 70 | Needs Improvement | Significant gaps — knowledge dependencies aren't reliably captured. |
 
 ---
 
@@ -49,19 +49,19 @@ Every score in this report is rated against the same bands, taken from
 
 | Category | Score | Rating | Weight |
 |----------|------:|--------|------:|
-| Product Validation | {{ product_validation_score }} | {{ product_validation_rating }} | 30% |
-| Runtime Validation | {{ runtime_validation_score }} | {{ runtime_validation_rating }} | 30% |
-| Engineering Validation | {{ engineering_validation_score }} | {{ engineering_validation_rating }} | 20% |
-| Validation Quality | {{ validation_quality_score }} | {{ validation_quality_rating }} | 20% |
+| Document Quality | {{ document_quality_score }} | {{ document_quality_rating }} | 30% |
+| Content Completeness | {{ content_completeness_score }} | {{ content_completeness_rating }} | 30% |
+| Documentation Integrity | {{ documentation_integrity_score }} | {{ documentation_integrity_rating }} | 25% |
+| Collection Quality | {{ collection_quality_score }} | {{ collection_quality_rating }} | 15% |
 
-Category weights and definitions: `docs/raw/audit/prototype-audit.md#category-weights`.
+Category weights and definitions: `docs/raw/audit/external-context-audit.md#category-weights`.
 
 ---
 
 ## 4. Structural Compliance Matrix
 
 Checks the compiled documentation collection against
-`docs/raw/standards/prototype.md`'s Required Sections table.
+`docs/raw/documentation-standards/08-external-context-standards.md`'s Required Sections table.
 
 | Section Type | Required | Documents With It | Status |
 |---|:---:|:---:|---|
@@ -75,7 +75,7 @@ Checks the compiled documentation collection against
 
 ---
 
-## 5. Document Scores
+## 5. Document Scores (per dependency)
 
 {% if doc_scores | length > 0 %}
 | Document | Score | Rating |
@@ -91,9 +91,9 @@ _No document scores recorded._
 
 ## 6. Validation Scores
 
-Each validation rule (P1–P15) checks one property of the prototype
-validation environment — see `docs/raw/audit/prototype-audit.md` for the
-full definition of each.
+Each validation rule (EC1–EC12) checks one property of the External
+Context collection — see `docs/raw/audit/external-context-audit.md` for
+the full definition of each.
 
 {% if validation_scores | length > 0 %}
 | Rule | Score | Rating |
@@ -109,9 +109,9 @@ _No validation scores recorded._
 
 ## 7. Audit Standard Rubrics
 
-What "good" looks like for each prototype concern, drawn directly from
-`docs/raw/audit-standards/prototype/*.md` — the same rubrics the semantic
-audit provider checks findings against.
+What "good" looks like for each knowledge-dependency concern, drawn
+directly from `docs/raw/audit-standards/external-context/*.md` — the same
+rubrics the semantic audit provider checks findings against.
 
 {% for a in audit_standards %}
 ### {{ a.semantic_type }}
@@ -212,12 +212,11 @@ _No recommendations._
 
 | Area | Status |
 |------|--------|
-| Prototype Quality | {% if score >= 70 %}PASS{% else %}FAIL{% endif %} |
-| Product Validation | {% if product_validation_score >= 70 %}PASS{% else %}FAIL{% endif %} |
-| UX Validation | {% if validation_quality_score >= 70 %}PASS{% else %}FAIL{% endif %} |
-| Engineering Validation | {% if engineering_validation_score >= 70 %}PASS{% else %}FAIL{% endif %} |
-| Implementation Readiness | {% if engineering_readiness == "READY" %}READY{% else %}NOT READY{% endif %} |
-| Production Risk | {% if score >= 90 %}LOW{% elif score >= 70 %}MEDIUM{% else %}HIGH{% endif %} |
+| Documentation Quality | {% if document_quality_score >= 70 %}PASS{% else %}FAIL{% endif %} |
+| Content Completeness | {% if content_completeness_score >= 70 %}PASS{% else %}FAIL{% endif %} |
+| Documentation Integrity | {% if documentation_integrity_score >= 70 %}PASS{% else %}FAIL{% endif %} |
+| Downstream Reference Readiness | {% if engineering_readiness == "READY" %}READY{% else %}NOT READY{% endif %} |
+| Architecture Leakage Risk | {% if documentation_integrity_score >= 90 %}LOW{% elif documentation_integrity_score >= 70 %}MEDIUM{% else %}HIGH{% endif %} |
 
 ---
 
@@ -225,11 +224,11 @@ _No recommendations._
 
 | Field | Value |
 |-------|-------|
-| Audit Type | Prototype |
+| Audit Type | External Context |
 | Session | {{ session_id }} |
 | Git Revision | {{ git_revision }} |
 | Audit Date | {{ created_at }} |
-| Validation Rules | P1–P15 (`docs/raw/audit/prototype-audit.md`) |
-| Structure Standard | `docs/raw/standards/prototype.md` |
-| Semantic Audit Rubrics | `docs/raw/audit-standards/prototype/*.md` |
+| Validation Rules | EC1–EC12 (`docs/raw/audit/external-context-audit.md`) |
+| Structure Standard | `docs/raw/documentation-standards/08-external-context-standards.md` |
+| Semantic Audit Rubrics | `docs/raw/audit-standards/external-context/*.md` |
 | {% if previous_score %}Previous Report| Available{% else %}Previous Report| None (baseline){% endif %} |

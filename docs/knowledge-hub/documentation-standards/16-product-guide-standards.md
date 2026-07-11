@@ -11,6 +11,8 @@
   - [Template](#template)
 - [Public Contract](#public-contract)
   - [Template](#template)
+- [Related](#related)
+  - [Template](#template)
 - [Required Sections](#required-sections)
 - [Goals](#goals)
 - [Non-Goals](#non-goals)
@@ -29,8 +31,7 @@
 - [Summary](#summary)
 - [Documentation Folder](#documentation-folder)
 - [Usage](#usage)
-- [Related](#related)
-  - [Template](#template)
+- [Standard Cross-References](#standard-cross-references)
 
 ---
 
@@ -351,6 +352,57 @@ Product Guide topics explain **how to use the finished product**. They do not de
 
 ---
 
+## Related
+
+> **semantic_type:** `related`
+> **scope:** Links to other Product Guide topics, standards, or external references relevant to this topic
+> **out_of_scope:** Duplicate content from linked topics; links to unrelated domains without clear relevance
+> **contributes:** Enables navigation to adjacent knowledge, preventing dead-end reads
+> **relationships:** Links to other Product Guide topics, and potentially to Vision, Feature, Build, or README standards
+> **responsibilities:** Provide at least one relevant cross-reference; each link must have a brief label explaining why it's relevant
+> **generation_rules:** After writing the topic body, identify what else the reader might need; link to those topics or standards
+> **enhancement_rules:** Verify all links still resolve; add links when new related topics are created
+> **validation_rules:** Related section should exist; linked targets should be valid; labels should be descriptive
+> **audit_rules:** Cross-references validated by the Product Guide Audit Pipeline (Navigation check)
+
+### Template
+
+> **minimum_content:** 1 link
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+## Related
+
+- [Topic Name](link) — brief label explaining why this is relevant
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** at least one valid link with descriptive label
+
+### Examples
+
+**Correct:**
+> - [Scheduled Backups](scheduled-backups.md) — how to change the backup schedule
+> - [Restore From Backup](restore-backup.md) — recovering data from a saved snapshot
+
+**Incorrect:**
+> - [Some Other Topic](broken-link.md)
+> *Why wrong: Link target does not resolve, and the label gives no indication of why the reader should follow it.*
+
+### Writing Guidance
+
+- **Tone:** conversational
+- **Voice:** second person
+- **Structure:** bullet lists
+- **Audience:** AI agent
+- **Do:** Provide at least one cross-reference with a brief label explaining relevance; link to adjacent Product Guide topics the reader is likely to need next; keep labels descriptive enough to stand alone without context
+- **Don't:** Include links without labels or with vague labels ("see also"); link to topics outside the Product Guide domain without clear relevance; duplicate content from the linked topic in the description
+
+---
+
 ## Required Sections
 
 Every Product Guide topic must contain the following sections.
@@ -560,54 +612,7 @@ docs/raw/product-guide/
 
 Written by whoever ships a feature that needs end-user-facing explanation — a help topic is small and single-purpose, one file per concept/command/guide, never a catch-all. Use `samgraha compile --domain help` (done automatically by the release build for the shipped `docs/raw/product-guide/` tree) and `samgraha audit --domain help` to confirm every topic has a title and body before it ships. Two packaging profiles exist: `quickref` (title + body only, for compact contexts) and `full` (all six sections).
 
-## Related
-
-> **semantic_type:** `related`
-> **scope:** Links to other Product Guide topics, standards, or external references relevant to this topic
-> **out_of_scope:** Duplicate content from linked topics; links to unrelated domains without clear relevance
-> **contributes:** Enables navigation to adjacent knowledge, preventing dead-end reads
-> **relationships:** Links to other Product Guide topics, and potentially to Vision, Feature, Build, or README standards
-> **responsibilities:** Provide at least one relevant cross-reference; each link must have a brief label explaining why it's relevant
-> **generation_rules:** After writing the topic body, identify what else the reader might need; link to those topics or standards
-> **enhancement_rules:** Verify all links still resolve; add links when new related topics are created
-> **validation_rules:** Related section should exist; linked targets should be valid; labels should be descriptive
-> **audit_rules:** Cross-references validated by the Product Guide Audit Pipeline (Navigation check)
-
-### Template
-
-> **minimum_content:** 1 link
-> **length_guidance:** concise
-> **diagram_requirements:** none
-
-```markdown
-## Related
-
-- [Topic Name](link) — brief label explaining why this is relevant
-```
-
-**Required subsections:** none
-**Optional subsections:** none
-**Required diagrams:** none
-**Required cross-references:** at least one valid link with descriptive label
-
-### Examples
-
-**Correct:**
-> - [Scheduled Backups](scheduled-backups.md) — how to change the backup schedule
-> - [Restore From Backup](restore-backup.md) — recovering data from a saved snapshot
-
-**Incorrect:**
-> - [Some Other Topic](broken-link.md)
-> *Why wrong: Link target does not resolve, and the label gives no indication of why the reader should follow it.*
-
-### Writing Guidance
-
-- **Tone:** conversational
-- **Voice:** second person
-- **Structure:** bullet lists
-- **Audience:** AI agent
-- **Do:** Provide at least one cross-reference with a brief label explaining relevance; link to adjacent Product Guide topics the reader is likely to need next; keep labels descriptive enough to stand alone without context
-- **Don't:** Include links without labels or with vague labels ("see also"); link to topics outside the Product Guide domain without clear relevance; duplicate content from the linked topic in the description
+## Standard Cross-References
 
 - [Readme Standard](15-readme-standards.md) — the entry point Product Guide expands on
 - [Build Standard](14-build-standards.md) — install/run instructions Product Guide must stay accurate to

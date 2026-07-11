@@ -1,9 +1,9 @@
-# Engineering Audit Report — {{ created_at }}
+# Feature Audit Report — {{ created_at }}
 
 **Overall Score:** {{ score }} / 100 — **{{ rating }}**
 **Previous Score:** {% if previous_score %}{{ previous_score }} / 100{% else %}— (baseline){% endif %}
 **Score Change:** {{ score_change_display }}
-**Engineering Readiness:** {{ engineering_readiness }}
+**Feature Design Readiness:** {{ engineering_readiness }}
 
 {{ rating_description }}
 
@@ -33,15 +33,15 @@
 ## 2. Score Rubric
 
 Every score in this report is rated against the same bands, taken from
-`docs/raw/audit/engineering-audit.md`'s Scoring Model:
+`docs/raw/audit/feature-audit.md`'s Scoring Model:
 
 | Range | Rating | What it means |
 |---|---|---|
-| 95–100 | Excellent | Engineering principles, technology rationale, and standards coverage are all documented and consistent. |
-| 90–94 | Very Good | Minor gaps only — safe to build against with light follow-up. |
+| 95–100 | Excellent | Every feature is atomic, business-focused, implementation-independent, and traceable to the Vision. |
+| 90–94 | Very Good | Minor gaps only — safe to hand off to Feature Design with light follow-up. |
 | 80–89 | Good | Solid coverage — a few completeness or traceability issues to resolve. |
-| 70–79 | Acceptable | Core engineering standards documented but gaps remain — downstream implementation should verify before relying on this. |
-| Below 70 | Needs Improvement | Significant gaps — engineering standards aren't reliably captured. |
+| 70–79 | Acceptable | Core product behavior documented but gaps remain — Feature Design should verify before relying on this. |
+| Below 70 | Needs Improvement | Significant gaps — product behavior isn't reliably captured. |
 
 ---
 
@@ -49,18 +49,19 @@ Every score in this report is rated against the same bands, taken from
 
 | Category | Score | Rating | Weight |
 |----------|------:|--------|------:|
-| Engineering Coverage | {{ engineering_coverage_score }} | {{ engineering_coverage_rating }} | 40% |
-| Documentation Quality | {{ documentation_quality_score }} | {{ documentation_quality_rating }} | 30% |
-| Traceability and Consistency | {{ traceability_consistency_score }} | {{ traceability_consistency_rating }} | 30% |
+| Feature Definition | {{ feature_definition_score }} | {{ feature_definition_rating }} | 30% |
+| Product Definition | {{ product_definition_score }} | {{ product_definition_rating }} | 35% |
+| Documentation Quality | {{ documentation_quality_score }} | {{ documentation_quality_rating }} | 20% |
+| Product Readiness | {{ product_readiness_score }} | {{ product_readiness_rating }} | 15% |
 
-Category weights and definitions: `docs/raw/audit/engineering-audit.md#category-weights`.
+Category weights and definitions: `docs/raw/audit/feature-audit.md#category-weights`.
 
 ---
 
 ## 4. Structural Compliance Matrix
 
 Checks the compiled documentation collection against
-`docs/raw/standards/engineering.md`'s Required Sections table.
+`docs/raw/documentation-standards/04-feature-standards.md`'s Required Sections table.
 
 | Section Type | Required | Documents With It | Status |
 |---|:---:|:---:|---|
@@ -72,12 +73,9 @@ Checks the compiled documentation collection against
 **Partial** = some but not all documents have it.
 **Complete** = every document has it, or it's optional with no expectation of universal presence.
 
-Note: the Repository Structure declaration required by `implementation-audit`
-is not a tracked semantic type — see Findings (E2) for its presence check.
-
 ---
 
-## 5. Document Scores (per engineering document)
+## 5. Document Scores (per feature)
 
 {% if doc_scores | length > 0 %}
 | Document | Score | Rating |
@@ -93,9 +91,9 @@ _No document scores recorded._
 
 ## 6. Validation Scores
 
-Each validation rule (E1–E12) checks one property of the Engineering
-Documentation collection — see `docs/raw/audit/engineering-audit.md` for
-the full definition of each.
+Each validation rule (F1–F14) checks one property of the Feature
+Documentation collection — see `docs/raw/audit/feature-audit.md` for the
+full definition of each.
 
 {% if validation_scores | length > 0 %}
 | Rule | Score | Rating |
@@ -111,9 +109,9 @@ _No validation scores recorded._
 
 ## 7. Audit Standard Rubrics
 
-What "good" looks like for each engineering concern, drawn directly from
-`docs/raw/audit-standards/engineering/*.md` — the same rubrics the semantic
-audit provider checks findings against.
+What "good" looks like for each feature-specification concern, drawn
+directly from `docs/raw/audit-standards/feature/*.md` — the same rubrics
+the semantic audit provider checks findings against.
 
 {% for a in audit_standards %}
 ### {{ a.semantic_type }}
@@ -214,11 +212,10 @@ _No recommendations._
 
 | Area | Status |
 |------|--------|
-| Engineering Coverage | {% if engineering_coverage_score >= 70 %}PASS{% else %}FAIL{% endif %} |
 | Documentation Quality | {% if documentation_quality_score >= 70 %}PASS{% else %}FAIL{% endif %} |
-| Traceability and Consistency | {% if traceability_consistency_score >= 70 %}PASS{% else %}FAIL{% endif %} |
-| Implementation Audit Readiness | {% if engineering_readiness == "READY" %}READY{% else %}NOT READY{% endif %} |
-| Repository Structure Declared | {% if engineering_coverage_score >= 80 %}LIKELY{% else %}VERIFY{% endif %} |
+| Product Specification | {% if product_definition_score >= 70 %}PASS{% else %}FAIL{% endif %} |
+| Feature Design Readiness | {% if engineering_readiness == "READY" %}READY{% else %}NOT READY{% endif %} |
+| Engineering Assumption Risk | {% if product_readiness_score >= 90 %}LOW{% elif product_readiness_score >= 70 %}MEDIUM{% else %}HIGH{% endif %} |
 
 ---
 
@@ -226,11 +223,11 @@ _No recommendations._
 
 | Field | Value |
 |-------|-------|
-| Audit Type | Engineering |
+| Audit Type | Feature |
 | Session | {{ session_id }} |
 | Git Revision | {{ git_revision }} |
 | Audit Date | {{ created_at }} |
-| Validation Rules | E1–E12 (`docs/raw/audit/engineering-audit.md`) |
-| Structure Standard | `docs/raw/standards/engineering.md` |
-| Semantic Audit Rubrics | `docs/raw/audit-standards/engineering/*.md` |
+| Validation Rules | F1–F14 (`docs/raw/audit/feature-audit.md`) |
+| Structure Standard | `docs/raw/documentation-standards/04-feature-standards.md` |
+| Semantic Audit Rubrics | `docs/raw/audit-standards/feature/*.md` |
 | {% if previous_score %}Previous Report| Available{% else %}Previous Report| None (baseline){% endif %} |

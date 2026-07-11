@@ -1,9 +1,9 @@
-# Feature Design Audit Report — {{ created_at }}
+# Feature Technical Design Audit Report — {{ created_at }}
 
 **Overall Score:** {{ score }} / 100 — **{{ rating }}**
 **Previous Score:** {% if previous_score %}{{ previous_score }} / 100{% else %}— (baseline){% endif %}
 **Score Change:** {{ score_change_display }}
-**Feature Technical Design Readiness:** {{ engineering_readiness }}
+**Engineering Readiness:** {{ engineering_readiness }}
 
 {{ rating_description }}
 
@@ -33,18 +33,15 @@
 ## 2. Score Rubric
 
 Every score in this report is rated against the same bands, taken from
-`docs/raw/audit/feature-design-validation.md`'s Scoring Model. Note this
-domain's audit spec file is named `feature-design-validation.md`, not
-`feature-design-audit.md` — its content and checks (FD1–FD15) follow the
-same shape as every other domain's audit spec.
+`docs/raw/audit/feature-technical-audit.md`'s Scoring Model:
 
 | Range | Rating | What it means |
 |---|---|---|
-| 95–100 | Excellent | Every feature maps one-to-one to a design, applies the shared Design system, and contains no architecture or engineering leakage. |
-| 90–94 | Very Good | Minor gaps only — safe to hand off to Feature Technical Design with light follow-up. |
+| 95–100 | Excellent | Every feature maps one-to-one to a technical design, applies shared Architecture, and contains no implementation leakage. |
+| 90–94 | Very Good | Minor gaps only — safe to hand off to Engineering with light follow-up. |
 | 80–89 | Good | Solid coverage — a few completeness or consistency issues to resolve. |
-| 70–79 | Acceptable | Core user experience documented but gaps remain — Feature Technical Design should verify before relying on this. |
-| Below 70 | Needs Improvement | Significant gaps — user experience isn't reliably captured. |
+| 70–79 | Acceptable | Core technical realization documented but gaps remain — Engineering should verify before relying on this. |
+| Below 70 | Needs Improvement | Significant gaps — architectural realization isn't reliably captured. |
 
 ---
 
@@ -52,19 +49,19 @@ same shape as every other domain's audit spec.
 
 | Category | Score | Rating | Weight |
 |----------|------:|--------|------:|
-| Feature Mapping | {{ feature_mapping_score }} | {{ feature_mapping_rating }} | 25% |
-| User Experience | {{ user_experience_score }} | {{ user_experience_rating }} | 40% |
+| Feature Mapping | {{ feature_mapping_score }} | {{ feature_mapping_rating }} | 20% |
+| Technical Realization | {{ technical_realization_score }} | {{ technical_realization_rating }} | 40% |
 | Documentation Quality | {{ documentation_quality_score }} | {{ documentation_quality_rating }} | 20% |
-| Design Readiness | {{ design_readiness_score }} | {{ design_readiness_rating }} | 15% |
+| Implementation Readiness | {{ implementation_readiness_score }} | {{ implementation_readiness_rating }} | 20% |
 
-Category weights and definitions: `docs/raw/audit/feature-design-validation.md#category-weights`.
+Category weights and definitions: `docs/raw/audit/feature-technical-audit.md#category-weights`.
 
 ---
 
 ## 4. Structural Compliance Matrix
 
 Checks the compiled documentation collection against
-`docs/raw/standards/feature-design.md`'s Required Sections table.
+`docs/raw/documentation-standards/10-feature-technical-standards.md`'s Required Sections table.
 
 | Section Type | Required | Documents With It | Status |
 |---|:---:|:---:|---|
@@ -78,7 +75,7 @@ Checks the compiled documentation collection against
 
 ---
 
-## 5. Document Scores (per feature design)
+## 5. Document Scores (per feature technical design)
 
 {% if doc_scores | length > 0 %}
 | Document | Score | Rating |
@@ -94,9 +91,9 @@ _No document scores recorded._
 
 ## 6. Validation Scores
 
-Each validation rule (FD1–FD15) checks one property of the Feature Design
-collection — see `docs/raw/audit/feature-design-validation.md` for the full
-definition of each.
+Each validation rule (FT1–FT15) checks one property of the Feature
+Technical Design collection — see `docs/raw/audit/feature-technical-audit.md`
+for the full definition of each.
 
 {% if validation_scores | length > 0 %}
 | Rule | Score | Rating |
@@ -112,9 +109,9 @@ _No validation scores recorded._
 
 ## 7. Audit Standard Rubrics
 
-What "good" looks like for each UX concern, drawn directly from
-`docs/raw/audit-standards/feature-design/*.md` — the same rubrics the
-semantic audit provider checks findings against.
+What "good" looks like for each technical-realization concern, drawn
+directly from `docs/raw/audit-standards/feature-technical/*.md` — the same
+rubrics the semantic audit provider checks findings against.
 
 {% for a in audit_standards %}
 ### {{ a.semantic_type }}
@@ -216,10 +213,11 @@ _No recommendations._
 | Area | Status |
 |------|--------|
 | Documentation Quality | {% if documentation_quality_score >= 70 %}PASS{% else %}FAIL{% endif %} |
-| UX Specification | {% if user_experience_score >= 70 %}PASS{% else %}FAIL{% endif %} |
-| Design System Application | {% if feature_mapping_score >= 70 %}PASS{% else %}FAIL{% endif %} |
-| Feature Technical Design Readiness | {% if engineering_readiness == "READY" %}READY{% else %}NOT READY{% endif %} |
-| Engineering Assumption Risk | {% if design_readiness_score >= 90 %}LOW{% elif design_readiness_score >= 70 %}MEDIUM{% else %}HIGH{% endif %} |
+| Architecture Application | {% if feature_mapping_score >= 70 %}PASS{% else %}FAIL{% endif %} |
+| Technical Specification | {% if technical_realization_score >= 70 %}PASS{% else %}FAIL{% endif %} |
+| Engineering Readiness | {% if engineering_readiness == "READY" %}READY{% else %}NOT READY{% endif %} |
+| Implementation Readiness | {% if implementation_readiness_score >= 70 %}READY{% else %}NOT READY{% endif %} |
+| Implementation Assumption Risk | {% if implementation_readiness_score >= 90 %}LOW{% elif implementation_readiness_score >= 70 %}MEDIUM{% else %}HIGH{% endif %} |
 
 ---
 
@@ -227,11 +225,11 @@ _No recommendations._
 
 | Field | Value |
 |-------|-------|
-| Audit Type | Feature Design |
+| Audit Type | Feature Technical Design |
 | Session | {{ session_id }} |
 | Git Revision | {{ git_revision }} |
 | Audit Date | {{ created_at }} |
-| Validation Rules | FD1–FD15 (`docs/raw/audit/feature-design-validation.md`) |
-| Structure Standard | `docs/raw/standards/feature-design.md` |
-| Semantic Audit Rubrics | `docs/raw/audit-standards/feature-design/*.md` |
+| Validation Rules | FT1–FT15 (`docs/raw/audit/feature-technical-audit.md`) |
+| Structure Standard | `docs/raw/documentation-standards/10-feature-technical-standards.md` |
+| Semantic Audit Rubrics | `docs/raw/audit-standards/feature-technical/*.md` |
 | {% if previous_score %}Previous Report| Available{% else %}Previous Report| None (baseline){% endif %} |

@@ -1,4 +1,4 @@
-# Vision Audit Report — {{ created_at }}
+# Engineering Audit Report — {{ created_at }}
 
 **Overall Score:** {{ score }} / 100 — **{{ rating }}**
 **Previous Score:** {% if previous_score %}{{ previous_score }} / 100{% else %}— (baseline){% endif %}
@@ -32,17 +32,16 @@
 
 ## 2. Score Rubric
 
-Every score in this report — overall, category, per-document, and
-per-validation — is rated against the same bands, taken from
-`docs/raw/audit/vision-audit.md`'s Scoring Model:
+Every score in this report is rated against the same bands, taken from
+`docs/raw/audit/engineering-audit.md`'s Scoring Model:
 
 | Range | Rating | What it means |
 |---|---|---|
-| 95–100 | Excellent | Purpose, direction, philosophy, and principles are unambiguous, technology-independent, and ready to guide feature development with no reservations. |
-| 90–94 | Very Good | Minor gaps only — safe to guide feature work with light follow-up. |
-| 80–89 | Good | Solid foundation — a few completeness, independence, or consistency issues to resolve. |
-| 70–79 | Acceptable | Core direction present but gaps in philosophy, principles, or technology independence — feature work should wait for fixes. |
-| Below 70 | Needs Improvement | Significant gaps — not ready to guide feature development. |
+| 95–100 | Excellent | Engineering principles, technology rationale, and standards coverage are all documented and consistent. |
+| 90–94 | Very Good | Minor gaps only — safe to build against with light follow-up. |
+| 80–89 | Good | Solid coverage — a few completeness or traceability issues to resolve. |
+| 70–79 | Acceptable | Core engineering standards documented but gaps remain — downstream implementation should verify before relying on this. |
+| Below 70 | Needs Improvement | Significant gaps — engineering standards aren't reliably captured. |
 
 ---
 
@@ -50,21 +49,18 @@ per-validation — is rated against the same bands, taken from
 
 | Category | Score | Rating | Weight |
 |----------|------:|--------|------:|
-| Vision Content | {{ vision_content_score }} | {{ vision_content_rating }} | 35% |
-| Technology Independence | {{ tech_independence_score }} | {{ tech_independence_rating }} | 30% |
-| Traceability and Consistency | {{ traceability_consistency_score }} | {{ traceability_consistency_rating }} | 20% |
-| Documentation Quality | {{ doc_quality_score }} | {{ doc_quality_rating }} | 15% |
+| Engineering Coverage | {{ engineering_coverage_score }} | {{ engineering_coverage_rating }} | 40% |
+| Documentation Quality | {{ documentation_quality_score }} | {{ documentation_quality_rating }} | 30% |
+| Traceability and Consistency | {{ traceability_consistency_score }} | {{ traceability_consistency_rating }} | 30% |
 
-Category weights and definitions: `docs/raw/audit/vision-audit.md#category-weights`.
+Category weights and definitions: `docs/raw/audit/engineering-audit.md#category-weights`.
 
 ---
 
 ## 4. Structural Compliance Matrix
 
 Checks the compiled documentation collection against
-`docs/raw/standards/vision.md`'s Required Sections table — not
-document-by-document scoring, but whether the *collection as a whole*
-actually has each required concern somewhere in it.
+`docs/raw/documentation-standards/07-engineering-standards.md`'s Required Sections table.
 
 | Section Type | Required | Documents With It | Status |
 |---|:---:|:---:|---|
@@ -73,14 +69,15 @@ actually has each required concern somewhere in it.
 {% endfor %}
 
 **Missing** = no document in the collection has this section at all.
-**Partial** = some but not all documents have it (acceptable for optional
-types; a finding for required types — see Section 9).
-**Complete** = every document in the collection has it, or it's an
-optional type with no expectation of universal presence.
+**Partial** = some but not all documents have it.
+**Complete** = every document has it, or it's optional with no expectation of universal presence.
+
+Note: the Repository Structure declaration required by `implementation-audit`
+is not a tracked semantic type — see Findings (E2) for its presence check.
 
 ---
 
-## 5. Document Scores
+## 5. Document Scores (per engineering document)
 
 {% if doc_scores | length > 0 %}
 | Document | Score | Rating |
@@ -96,8 +93,9 @@ _No document scores recorded._
 
 ## 6. Validation Scores
 
-Each validation rule (V1–V12) checks one property of the Vision — see
-`docs/raw/audit/vision-audit.md` for the full definition of each.
+Each validation rule (E1–E12) checks one property of the Engineering
+Documentation collection — see `docs/raw/audit/engineering-audit.md` for
+the full definition of each.
 
 {% if validation_scores | length > 0 %}
 | Rule | Score | Rating |
@@ -113,10 +111,9 @@ _No validation scores recorded._
 
 ## 7. Audit Standard Rubrics
 
-What "good" looks like for each vision concern, drawn directly from
-`docs/raw/audit-standards/vision/*.md` — the same rubrics the semantic
-audit provider checks findings against. Use this to understand *why* a
-section scored the way it did without opening 10 separate files.
+What "good" looks like for each engineering concern, drawn directly from
+`docs/raw/audit-standards/engineering/*.md` — the same rubrics the semantic
+audit provider checks findings against.
 
 {% for a in audit_standards %}
 ### {{ a.semantic_type }}
@@ -149,11 +146,7 @@ Baseline audit established. No previous report for comparison.
 ## 9. Findings
 
 Every finding includes an Evidence column: the excerpt the audit provider
-captured to justify the finding, when one was captured. Deterministic
-checks (heading presence, keyword scans) typically don't carry an
-excerpt — that's expected, not a gap in this report. Semantic checks
-(tone, aspiration quality, philosophy substance) do, when the provider
-that raised them supports it.
+captured to justify the finding, when one was captured.
 
 {% if critical_findings | length > 0 %}
 ### Critical
@@ -221,11 +214,11 @@ _No recommendations._
 
 | Area | Status |
 |------|--------|
-| Vision Content | {% if vision_content_score >= 70 %}PASS{% else %}FAIL{% endif %} |
-| Technology Independence | {% if tech_independence_score >= 70 %}PASS{% else %}FAIL{% endif %} |
-| Downstream Consistency | {% if traceability_consistency_score >= 70 %}PASS{% else %}FAIL{% endif %} |
-| Feature Development Readiness | {% if engineering_readiness == "READY" %}READY{% else %}NOT READY{% endif %} |
-| Architectural Drift Risk | {% if score >= 90 %}LOW{% elif score >= 70 %}MEDIUM{% else %}HIGH{% endif %} |
+| Engineering Coverage | {% if engineering_coverage_score >= 70 %}PASS{% else %}FAIL{% endif %} |
+| Documentation Quality | {% if documentation_quality_score >= 70 %}PASS{% else %}FAIL{% endif %} |
+| Traceability and Consistency | {% if traceability_consistency_score >= 70 %}PASS{% else %}FAIL{% endif %} |
+| Implementation Audit Readiness | {% if engineering_readiness == "READY" %}READY{% else %}NOT READY{% endif %} |
+| Repository Structure Declared | {% if engineering_coverage_score >= 80 %}LIKELY{% else %}VERIFY{% endif %} |
 
 ---
 
@@ -233,11 +226,11 @@ _No recommendations._
 
 | Field | Value |
 |-------|-------|
-| Audit Type | Vision |
+| Audit Type | Engineering |
 | Session | {{ session_id }} |
 | Git Revision | {{ git_revision }} |
 | Audit Date | {{ created_at }} |
-| Validation Rules | V1–V12 (`docs/raw/audit/vision-audit.md`) |
-| Structure Standard | `docs/raw/standards/vision.md` |
-| Semantic Audit Rubrics | `docs/raw/audit-standards/vision/*.md` |
+| Validation Rules | E1–E12 (`docs/raw/audit/engineering-audit.md`) |
+| Structure Standard | `docs/raw/documentation-standards/07-engineering-standards.md` |
+| Semantic Audit Rubrics | `docs/raw/audit-standards/engineering/*.md` |
 | {% if previous_score %}Previous Report| Available{% else %}Previous Report| None (baseline){% endif %} |

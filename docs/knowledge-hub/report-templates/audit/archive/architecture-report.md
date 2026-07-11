@@ -1,4 +1,4 @@
-# External Context Audit Report — {{ created_at }}
+# Architecture Audit Report — {{ created_at }}
 
 **Overall Score:** {{ score }} / 100 — **{{ rating }}**
 **Previous Score:** {% if previous_score %}{{ previous_score }} / 100{% else %}— (baseline){% endif %}
@@ -32,16 +32,17 @@
 
 ## 2. Score Rubric
 
-Every score in this report is rated against the same bands, taken from
-`docs/raw/audit/external-context-audit.md`'s Scoring Model:
+Every score in this report — overall, category, per-document, and
+per-validation — is rated against the same bands, taken from
+`docs/raw/audit/architecture-audit.md`'s Overall Score table:
 
 | Range | Rating | What it means |
 |---|---|---|
-| 95–100 | Excellent | Every material dependency is documented atomically, with justified purpose, constraints, and authoritative references. |
-| 90–94 | Very Good | Minor gaps only — safe to reference with light follow-up. |
-| 80–89 | Good | Solid coverage — a few completeness or integrity issues to resolve. |
-| 70–79 | Acceptable | Core dependencies documented but gaps in constraints or references — downstream docs should verify before relying on this. |
-| Below 70 | Needs Improvement | Significant gaps — knowledge dependencies aren't reliably captured. |
+| 95–100 | Excellent | Modular, fully traceable, no implementation leakage — ready for Engineering with no reservations. |
+| 90–94 | Very Good | Minor gaps only — safe to proceed to Engineering with light follow-up. |
+| 80–89 | Good | Solid foundation — a few structural, ownership, or consistency issues to resolve before Engineering. |
+| 70–79 | Acceptable | Core structure present but gaps in traceability, boundaries, or consistency — Engineering should wait for fixes. |
+| Below 70 | Needs Improvement | Significant gaps in required sections, ownership, or technology independence — not ready for Engineering. |
 
 ---
 
@@ -49,19 +50,21 @@ Every score in this report is rated against the same bands, taken from
 
 | Category | Score | Rating | Weight |
 |----------|------:|--------|------:|
-| Document Quality | {{ document_quality_score }} | {{ document_quality_rating }} | 30% |
-| Content Completeness | {{ content_completeness_score }} | {{ content_completeness_rating }} | 30% |
-| Documentation Integrity | {{ documentation_integrity_score }} | {{ documentation_integrity_rating }} | 25% |
-| Collection Quality | {{ collection_quality_score }} | {{ collection_quality_rating }} | 15% |
+| Collection Integrity | {{ collection_integrity_score }} | {{ collection_integrity_rating }} | 25% |
+| Structural Integrity | {{ structural_integrity_score }} | {{ structural_integrity_rating }} | 30% |
+| Consistency | {{ consistency_score }} | {{ consistency_rating }} | 30% |
+| Cross-Repository Architecture | {{ cross_repo_score }} | {{ cross_repo_rating }} | 15% |
 
-Category weights and definitions: `docs/raw/audit/external-context-audit.md#category-weights`.
+Category weights and definitions: `docs/raw/audit/architecture-audit.md#category-weights`.
 
 ---
 
 ## 4. Structural Compliance Matrix
 
 Checks the compiled documentation collection against
-`docs/raw/standards/external-context.md`'s Required Sections table.
+`docs/raw/documentation-standards/05-architecture-standards.md`'s Required Sections table — not
+document-by-document scoring, but whether the *collection as a whole*
+actually has each required concern somewhere in it.
 
 | Section Type | Required | Documents With It | Status |
 |---|:---:|:---:|---|
@@ -70,12 +73,14 @@ Checks the compiled documentation collection against
 {% endfor %}
 
 **Missing** = no document in the collection has this section at all.
-**Partial** = some but not all documents have it.
-**Complete** = every document has it, or it's optional with no expectation of universal presence.
+**Partial** = some but not all documents have it (acceptable for optional
+types; a finding for required types — see Section 9).
+**Complete** = every document in the collection has it, or it's an
+optional type with no expectation of universal presence.
 
 ---
 
-## 5. Document Scores (per dependency)
+## 5. Document Scores
 
 {% if doc_scores | length > 0 %}
 | Document | Score | Rating |
@@ -91,9 +96,10 @@ _No document scores recorded._
 
 ## 6. Validation Scores
 
-Each validation rule (EC1–EC12) checks one property of the External
-Context collection — see `docs/raw/audit/external-context-audit.md` for
-the full definition of each.
+Each validation rule (A1–A13) checks one property of the architecture
+collection — see `docs/raw/audit/architecture-audit.md` for the full
+definition of each. Scores here are the audit's own record of how well
+this collection satisfied that rule.
 
 {% if validation_scores | length > 0 %}
 | Rule | Score | Rating |
@@ -109,9 +115,10 @@ _No validation scores recorded._
 
 ## 7. Audit Standard Rubrics
 
-What "good" looks like for each knowledge-dependency concern, drawn
-directly from `docs/raw/audit-standards/external-context/*.md` — the same
-rubrics the semantic audit provider checks findings against.
+What "good" looks like for each architectural concern, drawn directly
+from `docs/raw/audit-standards/architecture/*.md` — the same rubrics the
+semantic audit provider checks findings against. Use this to understand
+*why* a section scored the way it did without opening 11 separate files.
 
 {% for a in audit_standards %}
 ### {{ a.semantic_type }}
@@ -144,7 +151,11 @@ Baseline audit established. No previous report for comparison.
 ## 9. Findings
 
 Every finding includes an Evidence column: the excerpt the audit provider
-captured to justify the finding, when one was captured.
+captured to justify the finding, when one was captured. Deterministic
+checks (structural presence, cross-references) typically don't carry an
+excerpt — that's expected, not a gap in this report. Semantic checks
+(tone, clarity, technology-independence judgment calls) do, when the
+provider that raised them supports it.
 
 {% if critical_findings | length > 0 %}
 ### Critical
@@ -212,11 +223,10 @@ _No recommendations._
 
 | Area | Status |
 |------|--------|
-| Documentation Quality | {% if document_quality_score >= 70 %}PASS{% else %}FAIL{% endif %} |
-| Content Completeness | {% if content_completeness_score >= 70 %}PASS{% else %}FAIL{% endif %} |
-| Documentation Integrity | {% if documentation_integrity_score >= 70 %}PASS{% else %}FAIL{% endif %} |
-| Downstream Reference Readiness | {% if engineering_readiness == "READY" %}READY{% else %}NOT READY{% endif %} |
-| Architecture Leakage Risk | {% if documentation_integrity_score >= 90 %}LOW{% elif documentation_integrity_score >= 70 %}MEDIUM{% else %}HIGH{% endif %} |
+| Documentation Quality | {% if score >= 70 %}PASS{% else %}FAIL{% endif %} |
+| Architecture Quality | {% if score >= 70 %}PASS{% else %}FAIL{% endif %} |
+| Engineering Readiness | {% if engineering_readiness == "YES" %}READY{% else %}NOT READY{% endif %} |
+| Feature Technical Design Support | {% if score >= 80 %}READY{% else %}NOT READY{% endif %} |
 
 ---
 
@@ -224,11 +234,11 @@ _No recommendations._
 
 | Field | Value |
 |-------|-------|
-| Audit Type | External Context |
+| Audit Type | Architecture |
 | Session | {{ session_id }} |
 | Git Revision | {{ git_revision }} |
 | Audit Date | {{ created_at }} |
-| Validation Rules | EC1–EC12 (`docs/raw/audit/external-context-audit.md`) |
-| Structure Standard | `docs/raw/standards/external-context.md` |
-| Semantic Audit Rubrics | `docs/raw/audit-standards/external-context/*.md` |
+| Validation Rules | A1–A13 (`docs/raw/audit/architecture-audit.md`) |
+| Structure Standard | `docs/raw/documentation-standards/05-architecture-standards.md` |
+| Semantic Audit Rubrics | `docs/raw/audit-standards/architecture/*.md` |
 | {% if previous_score %}Previous Report| Available{% else %}Previous Report| None (baseline){% endif %} |

@@ -1,11 +1,15 @@
-# Feature Audit Report — {{ created_at }}
+# README Audit Report — {{ created_at }}
 
 **Overall Score:** {{ score }} / 100 — **{{ rating }}**
 **Previous Score:** {% if previous_score %}{{ previous_score }} / 100{% else %}— (baseline){% endif %}
 **Score Change:** {{ score_change_display }}
-**Feature Design Readiness:** {{ engineering_readiness }}
+**Engineering Readiness:** {{ engineering_readiness }}
 
 {{ rating_description }}
+
+Unlike every other domain report, this one audits a single repo-root file
+(`README.md`), not a `docs/raw/<domain>/` collection — there is no
+Structural Compliance Matrix here for that reason.
 
 ---
 
@@ -33,15 +37,15 @@
 ## 2. Score Rubric
 
 Every score in this report is rated against the same bands, taken from
-`docs/raw/audit/feature-audit.md`'s Scoring Model:
+`docs/raw/audit/readme-audit.md`'s Scoring Model:
 
 | Range | Rating | What it means |
 |---|---|---|
-| 95–100 | Excellent | Every feature is atomic, business-focused, implementation-independent, and traceable to the Vision. |
-| 90–94 | Very Good | Minor gaps only — safe to hand off to Feature Design with light follow-up. |
-| 80–89 | Good | Solid coverage — a few completeness or traceability issues to resolve. |
-| 70–79 | Acceptable | Core product behavior documented but gaps remain — Feature Design should verify before relying on this. |
-| Below 70 | Needs Improvement | Significant gaps — product behavior isn't reliably captured. |
+| 95–100 | Excellent | The README orients a new reader in minutes, navigates cleanly to detailed docs, and stays in sync with the repository. |
+| 90–94 | Very Good | Minor gaps only — safe as the repository's front door with light follow-up. |
+| 80–89 | Good | Solid entry point — a few navigation or scope issues to resolve. |
+| 70–79 | Acceptable | Core purpose present but gaps in navigation or documentation quality — onboarding is harder than it should be. |
+| Below 70 | Needs Improvement | Significant gaps — the README fails as a repository entry point. |
 
 ---
 
@@ -49,33 +53,16 @@ Every score in this report is rated against the same bands, taken from
 
 | Category | Score | Rating | Weight |
 |----------|------:|--------|------:|
-| Feature Definition | {{ feature_definition_score }} | {{ feature_definition_rating }} | 30% |
-| Product Definition | {{ product_definition_score }} | {{ product_definition_rating }} | 35% |
-| Documentation Quality | {{ documentation_quality_score }} | {{ documentation_quality_rating }} | 20% |
-| Product Readiness | {{ product_readiness_score }} | {{ product_readiness_rating }} | 15% |
+| Repository Introduction | {{ repo_introduction_score }} | {{ repo_introduction_rating }} | 30% |
+| Documentation Navigation | {{ doc_navigation_score }} | {{ doc_navigation_rating }} | 30% |
+| Documentation Quality | {{ doc_quality_score }} | {{ doc_quality_rating }} | 25% |
+| Maintainability | {{ maintainability_score }} | {{ maintainability_rating }} | 15% |
 
-Category weights and definitions: `docs/raw/audit/feature-audit.md#category-weights`.
-
----
-
-## 4. Structural Compliance Matrix
-
-Checks the compiled documentation collection against
-`docs/raw/standards/feature.md`'s Required Sections table.
-
-| Section Type | Required | Documents With It | Status |
-|---|:---:|:---:|---|
-{% for s in section_compliance -%}
-| {{ s.semantic_type }} | {% if s.required %}✓{% else %}—{% endif %} | {{ s.doc_count }} / {{ s.total_docs }} | {{ s.status }} |
-{% endfor %}
-
-**Missing** = no document in the collection has this section at all.
-**Partial** = some but not all documents have it.
-**Complete** = every document has it, or it's optional with no expectation of universal presence.
+Category weights and definitions: `docs/raw/audit/readme-audit.md#category-weights`.
 
 ---
 
-## 5. Document Scores (per feature)
+## 4. Document Scores
 
 {% if doc_scores | length > 0 %}
 | Document | Score | Rating |
@@ -89,11 +76,10 @@ _No document scores recorded._
 
 ---
 
-## 6. Validation Scores
+## 5. Validation Scores
 
-Each validation rule (F1–F14) checks one property of the Feature
-Documentation collection — see `docs/raw/audit/feature-audit.md` for the
-full definition of each.
+Each validation rule (R1–R12) checks one property of the README — see
+`docs/raw/audit/readme-audit.md` for the full definition of each.
 
 {% if validation_scores | length > 0 %}
 | Rule | Score | Rating |
@@ -107,11 +93,11 @@ _No validation scores recorded._
 
 ---
 
-## 7. Audit Standard Rubrics
+## 6. Audit Standard Rubrics
 
-What "good" looks like for each feature-specification concern, drawn
-directly from `docs/raw/audit-standards/feature/*.md` — the same rubrics
-the semantic audit provider checks findings against.
+What "good" looks like for each README concern, drawn directly from
+`docs/raw/audit-standards/readme/*.md` — the same rubrics the semantic
+audit provider checks findings against.
 
 {% for a in audit_standards %}
 ### {{ a.semantic_type }}
@@ -127,7 +113,7 @@ Checked for:
 
 ---
 
-## 8. Trend Analysis
+## 7. Trend Analysis
 
 {% if previous_score %}
 **Previous Score:** {{ previous_score }} / 100
@@ -141,10 +127,12 @@ Baseline audit established. No previous report for comparison.
 
 ---
 
-## 9. Findings
+## 8. Findings
 
 Every finding includes an Evidence column: the excerpt the audit provider
-captured to justify the finding, when one was captured.
+captured to justify the finding, when one was captured. Deterministic
+checks (heading presence, word counts) typically don't carry an excerpt —
+that's expected, not a gap in this report.
 
 {% if critical_findings | length > 0 %}
 ### Critical
@@ -192,7 +180,7 @@ _No findings recorded._
 
 ---
 
-## 10. Recommendations
+## 9. Recommendations
 
 {% if recommendations | length > 0 %}
 {% for r in recommendations %}
@@ -208,26 +196,27 @@ _No recommendations._
 
 ---
 
-## 11. Readiness Assessment
+## 10. Readiness Assessment
 
 | Area | Status |
 |------|--------|
-| Documentation Quality | {% if documentation_quality_score >= 70 %}PASS{% else %}FAIL{% endif %} |
-| Product Specification | {% if product_definition_score >= 70 %}PASS{% else %}FAIL{% endif %} |
-| Feature Design Readiness | {% if engineering_readiness == "READY" %}READY{% else %}NOT READY{% endif %} |
-| Engineering Assumption Risk | {% if product_readiness_score >= 90 %}LOW{% elif product_readiness_score >= 70 %}MEDIUM{% else %}HIGH{% endif %} |
+| Repository Introduction | {% if repo_introduction_score >= 70 %}PASS{% else %}FAIL{% endif %} |
+| Documentation Navigation | {% if doc_navigation_score >= 70 %}PASS{% else %}FAIL{% endif %} |
+| Onboarding Experience | {% if score >= 70 %}PASS{% else %}FAIL{% endif %} |
+| Repository Discoverability | {% if engineering_readiness == "READY" %}READY{% else %}NOT READY{% endif %} |
+| Documentation Synchronization | {% if maintainability_score >= 70 %}PASS{% else %}FAIL{% endif %} |
 
 ---
 
-## 12. Audit Metadata
+## 11. Audit Metadata
 
 | Field | Value |
 |-------|-------|
-| Audit Type | Feature |
+| Audit Type | README |
 | Session | {{ session_id }} |
 | Git Revision | {{ git_revision }} |
 | Audit Date | {{ created_at }} |
-| Validation Rules | F1–F14 (`docs/raw/audit/feature-audit.md`) |
-| Structure Standard | `docs/raw/standards/feature.md` |
-| Semantic Audit Rubrics | `docs/raw/audit-standards/feature/*.md` |
+| Validation Rules | R1–R12 (`docs/raw/audit/readme-audit.md`) |
+| Structure Standard | `docs/raw/documentation-standards/14-readme-standards.md` |
+| Semantic Audit Rubrics | `docs/raw/audit-standards/readme/*.md` |
 | {% if previous_score %}Previous Report| Available{% else %}Previous Report| None (baseline){% endif %} |

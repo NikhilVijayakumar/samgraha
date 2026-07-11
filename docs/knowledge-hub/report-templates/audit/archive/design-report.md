@@ -1,4 +1,4 @@
-# Feature Technical Design Audit Report — {{ created_at }}
+# Design Audit Report — {{ created_at }}
 
 **Overall Score:** {{ score }} / 100 — **{{ rating }}**
 **Previous Score:** {% if previous_score %}{{ previous_score }} / 100{% else %}— (baseline){% endif %}
@@ -32,16 +32,17 @@
 
 ## 2. Score Rubric
 
-Every score in this report is rated against the same bands, taken from
-`docs/raw/audit/feature-technical-audit.md`'s Scoring Model:
+Every score in this report — overall, category, per-document, and
+per-validation — is rated against the same bands, taken from
+`docs/raw/audit/design-audit.md`'s Scoring Model:
 
 | Range | Rating | What it means |
 |---|---|---|
-| 95–100 | Excellent | Every feature maps one-to-one to a technical design, applies shared Architecture, and contains no implementation leakage. |
-| 90–94 | Very Good | Minor gaps only — safe to hand off to Engineering with light follow-up. |
-| 80–89 | Good | Solid coverage — a few completeness or consistency issues to resolve. |
-| 70–79 | Acceptable | Core technical realization documented but gaps remain — Engineering should verify before relying on this. |
-| Below 70 | Needs Improvement | Significant gaps — architectural realization isn't reliably captured. |
+| 95–100 | Excellent | The design system is complete, reusable, technology-independent, and ready to guide Feature Design with no reservations. |
+| 90–94 | Very Good | Minor gaps only — safe to guide Feature Design with light follow-up. |
+| 80–89 | Good | Solid design system — a few completeness or consistency issues to resolve. |
+| 70–79 | Acceptable | Core principles present but gaps in accessibility, localization, or technology independence — Feature Design should wait for fixes. |
+| Below 70 | Needs Improvement | Significant gaps — not ready to guide Feature Design. |
 
 ---
 
@@ -49,19 +50,20 @@ Every score in this report is rated against the same bands, taken from
 
 | Category | Score | Rating | Weight |
 |----------|------:|--------|------:|
-| Feature Mapping | {{ feature_mapping_score }} | {{ feature_mapping_rating }} | 20% |
-| Technical Realization | {{ technical_realization_score }} | {{ technical_realization_rating }} | 40% |
-| Documentation Quality | {{ documentation_quality_score }} | {{ documentation_quality_rating }} | 20% |
-| Implementation Readiness | {{ implementation_readiness_score }} | {{ implementation_readiness_rating }} | 20% |
+| Design System | {{ design_system_score }} | {{ design_system_rating }} | 35% |
+| Documentation Quality | {{ doc_quality_score }} | {{ doc_quality_rating }} | 30% |
+| Design Quality | {{ design_quality_score }} | {{ design_quality_rating }} | 35% |
 
-Category weights and definitions: `docs/raw/audit/feature-technical-audit.md#category-weights`.
+Category weights and definitions: `docs/raw/audit/design-audit.md#category-weights`.
 
 ---
 
 ## 4. Structural Compliance Matrix
 
 Checks the compiled documentation collection against
-`docs/raw/standards/feature-technical.md`'s Required Sections table.
+`docs/raw/documentation-standards/06-design-standards.md`'s Required Sections table — not
+document-by-document scoring, but whether the *collection as a whole*
+actually has each required concern somewhere in it.
 
 | Section Type | Required | Documents With It | Status |
 |---|:---:|:---:|---|
@@ -70,12 +72,14 @@ Checks the compiled documentation collection against
 {% endfor %}
 
 **Missing** = no document in the collection has this section at all.
-**Partial** = some but not all documents have it.
-**Complete** = every document has it, or it's optional with no expectation of universal presence.
+**Partial** = some but not all documents have it (acceptable for optional
+types; a finding for required types — see Section 9).
+**Complete** = every document in the collection has it, or it's an
+optional type with no expectation of universal presence.
 
 ---
 
-## 5. Document Scores (per feature technical design)
+## 5. Document Scores
 
 {% if doc_scores | length > 0 %}
 | Document | Score | Rating |
@@ -91,9 +95,9 @@ _No document scores recorded._
 
 ## 6. Validation Scores
 
-Each validation rule (FT1–FT15) checks one property of the Feature
-Technical Design collection — see `docs/raw/audit/feature-technical-audit.md`
-for the full definition of each.
+Each validation rule (D1–D12) checks one property of the Design
+documentation — see `docs/raw/audit/design-audit.md` for the full
+definition of each.
 
 {% if validation_scores | length > 0 %}
 | Rule | Score | Rating |
@@ -109,9 +113,10 @@ _No validation scores recorded._
 
 ## 7. Audit Standard Rubrics
 
-What "good" looks like for each technical-realization concern, drawn
-directly from `docs/raw/audit-standards/feature-technical/*.md` — the same
-rubrics the semantic audit provider checks findings against.
+What "good" looks like for each design concern, drawn directly from
+`docs/raw/audit-standards/design/*.md` — the same rubrics the semantic
+audit provider checks findings against. Use this to understand *why* a
+section scored the way it did without opening 6 separate files.
 
 {% for a in audit_standards %}
 ### {{ a.semantic_type }}
@@ -144,7 +149,11 @@ Baseline audit established. No previous report for comparison.
 ## 9. Findings
 
 Every finding includes an Evidence column: the excerpt the audit provider
-captured to justify the finding, when one was captured.
+captured to justify the finding, when one was captured. Deterministic
+checks (heading presence, keyword scans) typically don't carry an
+excerpt — that's expected, not a gap in this report. Semantic checks
+(consistency judgment, quality of rationale) do, when the provider that
+raised them supports it.
 
 {% if critical_findings | length > 0 %}
 ### Critical
@@ -212,12 +221,10 @@ _No recommendations._
 
 | Area | Status |
 |------|--------|
-| Documentation Quality | {% if documentation_quality_score >= 70 %}PASS{% else %}FAIL{% endif %} |
-| Architecture Application | {% if feature_mapping_score >= 70 %}PASS{% else %}FAIL{% endif %} |
-| Technical Specification | {% if technical_realization_score >= 70 %}PASS{% else %}FAIL{% endif %} |
-| Engineering Readiness | {% if engineering_readiness == "READY" %}READY{% else %}NOT READY{% endif %} |
-| Implementation Readiness | {% if implementation_readiness_score >= 70 %}READY{% else %}NOT READY{% endif %} |
-| Implementation Assumption Risk | {% if implementation_readiness_score >= 90 %}LOW{% elif implementation_readiness_score >= 70 %}MEDIUM{% else %}HIGH{% endif %} |
+| Documentation Quality | {% if doc_quality_score >= 70 %}PASS{% else %}FAIL{% endif %} |
+| Design Quality | {% if design_quality_score >= 70 %}PASS{% else %}FAIL{% endif %} |
+| Feature Design Readiness | {% if engineering_readiness == "READY" %}READY{% else %}NOT READY{% endif %} |
+| Engineering Design Support | {% if score >= 80 %}READY{% else %}NOT READY{% endif %} |
 
 ---
 
@@ -225,11 +232,11 @@ _No recommendations._
 
 | Field | Value |
 |-------|-------|
-| Audit Type | Feature Technical Design |
+| Audit Type | Design |
 | Session | {{ session_id }} |
 | Git Revision | {{ git_revision }} |
 | Audit Date | {{ created_at }} |
-| Validation Rules | FT1–FT15 (`docs/raw/audit/feature-technical-audit.md`) |
-| Structure Standard | `docs/raw/standards/feature-technical.md` |
-| Semantic Audit Rubrics | `docs/raw/audit-standards/feature-technical/*.md` |
+| Validation Rules | D1–D12 (`docs/raw/audit/design-audit.md`) |
+| Structure Standard | `docs/raw/documentation-standards/06-design-standards.md` |
+| Semantic Audit Rubrics | `docs/raw/audit-standards/design/*.md` |
 | {% if previous_score %}Previous Report| Available{% else %}Previous Report| None (baseline){% endif %} |
