@@ -36,7 +36,7 @@ Users extract/copy the `samgraha/` package directory and run `bin/cli.exe` / `bi
 
 ### Built-in Knowledge Distribution
 
-`standards.db` and `help.db` are compiled during the release build (from `docs/raw/standards` and `docs/raw/help` in the source repo) and placed in the package root. At runtime, both `cli.exe` and `mcp.exe` look for them next to whichever binary is running (via `std::env::current_exe()?.parent()`), so they must stay adjacent to the binary. If either is missing, that's a non-fatal degraded state — `samgraha info` reports built-in store status explicitly.
+`standards.db` and `help.db` are compiled during the release build (from `docs/raw/documentation-standards` and `docs/raw/help` in the source repo) and placed in the package root. At runtime, both `cli.exe` and `mcp.exe` look for them next to whichever binary is running (via `std::env::current_exe()?.parent()`), so they must stay adjacent to the binary. If either is missing, that's a non-fatal degraded state — `samgraha info` reports built-in store status explicitly.
 
 ## Related
 

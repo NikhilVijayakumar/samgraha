@@ -12,7 +12,7 @@ There are **three layers** every audit target (a domain name or a pipeline name)
 
 | # | Layer | Backing file tree | Read live at request time? | What it's for |
 |---|---|---|---|---|
-| 1 | **Deterministic** | Rust heuristics in `crates/audit/src/providers.rs` (domains) / `crates/audit/src/pipelines/*.rs` (pipelines), driven by `docs/raw/standards/{domain}.md`'s section rules | Yes — always runs, instant, no LLM | Machine-checkable structure: required sections present? empty/duplicate/prohibited content? file-count heuristics? |
+| 1 | **Deterministic** | Rust heuristics in `crates/audit/src/providers.rs` (domains) / `crates/audit/src/pipelines/*.rs` (pipelines), driven by `docs/raw/documentation-standards/{domain}.md`'s section rules | Yes — always runs, instant, no LLM | Machine-checkable structure: required sections present? empty/duplicate/prohibited content? file-count heuristics? |
 | 2 | **Standard** (rubric) | `docs/raw/audit-standards/{domain}/{section}.md` | Yes — opt-in via `providers: ["semantic"]`, **domain audits only** | LLM judges one section's prose quality against a Scoring Criteria table. "Is this Purpose section well-written?" |
 | 3 | **Spec** (checklist) | `docs/raw/audit/{pipeline}-audit.md` (A1–A13, V1–V12, BC1–BC10, ...) | Yes — opt-in via `providers: ["semantic"]`, **pipeline audits only** | LLM judges the whole document collection against a checklist item. "Do all the architecture docs cohere as one system (A1)?" |
 

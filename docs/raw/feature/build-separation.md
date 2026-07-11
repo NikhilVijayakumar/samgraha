@@ -20,7 +20,7 @@ Each functional requirement below defines a verifiable capability that the featu
 
 The release artifact shall contain only the following documentation directories:
 
-* `docs/raw/standards/`
+* `docs/raw/documentation-standards/`
 * `docs/raw/audit/`
 * `docs/raw/audit-standards/`
 
@@ -62,7 +62,7 @@ No special-casing for samgraha shall exist in the resolve, search, or audit path
 
 ## FR4. StandardRegistry Unchanged
 
-The standards delivery path remains `docs/raw/standards/` on disk inside the artifact.
+The standards delivery path remains `docs/raw/documentation-standards/` on disk inside the artifact.
 
 Recipients compile their own repositories without ever needing samgraha source documentation.
 
@@ -88,7 +88,7 @@ Registration is optional. Samgraha functions as a standards engine without its o
 * The release artifact is a standards engine only. No samgraha-source knowledge is bundled.
 * Every repository is treated equally by the registry. Samgraha is not special.
 * `compile(path)` always writes into the target repository's own `.samgraha/` directory, not the runtime's.
-* Standards remain on disk in the artifact at `docs/raw/standards/`. This path is unchanged.
+* Standards remain on disk in the artifact at `docs/raw/documentation-standards/`. This path is unchanged.
 * The build script is the single enforcement point for artifact content. No runtime logic excludes or includes based on repository name.
 
 ---
@@ -143,7 +143,7 @@ Build Separation shall:
 
 * not change any compile, registry, or MCP tool signatures
 * not affect how external repositories compile or sync
-* not remove the `docs/raw/standards/` path from the artifact
+* not remove the `docs/raw/documentation-standards/` path from the artifact
 * enforce artifact content through the build script, not through runtime guards
 
 ---
@@ -185,7 +185,7 @@ The feature is successful when:
 
 * the release artifact contains no samgraha-specific documentation directories
 * the release artifact contains no `knowledge.db` or `manifest.json`
-* the StandardRegistry reads standards from `docs/raw/standards/` correctly after separation
+* the StandardRegistry reads standards from `docs/raw/documentation-standards/` correctly after separation
 * samgraha can be compiled and registered as a peer repository and appears in `list_repositories`
 * no special-casing for samgraha exists in resolve, search, or audit code paths
 

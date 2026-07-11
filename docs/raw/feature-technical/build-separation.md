@@ -33,7 +33,7 @@ Unchanged. `compile(path)` writes into the target repository's `.samgraha/` dire
 
 ### Standard Registry
 
-Unchanged. Reads `docs/raw/standards/` from disk using a path relative to the installed binary. The `standards/`, `audit/`, and `audit-standards/` directories ship unchanged and at the same path.
+Unchanged. Reads `docs/raw/documentation-standards/` from disk using a path relative to the installed binary. The `standards/`, `audit/`, and `audit-standards/` directories ship unchanged and at the same path.
 
 ### Registry Store
 
@@ -60,7 +60,7 @@ Build time (build-release.ps1):
 ```text
 build-release.ps1
     │
-    ├── Copy-Item docs/raw/standards/        → release/samgraha/docs/raw/standards/
+    ├── Copy-Item docs/raw/documentation-standards/        → release/samgraha/docs/raw/documentation-standards/
     ├── Copy-Item docs/raw/audit/            → release/samgraha/docs/raw/audit/
     ├── Copy-Item docs/raw/audit-standards/  → release/samgraha/docs/raw/audit-standards/
     │   [architecture/, feature/, engineering/, ... are NOT copied]
@@ -159,7 +159,7 @@ If the user registers the Saṃgraha repository, they invoke `cli compile` and `
 
 | Data | Owner | Notes |
 |---|---|---|
-| docs/raw/standards/ | Release artifact | Ships; read by StandardRegistry at runtime |
+| docs/raw/documentation-standards/ | Release artifact | Ships; read by StandardRegistry at runtime |
 | docs/raw/audit/ | Release artifact | Ships; read by Audit Framework at runtime |
 | docs/raw/audit-standards/ | Release artifact | Ships; read by Audit Framework at runtime |
 | docs/raw/architecture/, feature/, ... | Source repository only | Not shipped in release artifact after this change |
@@ -192,7 +192,7 @@ None. Build separation is entirely a build-script change. No external services, 
 
 ## Runtime Constraints
 
-- `docs/raw/standards/`, `docs/raw/audit/`, and `docs/raw/audit-standards/` must be present in the release artifact (StandardRegistry and Audit Framework depend on them).
+- `docs/raw/documentation-standards/`, `docs/raw/audit/`, and `docs/raw/audit-standards/` must be present in the release artifact (StandardRegistry and Audit Framework depend on them).
 - `docs/raw/architecture/`, `docs/raw/feature/`, `docs/raw/feature-technical/`, and `docs/raw/engineering/` must not be present in the release artifact.
 - `.samgraha/knowledge.db` must not be pre-populated in the release artifact.
 - No Rust code changes in Phase 1.

@@ -125,7 +125,7 @@ The Audit-Fix Pipeline consumes:
 - Audit finding (report_id, criterion_id, domain, score)
 - Audit Spec (`docs/raw/audit/<domain>-audit.md` via lookup table)
 - Audit Standard (`docs/raw/audit-standards/<domain>/*.md`)
-- Document Standard (`docs/raw/standards/<domain>.md`)
+- Document Standard (`docs/raw/documentation-standards/<domain>.md`)
 - Target file (document / config / source)
 - Verification feedback from prior attempts
 

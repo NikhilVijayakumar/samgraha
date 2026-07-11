@@ -88,7 +88,7 @@ Fix Orchestrator
     ├── PlanningContextBuilder
     │       ├── Audit Spec (docs/raw/audit/<domain>-audit.md)
     │       ├── Audit Standard (docs/raw/audit-standards/<domain>/*.md)
-    │       ├── Document Standard (docs/raw/standards/<domain>.md)
+    │       ├── Document Standard (docs/raw/documentation-standards/<domain>.md)
     │       └── Target file
     │
     ├── FixPlanner → produces FixPlan

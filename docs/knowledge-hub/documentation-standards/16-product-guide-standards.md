@@ -588,7 +588,7 @@ When enhancing Product Guide topics:
 | `help-004` | Has product context | suggestion |
 | `help-005` | Has public contract | warning |
 
-The corpus is also validated by the **Product Guide Audit Pipeline** (`samgraha audit --pipeline help`) — a separate, deeper check spanning Coverage, Navigation, Quality, and Accuracy against the actual CLI/MCP/config surface, not just per-topic section presence. See [Product Guide Audit Pipeline](../product-guide/concepts/help-audit.md).
+The corpus is also validated by the **Product Guide Audit Pipeline** (`samgraha audit --pipeline help`) — a separate, deeper check spanning Coverage, Navigation, Quality, and Accuracy against the actual CLI/MCP/config surface, not just per-topic section presence. See [Product Guide Audit Pipeline](../../raw/product-guide/concepts/help-audit.md).
 
 ---
 
