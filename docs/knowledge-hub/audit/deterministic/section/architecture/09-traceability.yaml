@@ -58,8 +58,3 @@ rules:
         - "Feature Technical"
         - "Engineering"
 
-relationships:
-    - type: traceable_to
-      target_domain: vision
-      target_section: vision_statement
-      bidirectional: false

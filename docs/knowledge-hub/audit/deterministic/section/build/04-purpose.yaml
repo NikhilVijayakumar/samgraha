@@ -46,8 +46,3 @@ rules:
         - "not"
         - "does not"
 
-relationships:
-    - type: derives_from
-      target_domain: vision
-      target_section: purpose
-      bidirectional: false

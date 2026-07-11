@@ -80,16 +80,3 @@ rules:
       check: minimum_count
       count: 2
 
-relationships:
-    - type: derives_from
-      target_domain: vision
-      target_section: vision_statement
-      bidirectional: false
-    - type: informs
-      target_domain: architecture
-      target_section: data_flow
-      bidirectional: false
-    - type: referenced_by
-      target_domain: security
-      target_section: threat_model
-      bidirectional: false

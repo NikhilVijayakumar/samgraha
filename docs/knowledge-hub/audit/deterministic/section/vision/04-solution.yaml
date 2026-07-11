@@ -85,12 +85,3 @@ rules:
         - "address"
         - "solve"
 
-relationships:
-    - type: inspires
-      target_domain: feature
-      target_section: purpose
-      bidirectional: false
-    - type: inspires
-      target_domain: architecture
-      target_section: system_overview
-      bidirectional: false

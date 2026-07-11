@@ -31,8 +31,3 @@ rules:
         - "deployment"
         - "rollback"
 
-relationships:
-    - type: derives_from
-      target_domain: engineering
-      target_section: build_standards
-      bidirectional: false

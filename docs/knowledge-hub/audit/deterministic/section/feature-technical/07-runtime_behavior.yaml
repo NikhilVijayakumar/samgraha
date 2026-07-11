@@ -47,12 +47,3 @@ rules:
         - frameworks
         - libraries
 
-relationships:
-    - type: derives_from
-      target_domain: architecture
-      target_section: data_flow
-      bidirectional: false
-    - type: derives_from
-      target_domain: feature-technical
-      target_section: component_interactions
-      bidirectional: false

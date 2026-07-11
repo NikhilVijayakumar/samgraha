@@ -49,12 +49,3 @@ rules:
         - "data flow"
         - "communication"
 
-relationships:
-    - type: derives_from
-      target_domain: architecture
-      target_section: constraints
-      bidirectional: false
-    - type: derives_from
-      target_domain: architecture
-      target_section: component_model
-      bidirectional: false

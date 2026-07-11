@@ -76,20 +76,3 @@ rules:
       type: content_check
       check: technology_independent
 
-relationships:
-    - type: derives_from
-      target_domain: vision
-      target_section: vision_statement
-      bidirectional: false
-    - type: guides
-      target_domain: architecture
-      target_section: purpose
-      bidirectional: false
-    - type: guides
-      target_domain: design
-      target_section: purpose
-      bidirectional: false
-    - type: guides
-      target_domain: engineering
-      target_section: purpose
-      bidirectional: false

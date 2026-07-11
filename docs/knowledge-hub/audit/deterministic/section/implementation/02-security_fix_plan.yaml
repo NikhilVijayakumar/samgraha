@@ -58,12 +58,3 @@ rules:
         - domain: security
           direction: traceable_to
 
-relationships:
-    - type: derives_from
-      target_domain: security
-      target_section: threat_model
-      bidirectional: false
-    - type: traceable_to
-      target_domain: security
-      target_section: mitigation_strategies
-      bidirectional: false

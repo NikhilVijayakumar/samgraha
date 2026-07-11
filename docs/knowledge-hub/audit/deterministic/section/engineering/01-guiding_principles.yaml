@@ -61,12 +61,3 @@ rules:
         - "prefer"
         - "avoid"
 
-relationships:
-    - type: guided_by
-      target_domain: philosophy
-      target_section: guiding_principles
-      bidirectional: false
-    - type: derives_from
-      target_domain: philosophy
-      target_section: rationale
-      bidirectional: false

@@ -48,8 +48,3 @@ rules:
         - "creed"
         - "ideology"
 
-relationships:
-    - type: inspires
-      target_domain: philosophy
-      target_section: philosophy
-      bidirectional: false

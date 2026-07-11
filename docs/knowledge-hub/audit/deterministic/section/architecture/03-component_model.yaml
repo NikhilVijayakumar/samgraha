@@ -92,12 +92,3 @@ rules:
       kinds:
         - component
 
-relationships:
-    - type: derives_from
-      target_domain: feature
-      target_section: purpose
-      bidirectional: false
-    - type: derives_from
-      target_domain: feature-technical
-      target_section: component_responsibilities
-      bidirectional: false

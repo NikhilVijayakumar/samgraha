@@ -64,16 +64,3 @@ rules:
       type: content_check
       check: verifiable_statement
 
-relationships:
-    - type: derives_from
-      target_domain: philosophy
-      target_section: tradeoffs
-      bidirectional: false
-    - type: constrains
-      target_domain: architecture
-      target_section: security_considerations
-      bidirectional: false
-    - type: constrains
-      target_domain: engineering
-      target_section: code_standards
-      bidirectional: false

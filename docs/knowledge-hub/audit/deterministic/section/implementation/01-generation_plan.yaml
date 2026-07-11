@@ -71,16 +71,3 @@ rules:
         - domain: prototype
           direction: derives_from
 
-relationships:
-    - type: derives_from
-      target_domain: feature-technical
-      target_section: component_responsibilities
-      bidirectional: false
-    - type: derives_from
-      target_domain: engineering
-      target_section: code_standards
-      bidirectional: false
-    - type: derives_from
-      target_domain: prototype
-      target_section: scope
-      bidirectional: false

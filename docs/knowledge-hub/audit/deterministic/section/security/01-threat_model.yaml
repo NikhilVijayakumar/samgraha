@@ -76,16 +76,3 @@ rules:
       check: minimum_count
       count: 2
 
-relationships:
-    - type: derives_from
-      target_domain: vision
-      target_section: vision_statement
-      bidirectional: false
-    - type: guided_by
-      target_domain: philosophy
-      target_section: guiding_principles
-      bidirectional: false
-    - type: informs
-      target_domain: architecture
-      target_section: security_considerations
-      bidirectional: false

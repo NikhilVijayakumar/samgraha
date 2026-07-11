@@ -66,12 +66,3 @@ rules:
         - "response"
         - "stream"
 
-relationships:
-    - type: derives_from
-      target_domain: architecture
-      target_section: communication_paths
-      bidirectional: false
-    - type: derives_from
-      target_domain: feature
-      target_section: purpose
-      bidirectional: false

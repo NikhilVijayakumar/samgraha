@@ -67,12 +67,3 @@ rules:
         - "lifecycle"
         - "retention"
 
-relationships:
-    - type: derives_from
-      target_domain: architecture
-      target_section: data_flow
-      bidirectional: false
-    - type: derives_from
-      target_domain: feature
-      target_section: purpose
-      bidirectional: false

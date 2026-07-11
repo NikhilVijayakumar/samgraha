@@ -31,8 +31,3 @@ rules:
         - "metrics"
         - "tracing"
 
-relationships:
-    - type: derives_from
-      target_domain: engineering
-      target_section: testing_standards
-      bidirectional: false

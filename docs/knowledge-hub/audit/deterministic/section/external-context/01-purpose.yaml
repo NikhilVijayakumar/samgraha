@@ -60,12 +60,3 @@ rules:
         - "not"
         - "does not"
 
-relationships:
-    - type: informs
-      target_domain: engineering
-      target_section: code_standards
-      bidirectional: false
-    - type: informs
-      target_domain: feature_design
-      target_section: design_rationale
-      bidirectional: false

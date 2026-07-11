@@ -66,12 +66,3 @@ rules:
         - "trigger"
         - "finish"
 
-relationships:
-    - type: derives_from
-      target_domain: feature
-      target_section: purpose
-      bidirectional: false
-    - type: derives_from
-      target_domain: design
-      target_section: workflow
-      bidirectional: false

@@ -47,8 +47,3 @@ rules:
         - "test"
         - "lib"
 
-relationships:
-    - type: derives_from
-      target_domain: engineering
-      target_section: project_layout
-      bidirectional: false

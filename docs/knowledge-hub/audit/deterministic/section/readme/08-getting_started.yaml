@@ -47,8 +47,3 @@ rules:
         - "install"
         - "before"
 
-relationships:
-    - type: derives_from
-      target_domain: build
-      target_section: documentation_quality
-      bidirectional: false

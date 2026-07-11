@@ -47,12 +47,3 @@ rules:
         - frameworks
         - libraries
 
-relationships:
-    - type: derives_from
-      target_domain: feature
-      target_section: non_goals
-      bidirectional: false
-    - type: derives_from
-      target_domain: design
-      target_section: non_goals
-      bidirectional: false

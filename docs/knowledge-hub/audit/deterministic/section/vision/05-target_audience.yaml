@@ -65,8 +65,3 @@ rules:
         - "primary"
         - "and"
 
-relationships:
-    - type: informs
-      target_domain: philosophy
-      target_section: user_model
-      bidirectional: false

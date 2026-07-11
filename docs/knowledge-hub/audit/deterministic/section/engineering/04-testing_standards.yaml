@@ -65,12 +65,3 @@ rules:
         - "coverage"
         - "minimum"
 
-relationships:
-    - type: derives_from
-      target_domain: architecture
-      target_section: observability
-      bidirectional: false
-    - type: derives_from
-      target_domain: philosophy
-      target_section: guiding_principles
-      bidirectional: false

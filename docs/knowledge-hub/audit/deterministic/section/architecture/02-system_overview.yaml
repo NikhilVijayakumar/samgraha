@@ -68,8 +68,3 @@ rules:
         - component
         - system_context
 
-relationships:
-    - type: derives_from
-      target_domain: vision
-      target_section: vision_statement
-      bidirectional: false

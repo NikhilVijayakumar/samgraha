@@ -56,16 +56,3 @@ rules:
         - domain: vision
           direction: traceable_to
 
-relationships:
-    - type: traceable_to
-      target_domain: vision
-      target_section: vision_statement
-      bidirectional: false
-    - type: traceable_to
-      target_domain: feature
-      target_section: purpose
-      bidirectional: false
-    - type: traceable_to
-      target_domain: feature-technical
-      target_section: component_responsibilities
-      bidirectional: false

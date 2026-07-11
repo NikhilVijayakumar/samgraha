@@ -42,8 +42,3 @@ rules:
       type: list_count
       min: 3
 
-relationships:
-    - type: inspires
-      target_domain: philosophy
-      target_section: guiding_principles
-      bidirectional: false

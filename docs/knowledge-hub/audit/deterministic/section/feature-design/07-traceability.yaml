@@ -47,12 +47,3 @@ rules:
         - "realized in"
         - "prototype"
 
-relationships:
-    - type: traceable_to
-      target_domain: feature
-      target_section: purpose
-      bidirectional: false
-    - type: traceable_to
-      target_domain: design
-      target_section: purpose
-      bidirectional: false

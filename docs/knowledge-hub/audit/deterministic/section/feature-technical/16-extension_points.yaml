@@ -49,12 +49,3 @@ rules:
         - frameworks
         - libraries
 
-relationships:
-    - type: derives_from
-      target_domain: feature-technical
-      target_section: participating_components
-      bidirectional: false
-    - type: derives_from
-      target_domain: architecture
-      target_section: component_model
-      bidirectional: false

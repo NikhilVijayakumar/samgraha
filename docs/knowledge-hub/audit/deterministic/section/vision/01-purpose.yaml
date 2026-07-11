@@ -59,13 +59,3 @@ rules:
         - "not"
         - "does not"
 
-relationships:
-    - type: derives_from
-      target_domain: null
-      target_section: null
-      bidirectional: false
-      note: "Vision is Tier 1 — derives from nothing"
-    - type: inspires
-      target_domain: philosophy
-      target_section: purpose
-      bidirectional: false

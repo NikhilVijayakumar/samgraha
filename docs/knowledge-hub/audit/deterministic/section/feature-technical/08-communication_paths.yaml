@@ -49,12 +49,3 @@ rules:
         - libraries
         - protocols
 
-relationships:
-    - type: derives_from
-      target_domain: architecture
-      target_section: communication_paths
-      bidirectional: false
-    - type: derives_from
-      target_domain: feature-technical
-      target_section: component_interactions
-      bidirectional: false

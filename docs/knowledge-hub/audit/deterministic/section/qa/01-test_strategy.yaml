@@ -60,8 +60,3 @@ rules:
         - domain: architecture
           direction: derives_from
 
-relationships:
-    - type: derives_from
-      target_domain: architecture
-      target_section: system_overview
-      bidirectional: false

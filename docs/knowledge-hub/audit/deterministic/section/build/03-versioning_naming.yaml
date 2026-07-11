@@ -61,8 +61,3 @@ rules:
         - domain: engineering
           direction: derives_from
 
-relationships:
-    - type: derives_from
-      target_domain: engineering
-      target_section: build_standards
-      bidirectional: false

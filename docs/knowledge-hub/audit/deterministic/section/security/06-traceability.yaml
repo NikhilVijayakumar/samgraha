@@ -66,16 +66,3 @@ rules:
       type: content_check
       check: bidirectional_traceability
 
-relationships:
-    - type: traceable_to
-      target_domain: vision
-      target_section: vision_statement
-      bidirectional: false
-    - type: traceable_to
-      target_domain: philosophy
-      target_section: guiding_principles
-      bidirectional: false
-    - type: traceable_to
-      target_domain: architecture
-      target_section: security_considerations
-      bidirectional: false

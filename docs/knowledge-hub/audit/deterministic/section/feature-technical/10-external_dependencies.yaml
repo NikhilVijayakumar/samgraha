@@ -49,12 +49,3 @@ rules:
         - "minimum"
         - "constraint"
 
-relationships:
-    - type: derives_from
-      target_domain: architecture
-      target_section: component_model
-      bidirectional: false
-    - type: derives_from
-      target_domain: engineering
-      target_section: build_standards
-      bidirectional: false

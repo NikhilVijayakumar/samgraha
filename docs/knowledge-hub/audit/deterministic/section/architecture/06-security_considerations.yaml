@@ -80,8 +80,3 @@ rules:
       kinds:
         - component
 
-relationships:
-    - type: derives_from
-      target_domain: security
-      target_section: purpose
-      bidirectional: false

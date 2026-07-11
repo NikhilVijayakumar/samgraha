@@ -47,8 +47,3 @@ rules:
         - "PR"
         - "MR"
 
-relationships:
-    - type: derives_from
-      target_domain: engineering
-      target_section: code_standards
-      bidirectional: false

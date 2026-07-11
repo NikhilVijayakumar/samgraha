@@ -47,12 +47,3 @@ rules:
         - "realized in"
         - "applied to"
 
-relationships:
-    - type: traceable_to
-      target_domain: philosophy
-      target_section: guiding_principles
-      bidirectional: false
-    - type: traceable_to
-      target_domain: architecture
-      target_section: purpose
-      bidirectional: false

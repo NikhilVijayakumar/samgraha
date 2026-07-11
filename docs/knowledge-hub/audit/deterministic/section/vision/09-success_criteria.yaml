@@ -48,8 +48,3 @@ rules:
         - "KPI"
         - "target"
 
-relationships:
-    - type: traceable_to
-      target_domain: feature
-      target_section: acceptance_criteria
-      bidirectional: false

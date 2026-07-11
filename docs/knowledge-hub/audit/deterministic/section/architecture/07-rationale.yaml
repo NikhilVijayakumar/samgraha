@@ -53,12 +53,3 @@ rules:
       per_entry:
         field: "Architectural Goal"
 
-relationships:
-    - type: derives_from
-      target_domain: vision
-      target_section: pillars
-      bidirectional: false
-    - type: derives_from
-      target_domain: philosophy
-      target_section: tradeoffs
-      bidirectional: false

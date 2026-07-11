@@ -81,8 +81,3 @@ rules:
       kinds:
         - sequence
 
-relationships:
-    - type: derives_from
-      target_domain: feature-technical
-      target_section: communication_paths
-      bidirectional: false

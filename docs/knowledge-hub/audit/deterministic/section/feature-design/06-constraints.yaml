@@ -51,12 +51,3 @@ rules:
         - "business"
         - "accessibility"
 
-relationships:
-    - type: constrains
-      target_domain: feature-technical
-      target_section: runtime_constraints
-      bidirectional: false
-    - type: derives_from
-      target_domain: design
-      target_section: constraints
-      bidirectional: false

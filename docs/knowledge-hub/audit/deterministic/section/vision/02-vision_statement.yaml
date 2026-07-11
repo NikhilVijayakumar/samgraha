@@ -61,16 +61,3 @@ rules:
       type: word_count
       max: 500
 
-relationships:
-    - type: inspires
-      target_domain: philosophy
-      target_section: vision_alignment
-      bidirectional: false
-    - type: inspires
-      target_domain: feature
-      target_section: purpose
-      bidirectional: false
-    - type: inspires
-      target_domain: security
-      target_section: purpose
-      bidirectional: false

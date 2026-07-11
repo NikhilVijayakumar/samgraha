@@ -50,12 +50,3 @@ rules:
         - "percent"
         - "threshold"
 
-relationships:
-    - type: derives_from
-      target_domain: architecture
-      target_section: operational_readiness
-      bidirectional: false
-    - type: derives_from
-      target_domain: feature-technical
-      target_section: runtime_constraints
-      bidirectional: false

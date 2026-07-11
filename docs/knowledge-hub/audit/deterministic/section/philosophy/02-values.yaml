@@ -83,16 +83,3 @@ rules:
       check: minimum_count
       count: 2
 
-relationships:
-    - type: derives_from
-      target_domain: vision
-      target_section: vision_statement
-      bidirectional: false
-    - type: guides
-      target_domain: architecture
-      target_section: component_model
-      bidirectional: false
-    - type: guides
-      target_domain: design
-      target_section: design_principles
-      bidirectional: false

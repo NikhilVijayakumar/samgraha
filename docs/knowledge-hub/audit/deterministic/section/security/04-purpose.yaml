@@ -60,12 +60,3 @@ rules:
         - "not"
         - "does not"
 
-relationships:
-    - type: derives_from
-      target_domain: vision
-      target_section: purpose
-      bidirectional: false
-    - type: guided_by
-      target_domain: philosophy
-      target_section: guiding_principles
-      bidirectional: false

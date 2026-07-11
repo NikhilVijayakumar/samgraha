@@ -68,8 +68,3 @@ rules:
       kinds:
         - flowchart
 
-relationships:
-    - type: derives_from
-      target_domain: feature-technical
-      target_section: runtime_behavior
-      bidirectional: false

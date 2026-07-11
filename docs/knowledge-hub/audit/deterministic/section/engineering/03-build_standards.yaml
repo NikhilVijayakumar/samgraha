@@ -79,12 +79,3 @@ rules:
         - "audit"
         - "supply"
 
-relationships:
-    - type: derives_from
-      target_domain: architecture
-      target_section: operational_readiness
-      bidirectional: false
-    - type: derives_from
-      target_domain: philosophy
-      target_section: guiding_principles
-      bidirectional: false

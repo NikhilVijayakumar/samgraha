@@ -60,8 +60,3 @@ rules:
         - domain: implementation
           direction: derives_from
 
-relationships:
-    - type: derives_from
-      target_domain: implementation
-      target_section: generation_plan
-      bidirectional: false

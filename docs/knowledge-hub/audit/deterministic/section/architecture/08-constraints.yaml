@@ -56,12 +56,3 @@ rules:
         - dependency_pins
         - implementation_limits
 
-relationships:
-    - type: derives_from
-      target_domain: external_context
-      target_section: constraints
-      bidirectional: false
-    - type: constrains
-      target_domain: engineering
-      target_section: code_standards
-      bidirectional: false

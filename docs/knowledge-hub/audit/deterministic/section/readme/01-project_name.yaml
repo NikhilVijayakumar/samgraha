@@ -42,8 +42,3 @@ rules:
       patterns:
         - "samgraha"
 
-relationships:
-    - type: derives_from
-      target_domain: build
-      target_section: versioning_naming
-      bidirectional: false

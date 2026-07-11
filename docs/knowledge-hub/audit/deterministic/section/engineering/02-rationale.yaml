@@ -63,12 +63,3 @@ rules:
         - "trade-off"
         - "considered"
 
-relationships:
-    - type: derives_from
-      target_domain: philosophy
-      target_section: rationale
-      bidirectional: false
-    - type: informs
-      target_domain: engineering
-      target_section: guiding_principles
-      bidirectional: false

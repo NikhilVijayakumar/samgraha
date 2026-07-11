@@ -45,8 +45,3 @@ rules:
         - domain: feature
           direction: derives_from
 
-relationships:
-    - type: derives_from
-      target_domain: feature
-      target_section: purpose
-      bidirectional: false
