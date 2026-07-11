@@ -1,5 +1,34 @@
 # Prototype Standard
 
+## Table of Contents
+- [Purpose](#purpose)
+- [Required Sections](#required-sections)
+- [Goals](#goals)
+- [Non-Goals](#non-goals)
+- [Success Criteria](#success-criteria)
+- [Responsibilities](#responsibilities)
+- [Scope](#scope)
+- [Out of Scope](#out-of-scope)
+- [Inputs](#inputs)
+- [Outputs](#outputs)
+- [Traceability](#traceability)
+- [Relationships](#relationships)
+- [Required Characteristics](#required-characteristics)
+- [Generation Rules](#generation-rules)
+- [Enhancement Rules](#enhancement-rules)
+- [Audit Rules](#audit-rules)
+- [Validation Rules](#validation-rules)
+- [Summary](#summary)
+- [Common Mistakes](#common-mistakes)
+- [Documentation Folder](#documentation-folder)
+- [Usage](#usage)
+- [Related](#related)
+- [Prohibited Content](#prohibited-content)
+- [Quality Requirements](#quality-requirements)
+
+---
+
+
 ## Purpose
 
 This document defines the standard for Prototype Documentation within the engineering documentation ecosystem.

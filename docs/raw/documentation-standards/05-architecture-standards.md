@@ -1,5 +1,39 @@
 # Architecture Standard
 
+## Table of Contents
+- [Purpose](#purpose)
+- [Required Sections](#required-sections)
+- [Goals](#goals)
+- [Non-Goals](#non-goals)
+- [Success Criteria](#success-criteria)
+- [Responsibilities](#responsibilities)
+- [Scope](#scope)
+- [Out of Scope](#out-of-scope)
+- [Inputs](#inputs)
+- [Outputs](#outputs)
+- [Traceability](#traceability)
+- [Relationships](#relationships)
+- [Required Characteristics](#required-characteristics)
+- [Audit Rules](#audit-rules)
+- [Validation Rules](#validation-rules)
+- [Generation Rules](#generation-rules)
+- [Enhancement Rules](#enhancement-rules)
+- [Summary](#summary)
+- [Common Mistakes](#common-mistakes)
+- [Documentation Folder](#documentation-folder)
+- [Usage](#usage)
+- [Related](#related)
+- [Architecture as a Documentation Collection](#architecture-as-a-documentation-collection)
+- [Single Responsibility](#single-responsibility)
+- [Architectural Boundaries](#architectural-boundaries)
+- [Architectural Principles](#architectural-principles)
+- [Technology Independence](#technology-independence)
+- [Cross-Repository Architecture](#cross-repository-architecture)
+- [Quality Requirements](#quality-requirements)
+
+---
+
+
 ## Purpose
 
 This document defines the standard for Architecture Documentation within the engineering documentation ecosystem.

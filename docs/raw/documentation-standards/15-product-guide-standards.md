@@ -1,5 +1,30 @@
 # Product Guide Standard
 
+## Table of Contents
+- [Purpose](#purpose)
+- [Required Sections](#required-sections)
+- [Goals](#goals)
+- [Non-Goals](#non-goals)
+- [Success Criteria](#success-criteria)
+- [Responsibilities](#responsibilities)
+- [Scope](#scope)
+- [Out of Scope](#out-of-scope)
+- [Inputs](#inputs)
+- [Outputs](#outputs)
+- [Traceability](#traceability)
+- [Relationships](#relationships)
+- [Required Characteristics](#required-characteristics)
+- [Generation Rules](#generation-rules)
+- [Enhancement Rules](#enhancement-rules)
+- [Audit Rules](#audit-rules)
+- [Summary](#summary)
+- [Documentation Folder](#documentation-folder)
+- [Usage](#usage)
+- [Related](#related)
+
+---
+
+
 ## Purpose
 
 This document defines the standard for Product Guide documentation — the product docs shipped in `help.db` next to the binary, written for end users and for an LLM looking up how to use Samgraha or how to interpret an error.
