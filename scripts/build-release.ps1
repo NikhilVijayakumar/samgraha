@@ -66,7 +66,7 @@ Copy-Item "$root\target\release\cli.exe" "$pkgDir\bin\"
 
 # Copy config + universal standards only (samgraha-specific docs stay in the source repo)
 Copy-Item "$root\samgraha.toml" "$pkgDir\"
-foreach ($dir in @("standards", "audit", "audit-standards")) {
+foreach ($dir in @("documentation-standards", "audit", "audit-standards")) {
     if (Test-Path "$root\docs\raw\$dir") {
         Copy-Item -Recurse "$root\docs\raw\$dir" "$pkgDir\docs\raw\" -Force
     }
@@ -74,7 +74,7 @@ foreach ($dir in @("standards", "audit", "audit-standards")) {
 
 # === Built-in Knowledge Sources ===
 $builtinSources = @(
-    @{ name = "standards"; path = "docs/raw/standards" },
+    @{ name = "standards"; path = "docs/raw/documentation-standards" },
     @{ name = "help"; path = "docs/raw/product-guide" }
 )
 

@@ -72,7 +72,7 @@ fi
 
 # Copy config + universal standards only (samgraha-specific docs stay in the source repo)
 cp "$ROOT_DIR/samgraha.toml" "$PKG_DIR/"
-for dir in standards audit audit-standards; do
+for dir in documentation-standards audit audit-standards; do
     if [[ -d "$ROOT_DIR/docs/raw/$dir" ]]; then
         cp -r "$ROOT_DIR/docs/raw/$dir" "$PKG_DIR/docs/raw/"
     fi
@@ -82,7 +82,7 @@ done
 # load_builtin_stores() (crates/services/src/builtin.rs) looks next to the running
 # binary (current_exe().parent()), i.e. bin/ — not the package root.
 declare -A BUILTIN_SOURCES=(
-    [standards]="docs/raw/standards"
+    [standards]="docs/raw/documentation-standards"
     [help]="docs/raw/product-guide"
 )
 for name in "${!BUILTIN_SOURCES[@]}"; do
