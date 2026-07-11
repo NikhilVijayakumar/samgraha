@@ -1,11 +1,5 @@
 # Build Standard
 
-This section details the Build Standard.
-
-## Status
-
-**Draft.** No `StandardDefinition` for `build` exists in `crates/standards/src/builtin.rs` yet — this document is the target standard to implement against, not an enforced one. Required Sections, audit rules, and relationships below are proposed.
-
 ## Purpose
 
 This document defines the standard for Build documentation within the engineering documentation ecosystem.
@@ -18,7 +12,7 @@ It does not define the CI/CD mechanics of how commits get built and tested. That
 
 ---
 
-# Required Sections
+## Required Sections
 
 Every Build document must contain the following sections.
 Sections are identified by heading text; the compiler maps each to a semantic type.
@@ -37,7 +31,43 @@ Section headings are case-insensitive. Sections not listed here are stored as `g
 
 ---
 
-# Responsibilities
+## Goals
+
+Build aims to:
+
+* Give the project one authoritative release policy.
+* Make versioning and packaging predictable for consumers.
+* Make artifact provenance verifiable.
+
+---
+
+## Non-Goals
+
+Build does not define:
+
+* Product Vision
+* Security threat models
+* Architecture
+* Per-feature implementation details
+* CI/CD pipeline configuration
+* Source code
+
+These responsibilities belong to other documentation standards.
+
+---
+
+## Success Criteria
+
+Build is successful when:
+
+* A consumer can determine how to install a release without reading source code.
+* A contributor can determine what triggers a version bump without asking.
+* Release provenance is verifiable and traceable to Security(03)'s posture.
+* Readme(14) can write install/run instructions by referencing this document.
+
+---
+
+## Responsibilities
 
 Build is responsible for defining:
 
@@ -51,7 +81,7 @@ Build turns Implementation's as-built record into something a consumer can insta
 
 ---
 
-# Scope
+## Scope
 
 Build may describe:
 
@@ -66,7 +96,7 @@ Every Build document should remain project-wide and stable — revised when the 
 
 ---
 
-# Out of Scope
+## Out of Scope
 
 Build must not describe:
 
@@ -81,20 +111,7 @@ Per-feature realization belongs to Implementation. CI/CD mechanics belong to Eng
 
 ---
 
-# Relationship to Engineering's Build Standards
-
-Engineering(07) already has a mandatory **Build Standards** section: how the project is built — CI/CD mechanics, build tooling, pipeline configuration. Build(13) does not replace it. They operate at different scopes, the same split Security(03) draws against Architecture's, Engineering's, and Feature Technical's own Security sections.
-
-| Layer | Owns | Derives From |
-|---|---|---|
-| Engineering — Build Standards | CI/CD mechanics: how commits get built and tested, pipeline configuration | Engineering's own technology rationale |
-| Build (13) | Release policy: versioning scheme, packaging format, distribution channels, artifact provenance | Implementation(12) — what's actually being packaged |
-
-A Build document that describes CI pipeline configuration instead of release/versioning/distribution policy should be flagged during audit — that content belongs in Engineering.
-
----
-
-# Inputs
+## Inputs
 
 Build derives from:
 
@@ -103,7 +120,7 @@ Build derives from:
 
 ---
 
-# Outputs
+## Outputs
 
 Build provides:
 
@@ -112,7 +129,7 @@ Build provides:
 
 ---
 
-# Traceability
+## Traceability
 
 ```text
 Implementation (12)
@@ -128,7 +145,7 @@ Every Build document should trace to the Implementation(s) it packages, and refe
 
 ---
 
-# Relationships
+## Relationships
 
 | Document | Relationship |
 |---|---|
@@ -139,7 +156,7 @@ Every Build document should trace to the Implementation(s) it packages, and refe
 
 ---
 
-# Required Characteristics
+## Required Characteristics
 
 Build should be:
 
@@ -150,19 +167,43 @@ Build should be:
 
 ---
 
-# Quality Requirements
+## Generation Rules
 
-Build should be:
+When generating Build documentation:
 
-* Project-wide and stable, not rewritten per release
-* Specific about versioning triggers (what counts as a breaking change)
-* Free of CI/CD pipeline mechanics that belong in Engineering
-* Traceable to what Implementation actually produced
-* Explicit about provenance/signing, referencing Security(03) rather than restating it
+* Document what the build produces, not how CI/CD works.
+* List build targets, entry points, and artifact locations.
+* Specify required tools and versions.
+* Document build-time dependencies separately from runtime dependencies.
+* Keep build documentation accurate to the current shippable state.
 
 ---
 
-# Validation Rules
+## Enhancement Rules
+
+When enhancing Build documentation:
+
+* Update when build targets or artifacts change.
+* Verify tool and dependency versions match the current environment.
+* Remove references to deprecated build targets.
+* Ensure the documentation matches what is actually shippable.
+* Preserve the rationale for build-time constraints.
+
+---
+
+## Audit Rules
+
+An audit should verify:
+
+* Versioning Policy is present and specific (error if missing).
+* Packaging & Distribution is present and specific (error if missing).
+* Release Process is present (error if missing).
+* No CI/CD pipeline mechanics duplicated from Engineering (warning if found).
+* Provenance content references Security(03) rather than restating a threat model (warning if duplicated).
+
+---
+
+## Validation Rules
 
 Build is considered valid when:
 
@@ -174,7 +215,13 @@ Build is considered valid when:
 
 ---
 
-# Common Mistakes
+## Summary
+
+Build is the project-wide release policy — versioning, packaging, distribution, and provenance for turning what Implementation produced into something a consumer can install and trust — distinct from Engineering's CI/CD mechanics and from Security's threat model, which it references rather than restates.
+
+---
+
+## Common Mistakes
 
 Examples include:
 
@@ -188,61 +235,7 @@ These should be reported during audits.
 
 ---
 
-# Audit Rules
-
-An audit should verify:
-
-* Versioning Policy is present and specific (error if missing).
-* Packaging & Distribution is present and specific (error if missing).
-* Release Process is present (error if missing).
-* No CI/CD pipeline mechanics duplicated from Engineering (warning if found).
-* Provenance content references Security(03) rather than restating a threat model (warning if duplicated).
-
----
-
-# Success Criteria
-
-Build is successful when:
-
-* A consumer can determine how to install a release without reading source code.
-* A contributor can determine what triggers a version bump without asking.
-* Release provenance is verifiable and traceable to Security(03)'s posture.
-* Readme(14) can write install/run instructions by referencing this document.
-
----
-
-# Goals
-
-Build aims to:
-
-* Give the project one authoritative release policy.
-* Make versioning and packaging predictable for consumers.
-* Make artifact provenance verifiable.
-
----
-
-# Non-Goals
-
-Build does not define:
-
-* Product Vision
-* Security threat models
-* Architecture
-* Per-feature implementation details
-* CI/CD pipeline configuration
-* Source code
-
-These responsibilities belong to other documentation standards.
-
----
-
-# Summary
-
-Build is the project-wide release policy — versioning, packaging, distribution, and provenance for turning what Implementation produced into something a consumer can install and trust — distinct from Engineering's CI/CD mechanics and from Security's threat model, which it references rather than restates.
-
----
-
-# Documentation Folder
+## Documentation Folder
 
 Build documents live under:
 
@@ -262,3 +255,34 @@ Written once per project, alongside Engineering, and revised when the release pr
 - [Engineering Standard](07-engineering-standards.md) — CI/CD mechanics this is distinct from
 - [Security Standard](03-security-standards.md) — threat model this references for provenance/signing
 - [Readme Standard](14-readme-standards.md) — requires this document to exist for install/run instructions
+
+## Revision History
+
+| Version | Date | Author | Changes |
+|---------|------|--------|---------|
+| Draft | — | — | Initial proposal. No `StandardDefinition` for `build` exists in `crates/standards/src/builtin.rs` yet. Required Sections, audit rules, and relationships below are proposed. |
+
+## Relationship to Engineering's Build Standards
+
+Engineering(07) already has a mandatory **Build Standards** section: how the project is built — CI/CD mechanics, build tooling, pipeline configuration. Build(13) does not replace it. They operate at different scopes, the same split Security(03) draws against Architecture's, Engineering's, and Feature Technical's own Security sections.
+
+| Layer | Owns | Derives From |
+|---|---|---|
+| Engineering — Build Standards | CI/CD mechanics: how commits get built and tested, pipeline configuration | Engineering's own technology rationale |
+| Build (13) | Release policy: versioning scheme, packaging format, distribution channels, artifact provenance | Implementation(12) — what's actually being packaged |
+
+A Build document that describes CI pipeline configuration instead of release/versioning/distribution policy should be flagged during audit — that content belongs in Engineering.
+
+---
+
+## Quality Requirements
+
+Build should be:
+
+* Project-wide and stable, not rewritten per release
+* Specific about versioning triggers (what counts as a breaking change)
+* Free of CI/CD pipeline mechanics that belong in Engineering
+* Traceable to what Implementation actually produced
+* Explicit about provenance/signing, referencing Security(03) rather than restating it
+
+---

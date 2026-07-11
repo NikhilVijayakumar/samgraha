@@ -1,7 +1,5 @@
 # Prototype Standard
 
-This section details the Prototype Standard.
-
 ## Purpose
 
 This document defines the standard for Prototype Documentation within the engineering documentation ecosystem.
@@ -16,7 +14,7 @@ Prototype validates Feature Design and Feature Technical Design by exercising th
 
 ---
 
-# Required Sections
+## Required Sections
 
 Every Prototype document must contain the following sections.
 Sections are identified by heading text; the compiler maps each to a semantic type.
@@ -34,7 +32,40 @@ Section headings are case-insensitive. Sections not listed here are stored as `g
 
 ---
 
-# Responsibilities
+## Goals
+
+Prototype aims to:
+
+* Answer one falsifiable question before production engineering commits.
+* Keep the simulation scoped and disposable.
+* Give stakeholders something to react to before real cost is spent.
+
+---
+
+## Non-Goals
+
+Prototype does not define:
+
+* Product Vision
+* Architecture
+* Production Engineering Decisions
+* Long-term Data Governance
+
+These responsibilities belong to other documentation standards.
+
+---
+
+## Success Criteria
+
+Prototype is successful when:
+
+* Stakeholders can evaluate the falsifiable question the prototype was built to answer.
+* Feature Design and/or Feature Technical Design gain (or lose) confidence as a direct result.
+* The prototype is discarded or explicitly promoted, not left to rot as accidental production code.
+
+---
+
+## Responsibilities
 
 Prototype is responsible for defining:
 
@@ -49,7 +80,7 @@ Prototype turns a Feature Design or Feature Technical Design into something a st
 
 ---
 
-# Scope
+## Scope
 
 Prototype may describe:
 
@@ -64,7 +95,7 @@ Every Prototype should remain scoped to one falsifiable question.
 
 ---
 
-# Out of Scope
+## Out of Scope
 
 Prototype must not describe:
 
@@ -80,17 +111,7 @@ Production concerns belong to Feature Technical Design and Engineering. A Protot
 
 ---
 
-# Prohibited Content
-
-A Prototype document must not contain:
-
-* Production implementation
-
-Prototype code is disposable by definition; presenting it as production-ready is a documentation defect, not a strength.
-
----
-
-# Inputs
+## Inputs
 
 Prototype derives from:
 
@@ -101,7 +122,7 @@ Prototype should not derive from Implementation — it comes before Implementati
 
 ---
 
-# Outputs
+## Outputs
 
 Prototype provides:
 
@@ -112,7 +133,7 @@ Prototype code itself is not an output — it's discarded once the question is a
 
 ---
 
-# Traceability
+## Traceability
 
 ```text
 Feature Design ──┐
@@ -124,7 +145,7 @@ Every Prototype should trace to the Feature Design and/or Feature Technical docu
 
 ---
 
-# Relationships
+## Relationships
 
 | Document          | Relationship                    |
 | ------------------ | -------------------------------- |
@@ -133,7 +154,7 @@ Every Prototype should trace to the Feature Design and/or Feature Technical docu
 
 ---
 
-# Required Characteristics
+## Required Characteristics
 
 Prototype should be:
 
@@ -145,19 +166,41 @@ Prototype should be:
 
 ---
 
-# Quality Requirements
+## Generation Rules
 
-Prototype should be:
+When generating Prototype documentation:
 
-* Scoped to one falsifiable question
-* Explicit about success/failure thresholds
-* Disposable
-* Independently runnable without external network
-* Free of production credentials or PII
+* State the falsifiable question the prototype answers.
+* Define success criteria before building the prototype.
+* Document scope boundaries and excluded areas.
+* Record the decision made from prototype results.
+* Mark the prototype as disposable — not production code.
 
 ---
 
-# Validation Rules
+## Enhancement Rules
+
+When enhancing Prototype documentation:
+
+* Verify the original question was answered.
+* Update results if the prototype is re-executed.
+* Ensure the disposition (adopt/reject/iterate) is recorded.
+* Remove or archive prototypes that are no longer relevant.
+* Preserve the reasoning behind go/no-go decisions.
+
+---
+
+## Audit Rules
+
+An audit should verify:
+
+* Scope is present (error if missing).
+* Mock APIs are documented (warning if missing).
+* The prototype is disposable — no production implementation claims (warning if violated).
+
+---
+
+## Validation Rules
 
 Prototype is considered valid when:
 
@@ -169,7 +212,13 @@ Prototype is considered valid when:
 
 ---
 
-# Common Mistakes
+## Summary
+
+Prototype Documentation is a disposable, executable simulation scoped to one falsifiable question, built to validate a Feature Design or Feature Technical Design before Engineering commits to production implementation.
+
+---
+
+## Common Mistakes
 
 Examples include:
 
@@ -183,56 +232,7 @@ These should be reported during audits.
 
 ---
 
-# Audit Rules
-
-An audit should verify:
-
-* Scope is present (error if missing).
-* Mock APIs are documented (warning if missing).
-* The prototype is disposable — no production implementation claims (warning if violated).
-
----
-
-# Success Criteria
-
-Prototype is successful when:
-
-* Stakeholders can evaluate the falsifiable question the prototype was built to answer.
-* Feature Design and/or Feature Technical Design gain (or lose) confidence as a direct result.
-* The prototype is discarded or explicitly promoted, not left to rot as accidental production code.
-
----
-
-# Goals
-
-Prototype aims to:
-
-* Answer one falsifiable question before production engineering commits.
-* Keep the simulation scoped and disposable.
-* Give stakeholders something to react to before real cost is spent.
-
----
-
-# Non-Goals
-
-Prototype does not define:
-
-* Product Vision
-* Architecture
-* Production Engineering Decisions
-* Long-term Data Governance
-
-These responsibilities belong to other documentation standards.
-
----
-
-# Summary
-
-Prototype Documentation is a disposable, executable simulation scoped to one falsifiable question, built to validate a Feature Design or Feature Technical Design before Engineering commits to production implementation.
-
----
-
-# Documentation Folder
+## Documentation Folder
 
 Prototype documents live under:
 
@@ -251,3 +251,25 @@ Written when a Feature Design or Feature Technical decision carries enough risk 
 - [Feature Design Standard](09-feature-design-standards.md) — one of the documents this standard validates
 - [Feature Technical Standard](10-feature-technical-standards.md) — the other document this standard validates
 - [Standards Reference Standard](standards.md) — how this standard itself is documented
+
+## Prohibited Content
+
+A Prototype document must not contain:
+
+* Production implementation
+
+Prototype code is disposable by definition; presenting it as production-ready is a documentation defect, not a strength.
+
+---
+
+## Quality Requirements
+
+Prototype should be:
+
+* Scoped to one falsifiable question
+* Explicit about success/failure thresholds
+* Disposable
+* Independently runnable without external network
+* Free of production credentials or PII
+
+---

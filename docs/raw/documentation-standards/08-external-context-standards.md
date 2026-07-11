@@ -1,7 +1,5 @@
 # External Context Standard
 
-This section details the External Context Standard.
-
 ## Purpose
 
 This document defines the standard for External Context Documentation within the engineering documentation ecosystem.
@@ -18,7 +16,7 @@ Projects may contain zero, one, or many External Context documents depending on 
 
 ---
 
-# Required Sections
+## Required Sections
 
 Every External Context document must contain the following sections.
 Sections are identified by heading text; the compiler maps each to a semantic type.
@@ -35,7 +33,47 @@ Section headings are case-insensitive. Sections not listed here are stored as `g
 
 ---
 
-# Responsibilities
+## Goals
+
+External Context Documentation aims to:
+
+* Document why each external dependency exists and what it's used for.
+* Prevent tribal knowledge about integrations from living only in one engineer's head.
+* Make external constraints traceable to the features and technical designs they affect.
+
+---
+
+## Non-Goals
+
+External Context does not define:
+
+* Internal Features
+* Internal Design
+* Internal Architecture
+* Engineering Decisions
+* Package Management
+* Dependency Versions
+* Source Code
+* API Reference Manuals
+
+These responsibilities belong to other documentation standards or to the external project's own documentation.
+
+---
+
+## Success Criteria
+
+External Context Documentation is successful when:
+
+* Engineers understand why external dependencies exist.
+* AI systems understand how external systems influence implementation.
+* Internal documentation avoids duplicating external knowledge.
+* Repository-specific dependency decisions are clear.
+* Contributors know where authoritative documentation resides.
+* External changes can be accommodated without rewriting internal documentation.
+
+---
+
+## Responsibilities
 
 External Context Documentation is responsible for describing:
 
@@ -56,7 +94,7 @@ It does not replace the documentation owned by the external project.
 
 ---
 
-# Scope
+## Scope
 
 External Context may describe:
 
@@ -77,7 +115,7 @@ Each document should describe one external dependency.
 
 ---
 
-# Out of Scope
+## Out of Scope
 
 External Context must not describe:
 
@@ -97,7 +135,206 @@ It should not duplicate.
 
 ---
 
-# External Context as an Atomic Collection
+## Inputs
+
+External Context derives from:
+
+* External documentation
+* Project documentation
+* Architecture
+* Engineering decisions
+
+External Context should summarize relevant knowledge.
+
+It should not replace the original documentation.
+
+---
+
+## Outputs
+
+External Context provides guidance for:
+
+* Features
+* Feature Design
+* Architecture
+* Feature Technical Design
+* Engineering
+* Implementation
+
+Any document may reference External Context rather than duplicating external knowledge.
+
+---
+
+## Traceability
+
+External Context supports multiple documentation domains.
+
+```text
+Vision
+
+↓
+
+Features
+
+↓
+
+Feature Design
+
+↓
+
+Architecture
+
+↓
+
+Feature Technical Design
+
+↓
+
+Engineering
+
+         ↑
+
+ External Context
+```
+
+External Context informs documentation.
+
+It does not redefine it.
+
+---
+
+## Relationships
+
+| Document                 | Relationship                               |
+| ------------------------ | ------------------------------------------ |
+| Vision                   | Usually independent                        |
+| Feature                  | May reference functional capabilities      |
+| Feature Design           | May reference design constraints           |
+| Architecture             | May reference architectural constraints    |
+| Feature Technical Design | Frequently references External Context     |
+| Engineering              | Frequently references technology rationale |
+
+---
+
+## Required Characteristics
+
+External Context Documentation should be:
+
+* Accurate to the actual external system, not aspirational
+* Current — reviewed when the dependency's contract changes
+* Traceable to the feature/technical design it affects
+* Ownership-clear (who's responsible for tracking upstream changes)
+* Non-duplicative of the dependency's own documentation
+
+---
+
+## Audit Rules
+
+An audit should verify:
+
+* External dependencies are documented only when necessary.
+* One document describes one dependency.
+* Dependency purpose is clearly explained.
+* Constraints are documented.
+* External documentation is referenced rather than duplicated.
+* Repository relevance is obvious.
+* No internal architecture has leaked into External Context.
+
+External Context quality is evaluated individually and across the documentation collection.
+
+---
+
+## Validation Rules
+
+External Context is considered valid when:
+
+* One document describes one external dependency.
+* The dependency is clearly identified.
+* The purpose of the dependency is explained.
+* Constraints are documented.
+* Repository usage is described.
+* External documentation is referenced where appropriate.
+* Duplicate documentation has been avoided.
+
+Validation applies independently to each External Context document.
+
+---
+
+## Generation Rules
+
+When generating External Context:
+
+* Create one document per dependency.
+* Explain why the dependency exists.
+* Explain how it influences the repository.
+* Reference authoritative documentation.
+* Keep documentation concise.
+* Avoid duplication.
+* Focus on repository relevance rather than completeness.
+
+---
+
+## Enhancement Rules
+
+When enhancing External Context:
+
+* Improve clarity.
+* Improve dependency justification.
+* Remove duplicated documentation.
+* Strengthen repository relevance.
+* Improve references.
+* Split oversized documents.
+* Preserve dependency intent.
+
+External Context should become easier to understand and maintain.
+
+---
+
+## Summary
+
+External Context Documentation is a collection of atomic knowledge documents that describe external dependencies required to understand and implement a repository.
+
+Its purpose is not to replace external documentation, but to explain **why a dependency exists, how it influences the repository, and where the authoritative knowledge resides**, allowing project documentation to remain concise, maintainable, and free of unnecessary duplication.
+
+---
+
+## Common Mistakes
+
+Examples include:
+
+* Copying vendor documentation.
+* Documenting package manifests.
+* Explaining every API.
+* Duplicating Architecture.
+* Duplicating Engineering.
+* Describing implementation.
+* Mixing multiple unrelated dependencies.
+
+These should be reported during audits.
+
+---
+
+## Documentation Folder
+
+External Context documents live under:
+
+```text
+docs/raw/external-context/
+```
+
+---
+
+## Usage
+
+Written by whoever integrates a new external dependency, one document per dependency, only when the dependency materially influences implementation. Use `samgraha search --domain external-context` to check whether a dependency is already documented before writing a new one, avoiding duplicate External Context files for the same system.
+
+## Related
+
+- [Feature Technical Standard](10-feature-technical-standards.md) — frequently references External Context
+- [Engineering Standard](07-engineering-standards.md) — frequently references technology rationale
+- [Standards Reference Standard](standards.md) — how this standard itself is documented
+
+## External Context as an Atomic Collection
 
 External Context Documentation is organized as a collection of independent documents.
 
@@ -129,7 +366,7 @@ depending on project requirements.
 
 ---
 
-# Atomicity
+## Atomicity
 
 Every External Context document should describe one external dependency.
 
@@ -147,7 +384,7 @@ Large documents should be decomposed into multiple focused documents.
 
 ---
 
-# Dependency Types
+## Dependency Types
 
 External Context may describe:
 
@@ -202,100 +439,7 @@ Examples:
 
 ---
 
-# Inputs
-
-External Context derives from:
-
-* External documentation
-* Project documentation
-* Architecture
-* Engineering decisions
-
-External Context should summarize relevant knowledge.
-
-It should not replace the original documentation.
-
----
-
-# Outputs
-
-External Context provides guidance for:
-
-* Features
-* Feature Design
-* Architecture
-* Feature Technical Design
-* Engineering
-* Implementation
-
-Any document may reference External Context rather than duplicating external knowledge.
-
----
-
-# Traceability
-
-External Context supports multiple documentation domains.
-
-```text
-Vision
-
-↓
-
-Features
-
-↓
-
-Feature Design
-
-↓
-
-Architecture
-
-↓
-
-Feature Technical Design
-
-↓
-
-Engineering
-
-         ↑
-
- External Context
-```
-
-External Context informs documentation.
-
-It does not redefine it.
-
----
-
-# Relationships
-
-| Document                 | Relationship                               |
-| ------------------------ | ------------------------------------------ |
-| Vision                   | Usually independent                        |
-| Feature                  | May reference functional capabilities      |
-| Feature Design           | May reference design constraints           |
-| Architecture             | May reference architectural constraints    |
-| Feature Technical Design | Frequently references External Context     |
-| Engineering              | Frequently references technology rationale |
-
----
-
-# Required Characteristics
-
-External Context Documentation should be:
-
-* Accurate to the actual external system, not aspirational
-* Current — reviewed when the dependency's contract changes
-* Traceable to the feature/technical design it affects
-* Ownership-clear (who's responsible for tracking upstream changes)
-* Non-duplicative of the dependency's own documentation
-
----
-
-# Knowledge Dependency Principles
+## Knowledge Dependency Principles
 
 External Context should:
 
@@ -310,7 +454,7 @@ The purpose is understanding, not documentation ownership.
 
 ---
 
-# Documentation Ownership
+## Documentation Ownership
 
 External Context does **not** own the external documentation.
 
@@ -325,7 +469,7 @@ If the external project changes, External Context should be updated accordingly.
 
 ---
 
-# Technology Selection
+## Technology Selection
 
 External Context should document technologies only when they materially influence implementation.
 
@@ -350,7 +494,7 @@ Widely understood libraries should not require External Context unless project-s
 
 ---
 
-# Quality Requirements
+## Quality Requirements
 
 External Context should be:
 
@@ -366,149 +510,3 @@ External Context should be:
 Each document should justify why the dependency matters.
 
 ---
-
-# Validation Rules
-
-External Context is considered valid when:
-
-* One document describes one external dependency.
-* The dependency is clearly identified.
-* The purpose of the dependency is explained.
-* Constraints are documented.
-* Repository usage is described.
-* External documentation is referenced where appropriate.
-* Duplicate documentation has been avoided.
-
-Validation applies independently to each External Context document.
-
----
-
-# Common Mistakes
-
-Examples include:
-
-* Copying vendor documentation.
-* Documenting package manifests.
-* Explaining every API.
-* Duplicating Architecture.
-* Duplicating Engineering.
-* Describing implementation.
-* Mixing multiple unrelated dependencies.
-
-These should be reported during audits.
-
----
-
-# Generation Rules
-
-When generating External Context:
-
-* Create one document per dependency.
-* Explain why the dependency exists.
-* Explain how it influences the repository.
-* Reference authoritative documentation.
-* Keep documentation concise.
-* Avoid duplication.
-* Focus on repository relevance rather than completeness.
-
----
-
-# Enhancement Rules
-
-When enhancing External Context:
-
-* Improve clarity.
-* Improve dependency justification.
-* Remove duplicated documentation.
-* Strengthen repository relevance.
-* Improve references.
-* Split oversized documents.
-* Preserve dependency intent.
-
-External Context should become easier to understand and maintain.
-
----
-
-# Audit Rules
-
-An audit should verify:
-
-* External dependencies are documented only when necessary.
-* One document describes one dependency.
-* Dependency purpose is clearly explained.
-* Constraints are documented.
-* External documentation is referenced rather than duplicated.
-* Repository relevance is obvious.
-* No internal architecture has leaked into External Context.
-
-External Context quality is evaluated individually and across the documentation collection.
-
----
-
-# Success Criteria
-
-External Context Documentation is successful when:
-
-* Engineers understand why external dependencies exist.
-* AI systems understand how external systems influence implementation.
-* Internal documentation avoids duplicating external knowledge.
-* Repository-specific dependency decisions are clear.
-* Contributors know where authoritative documentation resides.
-* External changes can be accommodated without rewriting internal documentation.
-
----
-
-# Goals
-
-External Context Documentation aims to:
-
-* Document why each external dependency exists and what it's used for.
-* Prevent tribal knowledge about integrations from living only in one engineer's head.
-* Make external constraints traceable to the features and technical designs they affect.
-
----
-
-# Non-Goals
-
-External Context does not define:
-
-* Internal Features
-* Internal Design
-* Internal Architecture
-* Engineering Decisions
-* Package Management
-* Dependency Versions
-* Source Code
-* API Reference Manuals
-
-These responsibilities belong to other documentation standards or to the external project's own documentation.
-
----
-
-# Summary
-
-External Context Documentation is a collection of atomic knowledge documents that describe external dependencies required to understand and implement a repository.
-
-Its purpose is not to replace external documentation, but to explain **why a dependency exists, how it influences the repository, and where the authoritative knowledge resides**, allowing project documentation to remain concise, maintainable, and free of unnecessary duplication.
-
----
-
-# Documentation Folder
-
-External Context documents live under:
-
-```text
-docs/raw/external-context/
-```
-
----
-
-## Usage
-
-Written by whoever integrates a new external dependency, one document per dependency, only when the dependency materially influences implementation. Use `samgraha search --domain external-context` to check whether a dependency is already documented before writing a new one, avoiding duplicate External Context files for the same system.
-
-## Related
-
-- [Feature Technical Standard](10-feature-technical-standards.md) — frequently references External Context
-- [Engineering Standard](07-engineering-standards.md) — frequently references technology rationale
-- [Standards Reference Standard](standards.md) — how this standard itself is documented

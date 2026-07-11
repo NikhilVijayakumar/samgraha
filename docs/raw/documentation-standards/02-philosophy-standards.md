@@ -1,7 +1,5 @@
 # Philosophy Standard
 
-This section details the Philosophy Standard.
-
 ## Purpose
 
 This document defines the standard for Philosophy documentation within the engineering documentation ecosystem.
@@ -16,7 +14,7 @@ It shapes the judgment that produces them.
 
 ---
 
-# Required Sections
+## Required Sections
 
 Every Philosophy document must contain the following sections.
 Sections are identified by heading text; the compiler maps each to a semantic type.
@@ -32,7 +30,41 @@ Section headings are case-insensitive. Sections not listed here are stored as `g
 
 ---
 
-# Responsibilities
+## Goals
+
+Philosophy Documentation aims to:
+
+* Give the team a shared way to resolve ambiguous decisions.
+* Make trade-offs explicit rather than implicit.
+* Keep Architecture and Design principled rather than arbitrary.
+* Remain true across many features and technology changes.
+
+---
+
+## Non-Goals
+
+Philosophy Documentation does not define:
+
+* Product vision or direction
+* Feature specifications
+* Architecture
+* Technology selection
+
+These responsibilities belong to other documentation standards.
+
+---
+
+## Success Criteria
+
+Philosophy Documentation is successful when:
+
+* Engineers can resolve an ambiguous design decision by referring back to it.
+* Architecture and Design documents can cite it to justify a principle.
+* It remains true even as specific features and technologies change.
+
+---
+
+## Responsibilities
 
 Philosophy Documentation is responsible for defining:
 
@@ -47,7 +79,7 @@ Philosophy provides the reasoning framework every other standard is judged again
 
 ---
 
-# Scope
+## Scope
 
 Philosophy Documentation may describe:
 
@@ -62,7 +94,7 @@ Philosophy should remain abstract enough to outlive any single feature or techno
 
 ---
 
-# Out of Scope
+## Out of Scope
 
 Philosophy Documentation must not describe:
 
@@ -77,7 +109,7 @@ These belong to other documentation standards.
 
 ---
 
-# Inputs
+## Inputs
 
 Philosophy Documentation derives from:
 
@@ -89,7 +121,7 @@ Philosophy should not derive from implementation details.
 
 ---
 
-# Outputs
+## Outputs
 
 Philosophy Documentation provides direction for:
 
@@ -101,7 +133,7 @@ Every architectural or design principle should be traceable to a value or trade-
 
 ---
 
-# Traceability
+## Traceability
 
 ```text
 Vision
@@ -117,17 +149,20 @@ Philosophy guides Architecture and Design without dictating their specifics.
 
 ---
 
-# Relationships
+## Relationships
 
-| Document     | Relationship                    |
-| ------------ | -------------------------------- |
-| Vision       | Inspired by Vision                |
-| Architecture | Guides architectural principles   |
-| Design       | Guides design principles          |
+| Document     | Relationship                               |
+| ------------ | ------------------------------------------ |
+| Vision       | Inspired by Vision                          |
+| Feature      | Shapes feature decision-making              |
+| Architecture | Guides architectural principles              |
+| Design       | Guides design principles                     |
+| Security     | Shapes security decision-making              |
+| Engineering  | Shapes engineering principles and trade-offs |
 
 ---
 
-# Required Characteristics
+## Required Characteristics
 
 Philosophy Documentation should be:
 
@@ -140,18 +175,17 @@ Philosophy Documentation should be:
 
 ---
 
-# Quality Requirements
+## Audit Rules
 
-Philosophy Documentation should be:
+An audit should verify:
 
-* Stable
-* Abstract enough to survive technology changes
-* Concrete enough to resolve real disagreements
-* Honest about trade-offs (not aspirational marketing)
+* Principles are documented (`phil-001`, error).
+* Values are documented (`phil-002`, warning).
+* Trade-offs are documented (`phil-003`, suggestion).
 
 ---
 
-# Validation Rules
+## Validation Rules
 
 Philosophy Documentation is considered valid when:
 
@@ -162,7 +196,33 @@ Philosophy Documentation is considered valid when:
 
 ---
 
-# Common Mistakes
+## Generation Rules
+
+When generating Philosophy Documentation:
+
+* Start from Vision, then ask "how do we decide when two good options conflict?"
+* Name the trade-off explicitly — what is chosen, and what is deliberately given up.
+* Keep principles technology-independent.
+
+---
+
+## Enhancement Rules
+
+When enhancing Philosophy Documentation:
+
+* Replace aspirational statements with named trade-offs.
+* Remove content that duplicates Vision.
+* Keep principles few and memorable rather than exhaustive.
+
+---
+
+## Summary
+
+Philosophy is the decision-making posture behind the product: the principles, values, and named trade-offs that Architecture and Design are built on. It stays stable while features and technology change underneath it.
+
+---
+
+## Common Mistakes
 
 Examples of incorrect Philosophy content include:
 
@@ -173,77 +233,7 @@ Examples of incorrect Philosophy content include:
 
 ---
 
-# Generation Rules
-
-When generating Philosophy Documentation:
-
-* Start from Vision, then ask "how do we decide when two good options conflict?"
-* Name the trade-off explicitly — what is chosen, and what is deliberately given up.
-* Keep principles technology-independent.
-
----
-
-# Enhancement Rules
-
-When enhancing Philosophy Documentation:
-
-* Replace aspirational statements with named trade-offs.
-* Remove content that duplicates Vision.
-* Keep principles few and memorable rather than exhaustive.
-
----
-
-# Audit Rules
-
-An audit should verify:
-
-* Principles are documented (`phil-001`, error).
-* Values are documented (`phil-002`, warning).
-* Trade-offs are documented (`phil-003`, suggestion).
-
----
-
-# Success Criteria
-
-Philosophy Documentation is successful when:
-
-* Engineers can resolve an ambiguous design decision by referring back to it.
-* Architecture and Design documents can cite it to justify a principle.
-* It remains true even as specific features and technologies change.
-
----
-
-# Goals
-
-Philosophy Documentation aims to:
-
-* Give the team a shared way to resolve ambiguous decisions.
-* Make trade-offs explicit rather than implicit.
-* Keep Architecture and Design principled rather than arbitrary.
-* Remain true across many features and technology changes.
-
----
-
-# Non-Goals
-
-Philosophy Documentation does not define:
-
-* Product vision or direction
-* Feature specifications
-* Architecture
-* Technology selection
-
-These responsibilities belong to other documentation standards.
-
----
-
-# Summary
-
-Philosophy is the decision-making posture behind the product: the principles, values, and named trade-offs that Architecture and Design are built on. It stays stable while features and technology change underneath it.
-
----
-
-# Documentation Folder
+## Documentation Folder
 
 Philosophy documents live under:
 
@@ -263,3 +253,14 @@ Written rarely, revisited when a recurring disagreement reveals the team lacks a
 - [Architecture Standard](05-architecture-standards.md) — guided by Philosophy
 - [Design Standard](06-design-standards.md) — guided by Philosophy
 - [Standards Reference Standard](standards.md) — how this standard itself is documented
+
+## Quality Requirements
+
+Philosophy Documentation should be:
+
+* Stable
+* Abstract enough to survive technology changes
+* Concrete enough to resolve real disagreements
+* Honest about trade-offs (not aspirational marketing)
+
+---

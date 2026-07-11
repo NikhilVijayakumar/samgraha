@@ -1,11 +1,5 @@
 # Security Standard
 
-This section details the Security Standard.
-
-## Status
-
-**Draft.** No `StandardDefinition` for `security` exists in `crates/standards/src/builtin.rs` yet — this document is the target standard to implement against, not an enforced one. Required Sections, audit rules, and relationships below are proposed.
-
 ## Purpose
 
 This document defines the standard for Security documentation within the engineering documentation ecosystem.
@@ -18,7 +12,7 @@ It does not define how any single component enforces that posture. That belongs 
 
 ---
 
-# Required Sections
+## Required Sections
 
 Every Security document must contain the following sections.
 Sections are identified by heading text; the compiler maps each to a semantic type.
@@ -38,7 +32,44 @@ Section headings are case-insensitive. Sections not listed here are stored as `g
 
 ---
 
-# Responsibilities
+## Goals
+
+Security aims to:
+
+* Establish one authoritative threat model and data classification the whole project references.
+* Prevent every domain from re-deriving its own security posture independently.
+* Make compliance obligations traceable to specific downstream controls.
+* Keep security a first-class constraint on Architecture and Engineering, not an afterthought.
+
+---
+
+## Non-Goals
+
+Security(03) does not define:
+
+* Specific authentication/authorization implementation
+* Cryptographic algorithm or library selection
+* CI/CD security tooling configuration
+* Per-component trust boundaries
+* Per-feature attack surface enumeration
+* Source code
+
+These responsibilities belong to Architecture, Engineering, and Feature Technical's own Security sections.
+
+---
+
+## Success Criteria
+
+A Security document is successful when:
+
+* Architecture, Engineering, and Feature Technical can each write their own Security Considerations/Standards sections by referencing this document instead of re-deriving a threat model from scratch.
+* Data sensitivity is classified once and referenced consistently across the project.
+* Compliance obligations are traceable to specific controls in downstream documents.
+* A new contributor can read this document and understand what the project defends against before reading any implementation detail.
+
+---
+
+## Responsibilities
 
 A Security document is responsible for defining:
 
@@ -52,7 +83,7 @@ Security provides the constraint every structural and implementation decision mu
 
 ---
 
-# Scope
+## Scope
 
 A Security document should describe:
 
@@ -67,7 +98,7 @@ The Security document should remain stable, revisited when the threat landscape 
 
 ---
 
-# Out of Scope
+## Out of Scope
 
 A Security document must not describe:
 
@@ -82,22 +113,7 @@ These belong to Architecture's Security Considerations, Engineering's Security S
 
 ---
 
-# Relationship to Per-Domain Security Sections
-
-Architecture, Engineering, and Feature Technical each already have their own Security Considerations or Security Standards section. This document does not replace them — it is what they derive from, the same way Architecture and Design derive from Philosophy without Philosophy restating either.
-
-| Layer | Owns | Derives From Security(03) |
-|---|---|---|
-| Security (03) | Threat model, data classification, security principles, compliance posture — once, project-wide | — |
-| Architecture — Security Considerations | Trust boundaries between components, where threat-model mitigations map onto system structure | The threat model and principles this document defines |
-| Engineering — Security Standards | Secrets management tooling, cryptographic library/algorithm choices, SAST/dependency-scanning enforcement in CI | The security principles and compliance obligations this document defines |
-| Feature Technical — Security Considerations | Per-feature authentication/authorization flows, per-feature input validation, per-feature audit events | The threat model and data classification this document defines, scoped to one feature |
-
-An audit finding a duplicated threat model or data classification scheme inside Architecture, Engineering, or Feature Technical should flag it as belonging here instead — those sections should reference Security(03), not restate it.
-
----
-
-# Inputs
+## Inputs
 
 Security derives from:
 
@@ -108,7 +124,7 @@ Security should not derive from implementation, architecture, or engineering dec
 
 ---
 
-# Outputs
+## Outputs
 
 Security provides direction for:
 
@@ -120,7 +136,7 @@ Every per-domain Security section should be traceable to a threat, data class, o
 
 ---
 
-# Traceability
+## Traceability
 
 ```text
 Vision, Philosophy
@@ -140,7 +156,7 @@ Every downstream Security Considerations or Security Standards section should tr
 
 ---
 
-# Relationships
+## Relationships
 
 | Document | Relationship |
 |---|---|
@@ -152,7 +168,7 @@ Every downstream Security Considerations or Security Standards section should tr
 
 ---
 
-# Required Characteristics
+## Required Characteristics
 
 A Security document should be:
 
@@ -165,19 +181,42 @@ A Security document should be:
 
 ---
 
-# Quality Requirements
+## Generation Rules
 
-A Security document should be:
+When generating Security documentation:
 
-* Written once per project, revised only when threat landscape or compliance obligations change
-* Specific about data classification, not just principles
-* Traceable — every downstream Security Considerations/Standards section should be able to cite which threat or principle it addresses
-* Technology independent — it says what must be defended against, not which library does it
-* Reviewed on a defined cadence, not left stale
+* Define the threat model before listing controls.
+* Classify data by sensitivity, not by storage location.
+* Document security principles that apply across all domains.
+* Reference compliance requirements by name and scope.
+* Keep the project-wide security posture separate from per-domain enforcement.
 
 ---
 
-# Validation Rules
+## Enhancement Rules
+
+When enhancing Security documentation:
+
+* Verify the threat model reflects current attack surfaces.
+* Update data classification when new data types are introduced.
+* Add compliance requirements when regulations change.
+* Ensure per-domain Security sections remain consistent with this standard.
+* Preserve existing threat model structure while refining detail.
+
+---
+
+## Audit Rules
+
+An audit should verify:
+
+* Threat Model section exists and uses a named, structured methodology (error if missing).
+* Data Classification section exists with at least one sensitivity level defined (error if missing).
+* Security Principles are specific enough to be traceable to at least one downstream Security Considerations/Standards section (warning if too generic).
+* No content duplicating what belongs in Architecture's, Engineering's, or Feature Technical's own Security sections (warning if found — see Relationship to Per-Domain Security Sections).
+
+---
+
+## Validation Rules
 
 A Security document is considered valid when:
 
@@ -190,7 +229,15 @@ A Security document is considered valid when:
 
 ---
 
-# Common Mistakes
+## Summary
+
+Security is the project-wide statement of what is being defended, against what, and why — the threat model, data classification, and security principles every structural and implementation decision must satisfy.
+
+It sits beside Feature in Tier 2, guided by Vision and Philosophy, and guides Architecture and Engineering downstream the same way Philosophy does — without replacing the Security Considerations or Security Standards sections those domains, and Feature Technical, already own.
+
+---
+
+## Common Mistakes
 
 Examples include:
 
@@ -204,63 +251,7 @@ These should be reported during audits.
 
 ---
 
-# Audit Rules
-
-An audit should verify:
-
-* Threat Model section exists and uses a named, structured methodology (error if missing).
-* Data Classification section exists with at least one sensitivity level defined (error if missing).
-* Security Principles are specific enough to be traceable to at least one downstream Security Considerations/Standards section (warning if too generic).
-* No content duplicating what belongs in Architecture's, Engineering's, or Feature Technical's own Security sections (warning if found — see Relationship to Per-Domain Security Sections).
-
----
-
-# Success Criteria
-
-A Security document is successful when:
-
-* Architecture, Engineering, and Feature Technical can each write their own Security Considerations/Standards sections by referencing this document instead of re-deriving a threat model from scratch.
-* Data sensitivity is classified once and referenced consistently across the project.
-* Compliance obligations are traceable to specific controls in downstream documents.
-* A new contributor can read this document and understand what the project defends against before reading any implementation detail.
-
----
-
-# Goals
-
-Security aims to:
-
-* Establish one authoritative threat model and data classification the whole project references.
-* Prevent every domain from re-deriving its own security posture independently.
-* Make compliance obligations traceable to specific downstream controls.
-* Keep security a first-class constraint on Architecture and Engineering, not an afterthought.
-
----
-
-# Non-Goals
-
-Security(03) does not define:
-
-* Specific authentication/authorization implementation
-* Cryptographic algorithm or library selection
-* CI/CD security tooling configuration
-* Per-component trust boundaries
-* Per-feature attack surface enumeration
-* Source code
-
-These responsibilities belong to Architecture, Engineering, and Feature Technical's own Security sections.
-
----
-
-# Summary
-
-Security is the project-wide statement of what is being defended, against what, and why — the threat model, data classification, and security principles every structural and implementation decision must satisfy.
-
-It sits beside Feature in Tier 2, guided by Vision and Philosophy, and guides Architecture and Engineering downstream the same way Philosophy does — without replacing the Security Considerations or Security Standards sections those domains, and Feature Technical, already own.
-
----
-
-# Documentation Folder
+## Documentation Folder
 
 Security documents live under:
 
@@ -281,3 +272,36 @@ Written once per project, alongside or shortly after Vision and Philosophy, by w
 - [Architecture Standard](05-architecture-standards.md) — has its own Security Considerations section that realizes this one structurally
 - [Engineering Standard](07-engineering-standards.md) — has its own Security Standards section that realizes this one at the tooling/code level
 - [Feature Technical Standard](10-feature-technical-standards.md) — has its own Security Considerations section that realizes this one per feature
+
+## Revision History
+
+| Version | Date | Author | Changes |
+|---------|------|--------|---------|
+| Draft | — | — | Initial proposal. No `StandardDefinition` for `security` exists in `crates/standards/src/builtin.rs` yet. Required Sections, audit rules, and relationships below are proposed. |
+
+## Relationship to Per-Domain Security Sections
+
+Architecture, Engineering, and Feature Technical each already have their own Security Considerations or Security Standards section. This document does not replace them — it is what they derive from, the same way Architecture and Design derive from Philosophy without Philosophy restating either.
+
+| Layer | Owns | Derives From Security(03) |
+|---|---|---|
+| Security (03) | Threat model, data classification, security principles, compliance posture — once, project-wide | — |
+| Architecture — Security Considerations | Trust boundaries between components, where threat-model mitigations map onto system structure | The threat model and principles this document defines |
+| Engineering — Security Standards | Secrets management tooling, cryptographic library/algorithm choices, SAST/dependency-scanning enforcement in CI | The security principles and compliance obligations this document defines |
+| Feature Technical — Security Considerations | Per-feature authentication/authorization flows, per-feature input validation, per-feature audit events | The threat model and data classification this document defines, scoped to one feature |
+
+An audit finding a duplicated threat model or data classification scheme inside Architecture, Engineering, or Feature Technical should flag it as belonging here instead — those sections should reference Security(03), not restate it.
+
+---
+
+## Quality Requirements
+
+A Security document should be:
+
+* Written once per project, revised only when threat landscape or compliance obligations change
+* Specific about data classification, not just principles
+* Traceable — every downstream Security Considerations/Standards section should be able to cite which threat or principle it addresses
+* Technology independent — it says what must be defended against, not which library does it
+* Reviewed on a defined cadence, not left stale
+
+---

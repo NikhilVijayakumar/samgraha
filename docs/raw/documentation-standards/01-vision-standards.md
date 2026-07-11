@@ -1,7 +1,5 @@
 # Vision Standard
 
-This section details the Vision Standard.
-
 ## Purpose
 
 This document defines the standard for Vision documentation within the engineering documentation ecosystem.
@@ -16,7 +14,7 @@ All downstream documentation ultimately derives from the Vision.
 
 ---
 
-# Required Sections
+## Required Sections
 
 Every Vision document must contain the following sections.
 Sections are identified by heading text; the compiler maps each to a semantic type.
@@ -38,7 +36,47 @@ Section headings are case-insensitive. Sections not listed here are stored as `g
 
 ---
 
-# Responsibilities
+## Goals
+
+A Vision document aims to:
+
+* Give every downstream document a single, stable source of "why" to trace back to.
+* Let a new contributor understand product intent in minutes, without reading code.
+* Let engineers evaluate a proposed feature or architecture change against a stated purpose.
+* Outlive individual features, technology choices, and implementation cycles.
+
+---
+
+## Non-Goals
+
+The Vision does not attempt to define:
+
+* Product requirements
+* Feature specifications
+* User stories
+* Technical architecture
+* Technology stack
+* Implementation standards
+* Source code organization
+
+These responsibilities belong to other documentation standards.
+
+---
+
+## Success Criteria
+
+A Vision document is successful when:
+
+* Engineers understand the long-term purpose of the project.
+* Product decisions can be evaluated against the Vision.
+* Features naturally derive from the Vision.
+* Architecture supports the Vision without redefining it.
+* Engineering decisions remain aligned with product goals.
+* AI systems can infer product intent without reading implementation documents.
+
+---
+
+## Responsibilities
 
 A Vision document is responsible for defining:
 
@@ -54,7 +92,7 @@ The Vision provides the strategic foundation for every subsequent engineering de
 
 ---
 
-# Scope
+## Scope
 
 A Vision document should describe:
 
@@ -71,7 +109,7 @@ The Vision should remain stable throughout the product lifecycle.
 
 ---
 
-# Out of Scope
+## Out of Scope
 
 A Vision document must not describe:
 
@@ -95,7 +133,7 @@ These belong in downstream documentation.
 
 ---
 
-# Inputs
+## Inputs
 
 A Vision document may consider:
 
@@ -109,7 +147,7 @@ The Vision should not depend on implementation documentation.
 
 ---
 
-# Outputs
+## Outputs
 
 A Vision document provides direction for:
 
@@ -124,31 +162,31 @@ Every Feature should be traceable to the Vision.
 
 ---
 
-# Traceability
+## Traceability
 
 The Vision is the root of the documentation hierarchy.
 
 ```text
-Vision
-    ↓
-Features
-    ↓
-Feature Design
-    ↓
-Architecture
-    ↓
-Feature Technical Design
-    ↓
-Engineering
-    ↓
-Implementation
+Tier 0: Vision (Purpose)
+    ├──→ Tier 1: Features (What)
+    │         └──→ Tier 2: Feature Design (How — UX)
+    │                    └──→ Tier 3: Feature Technical Design ←──┐
+    ├──→ Tier 1: Philosophy (Principles)                          │
+    ├──→ Tier 2: Architecture (Structure) ────────────────────────┤
+    └──→ Tier 2: External Context (Constraints) ──────────────────┤
+                                                                   ↓
+                                              Tier 3: Feature Technical Design
+                                                          ↓
+                                              Tier 4: Engineering (Standards)
+                                                          ↓
+                                              Tier 5: Implementation (Code)
 ```
 
 No downstream document should contradict the Vision.
 
 ---
 
-# Relationships
+## Relationships
 
 | Document         | Relationship                                    |
 | ---------------- | ----------------------------------------------- |
@@ -161,7 +199,7 @@ No downstream document should contradict the Vision.
 
 ---
 
-# Required Characteristics
+## Required Characteristics
 
 A Vision document should be:
 
@@ -177,7 +215,115 @@ A Vision document should be:
 
 ---
 
-# Technology Independence
+## Audit Rules
+
+An audit should verify:
+
+* The Vision explains why the product exists.
+* The document is technology independent.
+* No implementation details appear.
+* Product philosophy is present.
+* Guiding principles are documented.
+* Downstream documentation remains consistent with the Vision.
+* The Vision remains stable and future-oriented.
+
+Any implementation detail should be reported as a standards violation.
+
+---
+
+## Validation Rules
+
+A Vision document is considered valid if:
+
+* The purpose is clearly defined.
+* The long-term objective is explicit.
+* Product philosophy is documented.
+* Guiding principles are identified.
+* No implementation details are present.
+* No architectural decisions are described.
+* No feature specifications are included.
+* The document can guide future feature development.
+
+---
+
+## Generation Rules
+
+When generating a Vision document:
+
+* Focus on purpose before capability.
+* Explain the problem before the solution.
+* Describe long-term value.
+* Avoid implementation language.
+* Write from the product perspective.
+* Prefer stable concepts over temporary goals.
+* Keep technology decisions separate.
+
+---
+
+## Enhancement Rules
+
+When enhancing a Vision document:
+
+* Improve clarity.
+* Strengthen long-term direction.
+* Remove implementation leakage.
+* Remove architectural discussion.
+* Eliminate duplicated feature descriptions.
+* Improve consistency with product philosophy.
+* Preserve existing intent.
+
+Enhancements should refine—not redefine—the Vision.
+
+---
+
+## Summary
+
+The Vision is the highest-level engineering artifact within the documentation ecosystem.
+
+Its responsibility is to communicate **why** the product exists and the long-term direction it should follow.
+
+Every downstream document should refine the Vision without redefining it, ensuring that engineering decisions remain aligned with enduring product intent rather than temporary implementation choices.
+
+---
+
+## Common Mistakes
+
+Examples of incorrect Vision content include:
+
+* Listing application features.
+* Explaining UI behavior.
+* Discussing databases.
+* Selecting programming languages.
+* Describing frameworks.
+* Explaining APIs.
+* Introducing architecture diagrams.
+* Including implementation plans.
+
+These belong in downstream documentation.
+
+---
+
+## Documentation Folder
+
+Vision documents live under:
+
+```text
+docs/raw/vision/
+```
+
+---
+
+## Usage
+
+Vision is written once per product and revised rarely — product owners author it; everyone else reads it before writing Features, since every Feature must trace back to the Vision. Use `samgraha compile --domain vision` to validate structure, and `samgraha search --domain vision` (or the MCP `search` tool) to pull Vision context into an AI-assisted feature-writing session.
+
+## Related
+
+- [Feature Standard](04-feature-standards.md) — every Feature derives from Vision
+- [Philosophy Standard](02-philosophy-standards.md) — inspires Vision's guiding principles
+- [Standards Reference Standard](standards.md) — how this standard itself is documented
+
+## Technology Independence
 
 The Vision should remain independent of implementation technologies.
 
@@ -197,7 +343,7 @@ Vision should not.
 
 ---
 
-# Product Philosophy
+## Product Philosophy
 
 A Vision should communicate the philosophy that guides product decisions.
 
@@ -216,7 +362,7 @@ These describe values rather than implementation.
 
 ---
 
-# Guiding Principles
+## Guiding Principles
 
 Vision should define enduring principles that influence future decisions.
 
@@ -232,7 +378,7 @@ Principles should remain stable even as features evolve.
 
 ---
 
-# Quality Requirements
+## Quality Requirements
 
 A Vision document should:
 
@@ -245,151 +391,3 @@ A Vision document should:
 * Provide sufficient guidance for feature definition.
 
 ---
-
-# Validation Rules
-
-A Vision document is considered valid if:
-
-* The purpose is clearly defined.
-* The long-term objective is explicit.
-* Product philosophy is documented.
-* Guiding principles are identified.
-* No implementation details are present.
-* No architectural decisions are described.
-* No feature specifications are included.
-* The document can guide future feature development.
-
----
-
-# Common Mistakes
-
-Examples of incorrect Vision content include:
-
-* Listing application features.
-* Explaining UI behavior.
-* Discussing databases.
-* Selecting programming languages.
-* Describing frameworks.
-* Explaining APIs.
-* Introducing architecture diagrams.
-* Including implementation plans.
-
-These belong in downstream documentation.
-
----
-
-# Generation Rules
-
-When generating a Vision document:
-
-* Focus on purpose before capability.
-* Explain the problem before the solution.
-* Describe long-term value.
-* Avoid implementation language.
-* Write from the product perspective.
-* Prefer stable concepts over temporary goals.
-* Keep technology decisions separate.
-
----
-
-# Enhancement Rules
-
-When enhancing a Vision document:
-
-* Improve clarity.
-* Strengthen long-term direction.
-* Remove implementation leakage.
-* Remove architectural discussion.
-* Eliminate duplicated feature descriptions.
-* Improve consistency with product philosophy.
-* Preserve existing intent.
-
-Enhancements should refine—not redefine—the Vision.
-
----
-
-# Audit Rules
-
-An audit should verify:
-
-* The Vision explains why the product exists.
-* The document is technology independent.
-* No implementation details appear.
-* Product philosophy is present.
-* Guiding principles are documented.
-* Downstream documentation remains consistent with the Vision.
-* The Vision remains stable and future-oriented.
-
-Any implementation detail should be reported as a standards violation.
-
----
-
-# Success Criteria
-
-A Vision document is successful when:
-
-* Engineers understand the long-term purpose of the project.
-* Product decisions can be evaluated against the Vision.
-* Features naturally derive from the Vision.
-* Architecture supports the Vision without redefining it.
-* Engineering decisions remain aligned with product goals.
-* AI systems can infer product intent without reading implementation documents.
-
----
-
-# Goals
-
-A Vision document aims to:
-
-* Give every downstream document a single, stable source of "why" to trace back to.
-* Let a new contributor understand product intent in minutes, without reading code.
-* Let engineers evaluate a proposed feature or architecture change against a stated purpose.
-* Outlive individual features, technology choices, and implementation cycles.
-
----
-
-# Non-Goals
-
-The Vision does not attempt to define:
-
-* Product requirements
-* Feature specifications
-* User stories
-* Technical architecture
-* Technology stack
-* Implementation standards
-* Source code organization
-
-These responsibilities belong to other documentation standards.
-
----
-
-# Summary
-
-The Vision is the highest-level engineering artifact within the documentation ecosystem.
-
-Its responsibility is to communicate **why** the product exists and the long-term direction it should follow.
-
-Every downstream document should refine the Vision without redefining it, ensuring that engineering decisions remain aligned with enduring product intent rather than temporary implementation choices.
-
----
-
-# Documentation Folder
-
-Vision documents live under:
-
-```text
-docs/raw/vision/
-```
-
----
-
-## Usage
-
-Vision is written once per product and revised rarely — product owners author it; everyone else reads it before writing Features, since every Feature must trace back to the Vision. Use `samgraha compile --domain vision` to validate structure, and `samgraha search --domain vision` (or the MCP `search` tool) to pull Vision context into an AI-assisted feature-writing session.
-
-## Related
-
-- [Feature Standard](04-feature-standards.md) — every Feature derives from Vision
-- [Philosophy Standard](02-philosophy-standards.md) — inspires Vision's guiding principles
-- [Standards Reference Standard](standards.md) — how this standard itself is documented

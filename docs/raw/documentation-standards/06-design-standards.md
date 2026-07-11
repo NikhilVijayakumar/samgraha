@@ -1,7 +1,5 @@
 # Design Standard
 
-This section details the Design Standard.
-
 ## Purpose
 
 This document defines the standard for Design Documentation within the engineering documentation ecosystem.
@@ -18,7 +16,7 @@ It does not describe how individual features behave.
 
 ---
 
-# Required Sections
+## Required Sections
 
 Every Design document must contain the following sections.
 Sections are identified by heading text; the compiler maps each to a semantic type.
@@ -36,7 +34,48 @@ Section headings are case-insensitive. Sections not listed here are stored as `g
 
 ---
 
-# Responsibilities
+## Goals
+
+Design Documentation aims to:
+
+* Give every feature-specific design a shared set of reusable principles instead of reinventing them.
+* Keep the product's user experience consistent across features.
+* Separate reusable design guidance from any single feature's design.
+
+---
+
+## Non-Goals
+
+Design Documentation does not define:
+
+* Product requirements
+* Feature specifications
+* Feature workflows
+* Screen implementations
+* Technical architecture
+* Engineering decisions
+* Technology selection
+* Source code
+* Component implementation
+
+These responsibilities belong to other documentation standards.
+
+---
+
+## Success Criteria
+
+Design Documentation is successful when:
+
+* Every feature follows a common design language.
+* Multiple applications exhibit consistent user experiences.
+* Designers and engineers share a common understanding of design principles.
+* Feature Design can be created without redefining design philosophy.
+* Architecture complements rather than replaces design.
+* AI systems can consistently apply design principles across repositories.
+
+---
+
+## Responsibilities
 
 Design Documentation is responsible for defining:
 
@@ -57,7 +96,7 @@ Design Documentation establishes common design rules that every feature should f
 
 ---
 
-# Scope
+## Scope
 
 Design Documentation may include:
 
@@ -88,7 +127,7 @@ Design Documentation is intentionally modular.
 
 ---
 
-# Out of Scope
+## Out of Scope
 
 Design Documentation must not describe:
 
@@ -110,7 +149,205 @@ These responsibilities belong to other documentation standards.
 
 ---
 
-# Design as a Documentation Collection
+## Inputs
+
+Design Documentation derives from:
+
+* Vision
+* Philosophy (02)
+* User Experience Goals
+* Product Principles
+* Organizational Standards
+
+Design Documentation should not derive from feature implementation.
+
+---
+
+## Outputs
+
+Design Documentation provides guidance for:
+
+* Feature Design
+* Architecture
+* Engineering Decisions
+* Design Systems
+* UI Libraries
+* Mockups
+* Prototypes
+* Product Development
+
+Every Feature Design should align with the Design Documentation.
+
+---
+
+## Traceability
+
+Design Documentation remains traceable.
+
+```text
+Vision
+    │
+    ├────────────────────────┐
+    ↓                        ↓
+Feature                Design Documentation
+    │                        │
+    │                External Context (optional)
+    │                        │
+    └────────────────────────┘
+              ↓
+         Feature Design
+              ↓
+    Feature Technical Design
+    (converges with Architecture)
+              ↓
+          Engineering
+              ↓
+        Implementation
+```
+
+Design principles influence every downstream design decision.
+
+---
+
+## Relationships
+
+| Document       | Relationship                       |
+| -------------- | ---------------------------------- |
+| Vision         | Design supports the product vision |
+| Feature        | Independent                        |
+| Feature Design | Derived from Design principles     |
+| Architecture   | Complements Design                 |
+| Engineering    | Influenced by Design constraints   |
+| README         | May reference Design philosophy    |
+
+---
+
+## Required Characteristics
+
+Design Documentation should be:
+
+* Consistent across features
+* Reusable rather than feature-specific
+* Accessible by default
+* Technology-independent
+* User-centered
+* Stable across releases
+
+---
+
+## Audit Rules
+
+An audit should verify:
+
+* Design principles are reusable.
+* Design remains technology independent.
+* Feature-specific behavior has not been introduced.
+* Design philosophy is clearly defined.
+* Accessibility guidance exists where appropriate.
+* Localization guidance exists where appropriate.
+* Documents remain modular.
+* Responsibilities do not overlap.
+* Cross-repository reuse is encouraged.
+
+Design quality is evaluated across the complete Design Documentation collection.
+
+---
+
+## Validation Rules
+
+Design Documentation is considered valid when:
+
+* Design philosophy is clearly defined.
+* Design principles are documented.
+* User experience principles are reusable.
+* Accessibility guidance is documented where applicable.
+* Localization guidance exists where applicable.
+* Design remains implementation independent.
+* Design documents remain modular.
+* No feature-specific workflows dominate the documentation.
+
+Validation applies to the Design Documentation collection rather than individual files.
+
+---
+
+## Generation Rules
+
+When generating Design Documentation:
+
+* Focus on reusable design principles.
+* Describe product-wide guidance.
+* Separate principles from feature behavior.
+* Keep documents modular.
+* Avoid implementation terminology.
+* Maintain technology independence.
+* Optimize for reuse across multiple features and applications.
+
+---
+
+## Enhancement Rules
+
+When enhancing Design Documentation:
+
+* Improve clarity.
+* Strengthen design consistency.
+* Remove feature-specific content.
+* Remove implementation leakage.
+* Improve organization.
+* Split oversized documents.
+* Preserve design philosophy.
+* Strengthen cross-product reuse.
+
+Design should become more reusable through refinement.
+
+---
+
+## Summary
+
+Design Documentation is the reusable design knowledge of the product or product ecosystem.
+
+It is a modular collection of documents that defines design philosophy, interaction principles, accessibility, localization, navigation, visual language, and other shared design standards.
+
+Its purpose is to establish a consistent design language that guides every feature, architecture, and implementation while remaining independent of both feature-specific behavior and implementation technologies.
+
+---
+
+## Common Mistakes
+
+Examples include:
+
+* Describing individual feature workflows.
+* Documenting application screens.
+* Embedding mockups for specific features.
+* Explaining implementation.
+* Discussing frontend frameworks.
+* Mixing architecture with design.
+* Mixing feature behavior with design philosophy.
+
+These should be reported during audits.
+
+---
+
+## Documentation Folder
+
+Design documents live under:
+
+```text
+docs/raw/design/
+```
+
+---
+
+## Usage
+
+Written once and shared across every feature — designers/UX leads author it, Feature Design authors reference it rather than redefine it. Use `samgraha search --domain design` to pull shared design principles into a Feature Design writing session, and `samgraha audit --domain design` to catch feature-specific content that leaked in.
+
+## Related
+
+- [Feature Design Standard](09-feature-design-standards.md) — applies these principles to one feature
+- [Philosophy Standard](02-philosophy-standards.md) — guides Design's principles
+- [Standards Reference Standard](standards.md) — how this standard itself is documented
+
+## Design as a Documentation Collection
 
 Design Documentation is a collection of related documents.
 
@@ -168,7 +405,7 @@ Responsibilities should not overlap.
 
 ---
 
-# Single Responsibility
+## Single Responsibility
 
 Every Design document should describe one reusable design concern.
 
@@ -187,93 +424,7 @@ Large documents should be decomposed into smaller focused documents.
 
 ---
 
-# Inputs
-
-Design Documentation derives from:
-
-* Vision
-* Product Philosophy
-* User Experience Goals
-* Product Principles
-* Organizational Standards
-
-Design Documentation should not derive from feature implementation.
-
----
-
-# Outputs
-
-Design Documentation provides guidance for:
-
-* Feature Design
-* Architecture
-* Engineering Decisions
-* Design Systems
-* UI Libraries
-* Mockups
-* Prototypes
-* Product Development
-
-Every Feature Design should align with the Design Documentation.
-
----
-
-# Traceability
-
-Design Documentation remains traceable.
-
-```text
-Vision
-    │
-    ├────────────────────────┐
-    ↓                        ↓
-Feature                Design Documentation
-    │                        │
-    │                External Context (optional)
-    │                        │
-    └────────────────────────┘
-              ↓
-         Feature Design
-              ↓
-    Feature Technical Design
-    (converges with Architecture)
-              ↓
-          Engineering
-              ↓
-        Implementation
-```
-
-Design principles influence every downstream design decision.
-
----
-
-# Relationships
-
-| Document       | Relationship                       |
-| -------------- | ---------------------------------- |
-| Vision         | Design supports the product vision |
-| Feature        | Independent                        |
-| Feature Design | Derived from Design principles     |
-| Architecture   | Complements Design                 |
-| Engineering    | Influenced by Design constraints   |
-| README         | May reference Design philosophy    |
-
----
-
-# Required Characteristics
-
-Design Documentation should be:
-
-* Consistent across features
-* Reusable rather than feature-specific
-* Accessible by default
-* Technology-independent
-* User-centered
-* Stable across releases
-
----
-
-# Design Principles
+## Design Principles
 
 Design Documentation should establish reusable principles such as:
 
@@ -294,7 +445,7 @@ Projects may define additional principles appropriate to their domain.
 
 ---
 
-# Technology Independence
+## Technology Independence
 
 Design Documentation should remain implementation independent.
 
@@ -317,7 +468,7 @@ Technology belongs to Engineering.
 
 ---
 
-# Cross-Repository Design
+## Cross-Repository Design
 
 Design Documentation may be shared across multiple repositories.
 
@@ -333,7 +484,7 @@ Repositories should reference shared Design Documentation rather than duplicatin
 
 ---
 
-# Quality Requirements
+## Quality Requirements
 
 Design Documentation should be:
 
@@ -350,156 +501,3 @@ Design Documentation should be:
 Design principles should remain stable over time.
 
 ---
-
-# Validation Rules
-
-Design Documentation is considered valid when:
-
-* Design philosophy is clearly defined.
-* Design principles are documented.
-* User experience principles are reusable.
-* Accessibility guidance is documented where applicable.
-* Localization guidance exists where applicable.
-* Design remains implementation independent.
-* Design documents remain modular.
-* No feature-specific workflows dominate the documentation.
-
-Validation applies to the Design Documentation collection rather than individual files.
-
----
-
-# Common Mistakes
-
-Examples include:
-
-* Describing individual feature workflows.
-* Documenting application screens.
-* Embedding mockups for specific features.
-* Explaining implementation.
-* Discussing frontend frameworks.
-* Mixing architecture with design.
-* Mixing feature behavior with design philosophy.
-
-These should be reported during audits.
-
----
-
-# Generation Rules
-
-When generating Design Documentation:
-
-* Focus on reusable design principles.
-* Describe product-wide guidance.
-* Separate principles from feature behavior.
-* Keep documents modular.
-* Avoid implementation terminology.
-* Maintain technology independence.
-* Optimize for reuse across multiple features and applications.
-
----
-
-# Enhancement Rules
-
-When enhancing Design Documentation:
-
-* Improve clarity.
-* Strengthen design consistency.
-* Remove feature-specific content.
-* Remove implementation leakage.
-* Improve organization.
-* Split oversized documents.
-* Preserve design philosophy.
-* Strengthen cross-product reuse.
-
-Design should become more reusable through refinement.
-
----
-
-# Audit Rules
-
-An audit should verify:
-
-* Design principles are reusable.
-* Design remains technology independent.
-* Feature-specific behavior has not been introduced.
-* Design philosophy is clearly defined.
-* Accessibility guidance exists where appropriate.
-* Localization guidance exists where appropriate.
-* Documents remain modular.
-* Responsibilities do not overlap.
-* Cross-repository reuse is encouraged.
-
-Design quality is evaluated across the complete Design Documentation collection.
-
----
-
-# Success Criteria
-
-Design Documentation is successful when:
-
-* Every feature follows a common design language.
-* Multiple applications exhibit consistent user experiences.
-* Designers and engineers share a common understanding of design principles.
-* Feature Design can be created without redefining design philosophy.
-* Architecture complements rather than replaces design.
-* AI systems can consistently apply design principles across repositories.
-
----
-
-# Goals
-
-Design Documentation aims to:
-
-* Give every feature-specific design a shared set of reusable principles instead of reinventing them.
-* Keep the product's user experience consistent across features.
-* Separate reusable design guidance from any single feature's design.
-
----
-
-# Non-Goals
-
-Design Documentation does not define:
-
-* Product requirements
-* Feature specifications
-* Feature workflows
-* Screen implementations
-* Technical architecture
-* Engineering decisions
-* Technology selection
-* Source code
-* Component implementation
-
-These responsibilities belong to other documentation standards.
-
----
-
-# Summary
-
-Design Documentation is the reusable design knowledge of the product or product ecosystem.
-
-It is a modular collection of documents that defines design philosophy, interaction principles, accessibility, localization, navigation, visual language, and other shared design standards.
-
-Its purpose is to establish a consistent design language that guides every feature, architecture, and implementation while remaining independent of both feature-specific behavior and implementation technologies.
-
----
-
-# Documentation Folder
-
-Design documents live under:
-
-```text
-docs/raw/design/
-```
-
----
-
-## Usage
-
-Written once and shared across every feature — designers/UX leads author it, Feature Design authors reference it rather than redefine it. Use `samgraha search --domain design` to pull shared design principles into a Feature Design writing session, and `samgraha audit --domain design` to catch feature-specific content that leaked in.
-
-## Related
-
-- [Feature Design Standard](09-feature-design-standards.md) — applies these principles to one feature
-- [Philosophy Standard](02-philosophy-standards.md) — guides Design's principles
-- [Standards Reference Standard](standards.md) — how this standard itself is documented

@@ -1,7 +1,5 @@
 # Feature Technical Design Standard
 
-This section details the Feature Technical Design Standard.
-
 ## Purpose
 
 This document defines the standard for Feature Technical Design Documentation within the engineering documentation ecosystem.
@@ -20,7 +18,7 @@ It does not describe implementation details or source code.
 
 ---
 
-# Required Sections
+## Required Sections
 
 Every Feature Technical Design document must contain the following sections.
 Sections are identified by heading text; the compiler maps each to a semantic type.
@@ -49,7 +47,49 @@ Section headings are case-insensitive. Sections not listed here are stored as `g
 
 ---
 
-# Responsibilities
+## Goals
+
+Feature Technical Design aims to:
+
+* Give every feature a single authoritative technical realization plan.
+* Keep it constrained by Architecture rather than reinventing structure per feature.
+* Make the plan specific enough for Prototype to validate and Implementation to follow.
+
+---
+
+## Non-Goals
+
+Feature Technical Design does not define:
+
+* Product Vision
+* Feature Requirements
+* User Experience Design
+* Shared Architecture
+* Engineering rationale
+* Technology selection decisions
+* Source Code
+* Algorithms
+* API implementations
+
+These responsibilities belong to other documentation standards.
+
+---
+
+## Success Criteria
+
+Feature Technical Design is successful when:
+
+* Every Feature has one corresponding Feature Technical Design.
+* Shared architectural principles are consistently applied.
+* Relevant External Context has been incorporated where necessary.
+* User experience requirements are realized without redefining them.
+* Engineers understand how the feature integrates into the system.
+* Implementation can proceed without redefining architectural responsibilities.
+* AI systems can implement the feature while preserving architecture, external constraints, and design intent.
+
+---
+
+## Responsibilities
 
 Feature Technical Design is responsible for defining:
 
@@ -73,7 +113,7 @@ Feature Technical Design bridges feature requirements and implementation through
 
 ---
 
-# Scope
+## Scope
 
 Feature Technical Design may describe:
 
@@ -98,7 +138,7 @@ Every Feature Technical Design document should remain focused on one feature.
 
 ---
 
-# Out of Scope
+## Out of Scope
 
 Feature Technical Design must not describe:
 
@@ -124,89 +164,7 @@ Implementation belongs to source code.
 
 ---
 
-# One-to-One Mapping
-
-Every Feature Specification should have exactly one corresponding Feature Technical Design document.
-
-Example:
-
-```text
-features/
-
-    authentication.md
-
-feature-technical/
-
-    authentication.md
-```
-
-Both documents describe the same feature from different perspectives.
-
-No Feature Technical Design should describe multiple unrelated features.
-
----
-
-# Architecture Principle Application
-
-Feature Technical Design applies the reusable principles defined by Architecture Documentation.
-
-Examples include:
-
-* Component Model
-* Runtime Boundaries
-* Communication Model
-* Security Boundaries
-* Persistence Architecture
-* Plugin Architecture
-* Deployment Constraints
-* Ownership Rules
-
-Feature Technical Design should reference these principles rather than redefining them.
-
----
-
-# External Context Application
-
-Feature Technical Design should identify the External Context required to realize the feature.
-
-Examples include:
-
-* Internal shared frameworks
-* Shared runtime libraries
-* Platform capabilities
-* Operating system services
-* External APIs
-* Communication protocols
-* Authentication providers
-* AI platforms
-* Storage platforms
-
-Feature Technical Design should describe how these external dependencies participate in the architectural realization of the feature.
-
-External Context should be referenced rather than duplicated.
-
-Only context relevant to the feature should be included.
-
----
-
-# Feature Design Considerations
-
-Feature Technical Design should consider Feature Design whenever user experience influences architectural decisions.
-
-Examples include:
-
-* Navigation requiring routing architecture
-* Accessibility requiring architectural support
-* Localization requiring resource architecture
-* Offline behavior requiring synchronization architecture
-* Responsive behavior requiring layout architecture
-* Long-running workflows requiring orchestration
-
-Feature Technical Design should realize Feature Design without redefining user experience.
-
----
-
-# Inputs
+## Inputs
 
 Feature Technical Design derives from:
 
@@ -221,7 +179,7 @@ Feature Technical Design should not derive from source code.
 
 ---
 
-# Outputs
+## Outputs
 
 Feature Technical Design provides direction for:
 
@@ -236,7 +194,7 @@ Implementation should conform to the documented technical design.
 
 ---
 
-# Traceability
+## Traceability
 
 Feature Technical Design remains traceable.
 
@@ -264,7 +222,7 @@ Every Feature Technical Design should trace directly to exactly one Feature Spec
 
 ---
 
-# Relationships
+## Relationships
 
 | Document         | Relationship                                                       |
 | ---------------- | ------------------------------------------------------------------ |
@@ -276,7 +234,7 @@ Every Feature Technical Design should trace directly to exactly one Feature Spec
 
 ---
 
-# Required Characteristics
+## Required Characteristics
 
 Feature Technical Design should be:
 
@@ -288,7 +246,211 @@ Feature Technical Design should be:
 
 ---
 
-# Architectural Realization Principles
+## Audit Rules
+
+An audit should verify:
+
+* A one-to-one mapping exists between Feature and Feature Technical Design.
+* Shared Architecture Documentation has been applied.
+* Relevant External Context has been identified.
+* Feature Design considerations have been respected.
+* Component responsibilities are clearly defined.
+* Communication paths are understandable.
+* Runtime boundaries are respected.
+* External architectural constraints are reflected.
+* Technology references remain architectural.
+* No implementation details appear.
+* Architecture and External Context are referenced instead of duplicated.
+
+Feature Technical Design quality is evaluated individually and across the feature collection.
+
+---
+
+## Validation Rules
+
+Feature Technical Design is considered valid when:
+
+* One document corresponds to one Feature.
+* Shared Architecture Documentation has been applied.
+* Relevant External Context has been identified.
+* Component responsibilities are clearly defined.
+* Runtime interactions are documented.
+* External architectural constraints are respected.
+* Feature Design considerations have been incorporated where appropriate.
+* Technology references remain architectural rather than implementation specific.
+* No source code appears.
+* Technical Design remains traceable to the Feature Specification.
+
+---
+
+## Generation Rules
+
+When generating Feature Technical Design:
+
+* Start from the Feature Specification.
+* Apply Architecture Documentation.
+* Apply relevant External Context.
+* Consider Feature Design where it influences architecture.
+* Focus on responsibilities and interactions.
+* Keep one document per feature.
+* Reference shared Architecture.
+* Reference External Context rather than duplicating it.
+* Avoid implementation details.
+* Preserve architectural consistency.
+
+---
+
+## Enhancement Rules
+
+When enhancing Feature Technical Design:
+
+* Improve architectural clarity.
+* Improve component responsibility definitions.
+* Strengthen consistency with Architecture Documentation.
+* Strengthen consistency with External Context.
+* Improve alignment with Feature Design.
+* Remove duplicated architectural principles.
+* Remove duplicated external documentation.
+* Remove implementation leakage.
+* Improve traceability.
+* Preserve architectural intent.
+
+Technical Design should become clearer without changing feature behavior.
+
+---
+
+## Summary
+
+Feature Technical Design Documentation is the architectural realization of a single Feature Specification.
+
+Each document maintains a strict one-to-one relationship with its corresponding Feature, applying the shared principles defined by the Architecture Documentation together with any relevant External Context and considering Feature Design where architectural decisions affect user experience.
+
+Its purpose is to bridge feature requirements and implementation by defining responsibilities, interactions, boundaries, integrations, and architectural constraints while preserving consistency across the product ecosystem and avoiding implementation-specific details.
+
+---
+
+## Common Mistakes
+
+Examples include:
+
+* Combining multiple features.
+* Rewriting Architecture Documentation.
+* Rewriting External Context.
+* Embedding source code.
+* Describing algorithms.
+* Introducing implementation patterns.
+* Ignoring Feature Design.
+* Ignoring external architectural constraints.
+* Duplicating shared architectural principles.
+
+These should be reported during audits.
+
+---
+
+## Documentation Folder
+
+Feature Technical Design documents live under:
+
+```text
+docs/raw/feature-technical/
+```
+
+---
+
+## Usage
+
+Written by the engineer implementing a Feature, applying Architecture's shared principles to that one feature before code is written. Use `samgraha audit --domain feature-technical` to check that Participating Components, Component Interactions, and Data Ownership are all documented before implementation starts.
+
+## Related
+
+- [Feature Standard](04-feature-standards.md) — one-to-one mapping
+- [Architecture Standard](05-architecture-standards.md) — shared principles this standard applies
+- [Engineering Standard](07-engineering-standards.md) — technology rationale used to implement this design
+- [Standards Reference Standard](standards.md) — how this standard itself is documented
+
+## One-to-One Mapping
+
+Every Feature Specification should have exactly one corresponding Feature Technical Design document.
+
+Example:
+
+```text
+features/
+
+    authentication.md
+
+feature-technical/
+
+    authentication.md
+```
+
+Both documents describe the same feature from different perspectives.
+
+No Feature Technical Design should describe multiple unrelated features.
+
+---
+
+## Architecture Principle Application
+
+Feature Technical Design applies the reusable principles defined by Architecture Documentation.
+
+Examples include:
+
+* Component Model
+* Runtime Boundaries
+* Communication Model
+* Security Boundaries
+* Persistence Architecture
+* Plugin Architecture
+* Deployment Constraints
+* Ownership Rules
+
+Feature Technical Design should reference these principles rather than redefining them.
+
+---
+
+## External Context Application
+
+Feature Technical Design should identify the External Context required to realize the feature.
+
+Examples include:
+
+* Internal shared frameworks
+* Shared runtime libraries
+* Platform capabilities
+* Operating system services
+* External APIs
+* Communication protocols
+* Authentication providers
+* AI platforms
+* Storage platforms
+
+Feature Technical Design should describe how these external dependencies participate in the architectural realization of the feature.
+
+External Context should be referenced rather than duplicated.
+
+Only context relevant to the feature should be included.
+
+---
+
+## Feature Design Considerations
+
+Feature Technical Design should consider Feature Design whenever user experience influences architectural decisions.
+
+Examples include:
+
+* Navigation requiring routing architecture
+* Accessibility requiring architectural support
+* Localization requiring resource architecture
+* Offline behavior requiring synchronization architecture
+* Responsive behavior requiring layout architecture
+* Long-running workflows requiring orchestration
+
+Feature Technical Design should realize Feature Design without redefining user experience.
+
+---
+
+## Architectural Realization Principles
 
 Every Feature Technical Design should:
 
@@ -304,7 +466,7 @@ Every Feature Technical Design should:
 
 ---
 
-# Technology Independence
+## Technology Independence
 
 Feature Technical Design should remain implementation independent.
 
@@ -334,7 +496,7 @@ Implementation belongs to source code.
 
 ---
 
-# Quality Requirements
+## Quality Requirements
 
 Feature Technical Design should be:
 
@@ -351,167 +513,3 @@ Feature Technical Design should be:
 Each document should remain focused on one feature.
 
 ---
-
-# Validation Rules
-
-Feature Technical Design is considered valid when:
-
-* One document corresponds to one Feature.
-* Shared Architecture Documentation has been applied.
-* Relevant External Context has been identified.
-* Component responsibilities are clearly defined.
-* Runtime interactions are documented.
-* External architectural constraints are respected.
-* Feature Design considerations have been incorporated where appropriate.
-* Technology references remain architectural rather than implementation specific.
-* No source code appears.
-* Technical Design remains traceable to the Feature Specification.
-
----
-
-# Common Mistakes
-
-Examples include:
-
-* Combining multiple features.
-* Rewriting Architecture Documentation.
-* Rewriting External Context.
-* Embedding source code.
-* Describing algorithms.
-* Introducing implementation patterns.
-* Ignoring Feature Design.
-* Ignoring external architectural constraints.
-* Duplicating shared architectural principles.
-
-These should be reported during audits.
-
----
-
-# Generation Rules
-
-When generating Feature Technical Design:
-
-* Start from the Feature Specification.
-* Apply Architecture Documentation.
-* Apply relevant External Context.
-* Consider Feature Design where it influences architecture.
-* Focus on responsibilities and interactions.
-* Keep one document per feature.
-* Reference shared Architecture.
-* Reference External Context rather than duplicating it.
-* Avoid implementation details.
-* Preserve architectural consistency.
-
----
-
-# Enhancement Rules
-
-When enhancing Feature Technical Design:
-
-* Improve architectural clarity.
-* Improve component responsibility definitions.
-* Strengthen consistency with Architecture Documentation.
-* Strengthen consistency with External Context.
-* Improve alignment with Feature Design.
-* Remove duplicated architectural principles.
-* Remove duplicated external documentation.
-* Remove implementation leakage.
-* Improve traceability.
-* Preserve architectural intent.
-
-Technical Design should become clearer without changing feature behavior.
-
----
-
-# Audit Rules
-
-An audit should verify:
-
-* A one-to-one mapping exists between Feature and Feature Technical Design.
-* Shared Architecture Documentation has been applied.
-* Relevant External Context has been identified.
-* Feature Design considerations have been respected.
-* Component responsibilities are clearly defined.
-* Communication paths are understandable.
-* Runtime boundaries are respected.
-* External architectural constraints are reflected.
-* Technology references remain architectural.
-* No implementation details appear.
-* Architecture and External Context are referenced instead of duplicated.
-
-Feature Technical Design quality is evaluated individually and across the feature collection.
-
----
-
-# Success Criteria
-
-Feature Technical Design is successful when:
-
-* Every Feature has one corresponding Feature Technical Design.
-* Shared architectural principles are consistently applied.
-* Relevant External Context has been incorporated where necessary.
-* User experience requirements are realized without redefining them.
-* Engineers understand how the feature integrates into the system.
-* Implementation can proceed without redefining architectural responsibilities.
-* AI systems can implement the feature while preserving architecture, external constraints, and design intent.
-
----
-
-# Goals
-
-Feature Technical Design aims to:
-
-* Give every feature a single authoritative technical realization plan.
-* Keep it constrained by Architecture rather than reinventing structure per feature.
-* Make the plan specific enough for Prototype to validate and Implementation to follow.
-
----
-
-# Non-Goals
-
-Feature Technical Design does not define:
-
-* Product Vision
-* Feature Requirements
-* User Experience Design
-* Shared Architecture
-* Engineering rationale
-* Technology selection decisions
-* Source Code
-* Algorithms
-* API implementations
-
-These responsibilities belong to other documentation standards.
-
----
-
-# Summary
-
-Feature Technical Design Documentation is the architectural realization of a single Feature Specification.
-
-Each document maintains a strict one-to-one relationship with its corresponding Feature, applying the shared principles defined by the Architecture Documentation together with any relevant External Context and considering Feature Design where architectural decisions affect user experience.
-
-Its purpose is to bridge feature requirements and implementation by defining responsibilities, interactions, boundaries, integrations, and architectural constraints while preserving consistency across the product ecosystem and avoiding implementation-specific details.
-
----
-
-# Documentation Folder
-
-Feature Technical Design documents live under:
-
-```text
-docs/raw/feature-technical/
-```
-
----
-
-## Usage
-
-Written by the engineer implementing a Feature, applying Architecture's shared principles to that one feature before code is written. Use `samgraha audit --domain feature-technical` to check that Participating Components, Component Interactions, and Data Ownership are all documented before implementation starts.
-
-## Related
-
-- [Feature Standard](04-feature-standards.md) — one-to-one mapping
-- [Architecture Standard](05-architecture-standards.md) — shared principles this standard applies
-- [Engineering Standard](07-engineering-standards.md) — technology rationale used to implement this design
-- [Standards Reference Standard](standards.md) — how this standard itself is documented
