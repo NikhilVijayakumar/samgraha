@@ -3208,7 +3208,7 @@ impl RegistryStore {
     /// For each semantic section type, how many documents in `domain` contain
     /// it versus the total document count in that domain. Used to check a
     /// documentation collection against a standard's Required Sections table
-    /// (e.g. `docs/raw/standards/architecture.md`) without re-deriving that
+    /// (e.g. `docs/raw/documentation-standards/04-architecture-standards.md`) without re-deriving that
     /// list here — the caller passes the section types to check.
     pub fn count_section_type_coverage(
         &self,

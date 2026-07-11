@@ -156,8 +156,29 @@ impl PlanningContextBuilder {
         self.repo_root.join("docs/raw/audit-standards").join(domain)
     }
 
+    /// Standard docs carry an ordering prefix (`01-vision-standards.md`), not a bare
+    /// `{domain}.md` name, so fall back to scanning the directory for a file whose
+    /// stem — minus a leading `NN-` and trailing `-standards` — matches the domain.
     fn doc_standard_path(&self, domain: &str) -> PathBuf {
-        self.repo_root.join("docs/raw/standards").join(format!("{}.md", domain))
+        let dir = self.repo_root.join("docs/raw/documentation-standards");
+        let exact = dir.join(format!("{}.md", domain));
+        if exact.exists() {
+            return exact;
+        }
+        if let Ok(entries) = fs::read_dir(&dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else { continue };
+                let stripped = stem
+                    .trim_start_matches(|c: char| c.is_ascii_digit())
+                    .trim_start_matches('-')
+                    .trim_end_matches("-standards");
+                if stripped == domain {
+                    return path;
+                }
+            }
+        }
+        exact
     }
 }
 
