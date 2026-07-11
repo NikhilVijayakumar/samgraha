@@ -328,5 +328,8 @@ Content-authoring phases only — every phase below produces files under `docs/k
 | 13 | ~~Proposal doc cleanup~~ **Done.** | `proposal.md` | 8–12 |
 | 14 | ~~Fix derives_from_from~~ **Done.** 13 files, 105 entries corrected. | All `audit/deterministic/document/*-relationships.yaml` | 10 |
 | 15 | ~~Fix severity CHECK constraint~~ **Done.** Schema accepts lowercase error/warning/suggestion/info. 556 rules validated. | `audit/deterministic/schema/05-rules.sql`, all YAML files | 14 |
+| 16 | ~~Add 5 missing semantic section domains~~ **Done.** 25 new files for build, implementation, methodology, product-guide, qa, security. | `audit/semantic/section/{build,implementation,methodology,product-guide,qa,security}/*.md` | 11 |
+| 17 | ~~Rename semantic section files to §4b~~ **Done.** 85 files renamed to `NN-{section}.md`. | `audit/semantic/section/**/*.md` | 16 |
+| 18 | ~~Remove duplicate relationship data~~ **Done.** 92 section files cleaned. | `audit/deterministic/section/**/*.yaml` | 10 |
 
 Phases 2–3 are where the model either holds up or reveals a gap in §4a/§4b — treat Phase 2 as the checkpoint to revisit this whole proposal before committing to Phase 3's mechanical rollout.
