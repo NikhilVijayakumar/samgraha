@@ -326,7 +326,7 @@ Content-authoring phases only — every phase below produces files under `docs/k
 | 11 | ~~Build semantic layer (partial)~~ **Done.** 4 stale files removed. 5 missing section domains + rename remaining for future work. | `audit/semantic/{document,section}/**/*` | 9, 10 |
 | 12 | ~~Reconcile genericity proof~~ **Done.** Methodology converted to pure YAML rules: format. | `audit/deterministic/document/methodology.yaml`, `audit/deterministic/section/methodology/*.yaml` | 9 |
 | 13 | ~~Proposal doc cleanup~~ **Done.** | `proposal.md` | 8–12 |
-| 14 | **Fix derives_from_from double-suffix.** Phase 10's `s/derives/derives_from/` ran against files that already said `derives_from`, creating `derives_from_from` in 12 relationship files (105 entries). Reverse the double: `derives_from_from` → `derives_from` everywhere, then verify no other doubled suffixes exist. | All `audit/deterministic/document/*-relationships.yaml` | 10 |
-| 15 | **Fix severity CHECK constraint.** Schema requires `('Critical','Warning','Suggestion')` but corpus uses lowercase: 260× `error`, 263× `warning`, 10× `suggestion`, 21× `info`. Two options: (a) update schema enum to match data, or (b) normalize all 554 rules to match schema. Pick (a) — schema accepts lowercase `error`/`warning`/`suggestion`/`info`, which maps cleanly to Critical/Warning/Suggestion/info. | `audit/deterministic/schema/05-rules.sql`, all `audit/deterministic/**/*.yaml` | 14 |
+| 14 | ~~Fix derives_from_from~~ **Done.** 13 files, 105 entries corrected. | All `audit/deterministic/document/*-relationships.yaml` | 10 |
+| 15 | ~~Fix severity CHECK constraint~~ **Done.** Schema accepts lowercase error/warning/suggestion/info. 556 rules validated. | `audit/deterministic/schema/05-rules.sql`, all YAML files | 14 |
 
 Phases 2–3 are where the model either holds up or reveals a gap in §4a/§4b — treat Phase 2 as the checkpoint to revisit this whole proposal before committing to Phase 3's mechanical rollout.
