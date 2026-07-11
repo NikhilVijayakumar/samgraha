@@ -10,7 +10,7 @@ rules:
     description: "Paper has a methodology section"
     condition: "document contains a section titled 'Methodology' (or equivalent: Methods, Approach, Experimental Design)"
     message: "Research paper is missing a Methodology section"
-    severity: Critical
+    severity: error
     weight: 2.0
     mandatory: true
     evidence:
@@ -25,7 +25,7 @@ rules:
     description: "Methodology section appears in correct position"
     condition: "Methodology section appears after Introduction and before Results"
     message: "Methodology section is not positioned between Introduction and Results"
-    severity: Warning
+    severity: warning
     weight: 1.0
     mandatory: false
     evidence:
@@ -37,7 +37,7 @@ rules:
     description: "Methodology cites prior work"
     condition: "Methodology section contains at least one citation or reference to prior work"
     message: "Methodology section does not reference prior work"
-    severity: Warning
+    severity: warning
     weight: 0.5
     mandatory: false
     evidence:

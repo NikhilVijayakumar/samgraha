@@ -10,7 +10,7 @@ rules:
     description: "Methodology section exists and has content"
     condition: "section exists with at least one paragraph describing research approach, data collection, and analysis"
     message: "Methodology section is missing or empty"
-    severity: Critical
+    severity: error
     weight: 2.0
     mandatory: true
     evidence:
@@ -22,7 +22,7 @@ rules:
     description: "Methodology describes data collection approach"
     condition: "section contains description of data collection method"
     message: "Methodology section does not describe data collection approach"
-    severity: Warning
+    severity: warning
     weight: 1.0
     mandatory: true
     evidence:
@@ -39,7 +39,7 @@ rules:
     description: "Methodology describes analysis technique"
     condition: "section contains description of analysis technique"
     message: "Methodology section does not describe analysis technique"
-    severity: Warning
+    severity: warning
     weight: 1.0
     mandatory: true
     evidence:
@@ -56,7 +56,7 @@ rules:
     description: "Methodology cites relevant prior work"
     condition: "section includes at least one citation to prior methodology literature"
     message: "Methodology section does not reference prior work"
-    severity: Warning
+    severity: warning
     weight: 0.5
     mandatory: false
     evidence:

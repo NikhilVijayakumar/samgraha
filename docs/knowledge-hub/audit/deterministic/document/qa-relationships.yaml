@@ -12,35 +12,35 @@ relationships:
   # --- Section-owned: outgoing edges from this section ---
   - id: qa-strategy-derives-architecture
     from_section: test_strategy
-    type: derives_from_from
+    type: derives_from
     target_domain: architecture
     target_section: system_overview
     owner: section
 
   - id: qa-unit-derives-engineering
     from_section: unit_testing
-    type: derives_from_from
+    type: derives_from
     target_domain: engineering
     target_section: testing_standards
     owner: section
 
   - id: qa-integration-derives-architecture
     from_section: integration_testing
-    type: derives_from_from
+    type: derives_from
     target_domain: architecture
     target_section: communication_paths
     owner: section
 
   - id: qa-security-derives-security
     from_section: security_testing
-    type: derives_from_from
+    type: derives_from
     target_domain: security
     target_section: threat_model
     owner: section
 
   - id: qa-purpose-derives-vision
     from_section: purpose
-    type: derives_from_from
+    type: derives_from
     target_domain: vision
     target_section: purpose
     owner: section

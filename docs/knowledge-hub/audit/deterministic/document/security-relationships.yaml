@@ -11,7 +11,7 @@ relationships:
   # --- Section-owned: outgoing edges from this section ---
   - id: sec-purpose-derives-vision
     from_section: purpose
-    type: derives_from_from
+    type: derives_from
     target_domain: vision
     target_section: purpose
     owner: section
@@ -25,7 +25,7 @@ relationships:
 
   - id: sec-threat-model-derives-vision
     from_section: threat_model
-    type: derives_from_from
+    type: derives_from
     target_domain: vision
     target_section: vision_statement
     owner: section
@@ -53,7 +53,7 @@ relationships:
 
   - id: sec-data-classification-derives-vision
     from_section: data_classification
-    type: derives_from_from
+    type: derives_from
     target_domain: vision
     target_section: vision_statement
     owner: section
@@ -74,7 +74,7 @@ relationships:
 
   - id: sec-security-principles-derives-philosophy
     from_section: security_principles
-    type: derives_from_from
+    type: derives_from
     target_domain: philosophy
     target_section: guiding_principles
     owner: section
@@ -95,7 +95,7 @@ relationships:
 
   - id: sec-constraints-derives-philosophy
     from_section: constraints
-    type: derives_from_from
+    type: derives_from
     target_domain: philosophy
     target_section: tradeoffs
     owner: section

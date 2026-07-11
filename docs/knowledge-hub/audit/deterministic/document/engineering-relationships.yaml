@@ -11,7 +11,7 @@ relationships:
   # --- Section-owned: outgoing edges from this section ---
   - id: eng-purpose-derives-philosophy
     from_section: purpose
-    type: derives_from_from
+    type: derives_from
     target_domain: philosophy
     target_section: purpose
     owner: section
@@ -32,14 +32,14 @@ relationships:
 
   - id: eng-guiding-derives-philosophy
     from_section: guiding_principles
-    type: derives_from_from
+    type: derives_from
     target_domain: philosophy
     target_section: rationale
     owner: section
 
   - id: eng-rationale-derives-philosophy
     from_section: rationale
-    type: derives_from_from
+    type: derives_from
     target_domain: philosophy
     target_section: rationale
     owner: section
@@ -53,28 +53,28 @@ relationships:
 
   - id: eng-build-derives-arch
     from_section: build_standards
-    type: derives_from_from
+    type: derives_from
     target_domain: architecture
     target_section: operational_readiness
     owner: section
 
   - id: eng-build-derives-philosophy
     from_section: build_standards
-    type: derives_from_from
+    type: derives_from
     target_domain: philosophy
     target_section: guiding_principles
     owner: section
 
   - id: eng-testing-derives-arch
     from_section: testing_standards
-    type: derives_from_from
+    type: derives_from
     target_domain: architecture
     target_section: observability
     owner: section
 
   - id: eng-testing-derives-philosophy
     from_section: testing_standards
-    type: derives_from_from
+    type: derives_from
     target_domain: philosophy
     target_section: guiding_principles
     owner: section
@@ -88,7 +88,7 @@ relationships:
 
   - id: eng-constraints-derives-arch
     from_section: constraints
-    type: derives_from_from
+    type: derives_from
     target_domain: architecture
     target_section: constraints
     owner: section

@@ -11,49 +11,49 @@ relationships:
   # --- Section-owned: outgoing edges from this section ---
   - id: proto-scope-derives-feature
     from_section: scope
-    type: derives_from_from
+    type: derives_from
     target_domain: feature
     target_section: purpose
     owner: section
 
   - id: proto-scope-derives-feature-technical
     from_section: scope
-    type: derives_from_from
+    type: derives_from
     target_domain: feature-technical
     target_section: component_responsibilities
     owner: section
 
   - id: proto-purpose-derives-vision
     from_section: purpose
-    type: derives_from_from
+    type: derives_from
     target_domain: vision
     target_section: purpose
     owner: section
 
   - id: proto-constraints-derives-architecture
     from_section: constraints
-    type: derives_from_from
+    type: derives_from
     target_domain: architecture
     target_section: constraints
     owner: section
 
   - id: proto-constraints-derives-security
     from_section: constraints
-    type: derives_from_from
+    type: derives_from
     target_domain: security
     target_section: purpose
     owner: section
 
   - id: proto-constraints-derives-engineering
     from_section: constraints
-    type: derives_from_from
+    type: derives_from
     target_domain: engineering
     target_section: code_standards
     owner: section
 
   - id: proto-data-model-derives-feature-technical
     from_section: data_model
-    type: derives_from_from
+    type: derives_from
     target_domain: feature-technical
     target_section: component_responsibilities
     owner: section

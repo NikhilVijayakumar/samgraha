@@ -16,6 +16,6 @@ CREATE TABLE rules (
     scope        TEXT NOT NULL CHECK (scope IN ('document','section')),
     mandatory    INTEGER NOT NULL DEFAULT 0,
     weight       REAL NOT NULL DEFAULT 1.0,
-    severity     TEXT NOT NULL CHECK (severity IN ('Critical','Warning','Suggestion')),
+    severity     TEXT NOT NULL CHECK (severity IN ('error','warning','suggestion','info')),
     rule_ref     TEXT NOT NULL     -- "path/to/file.yaml#rule_id"
 );

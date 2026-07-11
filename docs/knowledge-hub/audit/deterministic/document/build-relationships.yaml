@@ -12,28 +12,28 @@ relationships:
   # --- Section-owned: outgoing edges from this section ---
   - id: build-doc-quality-derives-implementation
     from_section: documentation_quality
-    type: derives_from_from
+    type: derives_from
     target_domain: implementation
     target_section: generation_plan
     owner: section
 
   - id: build-security-checks-derives-security
     from_section: security_checks
-    type: derives_from_from
+    type: derives_from
     target_domain: security
     target_section: mitigation_strategies
     owner: section
 
   - id: build-versioning-derives-engineering
     from_section: versioning_naming
-    type: derives_from_from
+    type: derives_from
     target_domain: engineering
     target_section: build_standards
     owner: section
 
   - id: build-purpose-derives-vision
     from_section: purpose
-    type: derives_from_from
+    type: derives_from
     target_domain: vision
     target_section: purpose
     owner: section
