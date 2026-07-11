@@ -247,6 +247,19 @@ Engineering translates architectural intent into repository-wide implementation 
 
 ---
 
+# Required Characteristics
+
+Engineering Documentation should be:
+
+* Rationale-driven, not just prescriptive
+* Consistent across the repository
+* Reviewable independent of any single feature
+* Traceable to Architecture and Security
+* Stable
+* Convention-respecting
+
+---
+
 # Engineering Principles
 
 Engineering Documentation should establish reusable principles such as:
@@ -422,6 +435,16 @@ Engineering Documentation is successful when:
 
 ---
 
+# Goals
+
+Engineering Documentation aims to:
+
+* Give the codebase one authoritative source for technology rationale and repo-wide standards.
+* Make build, test, and code-quality expectations explicit.
+* Keep engineering decisions traceable to Architecture and Security rather than arbitrary.
+
+---
+
 # Non-Goals
 
 Engineering Documentation does not define:
@@ -496,6 +519,6 @@ Written and maintained by senior engineers/tech leads as repository-wide decisio
 
 ## Related
 
-- [Architecture Standard](architecture.md) — engineering practices apply architectural decisions
-- [Feature Technical Standard](feature-technical.md) — feature-specific engineering context
+- [Architecture Standard](05-architecture-standards.md) — engineering practices apply architectural decisions
+- [Feature Technical Standard](10-feature-technical-standards.md) — feature-specific engineering context
 - [Standards Reference Standard](standards.md) — how this standard itself is documented

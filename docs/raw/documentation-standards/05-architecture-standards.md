@@ -207,6 +207,31 @@ Architecture provides the structural foundation that Feature Technical Design ap
 
 ---
 
+# Relationships
+
+| Document | Relationship |
+|---|---|
+| Philosophy | Architecture is guided by Philosophy |
+| Security | Architecture is guided by Security's threat model (once registered) |
+| Engineering | Soft, non-mandatory alignment — most frameworks expect an architecture, none require one first |
+| Feature Technical Design | Architecture constrains it |
+| External Context | May be referenced when integration constraints affect structure |
+
+---
+
+# Required Characteristics
+
+Architecture Documentation should be:
+
+* Consistent across components
+* Traceable to Philosophy and Security
+* Technology-independent at the system level
+* Boundary-respecting
+* Stable
+* Reviewable independent of any single feature
+
+---
+
 # Architectural Boundaries
 
 Architecture should define:
@@ -406,6 +431,17 @@ Architecture Documentation is successful when:
 
 ---
 
+# Goals
+
+Architecture Documentation aims to:
+
+* Give the system a single authoritative structural description.
+* Make component boundaries and responsibilities explicit.
+* Let Feature Technical Design constrain itself against one source of truth.
+* Keep structure stable while individual features change.
+
+---
+
 # Non-Goals
 
 Architecture Documentation does not attempt to define:
@@ -449,6 +485,6 @@ Written by architects/senior engineers when a system's structure changes; read b
 
 ## Related
 
-- [Feature Technical Standard](feature-technical.md) — constrained by Architecture
-- [Engineering Standard](engineering.md) — guided by Architecture
+- [Feature Technical Standard](10-feature-technical-standards.md) — constrained by Architecture
+- [Engineering Standard](07-engineering-standards.md) — guided by Architecture
 - [Standards Reference Standard](standards.md) — how this standard itself is documented

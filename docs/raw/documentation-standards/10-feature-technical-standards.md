@@ -276,6 +276,18 @@ Every Feature Technical Design should trace directly to exactly one Feature Spec
 
 ---
 
+# Required Characteristics
+
+Feature Technical Design should be:
+
+* Architecturally consistent
+* Traceable to exactly one Feature
+* Specific enough to be technology-aware, unlike Feature Design
+* Testable — Prototype can validate it, Implementation can follow it
+* Boundary-respecting
+
+---
+
 # Architectural Realization Principles
 
 Every Feature Technical Design should:
@@ -445,6 +457,16 @@ Feature Technical Design is successful when:
 
 ---
 
+# Goals
+
+Feature Technical Design aims to:
+
+* Give every feature a single authoritative technical realization plan.
+* Keep it constrained by Architecture rather than reinventing structure per feature.
+* Make the plan specific enough for Prototype to validate and Implementation to follow.
+
+---
+
 # Non-Goals
 
 Feature Technical Design does not define:
@@ -489,7 +511,7 @@ Written by the engineer implementing a Feature, applying Architecture's shared p
 
 ## Related
 
-- [Feature Standard](feature.md) — one-to-one mapping
-- [Architecture Standard](architecture.md) — shared principles this standard applies
-- [Engineering Standard](engineering.md) — technology rationale used to implement this design
+- [Feature Standard](04-feature-standards.md) — one-to-one mapping
+- [Architecture Standard](05-architecture-standards.md) — shared principles this standard applies
+- [Engineering Standard](07-engineering-standards.md) — technology rationale used to implement this design
 - [Standards Reference Standard](standards.md) — how this standard itself is documented

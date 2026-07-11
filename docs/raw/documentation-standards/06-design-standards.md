@@ -260,6 +260,19 @@ Design principles influence every downstream design decision.
 
 ---
 
+# Required Characteristics
+
+Design Documentation should be:
+
+* Consistent across features
+* Reusable rather than feature-specific
+* Accessible by default
+* Technology-independent
+* User-centered
+* Stable across releases
+
+---
+
 # Design Principles
 
 Design Documentation should establish reusable principles such as:
@@ -433,6 +446,16 @@ Design Documentation is successful when:
 
 ---
 
+# Goals
+
+Design Documentation aims to:
+
+* Give every feature-specific design a shared set of reusable principles instead of reinventing them.
+* Keep the product's user experience consistent across features.
+* Separate reusable design guidance from any single feature's design.
+
+---
+
 # Non-Goals
 
 Design Documentation does not define:
@@ -477,6 +500,6 @@ Written once and shared across every feature — designers/UX leads author it, F
 
 ## Related
 
-- [Feature Design Standard](feature-design.md) — applies these principles to one feature
-- [Philosophy Standard](philosophy.md) — guides Design's principles
+- [Feature Design Standard](09-feature-design-standards.md) — applies these principles to one feature
+- [Philosophy Standard](02-philosophy-standards.md) — guides Design's principles
 - [Standards Reference Standard](standards.md) — how this standard itself is documented

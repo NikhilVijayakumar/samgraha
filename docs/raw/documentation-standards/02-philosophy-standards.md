@@ -127,6 +127,19 @@ Philosophy guides Architecture and Design without dictating their specifics.
 
 ---
 
+# Required Characteristics
+
+Philosophy Documentation should be:
+
+* Stable
+* Abstract
+* Honest about trade-offs
+* Memorable
+* Technology-independent
+* Actionable when a decision is ambiguous
+
+---
+
 # Quality Requirements
 
 Philosophy Documentation should be:
@@ -200,6 +213,17 @@ Philosophy Documentation is successful when:
 
 ---
 
+# Goals
+
+Philosophy Documentation aims to:
+
+* Give the team a shared way to resolve ambiguous decisions.
+* Make trade-offs explicit rather than implicit.
+* Keep Architecture and Design principled rather than arbitrary.
+* Remain true across many features and technology changes.
+
+---
+
 # Non-Goals
 
 Philosophy Documentation does not define:
@@ -235,7 +259,7 @@ Written rarely, revisited when a recurring disagreement reveals the team lacks a
 
 ## Related
 
-- [Vision Standard](vision.md) — Philosophy is inspired by Vision
-- [Architecture Standard](architecture.md) — guided by Philosophy
-- [Design Standard](design.md) — guided by Philosophy
+- [Vision Standard](01-vision-standards.md) — Philosophy is inspired by Vision
+- [Architecture Standard](05-architecture-standards.md) — guided by Philosophy
+- [Design Standard](06-design-standards.md) — guided by Philosophy
 - [Standards Reference Standard](standards.md) — how this standard itself is documented

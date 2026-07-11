@@ -337,6 +337,17 @@ A Vision document is successful when:
 
 ---
 
+# Goals
+
+A Vision document aims to:
+
+* Give every downstream document a single, stable source of "why" to trace back to.
+* Let a new contributor understand product intent in minutes, without reading code.
+* Let engineers evaluate a proposed feature or architecture change against a stated purpose.
+* Outlive individual features, technology choices, and implementation cycles.
+
+---
+
 # Non-Goals
 
 The Vision does not attempt to define:
@@ -379,6 +390,6 @@ Vision is written once per product and revised rarely — product owners author 
 
 ## Related
 
-- [Feature Standard](feature.md) — every Feature derives from Vision
-- [Philosophy Standard](philosophy.md) — inspires Vision's guiding principles
+- [Feature Standard](04-feature-standards.md) — every Feature derives from Vision
+- [Philosophy Standard](02-philosophy-standards.md) — inspires Vision's guiding principles
 - [Standards Reference Standard](standards.md) — how this standard itself is documented

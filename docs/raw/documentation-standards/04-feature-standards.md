@@ -86,6 +86,24 @@ Each feature should remain focused on one capability.
 
 ---
 
+# Out of Scope
+
+Feature Documentation must not describe:
+
+* Architecture
+* Technical implementation
+* Programming languages, frameworks, or libraries
+* APIs
+* Databases
+* Source code
+* UI implementation
+* System components
+* Communication protocols
+
+These belong to Architecture, Feature Technical Design, Engineering, Feature Design, or Implementation respectively — see Prohibited Content below for the full rationale table.
+
+---
+
 # Prohibited Content
 
 Feature Documentation must not describe:
@@ -231,6 +249,19 @@ Every feature should support the documented Vision.
 | Architecture     | Architecture organizes feature realization                      |
 | Engineering      | Engineering explains implementation choices                     |
 | External Context | May be referenced when external behavior influences the feature |
+
+---
+
+# Required Characteristics
+
+A Feature document should be:
+
+* Atomic
+* Independent
+* Cohesive
+* Traceable to Vision
+* Testable (acceptance criteria are checkable)
+* Technology-independent
 
 ---
 
@@ -399,6 +430,17 @@ Feature Documentation is successful when:
 
 ---
 
+# Goals
+
+Feature Documentation aims to:
+
+* Give every capability a single authoritative functional specification.
+* Make each feature independently reviewable and implementable.
+* Keep functional requirements decoupled from technology choice.
+* Make every feature traceable back to Vision and Philosophy.
+
+---
+
 # Non-Goals
 
 Feature Documentation does not define:
@@ -472,7 +514,7 @@ Written by product owners/engineers before design or implementation starts — o
 
 ## Related
 
-- [Vision Standard](vision.md) — every feature derives from Vision
-- [Feature Design Standard](feature-design.md) — user-centered design for this feature
-- [Feature Technical Standard](feature-technical.md) — architectural realization of this feature
+- [Vision Standard](01-vision-standards.md) — every feature derives from Vision
+- [Feature Design Standard](09-feature-design-standards.md) — user-centered design for this feature
+- [Feature Technical Standard](10-feature-technical-standards.md) — architectural realization of this feature
 - [Standards Reference Standard](standards.md) — how this standard itself is documented

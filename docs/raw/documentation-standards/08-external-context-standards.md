@@ -283,6 +283,18 @@ It does not redefine it.
 
 ---
 
+# Required Characteristics
+
+External Context Documentation should be:
+
+* Accurate to the actual external system, not aspirational
+* Current — reviewed when the dependency's contract changes
+* Traceable to the feature/technical design it affects
+* Ownership-clear (who's responsible for tracking upstream changes)
+* Non-duplicative of the dependency's own documentation
+
+---
+
 # Knowledge Dependency Principles
 
 External Context should:
@@ -446,6 +458,16 @@ External Context Documentation is successful when:
 
 ---
 
+# Goals
+
+External Context Documentation aims to:
+
+* Document why each external dependency exists and what it's used for.
+* Prevent tribal knowledge about integrations from living only in one engineer's head.
+* Make external constraints traceable to the features and technical designs they affect.
+
+---
+
 # Non-Goals
 
 External Context does not define:
@@ -487,6 +509,6 @@ Written by whoever integrates a new external dependency, one document per depend
 
 ## Related
 
-- [Feature Technical Standard](feature-technical.md) — frequently references External Context
-- [Engineering Standard](engineering.md) — frequently references technology rationale
+- [Feature Technical Standard](10-feature-technical-standards.md) — frequently references External Context
+- [Engineering Standard](07-engineering-standards.md) — frequently references technology rationale
 - [Standards Reference Standard](standards.md) — how this standard itself is documented

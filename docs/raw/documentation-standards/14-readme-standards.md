@@ -140,6 +140,19 @@ The README is a navigation document.
 
 ---
 
+# Required Characteristics
+
+A README should be:
+
+* Welcoming to a first-time visitor
+* Accurate to the current Build
+* Current — not describing a removed or planned feature as if it exists
+* Concise
+* Navigable — routes deeper questions to the right documentation
+* Actionable — install/run instructions actually work
+
+---
+
 # Required Sections
 
 A README should typically include:
@@ -347,6 +360,16 @@ A README is successful when:
 
 ---
 
+# Goals
+
+README aims to:
+
+* Let a new visitor understand what the project is and how to run it within minutes.
+* Route deeper questions to the right documentation instead of duplicating it.
+* Keep install/run instructions accurate to the finished Build.
+
+---
+
 # Non-Goals
 
 The README does not attempt to replace:
@@ -392,5 +415,5 @@ Written once at repository creation, updated whenever the repository's purpose, 
 
 ## Related
 
-- [Vision Standard](vision.md) — README summarizes project purpose from Vision
+- [Vision Standard](01-vision-standards.md) — README summarizes project purpose from Vision
 - [Standards Reference Standard](standards.md) — how this standard itself is documented

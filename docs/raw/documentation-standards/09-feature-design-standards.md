@@ -242,6 +242,19 @@ Every Feature Design should trace directly to exactly one Feature Specification.
 
 ---
 
+# Required Characteristics
+
+Feature Design should be:
+
+* User-centered
+* Feature-specific
+* Cohesive
+* Traceable to exactly one Feature
+* Technology-independent
+* Accessible and localizable by default
+
+---
+
 # Feature Design Principles
 
 Every Feature Design should be:
@@ -403,6 +416,16 @@ Feature Design is successful when:
 
 ---
 
+# Goals
+
+Feature Design aims to:
+
+* Give every feature a single authoritative user-experience specification.
+* Keep UX decisions traceable to shared Design principles rather than invented per feature.
+* Bridge functional requirements and architecture without prescribing implementation.
+
+---
+
 # Non-Goals
 
 Feature Design does not define:
@@ -446,7 +469,7 @@ Written one-to-one with a Feature, by whoever owns UX for that feature, after th
 
 ## Related
 
-- [Feature Standard](feature.md) — one-to-one mapping
-- [Design Standard](design.md) — shared principles this standard applies
-- [Feature Technical Standard](feature-technical.md) — technical realization of this design
+- [Feature Standard](04-feature-standards.md) — one-to-one mapping
+- [Design Standard](06-design-standards.md) — shared principles this standard applies
+- [Feature Technical Standard](10-feature-technical-standards.md) — technical realization of this design
 - [Standards Reference Standard](standards.md) — how this standard itself is documented
