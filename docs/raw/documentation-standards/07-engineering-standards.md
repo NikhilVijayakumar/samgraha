@@ -52,6 +52,24 @@
 > **validation_rules:** Purpose is clearly defined; boundaries with adjacent standards are explicit; no implementation detail leakage
 > **audit_rules:** Must exist; must not contain specific technology choices; must distinguish Engineering from Feature Technical Design
 
+### Template
+
+> **minimum_content:** 1 paragraph
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+## Purpose
+
+[1–2 paragraphs explaining this document's role in the documentation ecosystem,
+its scope boundaries, and how it differs from adjacent standards]
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Architecture(05), adjacent documentation standards
+
 This document defines the standard for Engineering Documentation within the engineering documentation ecosystem.
 
 Engineering Documentation describes the repository-wide engineering decisions, implementation standards, technology selection rationale, development conventions, and operational practices required to realize the documented architecture.
@@ -79,6 +97,37 @@ It does not describe feature implementations.
 > **validation_rules:** Build process is documented end-to-end; quality gates are explicit; rationale is present for each choice
 > **audit_rules:** Must exist; must document the build toolchain; must include pipeline stages; must connect to Architecture
 
+### Template
+
+> **minimum_content:** 2 subsections
+> **length_guidance:** moderate
+> **diagram_requirements:** flowchart
+
+```markdown
+## Build Standards
+
+> [metadata block]
+
+### Build System
+
+[1–2 paragraphs: build tool, configuration, rationale for choice]
+
+### Pipeline Stages
+
+> **diagram:** flowchart of pipeline stages
+
+[1 paragraph per stage explaining purpose, inputs, outputs, quality gates]
+
+### Quality Gates
+
+[Optional: criteria that must pass before proceeding]
+```
+
+**Required subsections:** Build System, Pipeline Stages
+**Optional subsections:** Quality Gates
+**Required diagrams:** Pipeline flowchart
+**Required cross-references:** Architecture(05), Testing Standards
+
 *(To be written by the domain expert. This section defines the repository-wide build process, CI/CD pipeline, and build tooling standards.)*
 
 ---
@@ -95,6 +144,35 @@ It does not describe feature implementations.
 > **enhancement_rules:** Add test types when new concerns emerge; refine coverage expectations; preserve testing stability
 > **validation_rules:** Testing strategy is documented; coverage expectations are explicit; tooling is identified; rationale is present
 > **audit_rules:** Must exist; must document the testing strategy; must include test types; must connect to Architecture
+
+### Template
+
+> **minimum_content:** 2 subsections
+> **length_guidance:** moderate
+> **diagram_requirements:** flowchart
+
+```markdown
+## Testing Standards
+
+> [metadata block]
+
+### Test Types
+
+[1 paragraph per test type: unit, integration, e2e — purpose, scope, tooling]
+
+### Coverage Expectations
+
+[1 paragraph: coverage targets, what is measured, thresholds]
+
+### Test Tooling
+
+[Optional: test runner, assertion libraries, mocking frameworks]
+```
+
+**Required subsections:** Test Types, Coverage Expectations
+**Optional subsections:** Test Tooling
+**Required diagrams:** Test strategy flowchart
+**Required cross-references:** Architecture(05), Build Standards
 
 *(To be written by the domain expert. This section defines the repository-wide testing strategy, test types, and testing tooling standards.)*
 
@@ -113,6 +191,35 @@ It does not describe feature implementations.
 > **validation_rules:** Coding standards are documented; conventions are explicit; tooling is identified; rationale is present
 > **audit_rules:** Must exist; must document coding conventions; must identify linting tooling; must connect to Engineering Principles
 
+### Template
+
+> **minimum_content:** 2 subsections
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+## Code Standards
+
+> [metadata block]
+
+### Style Guide
+
+[1 paragraph: language-specific style reference, key rules]
+
+### Linting Configuration
+
+[1 paragraph: linter tool, config file location, key rules]
+
+### Naming Conventions
+
+[Optional: naming patterns for files, modules, functions, variables]
+```
+
+**Required subsections:** Style Guide, Linting Configuration
+**Optional subsections:** Naming Conventions
+**Required diagrams:** none
+**Required cross-references:** Engineering Principles
+
 *(To be written by the domain expert. This section defines the repository-wide coding style, conventions, and code quality standards.)*
 
 ---
@@ -130,6 +237,39 @@ It does not describe feature implementations.
 > **validation_rules:** Constraints are documented; constraints are verifiable; constraints connect to their source; no contradictions between constraints
 > **audit_rules:** Must exist; must document non-functional requirements; must be verifiable; must connect to Architecture or External Context
 
+### Template
+
+> **minimum_content:** 1 paragraph
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+## Constraints
+
+> [metadata block]
+
+[1–2 paragraphs explaining non-functional requirements and engineering
+limitations, categorized by type (performance, security, compliance),
+each with source attribution and verifiability]
+
+### Performance Constraints
+
+[Optional: latency, throughput, memory bounds]
+
+### Security Constraints
+
+[Optional: authentication, encryption, access control requirements]
+
+### Compliance Constraints
+
+[Optional: regulatory, organizational policy requirements]
+```
+
+**Required subsections:** none
+**Optional subsections:** Performance Constraints, Security Constraints, Compliance Constraints
+**Required diagrams:** none
+**Required cross-references:** Architecture(05), External Context
+
 *(To be written by the domain expert. This section defines the non-functional requirements and engineering limitations that bound all implementation decisions.)*
 
 ---
@@ -139,16 +279,16 @@ It does not describe feature implementations.
 Every Engineering document must contain the following sections.
 Sections are identified by heading text; the compiler maps each to a semantic type.
 
-| Section | semantic_type | Required | Aliases |
-|---------|--------------|----------|---------|
-| Engineering Principles | `guiding_principles` | ✓ | Principles, Core Principles |
-| Technology Selection | `rationale` | ✓ | Technology Choices, Technology Rationale, Why |
-| Build Standards | `build_standards` | ✓ | Build, Build Process, CI/CD |
-| Testing Standards | `testing_standards` | ✓ | Testing, Test Strategy |
-| Purpose | `purpose` | | Overview, Summary |
-| Code Standards | `code_standards` | | Coding Standards, Code Style |
-| Constraints | `constraints` | | Limitations, Non-Functional Requirements |
-| Traceability | `traceability` | | Traces To, Derived From |
+| Section | semantic_type | Required | Aliases | Content Requirements |
+|---------|--------------|----------|---------|----------------------|
+| Engineering Principles | `guiding_principles` | ✓ | Principles, Core Principles | Technology-independent values, stable across features, memorable phrasing |
+| Technology Selection | `rationale` | ✓ | Technology Choices, Technology Rationale, Why | Rationale for each choice; not a bare list; connected to Architecture and External Context |
+| Build Standards | `build_standards` | ✓ | Build, Build Process, CI/CD | Build system, pipeline stages, quality gates, rationale for each stage |
+| Testing Standards | `testing_standards` | ✓ | Testing, Test Strategy | Test types, coverage expectations, test tooling, rationale |
+| Purpose | `purpose` | | Overview, Summary | Document's role in ecosystem, scope boundaries, relationship to adjacent standards |
+| Code Standards | `code_standards` | | Coding Standards, Code Style | Style guide, linting configuration, naming conventions, rationale |
+| Constraints | `constraints` | | Limitations, Non-Functional Requirements | Non-functional requirements categorized by type, verifiable, connected to source |
+| Traceability | `traceability` | | Traces To, Derived From | Derivation diagram, upstream/downstream list, non-contradiction rule |
 
 Section headings are case-insensitive. Sections not listed here are stored as `generic` type — preserved but not queryable by type.
 
@@ -320,6 +460,35 @@ Implementation should conform to the documented engineering standards.
 > **enhancement_rules:** Update the diagram when new standards are added; ensure derivation paths remain accurate
 > **validation_rules:** Derivation paths are complete; no orphaned standards; non-contradiction rule is stated
 > **audit_rules:** Must exist; must include derivation diagram; must list upstream and downstream standards; must state non-contradiction constraint
+
+### Template
+
+> **minimum_content:** 1 paragraph
+> **length_guidance:** moderate
+> **diagram_requirements:** flowchart
+
+```markdown
+## Traceability
+
+> [metadata block]
+
+[1 paragraph stating the non-contradiction constraint and traceability principle]
+
+> **diagram:** flowchart showing derivation chain
+
+### Upstream Sources
+
+[List of upstream documents that feed into Engineering]
+
+### Downstream Consumers
+
+[List of downstream documents that derive from Engineering]
+```
+
+**Required subsections:** Upstream Sources, Downstream Consumers
+**Optional subsections:** none
+**Required diagrams:** Derivation chain flowchart
+**Required cross-references:** Architecture(05), Feature Technical Design(10), Implementation
 
 Engineering Documentation remains traceable.
 
@@ -585,6 +754,27 @@ Large documents should be decomposed into smaller focused documents.
 > **validation_rules:** Principles are technology-independent; stable across features; memorable; actionable when an engineering decision is ambiguous
 > **audit_rules:** Must exist; must not reference specific technologies; must be evaluable against real engineering decisions; must be stable
 
+### Template
+
+> **minimum_content:** 1 paragraph
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+## Engineering Principles
+
+> [metadata block]
+
+[1 paragraph explaining how principles guide engineering decisions]
+
+[bulleted list of principles, each as a memorable phrase with 1–sentence explanation]
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Architecture(05), Vision(01)
+
 Engineering Documentation should establish reusable principles such as:
 
 * Documentation First
@@ -618,6 +808,30 @@ Projects may define additional engineering principles appropriate to their domai
 > **enhancement_rules:** Strengthen rationale when new context emerges; remove outdated justification; preserve decision stability
 > **validation_rules:** Every technology choice has rationale; rationale is engineering-focused, not business-focused; rationale is stable
 > **audit_rules:** Must exist; must include rationale for each choice; must not be a bare list; must connect to Architecture and External Context
+
+### Template
+
+> **minimum_content:** 2 subsections
+> **length_guidance:** extensive
+> **diagram_requirements:** none
+
+```markdown
+## Technology Selection
+
+> [metadata block]
+
+### [Technology Category]
+
+[1 paragraph explaining why this technology was chosen,
+connected to architectural constraints and external context]
+
+[repeat for each technology category: Language, Framework, Database, Tooling, etc.]
+```
+
+**Required subsections:** One per technology category (Language, Framework, Database, Tooling as applicable)
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Architecture(05), External Context, Constraints
 
 Engineering Documentation should explain **why** technologies were selected.
 

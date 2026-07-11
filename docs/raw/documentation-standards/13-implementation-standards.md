@@ -46,6 +46,23 @@
 > **validation_rules:** Implementation satisfies all upstream documentation; deviations are documented and justified; no undocumented behavior
 > **audit_rules:** Must exist; must reference all applicable upstream standards; must document deviations; must not contradict upstream docs
 
+### Template
+
+> **minimum_content:** 2 paragraphs
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+## Purpose
+
+This Implementation Plan documents the as-built record for [feature/system name]. It defines [scope], establishes boundaries via [out of scope], and traces implementation decisions back to [upstream documents].
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Feature(04), Architecture(05), Engineering(07), Security(03)
+
 This document defines the standard for Implementation Plans — per-feature documents that record how code was generated, what deviations were made, and why.
 
 Implementation is the generation point where all upstream documentation converges into working code. Unlike other standards that define what to build, Implementation records what was actually built and how it satisfies (or intentionally deviates from) every upstream decision.
@@ -152,6 +169,37 @@ Change Request produces a modification plan. Impact analysis and rollback strate
 > **validation_rules:** Generation plan covers all applicable upstream standards; verification checkpoints are defined; deviation process is explicit
 > **audit_rules:** Must exist; must reference all applicable upstream standards; must define verification checkpoints
 
+### Template
+
+> **minimum_content:** 4 subsections (inputs, generation sequence, verification, deviations)
+> **length_guidance:** extensive
+> **diagram_requirements:** flowchart
+
+```markdown
+## Generation Plan
+
+### Inputs
+
+List the upstream documents consumed.
+
+### Generation Sequence
+
+Step-by-step code generation process in tier order.
+
+### Verification Checkpoints
+
+Points where generated code is verified against upstream docs.
+
+### Deviation Recording
+
+How deviations from upstream docs are documented and justified.
+```
+
+**Required subsections:** Inputs, Generation Sequence, Verification Checkpoints, Deviation Recording
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Feature(04), Feature Design(09), Prototype(11), Architecture(05), Design(06), Engineering(07), External Context(08), Security(03)
+
 Every new feature implementation starts with a Generation Plan. The plan verifies alignment with all upstream documentation before code is written.
 
 ---
@@ -168,6 +216,33 @@ Every new feature implementation starts with a Generation Plan. The plan verifie
 > **enhancement_rules:** Add refactoring patterns as they are proven; remove patterns that are no longer relevant
 > **validation_rules:** Behavior preservation is verified; target architecture is defined; no functional changes are introduced
 > **audit_rules:** Must exist for structural changes; must define behavior preservation; must not change external behavior
+
+### Template
+
+> **minimum_content:** 3 subsections (target architecture, behavior preservation, verification)
+> **length_guidance:** moderate
+> **diagram_requirements:** component
+
+```markdown
+## Refactor Plan
+
+### Target Architecture
+
+The desired structure after refactoring.
+
+### Behavior to Preserve
+
+Existing functionality that must remain unchanged.
+
+### Verification Strategy
+
+How behavior preservation is verified (test suite must pass before and after).
+```
+
+**Required subsections:** Target Architecture, Behavior to Preserve, Verification Strategy
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Architecture(05), Engineering(07), Feature(04)
 
 Refactoring is not feature generation. It is structural improvement with behavior preservation. Every refactor must verify that existing tests still pass.
 
@@ -186,6 +261,33 @@ Refactoring is not feature generation. It is structural improvement with behavio
 > **validation_rules:** Impact analysis is complete; rollback strategy is defined; test updates are identified
 > **audit_rules:** Must exist for behavior changes; must include impact analysis; must include rollback strategy
 
+### Template
+
+> **minimum_content:** 3 subsections (change description, impact analysis, rollback strategy)
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+## Change Request Plan
+
+### Change Description
+
+What behavior is changing and why.
+
+### Impact Analysis
+
+Which upstream docs, modules, and tests are affected.
+
+### Rollback Strategy
+
+How to revert the change if verification fails.
+```
+
+**Required subsections:** Change Description, Impact Analysis, Rollback Strategy
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Feature(04), Feature Design(09), QA(12)
+
 Change requests modify existing behavior. Every change request must include impact analysis and a rollback strategy before implementation begins.
 
 ---
@@ -202,6 +304,33 @@ Change requests modify existing behavior. Every change request must include impa
 > **enhancement_rules:** Add enhancement patterns as they are proven; improve measurement methodology
 > **validation_rules:** Improvement targets are measurable; regression testing is defined; no core behavior changes
 > **audit_rules:** Must exist for performance/usability improvements; must define measurable targets; must verify no regression
+
+### Template
+
+> **minimum_content:** 3 subsections (targets, approach, verification)
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+## Enhancement Plan
+
+### Improvement Targets
+
+Measurable goals (e.g., latency reduction, UX score improvement).
+
+### Enhancement Approach
+
+How the improvement is achieved without changing core behavior.
+
+### Regression Verification
+
+Tests that confirm no existing behavior is broken.
+```
+
+**Required subsections:** Improvement Targets, Enhancement Approach, Regression Verification
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Feature(04), Architecture(05), Engineering(07)
 
 Enhancements improve existing functionality. Every enhancement must define measurable improvement targets and verify no regression.
 
@@ -220,6 +349,37 @@ Enhancements improve existing functionality. Every enhancement must define measu
 > **validation_rules:** Fix addresses the specific vulnerability; no new vulnerabilities introduced; Security(03) compliance is restored
 > **audit_rules:** Must exist for security fixes; must reference Security(03); must include re-test verification; must not introduce new vulnerabilities
 
+### Template
+
+> **minimum_content:** 4 subsections (vulnerability, fix, verification, re-test)
+> **length_guidance:** extensive
+> **diagram_requirements:** sequence
+
+```markdown
+## Security Fix Plan
+
+### Vulnerability Description
+
+What was found and where.
+
+### Fix Approach
+
+How the vulnerability is addressed.
+
+### Verification
+
+Confirmation the fix resolves the vulnerability.
+
+### Re-test Requirements
+
+Security tests that must pass post-fix.
+```
+
+**Required subsections:** Vulnerability Description, Fix Approach, Verification, Re-test Requirements
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Security(03), QA(12), Architecture(05), Engineering(07)
+
 Security fixes are the highest-priority implementation type. They must follow a strict process: identify, fix, verify, re-test. No shortcuts.
 
 ---
@@ -229,14 +389,14 @@ Security fixes are the highest-priority implementation type. They must follow a 
 Every Implementation Plan must contain the following sections.
 Sections are identified by heading text; the compiler maps each to a semantic type.
 
-| Section | semantic_type | Required | Aliases |
-|---------|--------------|----------|---------|
-| Generation Plan | `generation_plan` | ✓ | New Feature Plan, Feature Generation |
-| Refactor Plan | `refactor_plan` | | Restructure Plan, Code Refactoring |
-| Change Request Plan | `change_request_plan` | | CR Plan, Modification Plan |
-| Enhancement Plan | `enhancement_plan` | | Improvement Plan, Optimization Plan |
-| Security Fix Plan | `security_fix_plan` | ✓ | Vulnerability Fix, Security Patch |
-| Purpose | `purpose` | | Overview, Summary |
+| Section | semantic_type | Required | Aliases | Content Requirements |
+|---------|--------------|----------|---------|---------------------|
+| Generation Plan | `generation_plan` | ✓ | New Feature Plan, Feature Generation | Step-by-step generation sequence, verification checkpoints, deviation recording process |
+| Refactor Plan | `refactor_plan` | | Restructure Plan, Code Refactoring | Target architecture, behavior preservation strategy, before/after test verification |
+| Change Request Plan | `change_request_plan` | | CR Plan, Modification Plan | Impact analysis, rollback strategy, test update identification |
+| Enhancement Plan | `enhancement_plan` | | Improvement Plan, Optimization Plan | Measurable improvement targets, regression verification, no core behavior changes |
+| Security Fix Plan | `security_fix_plan` | ✓ | Vulnerability Fix, Security Patch | Fix approach, vulnerability verification, security re-test requirements |
+| Purpose | `purpose` | | Overview, Summary | Scope definition, out-of-scope boundaries, document relationships and responsibilities |
 
 Section headings are case-insensitive. Sections not listed here are stored as `generic` type — preserved but not queryable by type.
 

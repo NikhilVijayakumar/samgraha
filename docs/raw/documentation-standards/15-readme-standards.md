@@ -57,6 +57,29 @@
 > **validation_rules:** Purpose is clearly defined; no detailed documentation present; boundary with other standards is explicit
 > **audit_rules:** Must exist; must not contain feature lists or implementation details; must define what README Documentation is and is not
 
+### Template
+
+> **minimum_content:** 2 paragraphs
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+# <Project Name>
+
+> One-sentence description of the project.
+
+## Purpose
+
+<!-- State what this README is and what it is not -->
+<!-- Define the boundary between README and other documentation -->
+<!-- Reference the broader documentation ecosystem -->
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Vision(01) for deeper context
+
 This document defines the standard for README documentation within the engineering documentation ecosystem.
 
 A README is the primary entry point to a repository.
@@ -82,6 +105,24 @@ It does not replace project documentation.
 > **validation_rules:** Name matches package manifests; name is consistent across documentation; no conflicting names present
 > **audit_rules:** Must exist; must match the name in package.json, setup.py, or equivalent; must not be ambiguous
 
+### Template
+
+> **minimum_content:** 1 paragraph
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+## Project Name
+
+<!-- State the canonical project name exactly as it appears in package manifests -->
+<!-- Do not abbreviate or use alternative names -->
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Vision(01), Repository Overview, Documentation Navigation
+
 *(To be written by the domain expert. This section provides the project's canonical name.)*
 
 ---
@@ -98,6 +139,25 @@ It does not replace project documentation.
 > **enhancement_rules:** Update when the project scope changes; keep concise; remove marketing language
 > **validation_rules:** Description is accurate; description is concise; description enables quick understanding; no feature lists present
 > **audit_rules:** Must exist; must be one to two sentences; must not exceed 200 characters; must not contain installation instructions
+
+### Template
+
+> **minimum_content:** 1 paragraph
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+## Short Description
+
+<!-- One to two sentences stating what the project does and who it is for -->
+<!-- Keep under 200 characters -->
+<!-- No installation instructions, no feature lists -->
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Vision(01), Overview, Repository Overview
 
 *(To be written by the domain expert. This section provides a one-sentence summary of the project.)*
 
@@ -116,6 +176,26 @@ It does not replace project documentation.
 > **validation_rules:** Overview is accurate; overview is concise; overview explains the problem and solution; no implementation details present
 > **audit_rules:** Must exist; must explain the problem the project solves; must not contain implementation details; must be concise
 
+### Template
+
+> **minimum_content:** 2 paragraphs
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+## Overview
+
+<!-- Explain the problem the project solves -->
+<!-- Describe the project's approach at a high level -->
+<!-- Reference Vision for deeper context -->
+<!-- No implementation details, no architecture diagrams -->
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Vision(01), Key Capabilities, Repository Overview, Getting Started
+
 *(To be written by the domain expert. This section provides a high-level overview of the project.)*
 
 ---
@@ -132,6 +212,26 @@ It does not replace project documentation.
 > **enhancement_rules:** Add capabilities when scope expands; remove capabilities that are deprecated; keep the list scannable
 > **validation_rules:** Capabilities are accurate; capabilities are high-level; capabilities are scannable; no implementation details present
 > **audit_rules:** Must exist; must list between three and seven capabilities; must not contain implementation details; must be scannable
+
+### Template
+
+> **minimum_content:** 1 subsection
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+## Key Capabilities
+
+- <!-- Capability 1: short descriptive phrase -->
+- <!-- Capability 2: short descriptive phrase -->
+- <!-- Capability 3: short descriptive phrase -->
+<!-- List 3 to 7 capabilities; no implementation details -->
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Vision(01) goals, Feature Documentation
 
 *(To be written by the domain expert. This section lists the project's main capabilities.)*
 
@@ -150,6 +250,25 @@ It does not replace project documentation.
 > **validation_rules:** Documentation structure matches actual files; navigation guidance is accurate; all key documents are listed
 > **audit_rules:** Must exist; must match actual documentation layout; must list all key documents; navigation guidance must be accurate
 
+### Template
+
+> **minimum_content:** 1 subsection
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+## Documentation Structure
+
+<!-- List documentation directories and key files -->
+<!-- Explain the organization principle -->
+<!-- Provide navigation guidance from README to detailed docs -->
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Documentation Folder, Documentation Navigation, all documentation standards
+
 *(To be written by the domain expert. This section describes how documentation is organized.)*
 
 ---
@@ -166,6 +285,29 @@ It does not replace project documentation.
 > **enhancement_rules:** Update when dependencies change; add platform-specific instructions as needed; keep steps minimal
 > **validation_rules:** Installation steps work on a clean machine; prerequisites are listed; commands are correct; no unnecessary steps present
 > **audit_rules:** Must exist; must include prerequisites; must provide step-by-step instructions; must be tested on a clean machine
+
+### Template
+
+> **minimum_content:** 1 subsection
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+## Installation
+
+### Prerequisites
+
+- <!-- List required tools and versions -->
+
+### Install
+
+<!-- Step-by-step commands with expected output -->
+```
+
+**Required subsections:** Prerequisites, Install
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Build, Getting Started, Development, Contributing
 
 *(To be written by the domain expert. This section provides installation instructions.)*
 
@@ -184,6 +326,30 @@ It does not replace project documentation.
 > **validation_rules:** Build commands work; prerequisites are listed; expected output is described; no unnecessary complexity present
 > **audit_rules:** Must exist; must provide build commands; must state prerequisites; must describe expected output
 
+### Template
+
+> **minimum_content:** 1 subsection
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+## Build
+
+### Prerequisites
+
+- <!-- List build prerequisites -->
+
+### Build Commands
+
+<!-- Build commands with expected output -->
+<!-- List common build targets -->
+```
+
+**Required subsections:** Prerequisites, Build Commands
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Installation, Getting Started, Development, Contributing
+
 *(To be written by the domain expert. This section explains how to build the project.)*
 
 ---
@@ -200,6 +366,33 @@ It does not replace project documentation.
 > **enhancement_rules:** Add options when new configuration is added; update defaults when they change; remove deprecated options
 > **validation_rules:** All configuration options are documented; defaults are stated; valid values are described; examples are provided
 > **audit_rules:** Must exist if the project has configuration; must list all options; must state defaults; must provide examples
+
+### Template
+
+> **minimum_content:** 1 subsection
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+## Configuration
+
+### Environment Variables
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| <!-- name --> | <!-- default --> | <!-- purpose --> |
+
+### Configuration Files
+
+<!-- List settings files and their purpose -->
+<!-- State valid values and defaults -->
+<!-- Provide examples -->
+```
+
+**Required subsections:** Environment Variables or Configuration Files
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Usage, Development, Getting Started
 
 *(To be written by the domain expert. This section documents configuration options.)*
 
@@ -218,6 +411,34 @@ It does not replace project documentation.
 > **validation_rules:** Development setup instructions work; test commands are correct; workflow is described; references to other docs are accurate
 > **audit_rules:** Must exist; must describe development setup; must explain how to run tests; must reference coding standards
 
+### Template
+
+> **minimum_content:** 1 subsection
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+## Development
+
+### Local Setup
+
+<!-- Development environment setup steps -->
+
+### Running Tests
+
+<!-- Test commands with expected output -->
+
+### Workflow
+
+<!-- Development workflow description -->
+<!-- Reference coding standards -->
+```
+
+**Required subsections:** Local Setup, Running Tests
+**Optional subsections:** Workflow
+**Required diagrams:** none
+**Required cross-references:** Contributing, Getting Started, Repository Structure
+
 *(To be written by the domain expert. This section describes the development workflow.)*
 
 ---
@@ -234,6 +455,34 @@ It does not replace project documentation.
 > **enhancement_rules:** Update when contribution process changes; add new quality standards as needed; keep process clear
 > **validation_rules:** Contribution process is described; code review expectations are stated; quality standards are listed; references are accurate
 > **audit_rules:** Must exist; must describe contribution workflow; must explain code review process; must list quality standards
+
+### Template
+
+> **minimum_content:** 1 subsection
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+## Contributing
+
+### Contribution Process
+
+<!-- Step-by-step contribution workflow -->
+
+### Code Review
+
+<!-- Code review expectations and process -->
+
+### Quality Standards
+
+<!-- List quality standards for contributions -->
+<!-- Reference development setup -->
+```
+
+**Required subsections:** Contribution Process, Code Review, Quality Standards
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Development, Related, Documentation Navigation
 
 *(To be written by the domain expert. This section explains how to contribute.)*
 
@@ -252,29 +501,48 @@ It does not replace project documentation.
 > **validation_rules:** License is stated; license text is accessible; copyright notices are present if applicable; no legal ambiguity
 > **audit_rules:** Must exist if the project has a license; must state the license name; must provide access to full license text
 
+### Template
+
+> **minimum_content:** 1 paragraph
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+## License
+
+<!-- State the license name -->
+<!-- Link to or include the full license text -->
+<!-- Include copyright notices if applicable -->
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** External Context for third-party licenses
+
 *(To be written by the domain expert. This section specifies the project's license.)*
 
 ---
 
 ## Required Sections
 
-A README should typically include:
-
-* Project Name
-* Short Description
-* Overview
-* Purpose
-* Key Capabilities
-* Repository Structure
-* Documentation Structure
-* Getting Started
-* Installation
-* Build
-* Usage
-* Configuration
-* Development
-* Contributing
-* License (if applicable)
+| Section | Semantic Type | Required | Aliases | Content Requirements |
+| --- | --- | --- | --- | --- |
+| Project Name | `project_name` | Yes | — | Canonical name matching package manifests |
+| Short Description | `short_description` | Yes | — | 1–2 sentences under 200 characters |
+| Overview | `overview` | Yes | — | High-level problem and solution narrative |
+| Purpose | `purpose` | Yes | — | Clear definition of README scope and boundaries |
+| Key Capabilities | `key_capabilities` | Yes | — | 3–7 scannable capability items |
+| Repository Structure | `repository_structure` | Yes | — | Major directory descriptions, high-level only |
+| Documentation Structure | `documentation_structure` | Yes | — | Doc organization with navigation guidance |
+| Getting Started | `getting_started` | Yes | — | Zero-to-running path with all prerequisites |
+| Installation | `installation` | Yes | — | Step-by-step commands with prerequisites |
+| Build | `build` | Yes | — | Build commands, prerequisites, expected output |
+| Usage | `usage` | Yes | — | Working examples covering primary functions |
+| Configuration | `configuration` | Conditional | `config` | Options with defaults, valid values, and examples |
+| Development | `development` | Yes | — | Dev setup, test commands, workflow description |
+| Contributing | `contributing` | Yes | — | Contribution process and quality standards |
+| License | `license` | Conditional | — | License name with link to full text |
 
 Projects may extend these sections where appropriate.
 
@@ -569,6 +837,27 @@ There is exactly one README per repository. It is not placed under `docs/raw/`.
 > **validation_rules:** Directory descriptions match actual structure; descriptions are high-level; no implementation details present
 > **audit_rules:** Must exist; must describe major directories; descriptions must be high-level; must match actual repository structure
 
+### Template
+
+> **minimum_content:** 1 subsection
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+## Repository Structure
+
+- `src/` — <!-- purpose -->
+- `tests/` — <!-- purpose -->
+- `docs/` — <!-- purpose -->
+- `scripts/` — <!-- purpose -->
+<!-- High-level descriptions only; no file-level detail -->
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Documentation Structure, Getting Started, Development
+
 The README should explain the purpose of major directories.
 
 Examples:
@@ -595,6 +884,29 @@ Only high-level descriptions are required.
 > **enhancement_rules:** Update when CLI or API changes; add new usage patterns as needed; keep examples working
 > **validation_rules:** Usage examples work; commands are correct; expected output is shown; examples cover primary functions
 > **audit_rules:** Must exist; must provide working examples; must cover primary functions; must show expected output
+
+### Template
+
+> **minimum_content:** 1 subsection
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+## Usage
+
+### Basic Usage
+
+<!-- Working command examples with expected output -->
+
+### Common Workflows
+
+<!-- Typical usage patterns -->
+```
+
+**Required subsections:** Basic Usage
+**Optional subsections:** Common Workflows
+**Required diagrams:** none
+**Required cross-references:** Build, Installation, Configuration
 
 Written once at repository creation, updated whenever the repository's purpose, structure, or getting-started steps change. Use `samgraha audit --domain readme` to check the README has a title and a getting-started section before merging.
 
@@ -648,6 +960,30 @@ The README should act as a documentation index.
 > **enhancement_rules:** Update when setup process changes; keep steps minimal; add platform-specific notes as needed
 > **validation_rules:** Steps work on a clean machine; prerequisites are complete; commands are correct; expected outcomes are described
 > **audit_rules:** Must exist; must provide a complete path from zero to running; must be tested; must not skip steps
+
+### Template
+
+> **minimum_content:** 1 subsection
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+## Getting Started
+
+### Prerequisites
+
+- <!-- Required tools and versions -->
+
+### Quick Start
+
+<!-- Step-by-step from clone to running project -->
+<!-- Prerequisites, install, build, first run in one place -->
+```
+
+**Required subsections:** Prerequisites, Quick Start
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Installation, Build, Usage, Development, Contributing
 
 The README should provide enough information to begin using or contributing to the repository.
 

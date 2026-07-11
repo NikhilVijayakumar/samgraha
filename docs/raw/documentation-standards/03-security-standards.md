@@ -49,6 +49,24 @@
 > **validation_rules:** Purpose is technology-independent; scope is limited to project-wide posture; enforcement boundary is explicit
 > **audit_rules:** Must exist; must not name specific controls or libraries; must define the boundary between project-wide and per-domain
 
+### Template
+
+> **minimum_content:** 1–2 paragraphs
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+<!-- One paragraph: what Security defines and its role in the documentation hierarchy -->
+<!-- One paragraph: what Security does not define, and where enforcement lives -->
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Vision(01), Philosophy(02)
+
+---
+
 This document defines the standard for Security documentation within the engineering documentation ecosystem.
 
 A Security document establishes the project-wide threat model, data classification scheme, security principles, and compliance posture that every other domain must operate within.
@@ -72,6 +90,27 @@ It does not define how any single component enforces that posture. That belongs 
 > **validation_rules:** Threat model uses a named methodology; every threat has a severity or priority; every threat maps to at least one downstream expectation
 > **audit_rules:** Must exist; must use a named methodology; must not list specific tooling or library mitigations; must not duplicate per-component trust boundaries
 
+### Template
+
+> **minimum_content:** 3–5 subsections
+> **length_guidance:** extensive
+> **diagram_requirements:** flowchart
+
+```markdown
+<!-- Methodology: state which threat-modeling methodology is used (STRIDE, PASTA, or OWASP) -->
+<!-- Adversary Profiles: enumerate likely adversaries with motivation and capability -->
+<!-- Threat Enumeration: list threats with category, severity, and affected assets -->
+<!-- Attack Surfaces: identify external and internal surfaces -->
+<!-- Downstream Expectations: map each threat to at least one domain that must address it -->
+```
+
+**Required subsections:** methodology, adversary profiles, threat enumeration, attack surfaces, downstream expectations
+**Optional subsections:** trust assumptions, risk scoring matrix
+**Required diagrams:** threat landscape overview (flowchart or table)
+**Required cross-references:** Data Classification, Security Principles
+
+---
+
 *(To be written by the domain expert. This section defines the project-wide threat model.)*
 
 ---
@@ -88,6 +127,26 @@ It does not define how any single component enforces that posture. That belongs 
 > **enhancement_rules:** Add new data types as they are introduced; refine sensitivity definitions when new compliance obligations apply; preserve the classification structure
 > **validation_rules:** At least one sensitivity level is defined with an example; handling expectations are stated per level; classification is technology-independent
 > **audit_rules:** Must exist; must define at least one sensitivity level; must not reference specific storage technologies; must not omit handling expectations
+
+### Template
+
+> **minimum_content:** 2–3 subsections
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+<!-- Sensitivity Levels: define each level (e.g. Public, Internal, Confidential, Restricted) -->
+<!--   For each level: description, one concrete example, handling expectations -->
+<!-- Handling Expectations: cross-cutting rules (access control, encryption at rest/transit, retention) -->
+<!-- Application: how downstream domains map their data to these levels -->
+```
+
+**Required subsections:** sensitivity levels, handling expectations
+**Optional subsections:** data inventory examples, classification decision tree
+**Required diagrams:** none
+**Required cross-references:** Threat Model, Security Principles
+
+---
 
 *(To be written by the domain expert. This section defines the data classification scheme.)*
 
@@ -106,6 +165,27 @@ It does not define how any single component enforces that posture. That belongs 
 > **validation_rules:** Principles are specific enough to evaluate a design against; no principle is generic enough to be meaningless; principles are technology-independent
 > **audit_rules:** Must exist; must contain at least one principle; principles must not be generic ("be secure"); must not reference specific technologies
 
+### Template
+
+> **minimum_content:** 1–2 subsections
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+<!-- State each security principle with: -->
+<!--   - Name: memorable, stable phrase -->
+<!--   - Rationale: why this principle constrains design decisions -->
+<!--   - Example decision it would constrain (optional but recommended) -->
+<!-- Link principles back to Philosophy(02) guiding principles they specialize -->
+```
+
+**Required subsections:** none
+**Optional subsections:** principle-to-decision examples, derivation from Philosophy
+**Required diagrams:** none
+**Required cross-references:** Philosophy(02), Threat Model
+
+---
+
 *(To be written by the domain expert. This section defines the project-wide security principles.)*
 
 ---
@@ -122,6 +202,28 @@ It does not define how any single component enforces that posture. That belongs 
 > **enhancement_rules:** Add new requirements when regulations change; update scope when the product enters new markets; preserve the obligation-to-control trace chain
 > **validation_rules:** Each requirement is named; scope is defined; each maps to at least one downstream control expectation
 > **audit_rules:** Must exist if the project has compliance obligations; must name each regime; must not prescribe specific implementation controls
+
+### Template
+
+> **minimum_content:** 2–3 subsections
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+<!-- For each compliance regime: -->
+<!--   - Name: regulatory or contractual body (e.g. GDPR, HIPAA, PCI-DSS, SOC 2) -->
+<!--   - Scope: what parts of the project it applies to -->
+<!--   - Key obligations: what the project must do or avoid -->
+<!--   - Downstream expectations: which domain(s) must implement controls for this obligation -->
+<!-- Traceability matrix: obligation → downstream control expectation -->
+```
+
+**Required subsections:** per-regime breakdown, obligation-to-control traceability
+**Optional subsections:** compliance timeline, audit cadence
+**Required diagrams:** none
+**Required cross-references:** Threat Model, Vision(01)
+
+---
 
 *(To be written by the domain expert. This section defines compliance obligations.)*
 
@@ -140,6 +242,26 @@ It does not define how any single component enforces that posture. That belongs 
 > **validation_rules:** Detection and response expectations are stated; escalation paths are defined; no specific SIEM or tooling is mandated
 > **audit_rules:** Must exist if the project handles sensitive data; must not mandate specific tooling; must define escalation and communication expectations
 
+### Template
+
+> **minimum_content:** 2–3 subsections
+> **length_guidance:** moderate
+> **diagram_requirements:** flowchart
+
+```markdown
+<!-- Detection Expectations: what signals indicate a security incident -->
+<!-- Response Escalation: who is notified, in what order, within what timeframe -->
+<!-- Communication Requirements: internal and external notification expectations -->
+<!-- Recovery Objectives: expected time-to-contain, time-to-restore -->
+```
+
+**Required subsections:** detection expectations, response escalation, recovery objectives
+**Optional subsections:** communication templates, post-incident review expectations
+**Required diagrams:** escalation flowchart
+**Required cross-references:** Threat Model
+
+---
+
 *(To be written by the domain expert. This section defines incident response expectations.)*
 
 ---
@@ -157,6 +279,27 @@ It does not define how any single component enforces that posture. That belongs 
 > **validation_rules:** Each constraint is specific enough to evaluate a design against; constraints are not disguised preferences; no implementation solutions are embedded
 > **audit_rules:** Must exist if hard constraints apply; must not embed implementation solutions; must be evaluable as pass/fail against a proposed design
 
+### Template
+
+> **minimum_content:** 1–2 subsections
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+<!-- For each constraint: -->
+<!--   - Source: regulatory, contractual, infrastructure, or organizational -->
+<!--   - Statement: hard boundary expressed as pass/fail evaluable condition -->
+<!--   - Impact: which downstream domains are affected -->
+<!-- Avoid embedding solutions — state the boundary, not how to satisfy it -->
+```
+
+**Required subsections:** none
+**Optional subsections:** constraint-to-domain impact matrix
+**Required diagrams:** none
+**Required cross-references:** Vision(01), External Context
+
+---
+
 *(To be written by the domain expert. This section defines hard security constraints.)*
 
 ---
@@ -166,16 +309,16 @@ It does not define how any single component enforces that posture. That belongs 
 Every Security document must contain the following sections.
 Sections are identified by heading text; the compiler maps each to a semantic type.
 
-| Section | semantic_type | Required | Aliases |
-|---------|--------------|----------|---------|
-| Threat Model | `threat_model` | ✓ | Threats, Threat Modeling, Risk Assessment |
-| Data Classification | `data_classification` | ✓ | Data Sensitivity, Data Classes |
-| Security Principles | `security_principles` | ✓ | Security Posture, Guiding Security Principles |
-| Compliance Requirements | `compliance` | | Regulatory Requirements, Compliance Obligations |
-| Incident Response | `incident_response` | | Incident Handling, Breach Response |
-| Purpose | `purpose` | | Overview, Summary |
-| Constraints | `constraints` | | Limitations |
-| Traceability | `traceability` | | Traces To, Derived From |
+| Section | semantic_type | Required | Aliases | Content Requirements |
+|---------|--------------|----------|---------|---------------------|
+| Threat Model | `threat_model` | ✓ | Threats, Threat Modeling, Risk Assessment | Named methodology (STRIDE, PASTA, or OWASP); adversary profiles; threat enumeration with severity; attack surfaces; at least one downstream mitigation expectation per threat |
+| Data Classification | `data_classification` | ✓ | Data Sensitivity, Data Classes | At least two distinct sensitivity levels; one concrete example per level; handling expectations per level; technology-independent classification |
+| Security Principles | `security_principles` | ✓ | Security Posture, Guiding Security Principles | At least one principle; specific enough to constrain a concrete design decision; no generic platitudes; technology-independent |
+| Compliance Requirements | `compliance` | | Regulatory Requirements, Compliance Obligations | Named compliance regimes (e.g. GDPR, HIPAA); scope and applicability per regime; obligation-to-downstream-control traceability |
+| Incident Response | `incident_response` | | Incident Handling, Breach Response | Detection expectations; escalation paths; communication requirements; recovery objectives; outcome-level framing (no tooling mandates) |
+| Purpose | `purpose` | | Overview, Summary | Security's role as project-wide authority; scope boundary with per-domain sections; derivation from Vision/Philosophy |
+| Constraints | `constraints` | | Limitations | Non-negotiable limitations from regulatory, contractual, or organizational sources; each evaluable as pass/fail against a proposed design |
+| Traceability | `traceability` | | Traces To, Derived From | Tier diagram showing derivation chain; list of downstream consumers; non-duplication rule stated |
 
 Section headings are case-insensitive. Sections not listed here are stored as `generic` type — preserved but not queryable by type.
 
@@ -297,6 +440,25 @@ Every per-domain Security section should be traceable to a threat, data class, o
 > **enhancement_rules:** Update the diagram when new domains add Security sections; ensure derivation paths remain accurate
 > **validation_rules:** Derivation paths are complete; no orphaned downstream Security sections; non-duplication rule is stated
 > **audit_rules:** Must exist; must include tier diagram; must list downstream consumers; must state non-duplication constraint
+
+### Template
+
+> **minimum_content:** 1–2 subsections
+> **length_guidance:** concise
+> **diagram_requirements:** flowchart
+
+```markdown
+<!-- Tier diagram: Vision/Philosophy → Security → downstream domains -->
+<!-- Downstream consumers: list each domain that consumes Security and how -->
+<!-- Non-duplication rule: downstream sections reference this document, do not restate -->
+```
+
+**Required subsections:** tier diagram, downstream consumers, non-duplication rule
+**Optional subsections:** none
+**Required diagrams:** tier derivation chain (flowchart or text diagram)
+**Required cross-references:** Vision(01), Philosophy(02), Architecture(05), Engineering(07), Feature Technical(10)
+
+---
 
 ```text
 Vision, Philosophy

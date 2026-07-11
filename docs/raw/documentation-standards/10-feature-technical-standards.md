@@ -62,6 +62,21 @@
 > **validation_rules:** Purpose is clearly defined; one-to-one relationship with Feature is stated; boundary with Architecture is explicit
 > **audit_rules:** Must exist; must define Feature Technical Design as architectural realization; must not contain feature lists or implementation details
 
+### Template
+
+> **minimum_content:** 2 paragraphs
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+[Definition paragraph: what Feature Technical Design is and its role in the documentation ecosystem]
+
+[Scope paragraph: what it covers and what it does not, including one-to-one relationship with Feature and distinction from Architecture]
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Feature(04), Architecture(05)
+
 This document defines the standard for Feature Technical Design Documentation within the engineering documentation ecosystem.
 
 Feature Technical Design translates a single Feature Specification into its architectural realization by applying the shared principles, boundaries, and constraints defined by the Architecture Documentation together with any relevant External Context.
@@ -90,6 +105,21 @@ It does not describe implementation details or source code.
 > **validation_rules:** Every listed component exists in Architecture; every component has a reason for participation; no implementation-specific components appear
 > **audit_rules:** Must exist; must be marked required; must list components from Architecture; must not contain implementation details; every component must have a stated purpose
 
+### Template
+
+> **minimum_content:** 1 paragraph + table or list
+> **length_guidance:** moderate
+> **diagram_requirements:** component
+
+[Component list or table: each participating component with a brief statement of why it is involved]
+
+[Optional paragraph: relationship to Architecture component model]
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** component diagram showing participating components
+**Required cross-references:** Architecture(05) component model, Feature Specification
+
 *(To be written. This section lists the components involved in realizing the feature.)*
 
 ---
@@ -106,6 +136,19 @@ It does not describe implementation details or source code.
 > **enhancement_rules:** Add interactions when missing behaviors are discovered; remove interactions that duplicate existing ones; clarify the nature of each exchange
 > **validation_rules:** Every component interaction is traceable to a Feature Specification behavior; no implementation details appear; interactions are consistent with Architecture
 > **audit_rules:** Must exist; must be marked required; must trace to Feature Specification behaviors; must not contain implementation details; must be consistent with Architecture communication model
+
+### Template
+
+> **minimum_content:** 1 paragraph + interaction list
+> **length_guidance:** moderate
+> **diagram_requirements:** sequence
+
+[Interaction list: each interaction with triggering condition, nature of exchange, and expected outcome]
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** sequence diagram showing component interactions
+**Required cross-references:** Participating Components, Feature Specification, Architecture(05) communication model
 
 *(To be written. This section describes how components interact to realize the feature.)*
 
@@ -124,6 +167,19 @@ It does not describe implementation details or source code.
 > **validation_rules:** Every data element has a clear owner; access rules are defined; ownership is consistent with Architecture; no implementation details appear
 > **audit_rules:** Must exist; must be marked required; must assign clear ownership; must define access patterns; must not contain database schemas or implementation details
 
+### Template
+
+> **minimum_content:** 1 paragraph + ownership table or list
+> **length_guidance:** moderate
+> **diagram_requirements:** ER
+
+[Data ownership table or list: each data element with owner component, read access, write access, and constraints]
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** ER diagram showing data ownership boundaries
+**Required cross-references:** Architecture(05) ownership rules, Participating Components
+
 *(To be written. This section defines data ownership boundaries for the feature.)*
 
 ---
@@ -140,6 +196,19 @@ It does not describe implementation details or source code.
 > **enhancement_rules:** Update the reference when Feature scope changes; ensure the reference remains current; remove stale references
 > **validation_rules:** Exactly one Feature Specification is referenced; the reference is valid; no Feature content is duplicated
 > **audit_rules:** Must reference exactly one Feature Specification; must not duplicate Feature content; must maintain one-to-one mapping
+
+### Template
+
+> **minimum_content:** 1 paragraph
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+[Feature reference: name of the Feature Specification and brief confirmation that scope matches]
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Feature(04)
 
 *(To be written. This section references the Feature Specification this design realizes.)*
 
@@ -158,6 +227,19 @@ It does not describe implementation details or source code.
 > **validation_rules:** Every component has a defined responsibility; responsibilities are non-overlapping; responsibilities align with Architecture; no implementation details appear
 > **audit_rules:** Must exist; must assign responsibility to every participating component; must not overlap; must align with Architecture; must not contain implementation details
 
+### Template
+
+> **minimum_content:** 1 paragraph + responsibility list
+> **length_guidance:** moderate
+> **diagram_requirements:** component
+
+[Responsibility list: each participating component with its primary responsibility and alignment with Architecture]
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** component diagram showing responsibility assignments
+**Required cross-references:** Participating Components, Architecture(05) component model
+
 *(To be written. This section defines what each component is responsible for.)*
 
 ---
@@ -174,6 +256,19 @@ It does not describe implementation details or source code.
 > **enhancement_rules:** Clarify lifecycle phases; add state transitions when missing; remove implementation-specific runtime details
 > **validation_rules:** Runtime behavior is consistent with Architecture; lifecycle is complete; no implementation details appear; state transitions are defined
 > **audit_rules:** Must exist; must describe runtime lifecycle; must be consistent with Architecture runtime boundaries; must not contain implementation details
+
+### Template
+
+> **minimum_content:** 1 paragraph + lifecycle description
+> **length_guidance:** extensive
+> **diagram_requirements:** flowchart
+
+[Lifecycle description: initialization, execution flow, state transitions, and shutdown at the architectural level]
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** flowchart showing runtime lifecycle and state transitions
+**Required cross-references:** Component Interactions, Architecture(05) runtime boundaries
 
 *(To be written. This section describes the runtime execution model for the feature.)*
 
@@ -192,6 +287,19 @@ It does not describe implementation details or source code.
 > **validation_rules:** Every communication path is traceable to a Component Interaction; protocol references are architectural; no implementation details appear
 > **audit_rules:** Must exist; must define communication paths for all component interactions; must use architectural protocol references; must not contain implementation details
 
+### Template
+
+> **minimum_content:** 1 paragraph + path list
+> **length_guidance:** moderate
+> **diagram_requirements:** sequence
+
+[Communication path list: each path with direction, nature, and architectural protocol]
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** sequence diagram showing communication paths
+**Required cross-references:** Component Interactions, Architecture(05) communication model
+
 *(To be written. This section defines communication paths between components.)*
 
 ---
@@ -208,6 +316,19 @@ It does not describe implementation details or source code.
 > **enhancement_rules:** Add integration points when new dependencies are discovered; remove integration points that are not part of this feature; clarify the nature of each integration
 > **validation_rules:** Every integration point is traceable to a Feature Specification dependency or Architecture boundary; integration types are defined; no implementation details appear
 > **audit_rules:** Must exist; must identify all integration points; must classify by boundary type; must not contain API implementations or implementation details
+
+### Template
+
+> **minimum_content:** 1 paragraph + integration list
+> **length_guidance:** moderate
+> **diagram_requirements:** component
+
+[Integration list: each integration point with systems involved, nature, and boundary type (internal, external, third-party)]
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** component diagram showing integration boundaries
+**Required cross-references:** Feature Specification, Architecture(05) boundaries
 
 *(To be written. This section identifies where the feature integrates with external systems.)*
 
@@ -226,6 +347,19 @@ It does not describe implementation details or source code.
 > **validation_rules:** Every external dependency is referenced (not duplicated); the role of each dependency is stated; constraints are documented; no implementation details appear
 > **audit_rules:** Must exist if external dependencies are involved; must reference External Context by name; must not duplicate External Context content; must state the role of each dependency
 
+### Template
+
+> **minimum_content:** 1 paragraph + dependency list
+> **length_guidance:** moderate
+> **diagram_requirements:** component
+
+[Dependency list: each external dependency with name, role in feature, nature of integration, and constraints imposed]
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** component diagram showing external dependencies
+**Required cross-references:** External Context(08), Integration Points
+
 *(To be written. This section describes how external dependencies participate in the feature.)*
 
 ---
@@ -242,6 +376,19 @@ It does not describe implementation details or source code.
 > **enhancement_rules:** Add constraints when new operational requirements are discovered; remove constraints that no longer apply; clarify ambiguous constraints
 > **validation_rules:** Constraints are consistent with Architecture; constraints are traceable to External Context where applicable; no implementation details appear
 > **audit_rules:** Must exist; must define runtime constraints; must be consistent with Architecture; must not contain deployment configurations or implementation details
+
+### Template
+
+> **minimum_content:** 1 paragraph + constraint list
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+[Constraint list: each operational constraint with source (Architecture or External Context) and application to this feature]
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Architecture(05) runtime boundaries, External Context(08)
 
 *(To be written. This section defines operational constraints on runtime behavior.)*
 
@@ -260,6 +407,19 @@ It does not describe implementation details or source code.
 > **validation_rules:** Every constraint traces to Architecture; the application to this feature is stated; no architectural principles are redefined; no implementation details appear
 > **audit_rules:** Must exist; must reference Architecture constraints by source; must not redefine architectural principles; must not contain implementation details
 
+### Template
+
+> **minimum_content:** 1 paragraph + constraint list
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+[Constraint list: each architectural constraint with Architecture source principle and application to this feature]
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Architecture(05) principles and constraints
+
 *(To be written. This section defines architectural constraints the feature must respect.)*
 
 ---
@@ -276,6 +436,19 @@ It does not describe implementation details or source code.
 > **enhancement_rules:** Add security considerations when new sensitive data flows are discovered; remove considerations that are already covered by Architecture; clarify authorization rules
 > **validation_rules:** Security boundaries are consistent with Architecture; authentication and authorization are defined; no implementation details appear; sensitive data is identified
 > **audit_rules:** Must exist if the feature involves authentication, authorization, or sensitive data; must reference Architecture security boundaries; must not contain implementation details
+
+### Template
+
+> **minimum_content:** 1 paragraph + security list
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+[Security list: security boundaries, authentication requirements, authorization rules, and sensitive data identification]
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Architecture(05) security boundaries, External Context(08), Security Documentation(03)
 
 *(To be written. This section defines security considerations for the feature.)*
 
@@ -294,6 +467,19 @@ It does not describe implementation details or source code.
 > **validation_rules:** Performance expectations are traceable to Feature Specification; expectations are architectural (not implementation); no profiling data or benchmarks appear
 > **audit_rules:** Must exist if the feature has performance requirements; must be architectural in nature; must not contain benchmarks, profiling data, or implementation details
 
+### Template
+
+> **minimum_content:** 1 paragraph + performance list
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+[Performance list: performance expectations, throughput requirements, latency constraints, and resource limitations at the architectural level]
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Feature Specification, Architecture(05) performance patterns
+
 *(To be written. This section defines performance considerations for the feature.)*
 
 ---
@@ -310,6 +496,19 @@ It does not describe implementation details or source code.
 > **enhancement_rules:** Add failure modes when new interactions are discovered; clarify recovery strategies; remove implementation-specific error handling
 > **validation_rules:** Failure modes cover all component interactions; error propagation is consistent with Architecture; recovery strategies are defined; no implementation details appear
 > **audit_rules:** Must exist; must define failure modes for component interactions; must be consistent with Architecture error boundaries; must not contain exception types or implementation details
+
+### Template
+
+> **minimum_content:** 1 paragraph + failure list
+> **length_guidance:** extensive
+> **diagram_requirements:** flowchart
+
+[Failure list: failure modes per interaction, error propagation paths, recovery strategies, and resilience boundaries]
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** flowchart showing error propagation and recovery paths
+**Required cross-references:** Component Interactions, Architecture(05) error boundaries, Component Responsibilities
 
 *(To be written. This section defines how failures and errors are handled.)*
 
@@ -328,6 +527,19 @@ It does not describe implementation details or source code.
 > **validation_rules:** Extension points are consistent with Architecture plugin model; constraints are defined; no implementation details appear; extension points are architecturally sound
 > **audit_rules:** Must exist if the feature has extensibility; must reference Architecture plugin model; must not contain implementation details; must define extension constraints
 
+### Template
+
+> **minimum_content:** 1 paragraph + extension list
+> **length_guidance:** moderate
+> **diagram_requirements:** component
+
+[Extension list: each extension point with type (plugin, hook, event, configuration) and constraints on extensions]
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** component diagram showing extension points
+**Required cross-references:** Architecture(05) plugin architecture, Component Responsibilities
+
 *(To be written. This section identifies where the feature can be extended.)*
 
 ---
@@ -337,25 +549,25 @@ It does not describe implementation details or source code.
 Every Feature Technical Design document must contain the following sections.
 Sections are identified by heading text; the compiler maps each to a semantic type.
 
-| Section | semantic_type | Required | Aliases |
-|---------|--------------|----------|---------|
-| Purpose | `purpose` | ✓ | Overview, Summary |
-| Participating Components | `participating_components` | ✓ | Components, Involved Components |
-| Component Interactions | `component_interactions` | ✓ | Interactions, Communication Flows |
-| Data Ownership | `data_ownership` | ✓ | Ownership, Data Responsibilities |
-| Feature Specification | `feature_specification` | | Feature Spec, Specification |
-| Component Responsibilities | `component_responsibilities` | | Responsibilities, Component Roles |
-| Runtime Behavior | `runtime_behavior` | | Behavior, Execution Model |
-| Communication Paths | `communication_paths` | | Communication, Message Flows |
-| Integration Points | `integration_points` | | Integration, External Integration |
-| External Dependency Integration | `external_dependencies` | | External Dependencies, External Systems |
-| Runtime Constraints | `runtime_constraints` | | Constraints, Operational Constraints |
-| Architectural Constraints | `architectural_constraints` | | Architecture Constraints |
-| Security Considerations | `security_considerations` | | Security |
-| Performance Considerations | `performance_considerations` | | Performance |
-| Failure Handling | `failure_handling` | | Error Handling, Failures, Fault Handling |
-| Extension Points | `extension_points` | | Extensions, Extension, Extensibility |
-| Traceability | `traceability` | | Traces To, Derived From |
+| Section | semantic_type | Required | Aliases | Content Requirements |
+|---------|--------------|----------|---------|----------------------|
+| Purpose | `purpose` | ✓ | Overview, Summary | Definition of Feature Technical Design; one-to-one relationship with Feature; boundary with Architecture |
+| Participating Components | `participating_components` | ✓ | Components, Involved Components | List of components with brief purpose for each |
+| Component Interactions | `component_interactions` | ✓ | Interactions, Communication Flows | Each interaction with triggering condition, nature of exchange, and expected outcome |
+| Data Ownership | `data_ownership` | ✓ | Ownership, Data Responsibilities | Ownership assignment, read/write access, and access constraints per data element |
+| Feature Specification | `feature_specification` | | Feature Spec, Specification | Reference to exactly one Feature Specification by name |
+| Component Responsibilities | `component_responsibilities` | | Responsibilities, Component Roles | Primary responsibility per participating component |
+| Runtime Behavior | `runtime_behavior` | | Behavior, Execution Model | Runtime lifecycle: initialization, execution flow, state transitions, shutdown |
+| Communication Paths | `communication_paths` | | Communication, Message Flows | Direction, nature, and architectural protocol for each path |
+| Integration Points | `integration_points` | | Integration, External Integration | Each integration point with systems involved, nature, and boundary type |
+| External Dependency Integration | `external_dependencies` | | External Dependencies, External Systems | Dependency name, role in feature, nature of integration, constraints imposed |
+| Runtime Constraints | `runtime_constraints` | | Constraints, Operational Constraints | Operational constraints: concurrency limits, resource boundaries, requirements |
+| Architectural Constraints | `architectural_constraints` | | Architecture Constraints | Architecture source principle and application to this feature |
+| Security Considerations | `security_considerations` | | Security | Security boundaries, authentication requirements, authorization rules |
+| Performance Considerations | `performance_considerations` | | Performance | Performance expectations, throughput, latency constraints at architectural level |
+| Failure Handling | `failure_handling` | | Error Handling, Failures, Fault Handling | Failure modes per interaction, error propagation paths, recovery strategies |
+| Extension Points | `extension_points` | | Extensions, Extension, Extensibility | Extension points with type and constraints on extensions |
+| Traceability | `traceability` | | Traces To, Derived From | Derivation chain from Vision through Feature to Implementation |
 
 Section headings are case-insensitive. Sections not listed here are stored as `generic` type — preserved but not queryable by type.
 
@@ -520,6 +732,21 @@ Implementation should conform to the documented technical design.
 > **enhancement_rules:** Update the diagram when new standards are added; ensure derivation paths remain accurate
 > **validation_rules:** Derivation paths are complete; one-to-one mapping is stated; no orphaned references
 > **audit_rules:** Must exist; must include tier diagram; must show one-to-one Feature mapping; must reference Architecture and External Context as inputs
+
+### Template
+
+> **minimum_content:** 1 paragraph + derivation diagram
+> **length_guidance:** moderate
+> **diagram_requirements:** flowchart
+
+[Derivation chain: Vision → Feature → Feature Technical Design → Engineering → Implementation]
+
+[One-to-one mapping statement and input references to Architecture and External Context]
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** flowchart showing derivation chain
+**Required cross-references:** Vision(01), Feature(04), Architecture(05), Engineering(07), External Context(08)
 
 Feature Technical Design remains traceable.
 

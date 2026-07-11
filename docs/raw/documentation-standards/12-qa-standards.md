@@ -48,6 +48,36 @@
 > **validation_rules:** Test types are clearly defined; applicability conditions are explicit; verification chain to upstream docs is complete
 > **audit_rules:** Must exist; must define test types with applicability conditions; must reference upstream standards; must not define implementation details
 
+### Template
+
+> **minimum_content:** 2 paragraphs
+> **length_guidance:** moderate
+> **diagram_requirements:** flowchart
+
+```markdown
+## Purpose
+
+> **semantic_type:** `purpose`
+> **scope:** [How features are verified against specifications]
+> **out_of_scope:** [Implementation details, build pipelines, deployment procedures]
+> **contributes:** [Provides verification layer for upstream standards]
+> **relationships:** [Feature(04) defines what to test; Architecture(05) defines boundaries; ...]
+> **responsibilities:** [Define test types, applicability, and verification chain]
+> **generation_rules:** [Start from Feature requirements; identify applicable test types]
+> **enhancement_rules:** [Add test types for new risk areas; remove obsolete tests]
+> **validation_rules:** [Test types defined; applicability explicit; verification chain complete]
+> **audit_rules:** [Must exist; must define test types; must reference upstream; must not define implementation]
+
+[Opening paragraph stating the verification scope of QA documentation]
+
+[Paragraph explaining relationship to upstream documents (Feature, Architecture, Design, Security) and downstream documents (Implementation, Build)]
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Feature(04), Architecture(05), Design(06), Security(03), Implementation(13)
+
 This document defines the standard for Quality Assurance documentation within the engineering documentation ecosystem.
 
 QA Documentation defines how features are verified against their specifications — the testing strategy, test types, and verification chain from feature requirements to implementation.
@@ -128,6 +158,44 @@ Enhancement produces targeted test additions. Scope is limited to what changed.
 > **validation_rules:** Test strategy covers all applicable risk areas; priorities are justified; no gaps in verification chain
 > **audit_rules:** Must exist; must define test type applicability; must reference project profile; must be justified by risk analysis
 
+### Template
+
+> **minimum_content:** 1 table, 1 paragraph
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+## Test Strategy
+
+> **semantic_type:** `test_strategy`
+> **scope:** [Overall testing approach — which test types apply, priority, order]
+> **out_of_scope:** [Specific test implementations, framework choices, CI/CD configuration]
+> **contributes:** [Provides testing roadmap for all test-related decisions]
+> **relationships:** [Derived from Feature(04) and Architecture(05); referenced by Implementation(13)]
+> **responsibilities:** [Define testing pyramid; specify mandatory vs. conditional test types]
+> **generation_rules:** [Start from project profile; map test types to risk areas]
+> **enhancement_rules:** [Adjust test mix as project evolves; add for new risk areas]
+> **validation_rules:** [Covers all risk areas; priorities justified; no gaps in verification chain]
+> **audit_rules:** [Must exist; must define applicability; must reference project profile; must be justified]
+
+| Test Type | Applicability | Priority |
+|-----------|--------------|----------|
+| Unit Testing | [condition] | Mandatory |
+| Integration Testing | [condition] | Mandatory/Conditional |
+| End-to-End Testing | [condition] | Conditional |
+| Smoke Testing | [condition] | Conditional |
+| Load Testing | [condition] | Conditional |
+| Scalability Testing | [condition] | Conditional |
+| Security Testing | [condition] | Mandatory |
+
+[Paragraph explaining the testing pyramid approach and how test types were selected based on project profile]
+```
+
+**Required subsections:** Test Type table with Applicability and Priority columns
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Feature(04), Architecture(05), Engineering(07)
+
 Every QA document must define the overall test strategy before individual test types. The strategy maps test types to project needs.
 
 | Test Type | Applicability | Priority |
@@ -157,6 +225,46 @@ Section headings are case-insensitive. Sections not listed here are stored as `g
 > **validation_rules:** Coverage targets are defined; naming conventions are explicit; assertion standards are clear
 > **audit_rules:** Must exist; must define coverage targets; must not test implementation details; must test behavior, not structure
 
+### Template
+
+> **minimum_content:** 1 subsection
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+## Unit Testing
+
+> **semantic_type:** `unit_testing`
+> **scope:** [Testing individual components or functions in isolation]
+> **out_of_scope:** [Integration, user-facing behavior, performance]
+> **contributes:** [Verifies individual building blocks work correctly]
+> **relationships:** [Validates Feature(04) at component level; references Engineering(07)]
+> **responsibilities:** [Define coverage targets, naming conventions, assertion standards]
+> **generation_rules:** [Derive from Feature(04); one behavior per test; Arrange-Act-Assert]
+> **enhancement_rules:** [Add tests for new behaviors; update on change; remove deleted]
+> **validation_rules:** [Coverage targets defined; naming conventions explicit; assertions clear]
+> **audit_rules:** [Must exist; must define coverage; must not test implementation details]
+
+### Coverage Targets
+
+| Metric | Target | Measurement Method |
+|--------|--------|-------------------|
+| Line coverage | [X%] | [Tool] |
+| Branch coverage | [X%] | [Tool] |
+| Function coverage | [X%] | [Tool] |
+
+### Conventions
+
+- **Naming:** [pattern, e.g., `test_<unit>_<scenario>_<expected>`]
+- **Pattern:** Arrange-Act-Assert
+- **One assertion per behavior**
+```
+
+**Required subsections:** Coverage Targets table
+**Optional subsections:** Conventions
+**Required diagrams:** none
+**Required cross-references:** Feature(04), Engineering(07)
+
 Unit testing is applicable to all projects. Define coverage targets appropriate to the project's risk profile.
 
 ---
@@ -173,6 +281,41 @@ Unit testing is applicable to all projects. Define coverage targets appropriate 
 > **enhancement_rules:** Add integration tests for new component connections; update when interfaces change; remove tests for deprecated paths
 > **validation_rules:** Integration boundaries are defined; contract verification is explicit; data flow validation is complete
 > **audit_rules:** Must exist for multi-component projects; must reference Architecture(05) component model; must test actual communication paths
+
+### Template
+
+> **minimum_content:** 1 table
+> **length_guidance:** moderate
+> **diagram_requirements:** component
+
+```markdown
+## Integration Testing
+
+> **semantic_type:** `integration_testing`
+> **scope:** [Testing how components interact]
+> **out_of_scope:** [Individual component behavior, user workflows, performance]
+> **contributes:** [Verifies Architecture(05) component model works]
+> **relationships:** [Validates Architecture(05) component interactions; references Feature(04)]
+> **responsibilities:** [Define boundaries, contract verification, data flow validation]
+> **generation_rules:** [Derive from Architecture(05) component model; test each path]
+> **enhancement_rules:** [Add for new connections; update on interface change]
+> **validation_rules:** [Boundaries defined; contracts explicit; data flow complete]
+> **audit_rules:** [Must exist for multi-component; must reference Architecture(05); must test paths]
+
+### Integration Boundaries
+
+| Boundary | Components | Contract | Verification Method |
+|----------|-----------|----------|-------------------|
+| [Boundary 1] | [Component A ↔ Component B] | [API/Protocol] | [Test approach] |
+| [Boundary 2] | [Component B ↔ Component C] | [API/Protocol] | [Test approach] |
+
+[Diagram showing component boundaries and communication paths]
+```
+
+**Required subsections:** Integration Boundaries table
+**Optional subsections:** none
+**Required diagrams:** Component diagram showing integration boundaries
+**Required cross-references:** Architecture(05), Feature(04)
 
 Integration testing is mandatory for projects with multiple components. Map test coverage to Architecture(05) component boundaries.
 
@@ -191,6 +334,41 @@ Integration testing is mandatory for projects with multiple components. Map test
 > **validation_rules:** Critical user journeys are covered; expected outcomes are explicit; acceptance criteria are testable
 > **audit_rules:** Must exist for user-facing applications; must reference Design(06) workflows; must have clear pass/fail criteria
 
+### Template
+
+> **minimum_content:** 1 table
+> **length_guidance:** moderate
+> **diagram_requirements:** flowchart
+
+```markdown
+## End-to-End Testing
+
+> **semantic_type:** `e2e_testing`
+> **scope:** [Testing complete user workflows from start to finish]
+> **out_of_scope:** [Component behavior, API contracts, implementation details]
+> **contributes:** [Verifies Design(06) user experience works in running app]
+> **relationships:** [Validates Design(06) workflows; references Feature(04); tests Implementation(13)]
+> **responsibilities:** [Define critical journeys, expected outcomes, acceptance criteria]
+> **generation_rules:** [Derive from Design(06) workflows and Feature(04) criteria]
+> **enhancement_rules:** [Add for new journeys; update on workflow change]
+> **validation_rules:** [Critical journeys covered; outcomes explicit; criteria testable]
+> **audit_rules:** [Must exist for user-facing; must reference Design(06); must have pass/fail]
+
+### Critical User Journeys
+
+| Journey | Design Reference | Expected Outcome | Pass/Fail Criteria |
+|---------|-----------------|------------------|-------------------|
+| [Journey 1] | Design(06) §[section] | [Expected result] | [Measurable criteria] |
+| [Journey 2] | Design(06) §[section] | [Expected result] | [Measurable criteria] |
+
+[Flowchart showing happy path and critical edge cases]
+```
+
+**Required subsections:** Critical User Journeys table
+**Optional subsections:** none
+**Required diagrams:** Flowchart of user journey paths
+**Required cross-references:** Design(06), Feature(04), Implementation(13)
+
 End-to-end testing is conditional — required for applications with user-facing interfaces. Map test coverage to Design(06) user workflows.
 
 ---
@@ -207,6 +385,44 @@ End-to-end testing is conditional — required for applications with user-facing
 > **enhancement_rules:** Add smoke tests for new critical paths; update when core functions change; keep the suite fast
 > **validation_rules:** Smoke tests are fast (< 5 minutes); cover critical paths; have clear pass/fail criteria
 > **audit_rules:** Must exist for deployed applications; must be fast enough for post-deployment execution; must cover critical paths
+
+### Template
+
+> **minimum_content:** 1 list
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+## Smoke Testing
+
+> **semantic_type:** `smoke_testing`
+> **scope:** [Quick sanity checks after deployment]
+> **out_of_scope:** [Deep functional testing, performance, edge cases]
+> **contributes:** [First line of defense after deployment]
+> **relationships:** [References Implementation(13) artifacts; validates Build(14) output]
+> **responsibilities:** [Define scope, pass/fail criteria, execution timing]
+> **generation_rules:** [Start from critical journey; verify app starts; check data flows]
+> **enhancement_rules:** [Add for new critical paths; keep suite fast]
+> **validation_rules:** [Fast (< 5 min); covers critical paths; clear pass/fail]
+> **audit_rules:** [Must exist for deployed; must be fast; must cover critical paths]
+
+### Core Functions
+
+- [ ] Application starts successfully
+- [ ] [Core function 1] responds correctly
+- [ ] [Core function 2] responds correctly
+- [ ] Database connectivity verified
+- [ ] Authentication endpoint responds
+
+**Maximum execution time:** [X minutes]
+**Pass criteria:** All checks pass
+**Fail criteria:** Any check fails
+```
+
+**Required subsections:** Core Functions checklist
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Implementation(13), Build(14)
 
 Smoke testing is conditional — required for deployed applications. Must be fast enough to run after every deployment.
 
@@ -225,6 +441,48 @@ Smoke testing is conditional — required for deployed applications. Must be fas
 > **validation_rules:** Load profiles are realistic; performance targets are measurable; degradation behavior is defined
 > **audit_rules:** Must exist for applications expecting concurrent users; must define realistic load profiles; must have measurable targets
 
+### Template
+
+> **minimum_content:** 1 table
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+## Load Testing
+
+> **semantic_type:** `load_testing`
+> **scope:** [Testing behavior under expected and peak load]
+> **out_of_scope:** [Functional correctness, security, deployment]
+> **contributes:** [Verifies performance meets Feature(04) and Architecture(05) requirements]
+> **relationships:** [References Architecture(05) scalability; validates Engineering(07) standards]
+> **responsibilities:** [Define load profiles, performance targets, acceptable degradation]
+> **generation_rules:** [Derive from expected user load; define baseline/target/stress]
+> **enhancement_rules:** [Update profiles as user base grows; adjust targets]
+> **validation_rules:** [Profiles realistic; targets measurable; degradation defined]
+> **audit_rules:** [Must exist for concurrent apps; must define profiles; must have targets]
+
+### Load Profiles
+
+| Profile | Concurrent Users | Duration | Expected Response Time | Error Rate Threshold |
+|---------|-----------------|----------|----------------------|---------------------|
+| Baseline | [X] | [X min] | [X ms] | [X%] |
+| Target | [X] | [X min] | [X ms] | [X%] |
+| Stress | [X] | [X min] | [X ms] | [X%] |
+
+### Performance Targets
+
+| Metric | Target | Measurement |
+|--------|--------|-------------|
+| Response time (p95) | [X ms] | [Tool] |
+| Throughput | [X req/s] | [Tool] |
+| Error rate | [X%] | [Tool] |
+```
+
+**Required subsections:** Load Profiles table, Performance Targets table
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Architecture(05), Engineering(07), Feature(04)
+
 Load testing is conditional — required for applications expecting concurrent users. Define realistic load profiles based on expected usage.
 
 ---
@@ -241,6 +499,46 @@ Load testing is conditional — required for applications expecting concurrent u
 > **enhancement_rules:** Update growth scenarios as architecture evolves; adjust breaking point expectations; add tests for new scaling dimensions
 > **validation_rules:** Growth scenarios are defined; breaking points are documented; scaling behavior is characterized
 > **audit_rules:** Must exist for applications expecting growth; must reference Architecture(05) scalability model; must document breaking points
+
+### Template
+
+> **minimum_content:** 1 table
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+## Scalability Testing
+
+> **semantic_type:** `scalability_testing`
+> **scope:** [Testing behavior as load increases beyond normal]
+> **out_of_scope:** [Current performance, functional testing, deployment]
+> **contributes:** [Verifies Architecture(05) scalability decisions work under growth]
+> **relationships:** [References Architecture(05) scalability constraints]
+> **responsibilities:** [Define growth scenarios, breaking points, scaling expectations]
+> **generation_rules:** [Start from Architecture(05) scalability model; test at 2x, 5x, 10x]
+> **enhancement_rules:** [Update scenarios as architecture evolves; adjust breaking points]
+> **validation_rules:** [Growth scenarios defined; breaking points documented; behavior characterized]
+> **audit_rules:** [Must exist for growth apps; must reference Architecture(05); must document breaking points]
+
+### Growth Scenarios
+
+| Scenario | Load Multiplier | Expected Behavior | Breaking Point | Scaling Strategy |
+|----------|----------------|-------------------|----------------|-----------------|
+| Moderate growth | 2x baseline | [Expected behavior] | [Where it breaks] | [How it scales] |
+| Significant growth | 5x baseline | [Expected behavior] | [Where it breaks] | [How it scales] |
+| Extreme growth | 10x baseline | [Expected behavior] | [Where it breaks] | [How it scales] |
+
+### Breaking Points
+
+| Component | Breaking Point | Failure Mode | Recovery Strategy |
+|-----------|---------------|--------------|-------------------|
+| [Component] | [Threshold] | [How it fails] | [How to recover] |
+```
+
+**Required subsections:** Growth Scenarios table, Breaking Points table
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Architecture(05)
 
 Scalability testing is conditional — required for applications expecting significant growth. Document where the system breaks and how it scales.
 
@@ -259,6 +557,50 @@ Scalability testing is conditional — required for applications expecting signi
 > **validation_rules:** All Security(03) threat categories have corresponding tests; severity thresholds are defined; coverage targets are measurable
 > **audit_rules:** Must exist; must reference Security(03) threat model; must cover all mandatory threat categories; must have measurable severity thresholds
 
+### Template
+
+> **minimum_content:** 1 table
+> **length_guidance:** extensive
+> **diagram_requirements:** none
+
+```markdown
+## Security Testing
+
+> **semantic_type:** `security_testing`
+> **scope:** [Verifying Security(03) requirements are enforced]
+> **out_of_scope:** [Security architecture design, threat modeling, policy definition]
+> **contributes:** [Verifies Security(03) and Engineering(07) standards are implemented]
+> **relationships:** [Validates Security(03) threat model; references Engineering(07); tests Implementation(13)]
+> **responsibilities:** [Define test types, coverage targets, severity thresholds]
+> **generation_rules:** [Derive from Security(03) threat model; map types to categories]
+> **enhancement_rules:** [Add for new threats; adjust thresholds; remove mitigated]
+> **validation_rules:** [All threat categories covered; thresholds defined; targets measurable]
+> **audit_rules:** [Must exist; must reference Security(03); must cover mandatory categories; must have thresholds]
+
+### Security Test Types
+
+| Test Type | Threat Category Coverage | Tool | Frequency | Severity Threshold |
+|-----------|------------------------|------|-----------|-------------------|
+| SAST | [categories] | [Tool] | [frequency] | [Critical/High/Medium] |
+| DAST | [categories] | [Tool] | [frequency] | [Critical/High/Medium] |
+| Dependency scanning | [categories] | [Tool] | [frequency] | [Critical/High/Medium] |
+| Secrets detection | [categories] | [Tool] | [frequency] | [Critical/High/Medium] |
+
+### Severity Thresholds
+
+| Severity | Fail Build? | Required Response Time | Examples |
+|----------|------------|----------------------|----------|
+| Critical | Yes | [X hours] | [Examples] |
+| High | Yes | [X days] | [Examples] |
+| Medium | No | [X days] | [Examples] |
+| Low | No | [X sprints] | [Examples] |
+```
+
+**Required subsections:** Security Test Types table, Severity Thresholds table
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Security(03), Engineering(07), Implementation(13)
+
 Security testing is mandatory for all projects. Map test coverage to Security(03) threat categories. Severity thresholds determine pass/fail.
 
 ---
@@ -268,17 +610,17 @@ Security testing is mandatory for all projects. Map test coverage to Security(03
 Every QA document must contain the following sections.
 Sections are identified by heading text; the compiler maps each to a semantic type.
 
-| Section | semantic_type | Required | Aliases |
-|---------|--------------|----------|---------|
-| Test Strategy | `test_strategy` | ✓ | Testing Strategy, QA Strategy |
-| Unit Testing | `unit_testing` | ✓ | Unit Tests, Component Tests |
-| Integration Testing | `integration_testing` | ✓ | Integration Tests, Contract Tests |
-| End-to-End Testing | `e2e_testing` | | E2E Tests, UI Tests, Acceptance Tests |
-| Smoke Testing | `smoke_testing` | | Sanity Tests, Post-Deploy Checks |
-| Load Testing | `load_testing` | | Performance Tests, Stress Tests |
-| Scalability Testing | `scalability_testing` | | Scale Tests, Growth Tests |
-| Security Testing | `security_testing` | ✓ | Security Tests, Vulnerability Tests |
-| Purpose | `purpose` | | Overview, Summary |
+| Section | semantic_type | Required | Aliases | Content Requirements |
+|---------|--------------|----------|---------|----------------------|
+| Test Strategy | `test_strategy` | ✓ | Testing Strategy, QA Strategy | Test type applicability table with priority levels; project profile mapping; risk-based justification |
+| Unit Testing | `unit_testing` | ✓ | Unit Tests, Component Tests | Coverage targets; naming conventions; assertion standards; Arrange-Act-Assert pattern |
+| Integration Testing | `integration_testing` | ✓ | Integration Tests, Contract Tests | Integration boundaries; contract verification approach; data flow validation; Architecture(05) component mapping |
+| End-to-End Testing | `e2e_testing` | | E2E Tests, UI Tests, Acceptance Tests | Critical user journeys; expected outcomes; acceptance criteria; Design(06) workflow mapping |
+| Smoke Testing | `smoke_testing` | | Sanity Tests, Post-Deploy Checks | Core function scope; pass/fail criteria; execution timing; maximum duration threshold |
+| Load Testing | `load_testing` | | Performance Tests, Stress Tests | Load profiles (expected, peak, stress); performance targets; acceptable degradation thresholds |
+| Scalability Testing | `scalability_testing` | | Scale Tests, Growth Tests | Growth scenarios (2x, 5x, 10x); breaking points; scaling behavior characterization |
+| Security Testing | `security_testing` | ✓ | Security Tests, Vulnerability Tests | Security test types (SAST, DAST, dependency scanning, secrets detection); severity thresholds; coverage targets per threat category |
+| Purpose | `purpose` | | Overview, Summary | Verification scope; testing philosophy; relationship to upstream and downstream documents |
 
 Section headings are case-insensitive. Sections not listed here are stored as `generic` type — preserved but not queryable by type.
 

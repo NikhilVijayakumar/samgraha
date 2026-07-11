@@ -50,6 +50,24 @@
 > **validation_rules:** Purpose is clearly defined; no implementation details present; one-to-one relationship with Feature is stated; boundary with Design and Architecture is explicit
 > **audit_rules:** Must exist; must not contain feature specifications; must define what Feature Design is and is not; must state the one-to-one relationship
 
+### Template
+
+> **minimum_content:** 1 paragraph
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+[1 paragraph: what Feature Design is and its role in the documentation ecosystem]
+[1 paragraph: what it defines — user-centered design for a single feature]
+[1 paragraph: what it does not define — no implementation, architecture, or technology]
+[1 sentence: one-to-one relationship with Feature Specification]
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** none
+
 This document defines the standard for Feature Design Documentation within the engineering documentation ecosystem.
 
 Feature Design translates a single Feature Specification into a complete user-centered design by applying the shared principles defined by the Design Documentation together with any relevant External Context.
@@ -79,6 +97,70 @@ It does not define implementation, architecture, or engineering decisions.
 > **validation_rules:** User experience is complete and technology-independent; all functional requirements have corresponding UX behaviors; Design Principles are applied not redefined
 > **audit_rules:** Must exist; must cover all functional requirements; must not reference specific technologies or frameworks; must include error, empty, and loading states
 
+### Template
+
+> **minimum_content:** 2 paragraphs plus subsections
+> **length_guidance:** extensive
+> **diagram_requirements:** flowchart
+
+```markdown
+### User Experience
+
+> **semantic_type:** `user_experience`
+> **scope:** ...
+> **out_of_scope:** ...
+> **contributes:** ...
+> **relationships:** ...
+> **responsibilities:** ...
+> **generation_rules:** ...
+> **enhancement_rules:** ...
+> **validation_rules:** ...
+> **audit_rules:** ...
+
+[Introduction: overall UX intent for the feature, derived from Feature Specification]
+
+### Discovery
+
+[How users first encounter and access the feature]
+
+### Primary Interaction
+
+[Core user flow — what users do to accomplish the feature's purpose]
+
+### Feedback and Response
+
+[How the system communicates results of user actions]
+
+### Error Handling
+
+[What users see and can do when something goes wrong]
+
+### Empty State
+
+[What users see when there is no data or content to display]
+
+### Loading State
+
+[What users see while the system is processing]
+
+### Success State
+
+[What users see when the task completes successfully]
+
+### Accessibility
+
+[How the experience accommodates assistive technologies]
+
+### Localization
+
+[How the experience adapts for different languages and regions]
+```
+
+**Required subsections:** Discovery, Primary Interaction, Feedback and Response, Error Handling, Empty State, Loading State, Success State
+**Optional subsections:** Accessibility, Localization
+**Required diagrams:** flowchart (primary user interaction flow)
+**Required cross-references:** Feature Specification, Design Documentation UX Principles
+
 *(To be written by the domain expert. This section defines the complete user experience for the feature.)*
 
 ---
@@ -95,6 +177,48 @@ It does not define implementation, architecture, or engineering decisions.
 > **enhancement_rules:** Simplify workflow steps; remove unnecessary steps; clarify branching logic; ensure every functional requirement maps to at least one workflow
 > **validation_rules:** Workflows are complete and unambiguous; every functional requirement is covered; error recovery is documented; no implementation details present
 > **audit_rules:** Must exist; must cover all primary user tasks; must include error recovery; must not reference implementation internals; must be written from user perspective
+
+### Template
+
+> **minimum_content:** 1 workflow with at least 3 steps
+> **length_guidance:** moderate
+> **diagram_requirements:** flowchart
+
+```markdown
+### Workflow
+
+> **semantic_type:** `workflow`
+> **scope:** ...
+> **out_of_scope:** ...
+> **contributes:** ...
+> **relationships:** ...
+> **responsibilities:** ...
+> **generation_rules:** ...
+> **enhancement_rules:** ...
+> **validation_rules:** ...
+> **audit_rules:** ...
+
+### Primary Workflow
+
+[Step-by-step sequence of user actions and system responses]
+
+1. User does X → System responds with Y
+2. User does A → System responds with B
+3. ...
+
+### Alternative Workflows
+
+[Branching paths for different user choices or conditions]
+
+### Error Recovery
+
+[What happens and what users can do when a step fails]
+```
+
+**Required subsections:** Primary Workflow, Error Recovery
+**Optional subsections:** Alternative Workflows
+**Required diagrams:** flowchart (primary workflow)
+**Required cross-references:** Feature Specification, User Experience
 
 *(To be written by the domain expert. This section defines the step-by-step user workflow for the feature.)*
 
@@ -113,6 +237,51 @@ It does not define implementation, architecture, or engineering decisions.
 > **validation_rules:** All observable states are documented; transitions are explicit; empty and error states exist for every applicable state; no internal state management described
 > **audit_rules:** Must exist; must include empty and error states; must document all state transitions; must not reference internal state management; must be observable from user perspective
 
+### Template
+
+> **minimum_content:** state table plus transition descriptions
+> **length_guidance:** moderate
+> **diagram_requirements:** state
+
+```markdown
+### States
+
+> **semantic_type:** `states`
+> **scope:** ...
+> **out_of_scope:** ...
+> **contributes:** ...
+> **relationships:** ...
+> **responsibilities:** ...
+> **generation_rules:** ...
+> **enhancement_rules:** ...
+> **validation_rules:** ...
+> **audit_rules:** ...
+
+### State Definitions
+
+| State | Description | What User Sees |
+|-------|-------------|----------------|
+| Initial | ... | ... |
+| Active | ... | ... |
+| Empty | ... | ... |
+| Error | ... | ... |
+| Success | ... | ... |
+
+### State Transitions
+
+| From | To | Trigger | User Action |
+|------|----|---------|-------------|
+| Initial | Active | ... | ... |
+| Active | Success | ... | ... |
+| Active | Error | ... | ... |
+| ... | ... | ... | ... |
+```
+
+**Required subsections:** State Definitions, State Transitions
+**Optional subsections:** none
+**Required diagrams:** state (state transition diagram)
+**Required cross-references:** User Experience, Workflow
+
 *(To be written by the domain expert. This section defines the observable states and state transitions for the feature.)*
 
 ---
@@ -130,6 +299,37 @@ It does not define implementation, architecture, or engineering decisions.
 > **validation_rules:** Constraints are explicit and sourced; binding constraints are distinguished from preferences; no implementation constraints included; applicable to the feature
 > **audit_rules:** Must exist if the feature has external constraints; must cite the source of each constraint; must not describe implementation limitations; must distinguish hard from soft constraints
 
+### Template
+
+> **minimum_content:** constraint list with sources
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+### Constraints
+
+> **semantic_type:** `constraints`
+> **scope:** ...
+> **out_of_scope:** ...
+> **contributes:** ...
+> **relationships:** ...
+> **responsibilities:** ...
+> **generation_rules:** ...
+> **enhancement_rules:** ...
+> **validation_rules:** ...
+> **audit_rules:** ...
+
+| Constraint | Type | Source | Impact on Design |
+|-----------|------|--------|-----------------|
+| [description] | Hard/Advisory | [External Context source] | [what it prevents or requires] |
+| ... | ... | ... | ... |
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** External Context, Platform requirements
+
 *(To be written by the domain expert. This section defines user-facing constraints from external systems.)*
 
 ---
@@ -139,15 +339,15 @@ It does not define implementation, architecture, or engineering decisions.
 Every Feature Design document must contain the following sections.
 Sections are identified by heading text; the compiler maps each to a semantic type.
 
-| Section | semantic_type | Required | Aliases |
-|---------|--------------|----------|---------|
-| User Experience | `user_experience` | ✓ | UX, User Flow |
-| Workflow | `workflow` | ✓ | User Workflow, Flow |
-| States | `states` | ✓ | UI States, Application States, State Transitions |
-| Purpose | `purpose` | | Overview, Summary |
-| Non-Goals | `non_goals` | | Non Goals, Out of Scope, Not In Scope |
-| Constraints | `constraints` | | Limitations, Non-Functional Requirements |
-| Traceability | `traceability` | | Traces To, Derived From |
+| Section | semantic_type | Required | Aliases | Content Requirements |
+|---------|--------------|----------|---------|---------------------|
+| User Experience | `user_experience` | ✓ | UX, User Flow | Complete user-facing experience covering discovery, interaction, feedback, errors, empty, loading, and success states |
+| Workflow | `workflow` | ✓ | User Workflow, Flow | Ordered sequence of user actions and system responses including branching and error recovery |
+| States | `states` | ✓ | UI States, Application States, State Transitions | Every observable UI state and all valid transitions between them |
+| Purpose | `purpose` | | Overview, Summary | Definition of Feature Design, scope boundaries, and one-to-one relationship with Feature |
+| Non-Goals | `non_goals` | | Non Goals, Out of Scope, Not In Scope | Excluded responsibilities with the owning standard identified for each |
+| Constraints | `constraints` | | Limitations, Non-Functional Requirements | External user-facing constraints with source citation and binding vs. advisory distinction |
+| Traceability | `traceability` | | Traces To, Derived From | Derivation chain, one-to-one mapping assertion, and downstream consumers |
 
 Section headings are case-insensitive. Sections not listed here are stored as `generic` type — preserved but not queryable by type.
 
@@ -175,6 +375,38 @@ Feature Design aims to:
 > **enhancement_rules:** Add new exclusions when scope creep is detected; remove exclusions for responsibilities that migrate to Feature Design; ensure no ambiguity in ownership
 > **validation_rules:** All excluded responsibilities have a clear owner in another standard; no overlap between excluded items and defined scope
 > **audit_rules:** Must exist; each excluded item must name its owning standard; must not contradict the Goals list; must not contain positive scope statements
+
+### Template
+
+> **minimum_content:** bulleted list with owning standards
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+### Non-Goals
+
+> **semantic_type:** `non_goals`
+> **scope:** ...
+> **out_of_scope:** ...
+> **contributes:** ...
+> **relationships:** ...
+> **responsibilities:** ...
+> **generation_rules:** ...
+> **enhancement_rules:** ...
+> **validation_rules:** ...
+> **audit_rules:** ...
+
+Feature Design does not define:
+
+* [Responsibility] — owned by [Standard Name]
+* [Responsibility] — owned by [Standard Name]
+* ...
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Goals, owning standard for each excluded item
 
 Feature Design does not define:
 
@@ -317,6 +549,38 @@ Implementation should realize the documented feature design.
 > **enhancement_rules:** Update the diagram when new standards are added; ensure derivation paths remain accurate; keep the one-to-one mapping explicit
 > **validation_rules:** Derivation paths are complete; one-to-one mapping is stated; no orphaned standards; non-contradiction rule is documented
 > **audit_rules:** Must exist; must include tier diagram; must list downstream standards; must state the one-to-one mapping constraint; must state non-contradiction rule
+
+### Template
+
+> **minimum_content:** derivation diagram plus relationship list
+> **length_guidance:** concise
+> **diagram_requirements:** custom
+
+```markdown
+### Traceability
+
+> **semantic_type:** `traceability`
+> **scope:** ...
+> **out_of_scope:** ...
+> **contributes:** ...
+> **relationships:** ...
+> **responsibilities:** ...
+> **generation_rules:** ...
+> **enhancement_rules:** ...
+> **validation_rules:** ...
+> **audit_rules:** ...
+
+[Derivation chain diagram from Vision through Feature and Design to Feature Design]
+
+[One-to-one mapping assertion with Feature Specification]
+
+[Table of downstream consumers]
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** custom (derivation chain diagram)
+**Required cross-references:** Feature(04), Design(06), Feature Technical Design(10), Engineering(07)
 
 Feature Design remains traceable.
 

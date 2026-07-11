@@ -54,6 +54,27 @@
 > **validation_rules:** Purpose is clearly defined; no implementation details present; understandable without code knowledge; stable over time
 > **audit_rules:** Must exist; must not contain feature lists; must not reference specific technologies; must be technology-independent
 
+### Template
+
+> **minimum_content:** 2 paragraphs
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+This document defines the standard for [Documentation Type] within the [ecosystem name] documentation ecosystem.
+
+[Documentation Type] describes [what it describes].
+
+Unlike [related type], [distinctive characteristic].
+
+[Core purpose statement.]
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** none
+
 This document defines the standard for Architecture Documentation within the engineering documentation ecosystem.
 
 Architecture Documentation describes the structural organization of a system.
@@ -81,6 +102,32 @@ It does not explain implementation details.
 > **validation_rules:** Overview is concise and accurate; no component internals described; no technology specifics; serves as a reliable entry point
 > **audit_rules:** Must exist; must not describe component internals; must not reference specific libraries or frameworks; must be understandable without code knowledge
 
+### Template
+
+> **minimum_content:** 2 subsections
+> **length_guidance:** moderate
+> **diagram_requirements:** component
+
+```markdown
+## System Overview
+
+> [metadata block]
+
+### Overview
+[1-2 paragraphs: system purpose, primary capabilities, high-level approach]
+
+### Structural Approach
+[1 paragraph: how the system is organized at the top level]
+
+### Diagram
+[High-level component or system context diagram]
+```
+
+**Required subsections:** Overview, Diagram
+**Optional subsections:** Structural Approach, Key Capabilities
+**Required diagrams:** system context or component overview diagram
+**Required cross-references:** Vision(01)
+
 *(To be written by the domain expert. This section defines the high-level system description and structural approach.)*
 
 ---
@@ -97,6 +144,38 @@ It does not explain implementation details.
 > **enhancement_rules:** Split components when responsibilities grow; merge overlapping components; strengthen ownership definitions
 > **validation_rules:** Each component has a clear responsibility; responsibilities do not overlap; boundaries are explicit; ownership is assigned
 > **audit_rules:** Must exist; must not describe class hierarchies or function signatures; must define responsibility and ownership for each component; must not duplicate Communication or Data Flow content
+
+### Template
+
+> **minimum_content:** 1 subsection per component
+> **length_guidance:** extensive
+> **diagram_requirements:** component
+
+```markdown
+## Component Model
+
+> [metadata block]
+
+### Components
+
+#### [Component Name]
+- **Responsibility:** [what this component owns]
+- **Ownership:** [data/processes owned]
+- **Interfaces:** [how other components interact with it]
+
+#### [Component Name]
+- **Responsibility:** [what this component owns]
+- **Ownership:** [data/processes owned]
+- **Interfaces:** [how other components interact with it]
+
+### Component Diagram
+[Diagram showing all components and their relationships]
+```
+
+**Required subsections:** Components (with one entry per component), Component Diagram
+**Optional subsections:** Component Relationships, Boundary Definitions
+**Required diagrams:** component relationship diagram
+**Required cross-references:** System Overview, Communication, Data Flow
 
 *(To be written by the domain expert. This section defines the system's components, their responsibilities, and how they relate.)*
 
@@ -115,6 +194,32 @@ It does not explain implementation details.
 > **validation_rules:** All component interactions are documented; communication contracts are explicit; no hidden coupling; patterns are consistent
 > **audit_rules:** Must exist; must not describe network protocols or serialization; must define contracts for all inter-component communication; must not duplicate Data Flow content
 
+### Template
+
+> **minimum_content:** 2 subsections
+> **length_guidance:** moderate
+> **diagram_requirements:** sequence
+
+```markdown
+## Communication
+
+> [metadata block]
+
+### Communication Paths
+[For each communication path: source, destination, pattern (sync/async/event), contract]
+
+### Interaction Patterns
+[Description of communication patterns used across the system]
+
+### Communication Diagram
+[Sequence or flow diagram showing inter-component communication]
+```
+
+**Required subsections:** Communication Paths, Communication Diagram
+**Optional subsections:** Interaction Patterns, Contract Definitions
+**Required diagrams:** sequence diagram of primary communication paths
+**Required cross-references:** Component Model, Data Flow
+
 *(To be written by the domain expert. This section defines how system components communicate and interact.)*
 
 ---
@@ -131,6 +236,32 @@ It does not explain implementation details.
 > **enhancement_rules:** Clarify data ownership; remove undocumented data paths; strengthen lifecycle documentation
 > **validation_rules:** Data paths are complete; ownership is explicit; transformations are documented; no orphaned data flows
 > **audit_rules:** Must exist; must not describe database schemas or query implementations; must identify data ownership; must cover all major data paths
+
+### Template
+
+> **minimum_content:** 2 subsections
+> **length_guidance:** moderate
+> **diagram_requirements:** flowchart
+
+```markdown
+## Data Flow
+
+> [metadata block]
+
+### Data Paths
+[For each major data path: entry point, transformations, ownership boundaries, exit point]
+
+### Data Ownership
+[Table or list mapping data entities to owning components]
+
+### Data Flow Diagram
+[Flowchart showing data movement through the system]
+```
+
+**Required subsections:** Data Paths, Data Flow Diagram
+**Optional subsections:** Data Ownership, Data Transformations
+**Required diagrams:** data flow diagram covering all major paths
+**Required cross-references:** Component Model, Communication, Security
 
 *(To be written by the domain expert. This section defines how data moves through the system and who owns it.)*
 
@@ -149,6 +280,32 @@ It does not explain implementation details.
 > **validation_rules:** Trust boundaries are defined; threat model is documented; security controls are architecturally specified; no implementation details
 > **audit_rules:** Must exist; must define trust boundaries; must reference threat model; must not describe specific security libraries or implementations
 
+### Template
+
+> **minimum_content:** 2 subsections
+> **length_guidance:** moderate
+> **diagram_requirements:** component
+
+```markdown
+## Security
+
+> [metadata block]
+
+### Trust Boundaries
+[Description of where trust changes — external/internal, component-to-component]
+
+### Threat Model
+[Key threats, attack vectors, and mitigations at the architectural level]
+
+### Security Controls
+[Architectural security measures — access control model, data protection requirements]
+```
+
+**Required subsections:** Trust Boundaries, Threat Model
+**Optional subsections:** Security Controls, Access Control Model
+**Required diagrams:** trust boundary diagram
+**Required cross-references:** Component Model, Data Flow, Philosophy(02)
+
 *(To be written by the domain expert. This section defines the architectural security posture, boundaries, and threat model.)*
 
 ---
@@ -165,6 +322,30 @@ It does not explain implementation details.
 > **enhancement_rules:** Update rationale when decisions change; remove outdated reasoning; keep rationale current with architectural state
 > **validation_rules:** Key decisions have documented rationale; alternatives are recorded; reasoning is tied to architectural goals
 > **audit_rules:** Must exist for significant decisions; must not describe implementation trade-offs; must reference architectural goals; must capture alternatives
+
+### Template
+
+> **minimum_content:** 1 entry per significant decision
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+## Rationale
+
+> [metadata block]
+
+### [Decision Name]
+- **Context:** [what prompted this decision]
+- **Decision:** [what was decided]
+- **Alternatives Considered:** [what else was evaluated]
+- **Rejection Reason:** [why alternatives were rejected]
+- **Architectural Goal:** [which goal this serves]
+```
+
+**Required subsections:** one entry per significant architectural decision
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Vision(01), Philosophy(02)
 
 *(To be written by the domain expert. This section defines the reasoning behind architectural decisions.)*
 
@@ -183,6 +364,32 @@ It does not explain implementation details.
 > **validation_rules:** Constraints are explicit and sourced; hard constraints are distinguished from soft preferences; no implementation constraints included
 > **audit_rules:** Must exist; must not describe implementation limitations; must distinguish hard from soft constraints; must reference their source
 
+### Template
+
+> **minimum_content:** 1 list of constraints
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+## Constraints
+
+> [metadata block]
+
+### Hard Constraints
+[Constraints that cannot be violated — with source and reason for each]
+
+### Soft Constraints
+[Preferences and guidelines that should be followed unless justified]
+
+### Platform Constraints
+[Hardware, OS, or runtime constraints that shape architecture]
+```
+
+**Required subsections:** Hard Constraints
+**Optional subsections:** Soft Constraints, Platform Constraints
+**Required diagrams:** none
+**Required cross-references:** External Context, Platform Pillars(01)
+
 *(To be written by the domain expert. This section defines the non-functional requirements and constraints that bound the architecture.)*
 
 ---
@@ -192,17 +399,17 @@ It does not explain implementation details.
 Every Architecture document must contain the following sections.
 Sections are identified by heading text; the compiler maps each to a semantic type.
 
-| Section | semantic_type | Required | Aliases |
-|---------|--------------|----------|---------|
-| System Overview | `system_overview` | ✓ | Overview, Architecture Overview |
-| Component Model | `component_model` | ✓ | Components, Component Architecture |
-| Communication | `communication_paths` | ✓ | Communication Paths, Component Communication |
-| Data Flow | `data_flow` | ✓ | Data Movement, Information Flow |
-| Security | `security_considerations` | ✓ | Security Architecture, Security Model |
-| Purpose | `purpose` | | Overview, Summary |
-| Rationale | `rationale` | | Decision Rationale, Architectural Decisions, Why |
-| Constraints | `constraints` | | Limitations, Non-Functional Requirements |
-| Traceability | `traceability` | | Traces To, Derived From |
+| Section | semantic_type | Required | Aliases | Content Requirements |
+|---------|--------------|----------|---------|---------------------|
+| System Overview | `system_overview` | ✓ | Overview, Architecture Overview | System purpose, primary capabilities, structural approach; entry point for new contributors |
+| Component Model | `component_model` | ✓ | Components, Component Architecture | Component names, responsibilities, ownership boundaries, relationships |
+| Communication | `communication_paths` | ✓ | Communication Paths, Component Communication | Communication paths, interaction patterns, contracts between components |
+| Data Flow | `data_flow` | ✓ | Data Movement, Information Flow | Data entry/exit points, movement paths, ownership boundaries, transformations |
+| Security | `security_considerations` | ✓ | Security Architecture, Security Model | Trust boundaries, threat model, access control model, data protection requirements |
+| Purpose | `purpose` | | Overview, Summary | Root intent, why Architecture Documentation exists, scope boundaries |
+| Rationale | `rationale` | | Decision Rationale, Architectural Decisions, Why | Decision reasoning, alternatives considered, trade-offs, rejection criteria |
+| Constraints | `constraints` | | Limitations, Non-Functional Requirements | Non-functional requirements, platform limitations, organizational rules with source attribution |
+| Traceability | `traceability` | | Traces To, Derived From | Tier model, derivation chain, downstream standards, non-contradiction rule |
 
 Section headings are case-insensitive. Sections not listed here are stored as `generic` type — preserved but not queryable by type.
 
@@ -359,6 +566,32 @@ Implementation should conform to Architecture.
 > **enhancement_rules:** Update the diagram when new standards are added; ensure derivation paths remain accurate
 > **validation_rules:** Derivation paths are complete; no orphaned standards; non-contradiction rule is stated
 > **audit_rules:** Must exist; must include tier diagram; must list downstream standards; must state non-contradiction constraint
+
+### Template
+
+> **minimum_content:** 1 diagram + derivation list
+> **length_guidance:** concise
+> **diagram_requirements:** flowchart
+
+```markdown
+## Traceability
+
+> [metadata block]
+
+### Derivation Chain
+[Diagram showing Architecture's position in the documentation tier model]
+
+### Downstream Impact
+[List of standards that Architecture constrains or feeds into]
+
+### Non-Contradiction Rule
+[Statement that no downstream document may contradict Architecture]
+```
+
+**Required subsections:** Derivation Chain, Non-Contradiction Rule
+**Optional subsections:** Downstream Impact
+**Required diagrams:** tier model diagram
+**Required cross-references:** Vision(01), Feature Technical Design(10), Engineering(07)
 
 Architecture should remain traceable.
 

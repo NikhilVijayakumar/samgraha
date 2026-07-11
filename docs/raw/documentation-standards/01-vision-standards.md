@@ -50,6 +50,23 @@
 > **validation_rules:** Purpose is clearly defined; no implementation details present; understandable without technical knowledge; stable over time
 > **audit_rules:** Must exist; must not contain feature lists; must not reference specific technologies; must be technology-independent
 
+### Template
+
+> **minimum_content:** 1 paragraph
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+[One sentence stating why the product exists and the problem it addresses]
+[One sentence stating the intended value or outcome for users]
+[One sentence reinforcing the core identity of the product]
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** none
+
 This document defines the standard for Vision documentation within the engineering documentation ecosystem.
 
 A Vision document establishes the long-term purpose, direction, and identity of a product or repository.
@@ -75,6 +92,22 @@ All downstream documentation ultimately derives from the Vision.
 > **validation_rules:** Vision is aspirational and future-oriented; technology-independent; inspiring; stable over time
 > **audit_rules:** Must exist; must not describe current features; must not reference specific technologies; must be technology-independent
 
+### Template
+
+> **minimum_content:** 1 paragraph
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+[Aspirational statement describing the desired future state of the product]
+[What the product will enable or become once fully realized]
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Purpose
+
 *(To be written by the product owner. This section defines where the product is going.)*
 
 ---
@@ -91,6 +124,23 @@ All downstream documentation ultimately derives from the Vision.
 > **enhancement_rules:** Sharpen the problem statement; remove solution leakage; ensure the problem is still current
 > **validation_rules:** Problem is clearly articulated; no solution details present; understandable without technical knowledge
 > **audit_rules:** Must exist; must not describe solutions; must not reference specific technologies; must be understandable by non-engineers
+
+### Template
+
+> **minimum_content:** 1 paragraph
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+[Description of the real-world pain or gap the product addresses]
+[Concrete example illustrating the problem in context]
+[Quantified impact where possible — cost, time, frequency]
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Purpose
 
 *(To be written by the product owner. This section defines what problem the product exists to solve.)*
 
@@ -109,6 +159,22 @@ All downstream documentation ultimately derives from the Vision.
 > **validation_rules:** Solution addresses the stated problem; no implementation details present; technology-independent
 > **audit_rules:** Must exist; must not describe architecture; must not reference specific technologies; must be technology-independent
 
+### Template
+
+> **minimum_content:** 1 paragraph
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+[High-level description of what the product does to solve the stated problem]
+[How the product's approach delivers value to the target audience]
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Problem
+
 *(To be written by the product owner. This section defines the high-level solution approach.)*
 
 ---
@@ -125,6 +191,23 @@ All downstream documentation ultimately derives from the Vision.
 > **enhancement_rules:** Refine audience definition as understanding deepens; add new audience segments if discovered
 > **validation_rules:** Audience is clearly defined; described by needs, not technical profiles; stable over time
 > **audit_rules:** Must exist; must not describe implementation details; must be understandable without code knowledge
+
+### Template
+
+> **minimum_content:** 1 paragraph
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+[Description of the intended users or consumers by their goals and needs]
+[Who benefits from the product and who makes adoption decisions]
+[What the audience expects or requires from the product]
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Purpose
 
 *(To be written by the product owner. This section defines who the product serves.)*
 
@@ -143,6 +226,31 @@ All downstream documentation ultimately derives from the Vision.
 > **validation_rules:** Pillars are stable; cover the product's full scope; are at the right abstraction level; are memorable
 > **audit_rules:** Must exist if the product has multiple capability areas; must not list features; must be technology-independent
 
+### Template
+
+> **minimum_content:** 1 paragraph
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+## [Pillar Name 1]
+
+[One-sentence description of this pillar and its role in the product]
+
+## [Pillar Name 2]
+
+[One-sentence description of this pillar and its role in the product]
+
+## [Pillar Name 3]
+
+[One-sentence description of this pillar and its role in the product]
+```
+
+**Required subsections:** 3-5 named pillars
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Vision
+
 *(To be written by the product owner. This section defines the foundational pillars of the product.)*
 
 ---
@@ -160,6 +268,33 @@ All downstream documentation ultimately derives from the Vision.
 > **validation_rules:** Philosophy is technology-independent; memorable; actionable when a decision is ambiguous; stable
 > **audit_rules:** Must exist; must not reference specific technologies; must be evaluable against real decisions; must be stable
 
+### Template
+
+> **minimum_content:** 1 paragraph
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+[Statement of the product's core philosophy — the values that guide decisions]
+
+## [Philosophy Value 1]
+
+[One-sentence description of this value and why it matters]
+
+## [Philosophy Value 2]
+
+[One-sentence description of this value and why it matters]
+
+## [Philosophy Value 3]
+
+[One-sentence description of this value and why it matters]
+```
+
+**Required subsections:** 3-5 philosophy values
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** none
+
 *(To be written by the product owner. This section defines the philosophy guiding the product.)*
 
 ---
@@ -169,18 +304,18 @@ All downstream documentation ultimately derives from the Vision.
 Every Vision document must contain the following sections.
 Sections are identified by heading text; the compiler maps each to a semantic type.
 
-| Section | semantic_type | Required | Aliases |
-|---------|--------------|----------|---------|
-| Purpose | `purpose` | ✓ | Overview, Summary |
-| Vision | `vision_statement` | ✓ | Long-Term Vision, The Vision |
-| Problem | `problem` | ✓ | Problem Statement, The Problem |
-| Solution | `solution` | ✓ | The Solution, Our Solution |
-| Target Audience | `target_audience` | ✓ | Audience, Who Is This For |
-| Platform Pillars | `pillars` | | Pillars, Foundations, Core Pillars |
-| Philosophy | `philosophy` | | Product Philosophy, Design Philosophy |
-| Guiding Principles | `guiding_principles` | | Principles, Core Principles |
-| Success Criteria | `success_criteria` | | Acceptance Criteria, Definition of Done |
-| Traceability | `traceability` | | Traces To, Derived From |
+| Section | semantic_type | Required | Aliases | Content Requirements |
+|---------|--------------|----------|---------|---------------------|
+| Purpose | `purpose` | ✓ | Overview, Summary | Single paragraph stating why the product exists; no implementation details |
+| Vision | `vision_statement` | ✓ | Long-Term Vision, The Vision | 1-2 paragraphs describing the aspirational future state of the product |
+| Problem | `problem` | ✓ | Problem Statement, The Problem | 1-3 paragraphs with concrete examples and quantified impact where possible |
+| Solution | `solution` | ✓ | The Solution, Our Solution | 1-2 paragraphs describing the product-level approach to solving the problem |
+| Target Audience | `target_audience` | ✓ | Audience, Who Is This For | 1-2 paragraphs defining users by goals and needs, not technical profiles |
+| Platform Pillars | `pillars` | | Pillars, Foundations, Core Pillars | 3-5 named pillars, each with a one-sentence description |
+| Philosophy | `philosophy` | | Product Philosophy, Design Philosophy | 3-5 principles expressed as memorable values with brief rationale |
+| Guiding Principles | `guiding_principles` | | Principles, Core Principles | 3-5 enduring principles with rationale; stable across feature changes |
+| Success Criteria | `success_criteria` | | Acceptance Criteria, Definition of Done | 3-6 observable outcomes tied to the Vision; measurable or evaluable |
+| Traceability | `traceability` | | Traces To, Derived From | Tier diagram, list of downstream standards, non-contradiction rule statement |
 
 Section headings are case-insensitive. Sections not listed here are stored as `generic` type — preserved but not queryable by type.
 
@@ -225,6 +360,23 @@ These responsibilities belong to other documentation standards.
 > **enhancement_rules:** Add criteria when the Vision clarifies; remove criteria that belong to features or architecture
 > **validation_rules:** Criteria are observable, not implementation-specific; tied to the Vision purpose; measurable or evaluable
 > **audit_rules:** Must exist; must not contain test cases; must not reference specific technologies; must be evaluable without code
+
+### Template
+
+> **minimum_content:** 3 items
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+* [Observable outcome tied to the Vision — what success looks like]
+* [Observable outcome tied to the Vision — what success looks like]
+* [Observable outcome tied to the Vision — what success looks like]
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Vision, Purpose
 
 A Vision document is successful when:
 
@@ -336,23 +488,23 @@ Every Feature should be traceable to the Vision.
 > **validation_rules:** Derivation paths are complete; no orphaned standards; non-contradiction rule is stated
 > **audit_rules:** Must exist; must include tier diagram; must list downstream standards; must state non-contradiction constraint
 
-The Vision is the root of the documentation hierarchy.
+### Template
 
-```text
+> **minimum_content:** 1 diagram + 1 rule statement
+> **length_guidance:** moderate
+> **diagram_requirements:** flowchart
+
+```markdown
 Tier 0: Vision (Purpose)
-    ├──→ Tier 1: Features (What)
-    │         └──→ Tier 2: Feature Design (How — UX)
-    │                    └──→ Tier 3: Feature Technical Design ←──┐
-    ├──→ Tier 1: Philosophy (Principles)                          │
-    ├──→ Tier 2: Architecture (Structure) ────────────────────────┤
-    └──→ Tier 2: External Context (Constraints) ──────────────────┤
-                                                                   ↓
-                                              Tier 3: Feature Technical Design
-                                                          ↓
-                                              Tier 4: Engineering (Standards)
-                                                          ↓
-                                              Tier 5: Implementation (Code)
+    ├──→ Tier 1: [Downstream Standard 1]
+    ├──→ Tier 1: [Downstream Standard 2]
+    └──→ Tier 2: [Downstream Standard 3]
 ```
+
+**Required subsections:** tier diagram
+**Optional subsections:** derivation list
+**Required diagrams:** tier hierarchy flowchart
+**Required cross-references:** all downstream standards listed
 
 No downstream document should contradict the Vision.
 
@@ -546,6 +698,33 @@ These describe values rather than implementation.
 > **enhancement_rules:** Add principles when the product evolves; remove principles that have become obsolete; preserve core intent
 > **validation_rules:** Principles are technology-independent; stable across features; memorable; actionable when a decision is ambiguous
 > **audit_rules:** Must exist; must not reference specific technologies; must be evaluable against real decisions; must be stable
+
+### Template
+
+> **minimum_content:** 1 paragraph + 3 principles
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+[Introductory paragraph explaining that these principles guide all downstream decisions]
+
+## [Principle 1]
+
+[One-sentence statement of the principle and its rationale]
+
+## [Principle 2]
+
+[One-sentence statement of the principle and its rationale]
+
+## [Principle 3]
+
+[One-sentence statement of the principle and its rationale]
+```
+
+**Required subsections:** 3-5 principles
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Philosophy
 
 Vision should define enduring principles that influence future decisions.
 

@@ -2,10 +2,15 @@
 
 ## Table of Contents
 - [Purpose](#purpose)
+  - [Template](#template)
 - [Title](#title)
+  - [Template](#template)
 - [Content](#content)
+  - [Template](#template)
 - [Product Context](#product-context)
+  - [Template](#template)
 - [Public Contract](#public-contract)
+  - [Template](#template)
 - [Required Sections](#required-sections)
 - [Goals](#goals)
 - [Non-Goals](#non-goals)
@@ -25,6 +30,7 @@
 - [Documentation Folder](#documentation-folder)
 - [Usage](#usage)
 - [Related](#related)
+  - [Template](#template)
 
 ---
 
@@ -41,6 +47,21 @@
 > **enhancement_rules:** Verify the stated purpose still matches the shipped behavior; prune aspirational language
 > **validation_rules:** Purpose must exist, be non-empty, and describe a user-facing goal — not an engineering goal
 > **audit_rules:** `help-002` — Has purpose (suggestion severity)
+
+### Template
+
+> **minimum_content:** 1 paragraph
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+[One sentence or short paragraph describing the user-facing problem this topic solves.]
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** none
 
 This document defines the standard for Product Guide documentation — the product docs shipped in `help.db` next to the binary, written for end users and for an LLM looking up how to use Samgraha or how to interpret an error.
 
@@ -61,6 +82,21 @@ Product Guide topics explain **how to use the finished product**. They do not de
 > **validation_rules:** Title must exist, be non-empty, and be unique within the Product Guide corpus
 > **audit_rules:** `help-001` — Has title (error severity)
 
+### Template
+
+> **minimum_content:** 1 line
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+# [Command or Concept Name]
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** none
+
 <!-- TODO: Add content for this section. -->
 
 ---
@@ -77,6 +113,31 @@ Product Guide topics explain **how to use the finished product**. They do not de
 > **enhancement_rules:** Verify against shipped product behavior; add examples for new edge cases; improve scannability with headers
 > **validation_rules:** Content must exist, be non-empty, and contain actionable information (not just placeholders)
 > **audit_rules:** `help-003` — Has content (error severity)
+
+### Template
+
+> **minimum_content:** 2 subsections
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+## [Feature or Workflow Name]
+
+[1-2 sentences explaining what this feature does and when to use it.]
+
+### How It Works
+
+[Step-by-step instructions or explanation with concrete examples.]
+
+### Examples
+
+[Concrete usage examples showing expected input and output.]
+```
+
+**Required subsections:** How It Works, Examples
+**Optional subsections:** Tips, Troubleshooting, Limitations
+**Required diagrams:** none
+**Required cross-references:** none
 
 <!-- TODO: Add content for this section. -->
 
@@ -95,6 +156,27 @@ Product Guide topics explain **how to use the finished product**. They do not de
 > **validation_rules:** Should accurately reflect the current product state; must not contain aspirational language
 > **audit_rules:** `help-004` — Has product context (suggestion severity)
 
+### Template
+
+> **minimum_content:** 1 paragraph
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+## Product Context
+
+[Prerequisites, default behavior, and version-specific context the reader needs before using this feature.]
+
+- **Prerequisites:** [What must already be installed or configured]
+- **Default behavior:** [What happens if the user doesn't specify options]
+- **Version:** [Applicable product version, if version-specific]
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** none
+
 <!-- TODO: Add content for this section. -->
 
 ---
@@ -112,6 +194,45 @@ Product Guide topics explain **how to use the finished product**. They do not de
 > **validation_rules:** Must match the actual shipped interface; no invented or speculative parameters
 > **audit_rules:** `help-005` — Has public contract (warning severity)
 
+### Template
+
+> **minimum_content:** 1 subsection
+> **length_guidance:** extensive
+> **diagram_requirements:** none
+
+```markdown
+## Public Contract
+
+### CLI Interface
+
+| Flag | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| `--flag` | string | — | yes | [Description] |
+
+### Inputs
+
+| Input | Type | Description |
+|-------|------|-------------|
+| [name] | [type] | [Description] |
+
+### Outputs
+
+| Output | Type | Description |
+|--------|------|-------------|
+| [name] | [type] | [Description] |
+
+### Error Conditions
+
+| Error | Cause | Resolution |
+|-------|-------|------------|
+| `[error message]` | [What went wrong] | [How to fix it] |
+```
+
+**Required subsections:** CLI Interface or Inputs (at least one), Error Conditions
+**Optional subsections:** Config Keys, MCP Parameters
+**Required diagrams:** none
+**Required cross-references:** none
+
 <!-- TODO: Add content for this section. -->
 
 ---
@@ -121,14 +242,14 @@ Product Guide topics explain **how to use the finished product**. They do not de
 Every Product Guide topic must contain the following sections.
 Sections are identified by heading text; the compiler maps each to a semantic type.
 
-| Section | semantic_type | Required | Aliases |
-|---------|--------------|----------|---------|
-| Title | `title` | ✓ | Title |
-| Content | `body` | ✓ | Body, Details |
-| Purpose | `purpose` | | Overview |
-| Product Context | `product-context` | | Context, Background |
-| Public Contract | `public-contract` | | Interface, API |
-| Related | `related` | | See Also, References, Cross-References |
+| Section | semantic_type | Required | Aliases | Content Requirements |
+|---------|--------------|----------|---------|----------------------|
+| Title | `title` | ✓ | Title | Concise, descriptive heading identifying the command, concept, or workflow; under 60 characters; no marketing language |
+| Content | `body` | ✓ | Body, Details | Step-by-step instructions or explanations with concrete examples; actionable information organized with headers for scannability |
+| Purpose | `purpose` | | Overview | Single sentence or short paragraph describing the user-facing problem this topic solves |
+| Product Context | `product-context` | | Context, Background | Prerequisites, default configurations, and product-version context the reader needs before using the feature |
+| Public Contract | `public-contract` | | Interface, API | All inputs, outputs, flags, config keys, and error conditions with types, defaults, and required/optional status |
+| Related | `related` | | See Also, References, Cross-References | At least one cross-reference with a brief label explaining relevance; links to adjacent Product Guide topics or related standards |
 
 Section headings are case-insensitive. Sections not listed here are stored as `generic` type — preserved but not queryable by type.
 
@@ -337,6 +458,23 @@ Written by whoever ships a feature that needs end-user-facing explanation — a 
 > **enhancement_rules:** Verify all links still resolve; add links when new related topics are created
 > **validation_rules:** Related section should exist; linked targets should be valid; labels should be descriptive
 > **audit_rules:** Cross-references validated by the Product Guide Audit Pipeline (Navigation check)
+
+### Template
+
+> **minimum_content:** 1 link
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+## Related
+
+- [Topic Name](link) — brief label explaining why this is relevant
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** at least one valid link with descriptive label
 
 - [Readme Standard](15-readme-standards.md) — the entry point Product Guide expands on
 - [Build Standard](14-build-standards.md) — install/run instructions Product Guide must stay accurate to

@@ -2,14 +2,22 @@
 
 ## Table of Contents
 - [Purpose](#purpose)
+  - [Template](#template)
 - [Plan Scenarios](#plan-scenarios)
 - [Documentation Quality](#documentation-quality)
+  - [Template](#template)
 - [Security Checks](#security-checks)
+  - [Template](#template)
 - [Size Checks](#size-checks)
+  - [Template](#template)
 - [ML Artifact Management](#ml-artifact-management)
+  - [Template](#template)
 - [CI/CD Validation](#cicd-validation)
+  - [Template](#template)
 - [Obfuscation & Optimization](#obfuscation--optimization)
+  - [Template](#template)
 - [Versioning & Naming](#versioning--naming)
+  - [Template](#template)
 - [Required Sections](#required-sections)
 - [Goals](#goals)
 - [Non-Goals](#non-goals)
@@ -47,6 +55,30 @@
 > **enhancement_rules:** Add build stages when new artifact types emerge; improve quality checks as tooling matures; keep stages aligned with project needs
 > **validation_rules:** Build stages cover all applicable artifact types; quality gates are defined; not all stages are mandatory
 > **audit_rules:** Must exist; must define applicable build stages; must have quality gates; must not define code implementation
+
+### Template
+
+> **minimum_content:** 3 paragraphs
+> **length_guidance:** moderate
+> **diagram_requirements:** flowchart
+
+```markdown
+# Build Plan
+
+## Purpose
+
+> **semantic_type:** `purpose`
+> (metadata block)
+
+(1-2 sentence statement of what Build defines)
+(comparison to other standards — what Build does and does not cover)
+(relationship to other standards in the documentation ecosystem)
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Implementation(13), QA(12), Engineering(07)
+```
 
 This document defines the standard for Build Plans — artifact generation and validation pipelines that take verified code and produce shippable packages.
 
@@ -155,6 +187,27 @@ Security Threat produces a targeted security check plan. Scope is limited to the
 > **validation_rules:** All documentation compiles without errors; audit passes for all applicable domains; cross-references are valid
 > **audit_rules:** Must exist; must validate all applicable documentation domains; must verify cross-reference integrity
 
+### Template
+
+> **minimum_content:** 1 paragraph
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+## Documentation Quality
+
+> **semantic_type:** `documentation_quality`
+> (metadata block)
+
+(1-2 sentence description of what documentation quality checks cover)
+(state that this stage is mandatory and gates all downstream stages)
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** samgraha audit pipeline
+```
+
 Documentation quality is the first build stage. If the documentation is invalid, nothing downstream should proceed.
 
 ---
@@ -171,6 +224,27 @@ Documentation quality is the first build stage. If the documentation is invalid,
 > **enhancement_rules:** Add new security check types as threats evolve; update severity thresholds as risk posture changes
 > **validation_rules:** All checks pass severity thresholds; no critical/high vulnerabilities; secrets scan is clean
 > **audit_rules:** Must exist; must reference Security(03); must define severity thresholds; must not allow critical vulnerabilities
+
+### Template
+
+> **minimum_content:** 2 paragraphs
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+## Security Checks
+
+> **semantic_type:** `security_checks`
+> (metadata block)
+
+(1-2 sentence description of what security checks cover)
+(statement that checks are mandatory and map to Security(03) threat categories)
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Security(03)
+```
 
 Security checks are mandatory for all projects. Map checks to Security(03) threat categories.
 
@@ -189,6 +263,27 @@ Security checks are mandatory for all projects. Map checks to Security(03) threa
 > **validation_rules:** Size limits are defined; measurement methods are explicit; enforcement rules are clear
 > **audit_rules:** Must exist for size-sensitive projects; must define measurable limits; must have enforcement rules
 
+### Template
+
+> **minimum_content:** 2 paragraphs
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+## Size Checks
+
+> **semantic_type:** `size_checks`
+> (metadata block)
+
+(1-2 sentence description of what size checks cover)
+(statement that this stage is conditional and applies to size-sensitive projects)
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Engineering(07)
+```
+
 Size checks are conditional — required for projects with size constraints (mobile apps, embedded systems, CLI tools).
 
 ---
@@ -205,6 +300,27 @@ Size checks are conditional — required for projects with size constraints (mob
 > **enhancement_rules:** Add versioning schemes for new artifact types; improve experiment tracking as tooling matures
 > **validation_rules:** Models are versioned; data is versioned; experiments are tracked; artifacts are reproducible
 > **audit_rules:** Must exist for ML projects; must define versioning scheme; must be reproducible
+
+### Template
+
+> **minimum_content:** 2 paragraphs
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+## ML Artifact Management
+
+> **semantic_type:** `ml_artifact_management`
+> (metadata block)
+
+(1-2 sentence description of what ML artifact management covers)
+(statement that this stage is conditional and applies to ML projects)
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Feature(04)
+```
 
 ML artifact management is conditional — required for projects with ML models. Use DVC for data versioning, MLflow for experiment tracking.
 
@@ -223,6 +339,27 @@ ML artifact management is conditional — required for projects with ML models. 
 > **validation_rules:** All applicable gates are defined; failure policies are explicit; deployment blockers are identified
 > **audit_rules:** Must exist for projects with CI/CD; must define gate sequence; must have failure policies
 
+### Template
+
+> **minimum_content:** 2 paragraphs
+> **length_guidance:** concise
+> **diagram_requirements:** flowchart
+
+```markdown
+## CI/CD Validation
+
+> **semantic_type:** `cicd_validation`
+> (metadata block)
+
+(1-2 sentence description of what CI/CD validation covers)
+(statement that this stage is conditional and applies to projects with automated pipelines)
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** flowchart (gate sequence)
+**Required cross-references:** Engineering(07), QA(12)
+```
+
 CI/CD validation is conditional — required for projects with automated pipelines. Define gates in the right sequence.
 
 ---
@@ -239,6 +376,27 @@ CI/CD validation is conditional — required for projects with automated pipelin
 > **enhancement_rules:** Add new transformation types as tooling matures; adjust configuration as requirements change
 > **validation_rules:** Transformations do not break functionality; debug info is preserved where needed; size reduction is measurable
 > **audit_rules:** Must exist for release builds; must not break functionality; must preserve debug info for dev builds
+
+### Template
+
+> **minimum_content:** 2 paragraphs
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+## Obfuscation & Optimization
+
+> **semantic_type:** `obfuscation_optimization`
+> (metadata block)
+
+(1-2 sentence description of what obfuscation and optimization covers)
+(statement that this stage is conditional and applies to release builds)
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Engineering(07)
+```
 
 Obfuscation and optimization are conditional — apply to release builds, not development builds. Document the trade-offs.
 
@@ -257,6 +415,27 @@ Obfuscation and optimization are conditional — apply to release builds, not de
 > **validation_rules:** Version scheme is defined; naming conventions are explicit; compatibility rules are documented
 > **audit_rules:** Must exist; must define version scheme; must have naming conventions; must document compatibility rules
 
+### Template
+
+> **minimum_content:** 2 paragraphs
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+## Versioning & Naming
+
+> **semantic_type:** `versioning_naming`
+> (metadata block)
+
+(1-2 sentence description of what versioning and naming covers)
+(statement that this stage is mandatory and applies to all projects)
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Engineering(07)
+```
+
 Versioning and naming are mandatory for all projects. Define the scheme once, apply it consistently.
 
 ---
@@ -266,16 +445,16 @@ Versioning and naming are mandatory for all projects. Define the scheme once, ap
 Every Build Plan must contain the following sections.
 Sections are identified by heading text; the compiler maps each to a semantic type.
 
-| Section | semantic_type | Required | Aliases |
-|---------|--------------|----------|---------|
-| Documentation Quality | `documentation_quality` | ✓ | Doc Quality, Documentation Checks |
-| Security Checks | `security_checks` | ✓ | Security Validation, Vulnerability Scanning |
-| Size Checks | `size_checks` | | Size Validation, Bloat Checks |
-| ML Artifact Management | `ml_artifact_management` | | ML Versioning, Model Management |
-| CI/CD Validation | `cicd_validation` | | Pipeline Validation, Gate Enforcement |
-| Obfuscation & Optimization | `obfuscation_optimization` | | Optimization, Minification |
-| Versioning & Naming | `versioning_naming` | ✓ | Versioning, Naming Conventions |
-| Purpose | `purpose` | | Overview, Summary |
+| Section | semantic_type | Required | Aliases | Content Requirements |
+|---------|--------------|----------|---------|---------------------|
+| Documentation Quality | `documentation_quality` | ✓ | Doc Quality, Documentation Checks | Must define quality gates for documentation, specify which domains are validated, and reference samgraha audit pipeline |
+| Security Checks | `security_checks` | ✓ | Security Validation, Vulnerability Scanning | Must specify vulnerability scanning methods, severity thresholds, and reference Security(03) threat categories |
+| Size Checks | `size_checks` | | Size Validation, Bloat Checks | Must define measurable size limits per artifact type, measurement methods, and enforcement actions |
+| ML Artifact Management | `ml_artifact_management` | | ML Versioning, Model Management | Must define versioning scheme for models and data, experiment tracking approach, and reproducibility requirements |
+| CI/CD Validation | `cicd_validation` | | Pipeline Validation, Gate Enforcement | Must define gate sequence, failure handling policies, and deployment blockers |
+| Obfuscation & Optimization | `obfuscation_optimization` | | Optimization, Minification | Must specify which transformations apply per build type, configuration, and impact on debuggability |
+| Versioning & Naming | `versioning_naming` | ✓ | Versioning, Naming Conventions | Must define version scheme (semver, calver), naming convention for all artifacts, and compatibility rules |
+| Purpose | `purpose` | | Overview, Summary | Must state what Build defines, its scope boundaries, and relationship to other documentation standards |
 
 Section headings are case-insensitive. Sections not listed here are stored as `generic` type — preserved but not queryable by type.
 

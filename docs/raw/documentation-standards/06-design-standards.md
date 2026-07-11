@@ -49,6 +49,25 @@
 > **validation_rules:** Purpose is clearly defined; no implementation details present; distinguishable from Feature Design; technology-independent
 > **audit_rules:** Must exist; must not contain feature lists; must not reference specific technologies; must distinguish Design from Feature Design
 
+### Template
+
+> **minimum_content:** 2 paragraphs
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+## Purpose
+
+[1 paragraph: problem statement — what Design Documentation solves and why it exists]
+
+[1 paragraph: scope — what it defines and what it does not; distinction from Feature Design]
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Vision, Feature Design Standard
+
 This document defines the standard for Design Documentation within the engineering documentation ecosystem.
 
 Design Documentation establishes the shared design language, design principles, interaction philosophy, and user experience standards that govern an entire product or product ecosystem.
@@ -76,6 +95,33 @@ It does not describe how individual features behave.
 > **validation_rules:** UX principles are reusable across features; technology-independent; actionable for designers and engineers; user-focused
 > **audit_rules:** Must exist; must not reference specific UI frameworks; must not describe feature-specific interactions; must be technology-independent
 
+### Template
+
+> **minimum_content:** 3 principles with rationale
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+## UX Principles
+
+[1 paragraph: how UX principles relate to design philosophy and product experience]
+
+### [Principle Name]
+
+[1 paragraph: what this principle means at the product level]
+
+[1 example: how this principle applies across features]
+
+---
+
+[Repeat for each principle — minimum 3]
+```
+
+**Required subsections:** one per principle (minimum 3)
+**Optional subsections:** Interaction Patterns, Navigation Philosophy, Feedback Mechanisms
+**Required diagrams:** none
+**Required cross-references:** Design Principles, Accessibility
+
 *(To be written by the domain expert. This section defines user experience principles governing interaction, navigation, feedback, and discoverability.)*
 
 ---
@@ -92,6 +138,35 @@ It does not describe how individual features behave.
 > **enhancement_rules:** Update compliance targets when standards evolve; strengthen inclusive design guidance; remove feature-specific accessibility rules
 > **validation_rules:** Accessibility standards are documented; compliance targets are defined; principles are technology-independent; applicable to the product domain
 > **audit_rules:** Must exist if the product has a user interface; must reference applicable standards; must not contain component-level ARIA patterns; must be technology-independent
+
+### Template
+
+> **minimum_content:** 1 compliance target + 3 inclusive design principles
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+## Accessibility
+
+[1 paragraph: accessibility philosophy and why it matters for this product]
+
+### Compliance Targets
+
+[1 paragraph: applicable standard (e.g. WCAG 2.1 AA), enforcement scope]
+
+### Inclusive Design Principles
+
+[1 principle per subsection — minimum 3, each with rationale and product-level guidance]
+
+### Assistive Technology Support
+
+[1 paragraph: screen readers, keyboard navigation, voice control — product-level guidance]
+```
+
+**Required subsections:** Compliance Targets, Inclusive Design Principles
+**Optional subsections:** Assistive Technology Support, Testing Strategy
+**Required diagrams:** none
+**Required cross-references:** UX Principles, Feature Design Standard, Engineering Standard
 
 *(To be written by the domain expert. This section defines accessibility standards and inclusive design principles for the product.)*
 
@@ -110,6 +185,33 @@ It does not describe how individual features behave.
 > **validation_rules:** Constraints are binding and actionable; clearly distinguished from preferences; current and applicable; technology-independent where possible
 > **audit_rules:** Must exist if the product has regulatory or platform constraints; must state binding nature; must not conflate constraints with preferences
 
+### Template
+
+> **minimum_content:** 1 constraint category with source and enforcement scope
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+## Constraints
+
+[1 paragraph: how constraints relate to design decisions and what makes them binding]
+
+### [Constraint Category] (e.g. Regulatory, Platform, Organizational)
+
+> **source:** [regulatory body, platform requirement, organizational mandate]
+> **enforcement:** [binding / advisory]
+> **scope:** [which features or capabilities this applies to]
+
+[1 paragraph: what this constraint requires and why it is binding]
+
+[Repeat for each constraint category — minimum 1]
+```
+
+**Required subsections:** one per constraint category (minimum 1)
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Vision, Feature Design Standard, Architecture Standard
+
 *(To be written by the domain expert. This section defines design-level constraints, non-functional requirements, and regulatory or organizational mandates.)*
 
 ---
@@ -119,14 +221,14 @@ It does not describe how individual features behave.
 Every Design document must contain the following sections.
 Sections are identified by heading text; the compiler maps each to a semantic type.
 
-| Section | semantic_type | Required | Aliases |
-|---------|--------------|----------|---------|
-| Design Principles | `design_principles` | ✓ | Principles, Core Design |
-| UX Principles | `ux_principles` | ✓ | User Experience Principles, UX Guidelines |
-| Accessibility | `accessibility` | ✓ | A11y, Accessibility Standards |
-| Purpose | `purpose` | | Overview, Summary |
-| Constraints | `constraints` | | Limitations, Non-Functional Requirements |
-| Traceability | `traceability` | | Traces To, Derived From |
+| Section | semantic_type | Required | Aliases | Content Requirements |
+|---------|--------------|----------|---------|---------------------|
+| Design Principles | `design_principles` | ✓ | Principles, Core Design | 3+ named principles with rationale and product-level examples |
+| UX Principles | `ux_principles` | ✓ | User Experience Principles, UX Guidelines | 3+ interaction principles covering navigation, feedback, and discoverability |
+| Accessibility | `accessibility` | ✓ | A11y, Accessibility Standards | Compliance target (e.g. WCAG level), inclusive design principles, assistive technology guidance |
+| Purpose | `purpose` | | Overview, Summary | Problem statement, scope definition, distinction from Feature Design |
+| Constraints | `constraints` | | Limitations, Non-Functional Requirements | Binding constraints with source (regulatory, platform, organizational) and enforcement scope |
+| Traceability | `traceability` | | Traces To, Derived From | Tier diagram, upstream derivation paths, downstream consumers, non-contradiction rule |
 
 Section headings are case-insensitive. Sections not listed here are stored as `generic` type — preserved but not queryable by type.
 
@@ -290,6 +392,37 @@ Every Feature Design should align with the Design Documentation.
 > **enhancement_rules:** Update the diagram when new standards are added; ensure derivation paths remain accurate
 > **validation_rules:** Derivation paths are complete; no orphaned standards; non-contradiction rule is stated
 > **audit_rules:** Must exist; must include tier diagram; must list downstream standards; must state non-contradiction constraint
+
+### Template
+
+> **minimum_content:** 1 tier diagram + 2 derivation paths
+> **length_guidance:** concise
+> **diagram_requirements:** flowchart
+
+```markdown
+## Traceability
+
+### Tier Diagram
+
+[ASCII or Mermaid diagram showing Design Documentation's position in the documentation hierarchy]
+
+### Upstream Derivation
+
+[1 paragraph per upstream source: Vision, Philosophy — how Design derives from them]
+
+### Downstream Consumers
+
+[1 paragraph per downstream: Feature Design, Architecture — how they consume Design]
+
+### Non-Contradiction Rule
+
+[1 paragraph: downstream documents must not contradict design principles]
+```
+
+**Required subsections:** Tier Diagram, Upstream Derivation, Downstream Consumers, Non-Contradiction Rule
+**Optional subsections:** none
+**Required diagrams:** tier/derivation flowchart
+**Required cross-references:** Vision, Feature Design, Architecture, Feature Technical Design
 
 Design Documentation remains traceable.
 
@@ -545,6 +678,42 @@ Large documents should be decomposed into smaller focused documents.
 > **enhancement_rules:** Add principles when new design concerns emerge; merge overlapping principles; strengthen clarity without adding scope
 > **validation_rules:** Principles are technology-independent; reusable across features; memorable; actionable when a design decision is ambiguous
 > **audit_rules:** Must exist; must not reference specific technologies; must not describe feature-specific behavior; must be evaluable against real design decisions
+
+### Template
+
+> **minimum_content:** 3 named principles with rationale
+> **length_guidance:** extensive
+> **diagram_requirements:** none
+
+```markdown
+## Design Principles
+
+[1 paragraph: how design principles anchor the design language and guide decisions]
+
+### [Principle Name] (e.g. Consistency)
+
+> **definition:** [one-sentence definition of this principle]
+> **scope:** [which design decisions this applies to]
+
+[1 paragraph: why this principle matters — what it prevents and what it enables]
+
+[1–2 examples: how this principle applies across different features or products]
+
+[Contrast: what violating this principle looks like]
+
+---
+
+[Repeat for each principle — minimum 3]
+
+### Principle Prioritization
+
+[1 paragraph: how to resolve conflicts when principles compete]
+```
+
+**Required subsections:** one per principle (minimum 3), Principle Prioritization
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Vision, Philosophy, UX Principles, Feature Design Standard
 
 Design Documentation should establish reusable principles such as:
 

@@ -46,6 +46,21 @@
 > **validation_rules:** Purpose clearly defines Prototype's role; distinguishes from production; references the documents it validates
 > **audit_rules:** Must exist; must state falsifiable question; must emphasize disposable nature
 
+### Template
+
+> **minimum_content:** 2 paragraphs
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+[State the falsifiable question this prototype answers]
+[Explain that this is a disposable simulation, not production code]
+[State which upstream documents this prototype validates]
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Feature Design(09), Feature Technical Design(10)
+
 This document defines the standard for Prototype Documentation within the engineering documentation ecosystem.
 
 A Prototype is an executable simulation of the application built to answer a specific falsifiable question or de-risk a specific unknown before production engineering commits to an approach.
@@ -107,14 +122,14 @@ Enhancement produces a focused prototype plan. Scope is limited to the feature o
 Every Prototype document must contain the following sections.
 Sections are identified by heading text; the compiler maps each to a semantic type.
 
-| Section | semantic_type | Required | Aliases |
-|---------|--------------|----------|---------|
-| Scope | `scope` | ✓ | Coverage, What Is Covered |
-| Mock APIs | `mock_apis` | ✓ | Mocked APIs, API Contracts, Simulated APIs |
-| Data Model | `data_model` | ✓ | Data Structures, Schema |
-| Constraints | `constraints` | | Limitations, Non-Functional Requirements |
-| Traceability | `traceability` | | Traces To, Derived From |
-| Purpose | `purpose` | | Overview, Summary |
+| Section | semantic_type | Required | Aliases | Content Requirements |
+|---------|--------------|----------|---------|---------------------|
+| Scope | `scope` | ✓ | Coverage, What Is Covered | In-scope and out-of-scope lists with fidelity levels per item |
+| Mock APIs | `mock_apis` | ✓ | Mocked APIs, API Contracts, Simulated APIs | Each mocked dependency with request/response contract and fidelity indicator |
+| Data Model | `data_model` | ✓ | Data Structures, Schema | Minimal data structures and seed data; no PII or production data |
+| Constraints | `constraints` | | Limitations, Non-Functional Requirements | Each constraint with type (hard/known-shortcoming) and impact |
+| Traceability | `traceability` | | Traces To, Derived From | Text diagram showing upstream sources and downstream consumers |
+| Purpose | `purpose` | | Overview, Summary | Falsifiable question, disposable nature, relationship to upstream documents |
 
 Section headings are case-insensitive. Sections not listed here are stored as `generic` type — preserved but not queryable by type.
 
@@ -133,6 +148,23 @@ Section headings are case-insensitive. Sections not listed here are stored as `g
 > **validation_rules:** Every external dependency has a mock or stub; no real endpoints are called; no production credentials present
 > **audit_rules:** Must exist (error if missing); no real production endpoints or credentials; each mock has a fidelity indicator
 
+### Template
+
+> **minimum_content:** 1 paragraph + 1 table per mock
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+[List all mocked dependencies]
+
+| Dependency | Fidelity | Request Contract | Response Contract |
+|------------|----------|------------------|-------------------|
+| [name] | [low|medium|high] | [request structure] | [response structure] |
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Scope, Data Model
+
 > **⚠️ IMPORTANT:** This section is required by the Prototype standard but does not yet exist as a heading. Please add it when drafting a real Prototype document.
 
 ---
@@ -150,6 +182,29 @@ Section headings are case-insensitive. Sections not listed here are stored as `g
 > **validation_rules:** Data model is minimal; no production data or PII is present; seed data exercises the scenario
 > **audit_rules:** Must exist (error if missing); must contain no production data or PII; must be minimal for the scenario
 
+### Template
+
+> **minimum_content:** 1 paragraph + schema or table
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+[Data structures needed for the scenario]
+
+```json
+{
+  "entity_name": {
+    "field": "type — description"
+  }
+}
+```
+
+**Seed data:** [realistic but fake data, no PII or production values]
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Mock APIs
+
 > **⚠️ IMPORTANT:** This section is required by the Prototype standard but does not yet exist as a heading. Please add it when drafting a real Prototype document.
 
 ---
@@ -166,6 +221,21 @@ Section headings are case-insensitive. Sections not listed here are stored as `g
 > **enhancement_rules:** Add new constraints discovered during implementation; separate environmental constraints from design decisions
 > **validation_rules:** Constraints are clearly stated; no production requirements are presented as prototype constraints
 > **audit_rules:** Must exist; each constraint must be verifiable; no production performance or security constraints
+
+### Template
+
+> **minimum_content:** 1 constraint list
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+| Constraint | Type | Impact |
+|------------|------|--------|
+| [constraint] | [hard|known-shortcoming] | [effect on prototype] |
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Scope
 
 > **⚠️ IMPORTANT:** This section is required by the Prototype standard but does not yet exist as a heading. Please add it when drafting a real Prototype document.
 
@@ -230,6 +300,25 @@ Prototype turns a Feature Design or Feature Technical Design into something a st
 > **validation_rules:** Scope is documented with in-scope and out-of-scope lists; every scope item has a fidelity level
 > **audit_rules:** Must exist (error if missing); must not include production implementation concerns
 
+### Template
+
+> **minimum_content:** 2 lists (in-scope + out-of-scope)
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+**Falsifiable question:** [the question this prototype answers]
+
+**In-scope:**
+- [item] — fidelity: [mocked|stubbed|partial|full]
+
+**Out-of-scope:**
+- [item] — reason: [why excluded]
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Goals, Success Criteria
+
 Prototype may describe:
 
 * In-scope and out-of-scope behavior
@@ -293,6 +382,23 @@ Prototype code itself is not an output — it's discarded once the question is a
 > **enhancement_rules:** Add missing trace links; clarify the validation direction; ensure traceability is specific
 > **validation_rules:** Traceability diagram shows upstream and downstream relationships; every link is accurate
 > **audit_rules:** Must exist; must trace to upstream documents; must not be generic or disconnected
+
+### Template
+
+> **minimum_content:** 1 text diagram
+> **length_guidance:** concise
+> **diagram_requirements:** flowchart
+
+```text
+[Upstream Doc A] ──┐
+                    ├──> Prototype ── validates ──> [downstream impact]
+[Upstream Doc B] ┘
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** traceability flowchart
+**Required cross-references:** Feature Design(09), Feature Technical Design(10)
 
 ```text
 Feature Design ──┐

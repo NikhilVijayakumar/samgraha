@@ -55,6 +55,34 @@
 > **validation_rules:** Purpose is clearly defined; no feature specifications present; boundary with other standards is explicit
 > **audit_rules:** Must exist; must not contain feature lists; must define what Feature Documentation is and is not
 
+### Template
+
+> **minimum_content:** 1 paragraph
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+## Purpose
+
+> **semantic_type:** `purpose`
+> **scope:** [Why this feature exists — its role in the product]
+> **out_of_scope:** [What this feature does not define]
+> **contributes:** [How this section feeds downstream standards]
+> **relationships:** [Upstream and downstream connections]
+> **responsibilities:** [What this section must capture]
+> **generation_rules:** [Rules for authoring this section]
+> **enhancement_rules:** [Rules for improving this section]
+> **validation_rules:** [Criteria for section completeness]
+> **audit_rules:** [Audit expectations]
+
+[1-2 paragraphs stating what the feature is and why it exists]
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Vision
+
 This document defines the standard for Feature Documentation within the engineering documentation ecosystem.
 
 Feature Documentation describes the functional capabilities of a product.
@@ -84,6 +112,36 @@ It does not describe implementation, architecture, or engineering decisions.
 > **validation_rules:** Every requirement is atomic, testable, technology-independent, and traceable to Vision; no implementation leakage
 > **audit_rules:** Must exist; must not contain implementation details; each requirement must be independently testable; must not reference specific technologies
 
+### Template
+
+> **minimum_content:** 3 requirements
+> **length_guidance:** extensive
+> **diagram_requirements:** none
+
+```markdown
+## Functional Requirements
+
+> **semantic_type:** `functional_requirements`
+> **scope:** [Functional behaviors the feature must exhibit]
+> **out_of_scope:** [Implementation details excluded]
+> **contributes:** [How this feeds downstream design]
+> **relationships:** [Upstream and downstream connections]
+> **responsibilities:** [What this section must capture]
+> **generation_rules:** [Rules for authoring this section]
+> **enhancement_rules:** [Rules for improving this section]
+> **validation_rules:** [Criteria for section completeness]
+> **audit_rules:** [Audit expectations]
+
+- [FR-001] The feature shall [behavior] when [condition].
+- [FR-002] The feature shall [behavior] when [condition].
+- [FR-003] The feature shall [behavior] when [condition].
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Vision, Acceptance Criteria
+
 *(To be written by the domain expert. This section defines what the feature must do.)*
 
 ---
@@ -100,6 +158,37 @@ It does not describe implementation, architecture, or engineering decisions.
 > **enhancement_rules:** Add rules when domain knowledge clarifies; remove rules that are technical constraints; consolidate overlapping rules
 > **validation_rules:** Rules are complete, unambiguous, technology-independent, and testable; no implementation details present
 > **audit_rules:** Must exist if the feature has business logic; must not contain technical constraints; must be testable
+
+### Template
+
+> **minimum_content:** 2 rules
+> **length_guidance:** moderate
+> **diagram_requirements:** flowchart
+
+```markdown
+## Business Rules
+
+> **semantic_type:** `business_rules`
+> **scope:** [Business logic governing feature behavior]
+> **out_of_scope:** [Technical constraints excluded]
+> **contributes:** [How this feeds downstream design]
+> **relationships:** [Upstream and downstream connections]
+> **responsibilities:** [What this section must capture]
+> **generation_rules:** [Rules for authoring this section]
+> **enhancement_rules:** [Rules for improving this section]
+> **validation_rules:** [Criteria for section completeness]
+> **audit_rules:** [Audit expectations]
+
+- [BR-001] When [condition], then [behavior].
+- [BR-002] When [condition], then [behavior].
+
+[Optional: flowchart showing rule decision logic]
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** flowchart (when rules involve branching logic)
+**Required cross-references:** Functional Requirements, Acceptance Criteria
 
 *(To be written by the domain expert. This section defines the business logic governing the feature.)*
 
@@ -118,6 +207,41 @@ It does not describe implementation, architecture, or engineering decisions.
 > **validation_rules:** Constraints are complete, clear, technology-independent, and enforceable; no implementation details present
 > **audit_rules:** Must exist if the feature has constraints; must not contain implementation details; must be enforceable
 
+### Template
+
+> **minimum_content:** 1 constraint
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+## Constraints
+
+> **semantic_type:** `constraints`
+> **scope:** [Limitations the feature must operate within]
+> **out_of_scope:** [Implementation details excluded]
+> **contributes:** [How this feeds downstream design]
+> **relationships:** [Upstream and downstream connections]
+> **responsibilities:** [What this section must capture]
+> **generation_rules:** [Rules for authoring this section]
+> **enhancement_rules:** [Rules for improving this section]
+> **validation_rules:** [Criteria for section completeness]
+> **audit_rules:** [Audit expectations]
+
+### Regulatory
+- [C-001] [Regulatory constraint and its impact on the feature]
+
+### Business
+- [C-002] [Business constraint and its impact on the feature]
+
+### Technical
+- [C-003] [Technical constraint and its impact on the feature]
+```
+
+**Required subsections:** none
+**Optional subsections:** Regulatory, Business, Technical
+**Required diagrams:** none
+**Required cross-references:** External Context, Acceptance Criteria
+
 *(To be written by the domain expert. This section defines the limitations the feature must operate within.)*
 
 ---
@@ -134,6 +258,36 @@ It does not describe implementation, architecture, or engineering decisions.
 > **enhancement_rules:** Add dependencies when new coupling is discovered; remove dependencies when features are decoupled; clarify dependency nature
 > **validation_rules:** Dependencies are real and documented; nature of each dependency is stated; no circular dependencies exist
 > **audit_rules:** Must exist if the feature has dependencies; must not list implementation dependencies; must state the nature of each dependency
+
+### Template
+
+> **minimum_content:** 0 paragraphs (table only)
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+## Dependencies
+
+> **semantic_type:** `dependencies`
+> **scope:** [Features or systems this feature relies on]
+> **out_of_scope:** [Implementation dependencies excluded]
+> **contributes:** [How this feeds downstream design]
+> **relationships:** [Upstream and downstream connections]
+> **responsibilities:** [What this section must capture]
+> **generation_rules:** [Rules for authoring this section]
+> **enhancement_rules:** [Rules for improving this section]
+> **validation_rules:** [Criteria for section completeness]
+> **audit_rules:** [Audit expectations]
+
+| Dependency | Nature | Required |
+|------------|--------|----------|
+| [Feature/System Name] | [functional \| data] | [yes \| no] |
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Other Feature documents, External Context
 
 *(To be written by the domain expert. This section defines what other capabilities the feature relies on.)*
 
@@ -152,6 +306,36 @@ It does not describe implementation, architecture, or engineering decisions.
 > **validation_rules:** Every requirement has at least one acceptance criterion; criteria are testable; no implementation details present
 > **audit_rules:** Must exist; must cover all functional requirements; must be independently testable; must not reference implementation details
 
+### Template
+
+> **minimum_content:** 3 criteria
+> **length_guidance:** extensive
+> **diagram_requirements:** none
+
+```markdown
+## Acceptance Criteria
+
+> **semantic_type:** `acceptance_criteria`
+> **scope:** [Verifiable conditions confirming feature completeness]
+> **out_of_scope:** [Test implementation details excluded]
+> **contributes:** [How this feeds downstream validation]
+> **relationships:** [Upstream and downstream connections]
+> **responsibilities:** [What this section must capture]
+> **generation_rules:** [Rules for authoring this section]
+> **enhancement_rules:** [Rules for improving this section]
+> **validation_rules:** [Criteria for section completeness]
+> **audit_rules:** [Audit expectations]
+
+- [AC-001] Given [precondition], when [action], then [expected result].
+- [AC-002] Given [precondition], when [action], then [expected result].
+- [AC-003] Given [precondition], when [action], then [expected result].
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Functional Requirements, Business Rules
+
 *(To be written by the domain expert. This section defines how to verify the feature is complete.)*
 
 ---
@@ -169,6 +353,36 @@ It does not describe implementation, architecture, or engineering decisions.
 > **validation_rules:** Items are genuinely deferred (not forgotten); rationale is clear; triggering conditions are stated
 > **audit_rules:** Must exist if future work is known; must not contain current requirements; must include rationale for deferral
 
+### Template
+
+> **minimum_content:** 0 paragraphs (optional section)
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+## Future Extensions
+
+> **semantic_type:** `future_extensions`
+> **scope:** [Known deferred work for this feature]
+> **out_of_scope:** [Current requirements excluded]
+> **contributes:** [How this informs downstream planning]
+> **relationships:** [Upstream and downstream connections]
+> **responsibilities:** [What this section must capture]
+> **generation_rules:** [Rules for authoring this section]
+> **enhancement_rules:** [Rules for improving this section]
+> **validation_rules:** [Criteria for section completeness]
+> **audit_rules:** [Audit expectations]
+
+| Extension | Rationale | Trigger |
+|-----------|-----------|---------|
+| [Description] | [Why deferred] | [When to revisit] |
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Vision, Backlog
+
 *(To be written by the domain expert. This section defines what extensions are planned for the future.)*
 
 ---
@@ -180,19 +394,19 @@ Sections are identified by heading text; the compiler maps each to a semantic ty
 
 Section headings use level-2 markdown (`## Section Name`).
 
-| Section | semantic_type | Required | Aliases |
-|---------|--------------|----------|---------|
-| Purpose | `purpose` | ✓ | Overview, Summary |
-| Functional Requirements | `functional_requirements` | ✓ | Requirements, FRs, Functional Reqs, Feature Requirements |
-| Business Rules | `business_rules` | | Rules, Business Logic |
-| Inputs | `inputs` | | Input, Input Data |
-| Outputs | `outputs` | | Output, Output Data |
-| Constraints | `constraints` | | Limitations, Non-Functional Requirements |
-| Dependencies | `dependencies` | | Dependency, Depends On |
-| Acceptance Criteria | `acceptance_criteria` | ✓ | Success Criteria, Definition of Done, Criteria |
-| Non-Goals | `non_goals` | | Non Goals, Out of Scope |
-| Future Extensions | `future_extensions` | | Future Work, Roadmap |
-| Traceability | `traceability` | | Traces To, Derived From |
+| Section | semantic_type | Required | Aliases | Content Requirements |
+|---------|--------------|----------|---------|---------------------|
+| Purpose | `purpose` | ✓ | Overview, Summary | 1-2 paragraphs defining what the feature is and why it exists |
+| Functional Requirements | `functional_requirements` | ✓ | Requirements, FRs, Functional Reqs, Feature Requirements | Atomic testable statements of what the product shall do |
+| Business Rules | `business_rules` | | Rules, Business Logic | Conditional logic governing feature behavior |
+| Inputs | `inputs` | | Input, Input Data | Upstream sources from which feature specifications derive |
+| Outputs | `outputs` | | Output, Output Data | Downstream standards that consume feature specifications |
+| Constraints | `constraints` | | Limitations, Non-Functional Requirements | Regulatory, business, or technical limitations |
+| Dependencies | `dependencies` | | Dependency, Depends On | Other features or systems the feature relies on |
+| Acceptance Criteria | `acceptance_criteria` | ✓ | Success Criteria, Definition of Done, Criteria | Verifiable conditions confirming feature completeness |
+| Non-Goals | `non_goals` | | Non Goals, Out of Scope | Explicit boundaries preventing scope creep |
+| Future Extensions | `future_extensions` | | Future Work, Roadmap | Known deferred work with rationale |
+| Traceability | `traceability` | | Traces To, Derived From | Derivation chain from Vision to implementation |
 
 Section headings are case-insensitive. Sections not listed here are stored as `generic` type — preserved but not queryable by type.
 
@@ -223,6 +437,38 @@ Feature Documentation aims to:
 > **enhancement_rules:** Add new exclusions when scope creep is detected; remove exclusions for responsibilities that migrate to Feature Documentation
 > **validation_rules:** All excluded responsibilities have a clear owner in another standard; no ambiguity about where responsibility lies
 > **audit_rules:** Must exist; each excluded item must name its owning standard; must not contradict the Goals list
+
+### Template
+
+> **minimum_content:** 3 items
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+## Non-Goals
+
+> **semantic_type:** `non_goals`
+> **scope:** [What this feature explicitly does not define]
+> **out_of_scope:** [Positive framing of intent excluded]
+> **contributes:** [How this prevents scope creep]
+> **relationships:** [Upstream and downstream connections]
+> **responsibilities:** [What this section must capture]
+> **generation_rules:** [Rules for authoring this section]
+> **enhancement_rules:** [Rules for improving this section]
+> **validation_rules:** [Criteria for section completeness]
+> **audit_rules:** [Audit expectations]
+
+Feature Documentation does not define:
+
+* [Non-goal] — belongs to [owning standard].
+* [Non-goal] — belongs to [owning standard].
+* [Non-goal] — belongs to [owning standard].
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Goals
 
 Feature Documentation does not define:
 
@@ -323,6 +569,39 @@ These belong to Architecture, Feature Technical Design, Engineering, Feature Des
 > **validation_rules:** All listed sources exist as upstream standards; derivation direction is correct; no circular dependencies
 > **audit_rules:** Must exist; must list at least Vision as a source; must state that implementation is not a source; must not reference downstream standards as inputs
 
+### Template
+
+> **minimum_content:** 1 source
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+## Inputs
+
+> **semantic_type:** `inputs`
+> **scope:** [Upstream sources for this feature specification]
+> **out_of_scope:** [Implementation sources excluded]
+> **contributes:** [How this defines the derivation chain]
+> **relationships:** [Upstream and downstream connections]
+> **responsibilities:** [What this section must capture]
+> **generation_rules:** [Rules for authoring this section]
+> **enhancement_rules:** [Rules for improving this section]
+> **validation_rules:** [Criteria for section completeness]
+> **audit_rules:** [Audit expectations]
+
+Feature Documentation derives from:
+
+* [Source Name]
+* [Source Name]
+
+Feature Documentation should not derive from implementation.
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Vision, Traceability
+
 Feature Documentation derives from:
 
 * Vision
@@ -346,6 +625,37 @@ Feature Documentation should not derive from implementation.
 > **enhancement_rules:** Add new consumers when downstream standards are added; update relationships when standards are reorganized
 > **validation_rules:** All listed consumers exist; the nature of dependency is stated; no upstream standards listed as consumers
 > **audit_rules:** Must exist; must list at least Feature Design as a consumer; must not list upstream standards as consumers
+
+### Template
+
+> **minimum_content:** 1 consumer
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+## Outputs
+
+> **semantic_type:** `outputs`
+> **scope:** [Downstream standards consuming this feature]
+> **out_of_scope:** [Upstream sources excluded]
+> **contributes:** [How this makes dependencies explicit]
+> **relationships:** [Upstream and downstream connections]
+> **responsibilities:** [What this section must capture]
+> **generation_rules:** [Rules for authoring this section]
+> **enhancement_rules:** [Rules for improving this section]
+> **validation_rules:** [Criteria for section completeness]
+> **audit_rules:** [Audit expectations]
+
+Feature Documentation provides direction for:
+
+* [Consumer Name] — [nature of dependency]
+* [Consumer Name] — [nature of dependency]
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Traceability
 
 Feature Documentation provides direction for:
 
@@ -372,6 +682,40 @@ Every implementation should trace back to one or more feature specifications.
 > **enhancement_rules:** Update the diagram when new standards are added; ensure derivation paths remain accurate
 > **validation_rules:** Derivation paths are complete; no orphaned standards; non-contradiction rule is stated
 > **audit_rules:** Must exist; must include tier diagram; must list downstream standards; must state non-contradiction constraint
+
+### Template
+
+> **minimum_content:** 1 diagram
+> **length_guidance:** concise
+> **diagram_requirements:** flowchart
+
+```markdown
+## Traceability
+
+> **semantic_type:** `traceability`
+> **scope:** [Derivation chain from Vision to implementation]
+> **out_of_scope:** [Implementation traceability excluded]
+> **contributes:** [How this makes influence visible]
+> **relationships:** [Upstream and downstream connections]
+> **responsibilities:** [What this section must capture]
+> **generation_rules:** [Rules for authoring this section]
+> **enhancement_rules:** [Rules for improving this section]
+> **validation_rules:** [Criteria for section completeness]
+> **audit_rules:** [Audit expectations]
+
+Feature Documentation should remain traceable.
+
+```text
+Vision → Feature → Feature Design → Architecture → Feature Technical Design → Engineering → Implementation
+```
+
+Every feature should support the documented Vision.
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** flowchart (tier model)
+**Required cross-references:** Vision, all downstream standards
 
 Feature Documentation should remain traceable.
 

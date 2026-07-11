@@ -2,9 +2,13 @@
 
 ## Table of Contents
 - [Purpose](#purpose)
+  - [Template](#template-1)
 - [Integration Contract](#integration-contract)
+  - [Template](#template-2)
 - [Constraints](#constraints)
+  - [Template](#template-3)
 - [Dependencies](#dependencies)
+  - [Template](#template-4)
 - [Required Sections](#required-sections)
 - [Goals](#goals)
 - [Non-Goals](#non-goals)
@@ -15,6 +19,7 @@
 - [Inputs](#inputs)
 - [Outputs](#outputs)
 - [Traceability](#traceability)
+  - [Template](#template-5)
 - [Relationships](#relationships)
 - [Required Characteristics](#required-characteristics)
 - [Audit Rules](#audit-rules)
@@ -54,6 +59,24 @@
 > **validation_rules:** Purpose is clearly defined; no internal architecture present; boundary with other standards is explicit
 > **audit_rules:** Must exist; must not contain internal design or implementation; must define what External Context is and is not
 
+### Template
+
+> **minimum_content:** 2 paragraphs
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+[One sentence stating what External Context Documentation is and its role in the documentation ecosystem]
+[One sentence distinguishing External Context from traditional dependency documentation]
+[One sentence stating what External Context documents — knowledge dependencies, not package dependencies]
+[One sentence on the atomic-per-dependency principle]
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** none
+
 This document defines the standard for External Context Documentation within the engineering documentation ecosystem.
 
 External Context Documentation describes knowledge that exists **outside the current repository** but is required to correctly understand, design, implement, or maintain the repository.
@@ -81,6 +104,41 @@ Projects may contain zero, one, or many External Context documents depending on 
 > **validation_rules:** Contract covers all integration points used by the repository; external documentation is referenced; no internal implementation details present
 > **audit_rules:** Must exist for each external dependency with a programmatic interface; must reference authoritative documentation; must not contain code or implementation specifics
 
+### Template
+
+> **minimum_content:** 1 subsection
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+[Integration surface overview — what the external system exposes]
+
+## Endpoints / Protocols
+
+[Description of available endpoints, protocols, and communication patterns]
+
+## Data Formats
+
+[Request and response formats, encoding, content types]
+
+## Authentication
+
+[Authentication mechanisms, credentials handling, token lifecycle]
+
+## Error Handling
+
+[Error codes, retry policies, rate limiting behavior]
+
+## Versioning
+
+[Version compatibility, deprecation policy, migration guidance]
+```
+
+**Required subsections:** Endpoints / Protocols, Authentication
+**Optional subsections:** Data Formats, Error Handling, Versioning
+**Required diagrams:** none
+**Required cross-references:** authoritative external documentation
+
 *(To be written by the integrating engineer. This section defines the formal interface contract with the external system.)*
 
 ---
@@ -97,6 +155,33 @@ Projects may contain zero, one, or many External Context documents depending on 
 > **enhancement_rules:** Add constraints when external systems change; remove constraints that no longer apply; clarify ambiguous constraint descriptions
 > **validation_rules:** Constraints are real, sourced from the external system, clearly stated, and categorized; no internal design decisions disguised as constraints
 > **audit_rules:** Must exist if the external system imposes constraints; must not contain internal design decisions; must be sourced from external documentation
+
+### Template
+
+> **minimum_content:** 1 subsection
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+[Overview of constraints the external system imposes on the repository]
+
+## Functional Constraints
+
+[Limitations on what the integration can or cannot do]
+
+## Performance Constraints
+
+[Rate limits, latency requirements, throughput boundaries]
+
+## Legal / Compliance Constraints
+
+[Licensing restrictions, regulatory obligations, data handling rules]
+```
+
+**Required subsections:** none
+**Optional subsections:** Functional Constraints, Performance Constraints, Legal / Compliance Constraints
+**Required diagrams:** none
+**Required cross-references:** authoritative external documentation
 
 *(To be written by the integrating engineer. This section defines the limitations imposed by the external dependency.)*
 
@@ -115,6 +200,29 @@ Projects may contain zero, one, or many External Context documents depending on 
 > **validation_rules:** Dependencies are real and relevant to the repository; dependency criticality is noted; no internal dependencies disguised as external
 > **audit_rules:** Must exist if the external system has transitive requirements relevant to the repository; must not list internal project dependencies
 
+### Template
+
+> **minimum_content:** 1 subsection
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+[Overview of what the external system itself requires to function]
+
+## Runtime Dependencies
+
+[Transitive runtime requirements — platforms, services, companion systems]
+
+## Build-Time Dependencies
+
+[Development or build-time prerequisites, if any]
+```
+
+**Required subsections:** none
+**Optional subsections:** Runtime Dependencies, Build-Time Dependencies
+**Required diagrams:** none
+**Required cross-references:** other External Context documents for transitive dependencies
+
 *(To be written by the integrating engineer. This section defines what the external dependency itself requires.)*
 
 ---
@@ -124,13 +232,13 @@ Projects may contain zero, one, or many External Context documents depending on 
 Every External Context document must contain the following sections.
 Sections are identified by heading text; the compiler maps each to a semantic type.
 
-| Section | semantic_type | Required | Aliases |
-|---------|--------------|----------|---------|
-| Purpose | `purpose` | ✓ | Overview, Summary |
-| Integration Contract | `integration_contract` | ✓ | Contract, API Contract, Interface |
-| Constraints | `constraints` | | Limitations, Non-Functional Requirements |
-| Dependencies | `dependencies` | | Dependency, Depends On |
-| Traceability | `traceability` | | Traces To, Derived From |
+| Section | semantic_type | Required | Aliases | Content Requirements |
+|---------|--------------|----------|---------|----------------------|
+| Purpose | `purpose` | ✓ | Overview, Summary | State why external context exists, what it documents, what it does not; distinguish from package dependency documentation |
+| Integration Contract | `integration_contract` | ✓ | Contract, API Contract, Interface | Endpoints, protocols, data formats, authentication, error behaviors, versioning; reference authoritative API docs |
+| Constraints | `constraints` | | Limitations, Non-Functional Requirements | Categorized limitations (functional, performance, legal, compliance) sourced from the external system |
+| Dependencies | `dependencies` | | Dependency, Depends On | Transitive requirements, platform prerequisites, companion systems; distinguish runtime from build-time; note criticality |
+| Traceability | `traceability` | | Traces To, Derived From | Tier diagram showing External Context's influence; list of consuming standards; non-duplication rule stated |
 
 Section headings are case-insensitive. Sections not listed here are stored as `generic` type — preserved but not queryable by type.
 
@@ -280,6 +388,27 @@ Any document may reference External Context rather than duplicating external kno
 > **enhancement_rules:** Update the diagram when new standards reference External Context; ensure influence paths remain accurate
 > **validation_rules:** Influence paths are complete; no orphaned references; non-duplication rule is stated
 > **audit_rules:** Must exist; must include tier diagram; must list consuming standards; must state that External Context informs but does not redefine downstream documentation
+
+### Template
+
+> **minimum_content:** 1 diagram, 1 subsection
+> **length_guidance:** concise
+> **diagram_requirements:** flowchart
+
+```markdown
+## Influence Diagram
+
+[Text-based tier diagram showing External Context's position relative to downstream standards]
+
+## Consuming Standards
+
+[List of documentation domains that reference External Context]
+```
+
+**Required subsections:** Influence Diagram, Consuming Standards
+**Optional subsections:** none
+**Required diagrams:** flowchart (tier diagram)
+**Required cross-references:** Feature Technical Design(10), Engineering(07), Architecture(05)
 
 External Context supports multiple documentation domains.
 

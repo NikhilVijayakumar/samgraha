@@ -44,6 +44,27 @@
 > **validation_rules:** Purpose is clearly defined; no implementation details present; distinguishes Philosophy from Vision and other standards
 > **audit_rules:** Must exist; must not contain implementation details; must explain Philosophy's role in the ecosystem
 
+### Template
+
+> **minimum_content:** 2 paragraphs
+> **length_guidance:** concise
+> **diagram_requirements:** none
+
+```markdown
+## Purpose
+
+This document defines the standard for [Domain] documentation within the engineering documentation ecosystem.
+
+[One paragraph explaining what this documentation type does and why it exists.]
+
+[One paragraph distinguishing it from related standards — what it covers that others do not.]
+```
+
+**Required subsections:** none
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Vision(01)
+
 This document defines the standard for Philosophy documentation within the engineering documentation ecosystem.
 
 Philosophy Documentation establishes the product's guiding principles, values, and the deliberate trade-offs that shape every downstream decision.
@@ -69,6 +90,39 @@ It shapes the judgment that produces them.
 > **validation_rules:** Principles are technology-independent; stable across features; memorable; actionable when a decision is ambiguous
 > **audit_rules:** Must exist; must not reference specific technologies; must be evaluable against real decisions; must be stable
 
+### Template
+
+> **minimum_content:** 3 subsections
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+## Principles
+
+### [Principle Name 1]
+
+[One to two sentences stating the principle as a stable, technology-independent decision rule.]
+
+[One example of how this principle resolves an ambiguous decision.]
+
+### [Principle Name 2]
+
+[One to two sentences stating the principle.]
+
+[One example of application.]
+
+### [Principle Name 3]
+
+[One to two sentences stating the principle.]
+
+[One example of application.]
+```
+
+**Required subsections:** 3-5 named principles
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Values, Vision(01)
+
 *(To be written by the product owner. This section defines the guiding principles of the product.)*
 
 ---
@@ -85,6 +139,39 @@ It shapes the judgment that produces them.
 > **enhancement_rules:** Add values when new priorities emerge; remove values that have become obsolete; keep values stable
 > **validation_rules:** Values are explicit and named; stable over time; actionable when making trade-offs; not aspirational platitudes
 > **audit_rules:** Must exist; must be explicit and named; must be actionable; must not be aspirational without substance
+
+### Template
+
+> **minimum_content:** 2 subsections
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+## Values
+
+### [Value Name 1]
+
+[One to two sentences naming the value and why it is prioritized.]
+
+[One sentence explaining what this value costs or what it sacrifices.]
+
+### [Value Name 2]
+
+[One to two sentences naming the value and why it is prioritized.]
+
+[One sentence explaining what this value costs or what it sacrifices.]
+
+### [Value Name 3]
+
+[One to two sentences naming the value and why it is prioritized.]
+
+[One sentence explaining what this value costs or what it sacrifices.]
+```
+
+**Required subsections:** 2-4 named values
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Principles, Vision(01)
 
 *(To be written by the product owner. This section defines the core values of the product.)*
 
@@ -103,6 +190,33 @@ It shapes the judgment that produces them.
 > **validation_rules:** Trade-offs are explicit and named; reasons are clear; downstream standards can reference them; stable over time
 > **audit_rules:** Must exist; must name trade-offs explicitly; must provide reasons; must be referenceable by downstream standards
 
+### Template
+
+> **minimum_content:** 1 subsection per trade-off
+> **length_guidance:** moderate
+> **diagram_requirements:** none
+
+```markdown
+## Trade-offs
+
+### [Trade-off Name 1]
+
+**Chosen:** [What the product deliberately optimizes for.]
+**Sacrificed:** [What the product deliberately does not optimize for.]
+**Reason:** [Why this trade-off was made — tied to a value or principle.]
+
+### [Trade-off Name 2]
+
+**Chosen:** [What is optimized for.]
+**Sacrificed:** [What is given up.]
+**Reason:** [Why.]
+```
+
+**Required subsections:** at least one trade-off per named value
+**Optional subsections:** none
+**Required diagrams:** none
+**Required cross-references:** Values, Principles, Architecture(05)
+
 *(To be written by the product owner. This section defines the deliberate trade-offs the product makes.)*
 
 ---
@@ -112,12 +226,12 @@ It shapes the judgment that produces them.
 Every Philosophy document must contain the following sections.
 Sections are identified by heading text; the compiler maps each to a semantic type.
 
-| Section | semantic_type | Required | Aliases |
-|---------|--------------|----------|---------|
-| Principles | `guiding_principles` | ✓ | Core Principles, Design Principles |
-| Values | `values` | ✓ | Core Values, What We Value |
-| Trade-offs | `tradeoffs` | ✓ | Trade offs, Tradeoffs, Deliberate Trade-offs |
-| Purpose | `purpose` | | Overview, Summary |
+| Section | semantic_type | Required | Aliases | Content Requirements |
+|---------|--------------|----------|---------|----------------------|
+| Principles | `guiding_principles` | ✓ | Core Principles, Design Principles | 3-5 named principles; each stated as a stable, technology-independent decision rule |
+| Values | `values` | ✓ | Core Values, What We Value | 2-4 named values; each explicitly prioritized with rationale for why it outranks alternatives |
+| Trade-offs | `tradeoffs` | ✓ | Trade offs, Tradeoffs, Deliberate Trade-offs | At least one trade-off per value; each names what is chosen and what is deliberately sacrificed |
+| Purpose | `purpose` | | Overview, Summary | One to two paragraphs defining Philosophy's role and its distinction from Vision |
 
 Section headings are case-insensitive. Sections not listed here are stored as `generic` type — preserved but not queryable by type.
 
