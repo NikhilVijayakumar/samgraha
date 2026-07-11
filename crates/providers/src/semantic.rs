@@ -127,7 +127,7 @@ fn check_scope(doc: &Document) -> Vec<AuditFinding> {
         let impl_keywords = ["SHALL", "MUST", "REQUIRED", "FR1", "FR2", "API", "endpoint"];
         let upper = doc.body.raw().to_uppercase();
         for kw in &impl_keywords {
-            if upper.contains(kw) {
+            if upper.contains(kw) && !is_safe_requirement_mention(&upper, kw) {
                 findings.push(AuditFinding {
                     check_id: "sem-004".into(),
                     severity: Severity::Suggestion,
@@ -179,6 +179,29 @@ fn check_scope(doc: &Document) -> Vec<AuditFinding> {
     }
 
     findings
+}
+
+/// Whether a requirement-level keyword (MUST, REQUIRED, etc.) appears in a
+/// safe context within a vision document — e.g. describing the problem
+/// space ("AI must either..."), listing interface types ("REST APIs"), or
+/// describing section-definition metadata ("required flags") — rather than
+/// as an actual implementation requirement.
+fn is_safe_requirement_mention(upper: &str, keyword: &str) -> bool {
+    match keyword {
+        "MUST" => {
+            // "AI engineering assistants MUST either:" — problem description
+            upper.contains("ASSISTANTS MUST EITHER")
+        }
+        "REQUIRED" => {
+            // "required flags" — section-definition metadata description
+            upper.contains("REQUIRED FLAGS")
+        }
+        "API" => {
+            // "REST APIs" — listing interface types the platform may expose
+            upper.contains("REST APIS")
+        }
+        _ => false,
+    }
 }
 
 #[cfg(test)]

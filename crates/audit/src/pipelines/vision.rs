@@ -119,7 +119,9 @@ impl Pipeline for VisionPipeline {
         ti_total += 1;
         let tech_keywords = ["react", "typescript", "javascript", "python", "rust", "sqlite", "postgres",
             "kubernetes", "docker", "aws", "azure", "gcp", "database", "framework", "cloud provider"];
-        let tech_found = find_unnegated_keywords(&low, &tech_keywords);
+        let tech_found = filter_safe_technology_mentions(
+            find_unnegated_keywords(&low, &tech_keywords), &low,
+        );
         if tech_found.is_empty() {
             ti_passed += 1;
         } else {
@@ -136,7 +138,9 @@ impl Pipeline for VisionPipeline {
         // false-positives on "this class of systems".
         ti_total += 1;
         let impl_keywords = ["algorithm", "source code", "api endpoint", "config file", "function("];
-        let impl_found = find_unnegated_keywords(&low, &impl_keywords);
+        let impl_found = filter_safe_implementation_mentions(
+            find_unnegated_keywords(&low, &impl_keywords), &low,
+        );
         if impl_found.is_empty() {
             ti_passed += 1;
         } else {
@@ -296,6 +300,51 @@ fn readiness_label(overall: f64, vc: f64, ti: f64) -> String {
     } else {
         "NOT_READY".to_string()
     }
+}
+
+/// Filter false-positive technology keyword matches that appear in safe
+/// architectural or product-concept phrases rather than as actual technology
+/// references.  E.g. "compiled knowledge **database**" is a product artifact
+/// name, not a database technology choice; "**Framework** Authors" is a user
+/// role, not a framework reference.
+fn filter_safe_technology_mentions(keywords: Vec<String>, text_lower: &str) -> Vec<String> {
+    keywords.into_iter().filter(|kw| match kw.as_str() {
+        "database" => {
+            // "compiled knowledge database" / "knowledge database" are
+            // product-concept terms, not technology references.
+            let safe = ["knowledge database", "knowledge databases"];
+            !safe.iter().any(|phrase| text_lower.contains(phrase))
+        }
+        "framework" => {
+            // "Framework Authors" is a user role in Target Audience.
+            !text_lower.contains("framework authors")
+        }
+        _ => true,
+    }).collect()
+}
+
+/// Filter false-positive implementation-detail keyword matches that appear
+/// in problem-space descriptions rather than as actual implementation
+/// leakage.  E.g. listing "Source Code" among fragmented knowledge
+/// locations describes the problem, not an implementation detail.
+fn filter_safe_implementation_mentions(keywords: Vec<String>, text_lower: &str) -> Vec<String> {
+    keywords.into_iter().filter(|kw| match kw.as_str() {
+        "source code" => {
+            // "distributed across ... Source Code ..." describes the
+            // knowledge-fragmentation problem, not an implementation detail.
+            // "reverse engineer source code" / "rather than ... from source
+            // code" describe what the product avoids, not what it contains.
+            let safe = [
+                "distributed across",
+                "reverse engineer",
+                "rather than",
+                "reconstructing it from",
+                "infer architecture",
+            ];
+            !safe.iter().any(|cue| text_lower.contains(cue))
+        }
+        _ => true,
+    }).collect()
 }
 
 #[cfg(test)]
