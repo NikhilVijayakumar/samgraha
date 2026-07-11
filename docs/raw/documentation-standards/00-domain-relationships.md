@@ -114,30 +114,30 @@ Filenames in this directory carry a `NN-` prefix showing the order docs get writ
 
 | # | File | Derived From |
 |---|------|--------------|
-| 12 | `12-implementation-standards.md` | feature-technical(10) + engineering(07) + prototype(11) |
+| 12 | `13-implementation-standards.md` | feature-technical(10) + engineering(07) + prototype(11) |
 
 **Tier 6 — Packaging (draft, not yet registered).**
 
 | # | File | Derived From |
 |---|------|--------------|
-| 13 | `13-build-standards.md` | implementation(12) |
+| 13 | `14-build-standards.md` | Implementation(13) |
 
 **Tier 7 — Final overview.** Written last, after everything above has settled.
 
 | # | File | Derived From |
 |---|------|--------------|
-| 14 | `14-readme-standards.md` | vision (final refactor pass — see below); needs Build(13) to exist for install/run instructions |
-| 15 | `15-product-guide-standards.md` | the finished product itself — needs everything else, including README, to be accurate |
+| 14 | `15-readme-standards.md` | vision (final refactor pass — see below); needs Build(14) to exist for install/run instructions |
+| 15 | `16-product-guide-standards.md` | the finished product itself — needs everything else, including README, to be accurate |
 
 **Initial idea has no standard.** It's not a kept artifact — a rough idea gets folded straight into Vision (01) and, downstream, into Feature (04) as one of its derivation inputs. Nothing audits the idea stage itself.
 
-**README plays both ends.** Early on it can hold the initial idea (or a separate idea doc can be used instead) before Vision exists. Once every other standard doc in the chain is complete, README gets refactored into the structure `14-readme-standards.md` defines — including install/run instructions, which is why README sits after Build(13) rather than before Implementation(12): a README that must stay implementation-detail-free could be written earlier, but a conventional README needs build/run instructions, which don't exist until Build(13) does.
+**README plays both ends.** Early on it can hold the initial idea (or a separate idea doc can be used instead) before Vision exists. Once every other standard doc in the chain is complete, README gets refactored into the structure `15-readme-standards.md` defines — including install/run instructions, which is why README sits after Build(14) rather than before Implementation(13): a README that must stay implementation-detail-free could be written earlier, but a conventional README needs build/run instructions, which don't exist until Build(14) does.
 
 **Security, Implementation, and Build are drafts.** None has a `StandardDefinition` in `crates/standards/src/builtin.rs`, so none is enforced or audited yet.
 
 * **Security** is fully specified: project-wide threat model, data classification, and security principles, once — Architecture's, Engineering's, and Feature Technical's own Security Considerations/Standards sections derive from it rather than duplicate it. See `03-security-standards.md`'s "Relationship to Per-Domain Security Sections" for the exact ownership split.
-* **Implementation** is fully specified: the as-built, one-to-one counterpart to Feature Technical, distinct from Engineering's repo-wide Code Standards by scope (per-feature vs repo-wide). See `12-implementation-standards.md`'s "Relationship to Engineering's Code Standards."
-* **Build** is fully specified: project-wide versioning/packaging/distribution/provenance policy, distinct from Engineering's Build Standards section, which stays scoped to CI/CD mechanics. See `13-build-standards.md`'s "Relationship to Engineering's Build Standards."
+* **Implementation** is fully specified: the as-built, one-to-one counterpart to Feature Technical, distinct from Engineering's repo-wide Code Standards by scope (per-feature vs repo-wide). See `13-implementation-standards.md`'s "Relationship to Engineering's Code Standards."
+* **Build** is fully specified: project-wide versioning/packaging/distribution/provenance policy, distinct from Engineering's Build Standards section, which stays scoped to CI/CD mechanics. See `14-build-standards.md`'s "Relationship to Engineering's Build Standards."
 
 ## Usage
 

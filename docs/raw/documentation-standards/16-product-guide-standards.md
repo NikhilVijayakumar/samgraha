@@ -338,7 +338,7 @@ Written by whoever ships a feature that needs end-user-facing explanation — a 
 > **validation_rules:** Related section should exist; linked targets should be valid; labels should be descriptive
 > **audit_rules:** Cross-references validated by the Product Guide Audit Pipeline (Navigation check)
 
-- [Readme Standard](14-readme-standards.md) — the entry point Product Guide expands on
-- [Build Standard](13-build-standards.md) — install/run instructions Product Guide must stay accurate to
+- [Readme Standard](15-readme-standards.md) — the entry point Product Guide expands on
+- [Build Standard](14-build-standards.md) — install/run instructions Product Guide must stay accurate to
 - [Standards Reference Standard](standards.md) — how this standard itself is documented
 - `docs/raw/product-guide/index.md` — the actual Product Guide content tree's table of contents (not this file — this one documents the *standard*, that one is the *content*)

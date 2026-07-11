@@ -160,7 +160,7 @@ It does not replace project documentation.
 > **scope:** The steps required to install the project and its dependencies on a developer's machine
 > **out_of_scope:** Build instructions, configuration details, development setup, troubleshooting guides, deployment procedures
 > **contributes:** Enables developers to get the project running with minimal friction
-> **relationships:** Derived from Build(13); feeds Getting Started; referenced by Development and Contributing
+> **relationships:** Derived from Build(14); feeds Getting Started; referenced by Development and Contributing
 > **responsibilities:** Provide clear, tested installation steps that work on a clean machine
 > **generation_rules:** List prerequisites first; provide step-by-step commands; verify each step works; include version requirements
 > **enhancement_rules:** Update when dependencies change; add platform-specific instructions as needed; keep steps minimal
@@ -177,7 +177,7 @@ It does not replace project documentation.
 > **scope:** How to build the project from source, including build commands, prerequisites, and expected outcomes
 > **out_of_scope:** CI/CD pipeline configuration, deployment procedures, release processes, build system internals
 > **contributes:** Enables developers to produce a working build from source
-> **relationships:** Derived from Build(13); feeds Getting Started; referenced by Development and Contributing
+> **relationships:** Derived from Build(14); feeds Getting Started; referenced by Development and Contributing
 > **responsibilities:** Provide clear build instructions that produce a working artifact
 > **generation_rules:** List build commands; state prerequisites; describe expected output; include common build targets
 > **enhancement_rules:** Update when build system changes; add new build targets as needed; keep instructions minimal
@@ -589,7 +589,7 @@ Only high-level descriptions are required.
 > **scope:** How to use the project after installation — basic commands, common workflows, and typical usage patterns
 > **out_of_scope:** Advanced configuration, API documentation, internal implementation details, development workflows
 > **contributes:** Enables users to start using the project immediately after installation
-> **relationships:** Derived from Build(13) and Installation; feeds Getting Started; referenced by Configuration
+> **relationships:** Derived from Build(14) and Installation; feeds Getting Started; referenced by Configuration
 > **responsibilities:** Provide clear, working usage examples that demonstrate the project's primary functions
 > **generation_rules:** Provide basic usage examples; show common commands; include expected output; keep examples minimal
 > **enhancement_rules:** Update when CLI or API changes; add new usage patterns as needed; keep examples working

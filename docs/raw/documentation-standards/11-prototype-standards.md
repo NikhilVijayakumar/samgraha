@@ -38,7 +38,7 @@
 > **scope:** Why Prototype documentation exists — its role as executable simulation before production
 > **out_of_scope:** Implementation details, production code, architecture, long-term data governance
 > **contributes:** Establishes Prototype as the disposable simulation that validates Feature Design and Feature Technical Design
-> **relationships:** Validates Feature Design(09) and Feature Technical Design(10); feeds confidence to Engineering(07) and Implementation(12)
+> **relationships:** Validates Feature Design(09) and Feature Technical Design(10); feeds confidence to Engineering(07) and Implementation(13)
 > **responsibilities:** Define what a Prototype is, its falsifiable question, and its place in the documentation lifecycle
 > **generation_rules:** State the falsifiable question first; explain that Prototype is disposable; emphasize it comes before Implementation
 > **enhancement_rules:** Strengthen the connection to Feature Design and Feature Technical; clarify the distinction from production
@@ -242,7 +242,7 @@ Prototype code itself is not an output — it's discarded once the question is a
 > **scope:** How Prototype relates to upstream and downstream documents in the documentation ecosystem
 > **out_of_scope:** Full document dependency graph; source code trace links; internal section traceability
 > **contributes:** Shows that every Prototype is derived from and validates specific upstream documents
-> **relationships:** Indicates that Prototype receives from Feature Design(09) and Feature Technical(10); feeds confidence to Implementation(12)
+> **relationships:** Indicates that Prototype receives from Feature Design(09) and Feature Technical(10); feeds confidence to Implementation(13)
 > **responsibilities:** Document which upstream documents this Prototype validates; show the derivation chain
 > **generation_rules:** Use a text diagram; list the documents that feed this Prototype and the documents it validates
 > **enhancement_rules:** Add missing trace links; clarify the validation direction; ensure traceability is specific
