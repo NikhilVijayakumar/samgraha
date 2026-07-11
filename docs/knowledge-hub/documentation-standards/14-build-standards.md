@@ -1,6 +1,9 @@
 # Build Plan
 
 ## Table of Contents
+
+> *Deterministic rules for this domain: `audit/deterministic/document/build.yaml`*
+
 - [Purpose](#purpose)
   - [Template](#template)
 - [Plan Scenarios](#plan-scenarios)
@@ -45,16 +48,7 @@
 
 ## Purpose
 
-> **semantic_type:** `purpose`
-> **scope:** How artifacts are generated, validated, and packaged — the build pipeline contract for the documentation ecosystem
-> **out_of_scope:** Implementation details, code structure, QA testing strategy, deployment procedures
-> **contributes:** Provides the packaging and validation layer that takes verified Implementation(13) and produces shippable artifacts
-> **relationships:** Consumes Implementation(13) verified code; validates against QA(12) test results; produces artifacts for deployment
-> **responsibilities:** Define artifact generation, quality checks, security validation, and packaging standards
-> **generation_rules:** Start from the project profile (web app, CLI, ML pipeline, library); identify applicable build stages; define quality gates
-> **enhancement_rules:** Add build stages when new artifact types emerge; improve quality checks as tooling matures; keep stages aligned with project needs
-> **validation_rules:** Build stages cover all applicable artifact types; quality gates are defined; not all stages are mandatory
-> **audit_rules:** Must exist; must define applicable build stages; must have quality gates; must not define code implementation
+> *Structural rules: `audit/deterministic/section/build/purpose.yaml`*
 
 ### Template
 
@@ -194,16 +188,7 @@ Security Threat produces a targeted security check plan. Scope is limited to the
 
 ## Documentation Quality
 
-> **semantic_type:** `documentation_quality`
-> **scope:** Validating that documentation meets its own standards — structure, completeness, consistency, and accuracy
-> **out_of_scope:** Documentation content decisions, writing style, translation
-> **contributes:** Ensures the documentation ecosystem is internally consistent and valid before packaging
-> **relationships:** Validates all documentation standards (01-16); references samgraha audit pipeline
-> **responsibilities:** Define documentation quality checks, completeness verification, and consistency validation
-> **generation_rules:** Run samgraha compile and audit against all domains; verify structure completeness; check cross-reference validity
-> **enhancement_rules:** Add quality checks as new standards are added; improve validation accuracy as tooling matures
-> **validation_rules:** All documentation compiles without errors; audit passes for all applicable domains; cross-references are valid
-> **audit_rules:** Must exist; must validate all applicable documentation domains; must verify cross-reference integrity
+> *Structural rules: `audit/deterministic/section/build/documentation_quality.yaml`*
 
 ### Template
 
@@ -250,16 +235,7 @@ Documentation quality is the first build stage. If the documentation is invalid,
 
 ## Security Checks
 
-> **semantic_type:** `security_checks`
-> **scope:** Validating that artifacts are free from known vulnerabilities — dependency scanning, SAST, secrets detection
-> **out_of_scope:** Security architecture, threat modeling, security policy definition
-> **contributes:** Ensures the built artifact does not introduce known security risks
-> **relationships:** Validates against Security(03) requirements; references Engineering(07) security standards; applies to Implementation(13) artifacts
-> **responsibilities:** Define which security checks apply, severity thresholds for pass/fail, and remediation requirements
-> **generation_rules:** Run dependency vulnerability scanning; perform SAST on source code; scan for secrets and credentials; set severity thresholds
-> **enhancement_rules:** Add new security check types as threats evolve; update severity thresholds as risk posture changes
-> **validation_rules:** All checks pass severity thresholds; no critical/high vulnerabilities; secrets scan is clean
-> **audit_rules:** Must exist; must reference Security(03); must define severity thresholds; must not allow critical vulnerabilities
+> *Structural rules: `audit/deterministic/section/build/security_checks.yaml`*
 
 ### Template
 
@@ -306,16 +282,7 @@ Security checks are mandatory for all projects. Map checks to Security(03) threa
 
 ## Size Checks
 
-> **semantic_type:** `size_checks`
-> **scope:** Validating that artifacts meet size constraints — documentation bloat, binary size, dependency footprint
-> **out_of_scope:** Performance testing, load testing, runtime behavior
-> **contributes:** Ensures artifacts remain within acceptable size boundaries
-> **relationships:** References Engineering(07) size constraints; validates Implementation(13) artifact size
-> **responsibilities:** Define size limits, measurement methods, and enforcement rules
-> **generation_rules:** Measure artifact size against defined limits; check documentation line counts; verify dependency footprint
-> **enhancement_rules:** Adjust size limits as project evolves; add size checks for new artifact types
-> **validation_rules:** Size limits are defined; measurement methods are explicit; enforcement rules are clear
-> **audit_rules:** Must exist for size-sensitive projects; must define measurable limits; must have enforcement rules
+> *Structural rules: `audit/deterministic/section/build/size_checks.yaml`*
 
 ### Template
 
@@ -362,16 +329,7 @@ Size checks are conditional — required for projects with size constraints (mob
 
 ## ML Artifact Management
 
-> **semantic_type:** `ml_artifact_management`
-> **scope:** Managing ML-specific artifacts — model versioning, data versioning, experiment tracking, model artifacts
-> **out_of_scope:** Model training, model architecture, feature engineering
-> **contributes:** Ensures ML artifacts are versioned, reproducible, and traceable
-> **relationships:** References DVC or equivalent for data/model versioning; validates against Feature(04) ML requirements
-> **responsibilities:** Define model versioning scheme, data versioning approach, experiment tracking requirements
-> **generation_rules:** Version models with semantic versioning; track experiments with MLflow or equivalent; use DVC for data versioning
-> **enhancement_rules:** Add versioning schemes for new artifact types; improve experiment tracking as tooling matures
-> **validation_rules:** Models are versioned; data is versioned; experiments are tracked; artifacts are reproducible
-> **audit_rules:** Must exist for ML projects; must define versioning scheme; must be reproducible
+> *Structural rules: `audit/deterministic/section/build/ml_artifact_management.yaml`*
 
 ### Template
 
@@ -418,16 +376,7 @@ ML artifact management is conditional — required for projects with ML models. 
 
 ## CI/CD Validation
 
-> **semantic_type:** `cicd_validation`
-> **scope:** Validating that the CI/CD pipeline enforces all applicable quality gates — automated checks that run on every commit
-> **out_of_scope:** Pipeline implementation details, specific CI/CD tool choices, deployment automation
-> **contributes:** Ensures quality gates are enforced automatically, not manually
-> **relationships:** References Engineering(07) CI/CD standards; validates against QA(12) test results; enforces Security(03) checks
-> **responsibilities:** Define which gates run when, how failures are handled, and what blocks deployment
-> **generation_rules:** Define gate sequence (lint → test → security → build); set failure policies; define deployment blockers
-> **enhancement_rules:** Add gates as new checks become available; improve failure handling as pipeline matures
-> **validation_rules:** All applicable gates are defined; failure policies are explicit; deployment blockers are identified
-> **audit_rules:** Must exist for projects with CI/CD; must define gate sequence; must have failure policies
+> *Structural rules: `audit/deterministic/section/build/cicd_validation.yaml`*
 
 ### Template
 
@@ -474,16 +423,7 @@ CI/CD validation is conditional — required for projects with automated pipelin
 
 ## Obfuscation & Optimization
 
-> **semantic_type:** `obfuscation_optimization`
-> **scope:** Post-build transformations — code obfuscation, minification, tree-shaking, dead code elimination
-> **out_of_scope:** Runtime optimization, algorithm optimization, performance tuning
-> **contributes:** Produces smaller, more secure, more efficient final artifacts
-> **relationships:** References Engineering(07) optimization standards; applies to Build(14) output artifacts
-> **responsibilities:** Define which transformations apply, their configuration, and their trade-offs
-> **generation_rules:** Apply obfuscation for security-sensitive artifacts; optimize for size in constrained environments; preserve debug info for development builds
-> **enhancement_rules:** Add new transformation types as tooling matures; adjust configuration as requirements change
-> **validation_rules:** Transformations do not break functionality; debug info is preserved where needed; size reduction is measurable
-> **audit_rules:** Must exist for release builds; must not break functionality; must preserve debug info for dev builds
+> *Structural rules: `audit/deterministic/section/build/obfuscation_optimization.yaml`*
 
 ### Template
 
@@ -530,16 +470,7 @@ Obfuscation and optimization are conditional — apply to release builds, not de
 
 ## Versioning & Naming
 
-> **semantic_type:** `versioning_naming`
-> **scope:** How artifacts are versioned and named — version schemes, naming conventions, compatibility rules
-> **out_of_scope:** Feature versioning, API versioning, documentation versioning
-> **contributes:** Ensures artifacts are identifiable, traceable, and compatible
-> **relationships:** References Engineering(07) versioning standards; applies to all Build(14) output artifacts
-> **responsibilities:** Define version scheme (semantic, calendar, etc.), naming conventions, and compatibility rules
-> **generation_rules:** Use semantic versioning for libraries; use calendar versioning for applications; follow naming conventions consistently
-> **enhancement_rules:** Add versioning schemes for new artifact types; improve naming conventions as patterns emerge
-> **validation_rules:** Version scheme is defined; naming conventions are explicit; compatibility rules are documented
-> **audit_rules:** Must exist; must define version scheme; must have naming conventions; must document compatibility rules
+> *Structural rules: `audit/deterministic/section/build/versioning_naming.yaml`*
 
 ### Template
 

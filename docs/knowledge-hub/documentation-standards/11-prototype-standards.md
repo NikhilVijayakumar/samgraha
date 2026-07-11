@@ -1,6 +1,9 @@
 # Prototype Standard
 
 ## Table of Contents
+
+> *Deterministic rules for this domain: `audit/deterministic/document/prototype.yaml`*
+
 - [Purpose](#purpose)
 - [Plan Scenarios](#plan-scenarios)
 - [Mock APIs](#mock-apis)
@@ -35,16 +38,7 @@
 
 ## Purpose
 
-> **semantic_type:** `purpose`
-> **scope:** Why Prototype documentation exists — its role as executable simulation before production
-> **out_of_scope:** Implementation details, production code, architecture, long-term data governance
-> **contributes:** Establishes Prototype as the disposable simulation that validates Feature Design and Feature Technical Design
-> **relationships:** Validates Feature Design(09) and Feature Technical Design(10); feeds confidence to Engineering(07) and Implementation(13)
-> **responsibilities:** Define what a Prototype is, its falsifiable question, and its place in the documentation lifecycle
-> **generation_rules:** State the falsifiable question first; explain that Prototype is disposable; emphasize it comes before Implementation
-> **enhancement_rules:** Strengthen the connection to Feature Design and Feature Technical; clarify the distinction from production
-> **validation_rules:** Purpose clearly defines Prototype's role; distinguishes from production; references the documents it validates
-> **audit_rules:** Must exist; must state falsifiable question; must emphasize disposable nature
+> *Structural rules: `audit/deterministic/section/prototype/purpose.yaml`*
 
 ### Template
 
@@ -155,16 +149,7 @@ Section headings are case-insensitive. Sections not listed here are stored as `g
 
 ## Mock APIs
 
-> **semantic_type:** `mock_apis`
-> **scope:** All external dependencies that are mocked or stubbed in the prototype and their contracts
-> **out_of_scope:** Production API specifications, real network endpoints, authentication credentials
-> **contributes:** Defines which parts of the system are simulated so stakeholders and engineers know what is real vs. fake
-> **relationships:** Constrained by Scope (which dependencies are in/out); feeds the data model with mock response structures
-> **responsibilities:** List each mocked dependency; document the mock contract (request/response); specify fidelity level
-> **generation_rules:** For each external dependency in scope, write a mock contract; clarify what is simulated and what is real
-> **enhancement_rules:** Add mocks for newly identified dependencies; increase fidelity where required; remove unused mocks
-> **validation_rules:** Every external dependency has a mock or stub; no real endpoints are called; no production credentials present
-> **audit_rules:** Must exist (error if missing); no real production endpoints or credentials; each mock has a fidelity indicator
+> *Structural rules: `audit/deterministic/section/prototype/mock_apis.yaml`*
 
 ### Template
 
@@ -214,16 +199,7 @@ Section headings are case-insensitive. Sections not listed here are stored as `g
 
 ## Data Model
 
-> **semantic_type:** `data_model`
-> **scope:** Minimal data structures, schema, and seed data needed to exercise the prototype scenario
-> **out_of_scope:** Production database schema, full data governance, long-term persistence layer design
-> **contributes:** Ensures the prototype has enough data to be realistic without reproducing production data
-> **relationships:** Defined by what mock APIs return; used to keep the prototype independently runnable
-> **responsibilities:** Define minimal data structures; provide seed data for the scenario; ensure no PII or production data is included
-> **generation_rules:** Start from the scenario; define data structures only at the level needed for simulation; use seed data not production data
-> **enhancement_rules:** Add missing structures; replace placeholders with realistic but fake data; remove unused fields
-> **validation_rules:** Data model is minimal; no production data or PII is present; seed data exercises the scenario
-> **audit_rules:** Must exist (error if missing); must contain no production data or PII; must be minimal for the scenario
+> *Structural rules: `audit/deterministic/section/prototype/data_model.yaml`*
 
 ### Template
 
@@ -295,16 +271,7 @@ Section headings are case-insensitive. Sections not listed here are stored as `g
 
 ## Constraints
 
-> **semantic_type:** `constraints`
-> **scope:** Limitations and non-functional requirements that bound the prototype's design
-> **out_of_scope:** Production performance targets, production security posture, long-term maintainability requirements
-> **contributes:** Makes explicit what the prototype cannot do or chooses not to simulate
-> **relationships:** Refines Scope with hard boundaries; may reference Limitations in the prototype design
-> **responsibilities:** Document technical limitations; document constraints on the simulation approach; distinguish constraints from preferences
-> **generation_rules:** List each limitation; state whether it is a hard constraint or a known shortcoming; explain the impact on decision-making
-> **enhancement_rules:** Add new constraints discovered during implementation; separate environmental constraints from design decisions
-> **validation_rules:** Constraints are clearly stated; no production requirements are presented as prototype constraints
-> **audit_rules:** Must exist; each constraint must be verifiable; no production performance or security constraints
+> *Structural rules: `audit/deterministic/section/prototype/constraints.yaml`*
 
 ### Template
 
@@ -397,16 +364,7 @@ Prototype turns a Feature Design or Feature Technical Design into something a st
 
 ## Scope
 
-> **semantic_type:** `scope`
-> **scope:** What the Prototype covers — in-scope behavior, fidelity levels, simulated flows
-> **out_of_scope:** Production implementation, architecture, product vision, domain definitions
-> **contributes:** Ensures each Prototype remains deliberately bounded to one falsifiable question
-> **relationships:** Feeds from Goals and Success Criteria; constrains what mock APIs and data model must cover
-> **responsibilities:** Define scope boundaries explicitly; document fidelity level per scope item; ensure no scope creep
-> **generation_rules:** Start from the falsifiable question; list in-scope items with fidelity level; explicitly tag out-of-scope areas
-> **enhancement_rules:** Tighten scope boundaries; add fidelity levels where missing; remove items that crept in
-> **validation_rules:** Scope is documented with in-scope and out-of-scope lists; every scope item has a fidelity level
-> **audit_rules:** Must exist (error if missing); must not include production implementation concerns
+> *Structural rules: `audit/deterministic/section/prototype/scope.yaml`*
 
 ### Template
 
@@ -517,16 +475,7 @@ Prototype code itself is not an output — it's discarded once the question is a
 
 ## Traceability
 
-> **semantic_type:** `traceability`
-> **scope:** How Prototype relates to upstream and downstream documents in the documentation ecosystem
-> **out_of_scope:** Full document dependency graph; source code trace links; internal section traceability
-> **contributes:** Shows that every Prototype is derived from and validates specific upstream documents
-> **relationships:** Indicates that Prototype receives from Feature Design(09) and Feature Technical(10); feeds confidence to Implementation(13)
-> **responsibilities:** Document which upstream documents this Prototype validates; show the derivation chain
-> **generation_rules:** Use a text diagram; list the documents that feed this Prototype and the documents it validates
-> **enhancement_rules:** Add missing trace links; clarify the validation direction; ensure traceability is specific
-> **validation_rules:** Traceability diagram shows upstream and downstream relationships; every link is accurate
-> **audit_rules:** Must exist; must trace to upstream documents; must not be generic or disconnected
+> *Structural rules: `audit/deterministic/section/prototype/traceability.yaml`*
 
 ### Template
 

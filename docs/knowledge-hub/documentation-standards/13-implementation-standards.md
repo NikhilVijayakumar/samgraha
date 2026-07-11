@@ -1,6 +1,9 @@
 # Implementation Plan
 
 ## Table of Contents
+
+> *Deterministic rules for this domain: `audit/deterministic/document/implementation.yaml`*
+
 - [Purpose](#purpose)
 - [Plan Scenarios](#plan-scenarios)
 - [Generation Plan](#generation-plan)
@@ -35,16 +38,7 @@
 
 ## Purpose
 
-> **semantic_type:** `purpose`
-> **scope:** How features are implemented — the per-feature plan that translates documentation into working code
-> **out_of_scope:** Build pipelines, deployment, release management, QA testing strategy
-> **contributes:** Bridges the gap between documentation (what to build) and code (what runs) — the generation point where all upstream decisions converge
-> **relationships:** Consumes Feature(04), Feature Design(09), Prototype(11), Architecture(05), Design(06), Engineering(07), External Context(08), Security(03); produces code that QA(12) tests and Build(14) packages
-> **responsibilities:** Define how to generate, refactor, and maintain code that satisfies all upstream documentation
-> **generation_rules:** Start from Feature(04) requirements; verify alignment with all upstream docs before writing code; record deviations with rationale
-> **enhancement_rules:** Update implementation when upstream docs change; preserve deviation rationale; keep the as-built record accurate
-> **validation_rules:** Implementation satisfies all upstream documentation; deviations are documented and justified; no undocumented behavior
-> **audit_rules:** Must exist; must reference all applicable upstream standards; must document deviations; must not contradict upstream docs
+> *Structural rules: `audit/deterministic/section/implementation/purpose.yaml`*
 
 ### Template
 
@@ -176,16 +170,7 @@ Change Request produces a modification plan. Impact analysis and rollback strate
 
 ## Generation Plan
 
-> **semantic_type:** `generation_plan`
-> **scope:** How to generate code from scratch for a new feature — the step-by-step process from requirements to working code
-> **out_of_scope:** Refactoring existing code, changing requirements, fixing bugs
-> **contributes:** Provides the primary generation pathway for new features
-> **relationships:** Consumes Feature(04) requirements, Feature Design(09) UX, Prototype(11) findings, Architecture(05) structure, Design(06) principles, Engineering(07) standards, External Context(08) constraints, Security(03) requirements
-> **responsibilities:** Define the generation sequence, verification checkpoints, and deviation recording process
-> **generation_rules:** Follow the tier model: verify Feature(04) → Feature Design(09) → Architecture(05) → Engineering(07) → Security(03) before writing code
-> **enhancement_rules:** Add verification steps when new upstream standards are added; remove steps for deprecated processes
-> **validation_rules:** Generation plan covers all applicable upstream standards; verification checkpoints are defined; deviation process is explicit
-> **audit_rules:** Must exist; must reference all applicable upstream standards; must define verification checkpoints
+> *Structural rules: `audit/deterministic/section/implementation/generation_plan.yaml`*
 
 ### Template
 
@@ -248,16 +233,7 @@ Every new feature implementation starts with a Generation Plan. The plan verifie
 
 ## Refactor Plan
 
-> **semantic_type:** `refactor_plan`
-> **scope:** How to restructure existing code without changing behavior — improving structure while preserving function
-> **out_of_scope:** Adding new features, changing requirements, fixing bugs
-> **contributes:** Maintains code quality and alignment with Architecture(05) and Engineering(07) as the system evolves
-> **relationships:** References Architecture(05) for target structure, Engineering(07) for code standards, Feature(04) for unchanged behavior
-> **responsibilities:** Define what changes, what stays the same, and how to verify behavior is preserved
-> **generation_rules:** Start from the target architecture; identify behavior to preserve; define verification strategy (tests must pass before and after)
-> **enhancement_rules:** Add refactoring patterns as they are proven; remove patterns that are no longer relevant
-> **validation_rules:** Behavior preservation is verified; target architecture is defined; no functional changes are introduced
-> **audit_rules:** Must exist for structural changes; must define behavior preservation; must not change external behavior
+> *Structural rules: `audit/deterministic/section/implementation/refactor_plan.yaml`*
 
 ### Template
 
@@ -314,16 +290,7 @@ Refactoring is not feature generation. It is structural improvement with behavio
 
 ## Change Request Plan
 
-> **semantic_type:** `change_request_plan`
-> **scope:** How to implement a change request — modifying existing behavior to meet new or updated requirements
-> **out_of_scope:** New feature generation, refactoring, bug fixes
-> **contributes:** Provides a structured approach to modifying existing functionality
-> **relationships:** References Feature(04) updated requirements, Feature Design(09) updated UX, Architecture(05) impact analysis, QA(12) test updates
-> **responsibilities:** Define what changes, what the impact is, what tests need updating, and what the rollback plan is
-> **generation_rules:** Start from the change request; analyze impact on all upstream docs; define rollback strategy before implementing
-> **enhancement_rules:** Add change request patterns as they are proven; improve impact analysis accuracy
-> **validation_rules:** Impact analysis is complete; rollback strategy is defined; test updates are identified
-> **audit_rules:** Must exist for behavior changes; must include impact analysis; must include rollback strategy
+> *Structural rules: `audit/deterministic/section/implementation/change_request_plan.yaml`*
 
 ### Template
 
@@ -380,16 +347,7 @@ Change requests modify existing behavior. Every change request must include impa
 
 ## Enhancement Plan
 
-> **semantic_type:** `enhancement_plan`
-> **scope:** How to improve existing functionality — enhancing performance, usability, or capability without changing core behavior
-> **out_of_scope:** New features, refactoring, bug fixes, change requests
-> **contributes:** Provides a structured approach to improving existing functionality
-> **relationships:** References Feature(04) enhancement criteria, Architecture(05) performance constraints, Engineering(07) optimization standards
-> **responsibilities:** Define what improves, what stays the same, and how to measure the improvement
-> **generation_rules:** Start from the enhancement criteria; define measurable improvement targets; verify no regression
-> **enhancement_rules:** Add enhancement patterns as they are proven; improve measurement methodology
-> **validation_rules:** Improvement targets are measurable; regression testing is defined; no core behavior changes
-> **audit_rules:** Must exist for performance/usability improvements; must define measurable targets; must verify no regression
+> *Structural rules: `audit/deterministic/section/implementation/enhancement_plan.yaml`*
 
 ### Template
 
@@ -446,16 +404,7 @@ Enhancements improve existing functionality. Every enhancement must define measu
 
 ## Security Fix Plan
 
-> **semantic_type:** `security_fix_plan`
-> **scope:** How to fix security vulnerabilities — the highest-priority implementation type with mandatory verification
-> **out_of_scope:** Feature generation, refactoring, general enhancements
-> **contributes:** Provides the fastest path from vulnerability detection to verified fix
-> **relationships:** Consumes Security(03) threat model, QA(12) security test results, Architecture(05) security boundaries, Engineering(07) security standards
-> **responsibilities:** Define the fix approach, verification strategy, and security re-test requirements
-> **generation_rules:** Start from the vulnerability report; verify against Security(03) threat model; apply the fix; re-test with QA(12) security tests
-> **enhancement_rules:** Add fix patterns as they are proven; improve response time; update verification checklist
-> **validation_rules:** Fix addresses the specific vulnerability; no new vulnerabilities introduced; Security(03) compliance is restored
-> **audit_rules:** Must exist for security fixes; must reference Security(03); must include re-test verification; must not introduce new vulnerabilities
+> *Structural rules: `audit/deterministic/section/implementation/security_fix_plan.yaml`*
 
 ### Template
 

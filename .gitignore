@@ -30,3 +30,5 @@ tests/.samgraha/
 /.opencode/
 /docs/errors-list/
 /docs/raw/reports/
+/tests/docs/raw/reports/architecture/scorecard/latest.json
+/tests/docs/raw/reports/architecture/scorecard/latest.md

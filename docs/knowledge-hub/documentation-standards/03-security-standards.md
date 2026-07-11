@@ -1,5 +1,7 @@
 # Security Standard
 
+> *Deterministic rules for this domain: `audit/deterministic/document/security.yaml`*
+
 ## Table of Contents
 - [Purpose](#purpose)
 - [Threat Model](#threat-model)
@@ -38,16 +40,7 @@
 
 ## Purpose
 
-> **semantic_type:** `purpose`
-> **scope:** Why Security exists — its role as the project-wide authority on what is being defended and why
-> **out_of_scope:** Per-domain enforcement, specific controls, implementation details, technology choices
-> **contributes:** Establishes Security's authority so every other domain derives its posture from this document instead of re-deriving independently
-> **relationships:** Derives from Vision(01) and Philosophy(02); feeds Architecture(05), Engineering(07), and Feature Technical(10)
-> **responsibilities:** Define Security's role as the single source of threat model, data classification, and security principles
-> **generation_rules:** State what Security defines, what it does not define, and where enforcement lives; mirror the Vision/Philosophy pattern
-> **enhancement_rules:** Keep the scope boundary between Security and per-domain sections sharp; remove any control-level language
-> **validation_rules:** Purpose is technology-independent; scope is limited to project-wide posture; enforcement boundary is explicit
-> **audit_rules:** Must exist; must not name specific controls or libraries; must define the boundary between project-wide and per-domain
+> *Structural rules: `audit/deterministic/section/security/purpose.yaml`*
 
 ### Template
 
@@ -97,16 +90,7 @@ It does not define how any single component enforces that posture. That belongs 
 
 ## Threat Model
 
-> **semantic_type:** `threat_model`
-> **scope:** The project-wide threat model — adversaries, threats, attack surfaces, and failure modes the project defends against
-> **out_of_scope:** Per-component trust boundaries, per-feature attack surface enumeration, specific mitigation tooling
-> **contributes:** Gives every downstream domain the authoritative list of threats to address in their own Security sections
-> **relationships:** Drives Data Classification and Security Principles; consumed by Architecture(05), Engineering(07), and Feature Technical(10) Security sections
-> **responsibilities:** Enumerate the threat landscape using a named, structured methodology (STRIDE, PASTA, or OWASP Threat Modeling)
-> **generation_rules:** Use a recognized threat-modeling methodology; enumerate adversaries, threats, and attack surfaces; link each threat to at least one downstream mitigation expectation
-> **enhancement_rules:** Update when the attack surface changes; add new adversary profiles as the product evolves; preserve the methodology structure
-> **validation_rules:** Threat model uses a named methodology; every threat has a severity or priority; every threat maps to at least one downstream expectation
-> **audit_rules:** Must exist; must use a named methodology; must not list specific tooling or library mitigations; must not duplicate per-component trust boundaries
+> *Structural rules: `audit/deterministic/section/security/threat_model.yaml`*
 
 ### Template
 
@@ -155,16 +139,7 @@ It does not define how any single component enforces that posture. That belongs 
 
 ## Data Classification
 
-> **semantic_type:** `data_classification`
-> **scope:** The project's data classification scheme — sensitivity levels, data types, and handling expectations for each class
-> **out_of_scope:** Storage implementation details, encryption library selection, database schema, per-component data flow diagrams
-> **contributes:** Gives every downstream domain a shared vocabulary for data sensitivity so controls are applied proportionally
-> **relationships:** Derived from Threat Model; consumed by Architecture(05), Engineering(07), and Feature Technical(10) Security sections
-> **responsibilities:** Define sensitivity levels with at least one example per level; specify handling expectations that apply across the project
-> **generation_rules:** Classify data by sensitivity, not by storage location; define at least two distinct levels; provide concrete examples for each level
-> **enhancement_rules:** Add new data types as they are introduced; refine sensitivity definitions when new compliance obligations apply; preserve the classification structure
-> **validation_rules:** At least one sensitivity level is defined with an example; handling expectations are stated per level; classification is technology-independent
-> **audit_rules:** Must exist; must define at least one sensitivity level; must not reference specific storage technologies; must not omit handling expectations
+> *Structural rules: `audit/deterministic/section/security/data_classification.yaml`*
 
 ### Template
 
@@ -213,16 +188,7 @@ It does not define how any single component enforces that posture. That belongs 
 
 ## Security Principles
 
-> **semantic_type:** `security_principles`
-> **scope:** Project-wide security principles — the enduring values that constrain every downstream design and implementation decision
-> **out_of_scope:** Specific control implementations, library choices, per-domain enforcement patterns, coding standards
-> **contributes:** Provides the judgment framework that shapes Architecture, Engineering, and Feature Technical Security decisions
-> **relationships:** Derived from Philosophy(02); consumed by Architecture(05), Engineering(07), and Feature Technical(10) Security sections
-> **responsibilities:** State principles specific enough to guide a real design decision, not generic platitudes like "be secure"
-> **generation_rules:** Specialize Philosophy's guiding principles for security; use memorable, stable phrasing; ensure each principle can constrain a concrete decision
-> **enhancement_rules:** Add principles when the threat landscape demands new constraints; remove principles that have become obsolete; preserve core intent
-> **validation_rules:** Principles are specific enough to evaluate a design against; no principle is generic enough to be meaningless; principles are technology-independent
-> **audit_rules:** Must exist; must contain at least one principle; principles must not be generic ("be secure"); must not reference specific technologies
+> *Structural rules: `audit/deterministic/section/security/security_principles.yaml`*
 
 ### Template
 
@@ -271,16 +237,7 @@ It does not define how any single component enforces that posture. That belongs 
 
 ## Compliance Requirements
 
-> **semantic_type:** `compliance`
-> **scope:** Regulatory, contractual, or self-imposed compliance obligations the project must satisfy
-> **out_of_scope:** Per-domain control implementation, audit tooling configuration, certification processes
-> **contributes:** Makes compliance obligations traceable to specific downstream controls; prevents obligations from being forgotten
-> **relationships:** Derived from Threat Model and Vision; consumed by Architecture(05), Engineering(07), and Feature Technical(10) Security sections
-> **responsibilities:** List compliance regimes by name and scope; state the obligation each imposes; trace each to downstream control expectations
-> **generation_rules:** Reference compliance requirements by name (GDPR, HIPAA, PCI-DSS, SOC 2); state scope and applicability; avoid prescribing specific controls
-> **enhancement_rules:** Add new requirements when regulations change; update scope when the product enters new markets; preserve the obligation-to-control trace chain
-> **validation_rules:** Each requirement is named; scope is defined; each maps to at least one downstream control expectation
-> **audit_rules:** Must exist if the project has compliance obligations; must name each regime; must not prescribe specific implementation controls
+> *Structural rules: `audit/deterministic/section/security/compliance.yaml`*
 
 ### Template
 
@@ -331,16 +288,7 @@ It does not define how any single component enforces that posture. That belongs 
 
 ## Incident Response
 
-> **semantic_type:** `incident_response`
-> **scope:** Project-level incident response expectations — how the project prepares for, detects, and responds to security incidents
-> **out_of_scope:** Per-domain runbooks, specific SIEM tooling, on-call rotation details, post-mortem templates
-> **contributes:** Establishes the incident response posture that downstream domains operationalize
-> **relationships:** Derived from Threat Model; consumed by Engineering(07) and Feature Technical(10) for operational implementation
-> **responsibilities:** Define detection expectations, response escalation, communication requirements, and recovery objectives at the project level
-> **generation_rules:** State detection and response expectations as outcomes, not tooling; define escalation paths; specify communication and recovery objectives
-> **enhancement_rules:** Update when the threat landscape changes; refine escalation paths as the team grows; preserve the outcome-level framing
-> **validation_rules:** Detection and response expectations are stated; escalation paths are defined; no specific SIEM or tooling is mandated
-> **audit_rules:** Must exist if the project handles sensitive data; must not mandate specific tooling; must define escalation and communication expectations
+> *Structural rules: `audit/deterministic/section/security/incident_response.yaml`*
 
 ### Template
 
@@ -388,16 +336,7 @@ It does not define how any single component enforces that posture. That belongs 
 
 ## Constraints
 
-> **semantic_type:** `constraints`
-> **scope:** Hard limitations the project operates under — regulatory, contractual, infrastructure, or organizational constraints that shape security decisions
-> **out_of_scope:** Soft preferences, technology choices, implementation patterns, architectural decisions
-> **contributes:** Prevents downstream domains from proposing designs that violate hard constraints; saves time by making limitations visible upfront
-> **relationships:** Derived from Vision(01) and External Context; consumed by Architecture(05), Engineering(07), and Feature Technical(10)
-> **responsibilities:** Enumerate non-negotiable limitations with enough specificity to evaluate a proposed design against them
-> **generation_rules:** Identify constraints from regulatory, contractual, and organizational sources; state each as a hard boundary, not a preference; avoid prescribing solutions
-> **enhancement_rules:** Add constraints when new obligations are discovered; remove constraints that no longer apply; preserve the hard-boundary framing
-> **validation_rules:** Each constraint is specific enough to evaluate a design against; constraints are not disguised preferences; no implementation solutions are embedded
-> **audit_rules:** Must exist if hard constraints apply; must not embed implementation solutions; must be evaluable as pass/fail against a proposed design
+> *Structural rules: `audit/deterministic/section/security/constraints.yaml`*
 
 ### Template
 
@@ -570,16 +509,7 @@ Every per-domain Security section should be traceable to a threat, data class, o
 
 ## Traceability
 
-> **semantic_type:** `traceability`
-> **scope:** How Security connects to the documentation hierarchy — its derivation from Vision/Philosophy and its downstream consumers
-> **out_of_scope:** Implementation-level traceability, audit event lineage, per-feature trace chains
-> **contributes:** Makes Security's influence visible and verifiable; proves every downstream Security section is derived, not invented
-> **relationships:** Derives from Vision(01) and Philosophy(02); feeds Architecture(05) Security Considerations, Engineering(07) Security Standards, Feature Technical(10) Security Considerations
-> **responsibilities:** Show the derivation path from Vision/Philosophy to Security and from Security to every downstream Security section
-> **generation_rules:** Use a text diagram showing the tier chain; list which downstream domains consume Security; state the non-duplication rule
-> **enhancement_rules:** Update the diagram when new domains add Security sections; ensure derivation paths remain accurate
-> **validation_rules:** Derivation paths are complete; no orphaned downstream Security sections; non-duplication rule is stated
-> **audit_rules:** Must exist; must include tier diagram; must list downstream consumers; must state non-duplication constraint
+> *Structural rules: `audit/deterministic/section/security/traceability.yaml`*
 
 ### Template
 

@@ -1,6 +1,9 @@
 # QA Standard
 
 ## Table of Contents
+
+> *Deterministic rules for this domain: `audit/deterministic/document/qa.yaml`*
+
 - [Purpose](#purpose)
 - [Plan Scenarios](#plan-scenarios)
 - [Test Strategy](#test-strategy)
@@ -37,16 +40,7 @@
 
 ## Purpose
 
-> **semantic_type:** `purpose`
-> **scope:** How features are verified against their specifications — the testing contract for the documentation ecosystem
-> **out_of_scope:** Implementation details, build pipelines, deployment procedures, release management
-> **contributes:** Provides the verification layer that confirms Implementation(13) fulfills what Feature(04), Architecture(05), Design(06), Engineering(07), and Security(03) require
-> **relationships:** Feature(04) defines what to test; Architecture(05) defines system boundaries for testing; Design(06) defines UX to validate; Engineering(07) defines test infrastructure; Security(03) defines security test requirements; Implementation(13) is what gets tested
-> **responsibilities:** Define which test types are needed, their applicability conditions, and how they verify upstream documentation
-> **generation_rules:** Start from Feature requirements; identify applicable test types based on project profile; define verification targets against upstream docs
-> **enhancement_rules:** Add test types when new risk areas emerge; remove test types that no longer apply; keep test strategy aligned with project evolution
-> **validation_rules:** Test types are clearly defined; applicability conditions are explicit; verification chain to upstream docs is complete
-> **audit_rules:** Must exist; must define test types with applicability conditions; must reference upstream standards; must not define implementation details
+> *Structural rules: `audit/deterministic/section/qa/purpose.yaml`*
 
 ### Template
 
@@ -165,16 +159,7 @@ Enhancement produces targeted test additions. Scope is limited to what changed.
 
 ## Test Strategy
 
-> **semantic_type:** `test_strategy`
-> **scope:** The overall testing approach — which test types apply, in what order, and with what priority
-> **out_of_scope:** Specific test implementations, framework choices, CI/CD configuration
-> **contributes:** Provides the testing roadmap that guides all test-related decisions
-> **relationships:** Derived from Feature(04) requirements and Architecture(05) system boundaries; referenced by Implementation(13) for verification
-> **responsibilities:** Define the testing pyramid appropriate for the project; specify which test types are mandatory vs. conditional
-> **generation_rules:** Start from project profile (web app, CLI, ML pipeline, library); map test types to risk areas; prioritize by impact
-> **enhancement_rules:** Adjust test mix as project evolves; add test types for new risk areas; remove tests for deprecated features
-> **validation_rules:** Test strategy covers all applicable risk areas; priorities are justified; no gaps in verification chain
-> **audit_rules:** Must exist; must define test type applicability; must reference project profile; must be justified by risk analysis
+> *Structural rules: `audit/deterministic/section/qa/test_strategy.yaml`*
 
 ### Template
 
@@ -265,16 +250,7 @@ Section headings are case-insensitive. Sections not listed here are stored as `g
 
 ## Unit Testing
 
-> **semantic_type:** `unit_testing`
-> **scope:** Testing individual components or functions in isolation — the foundation of the testing pyramid
-> **out_of_scope:** Integration between components, user-facing behavior, performance characteristics
-> **contributes:** Verifies that individual building blocks work correctly before they are composed
-> **relationships:** Validates Feature(04) functional requirements at the component level; references Engineering(07) code standards for test quality
-> **responsibilities:** Define unit test coverage targets, naming conventions, and assertion standards
-> **generation_rules:** Derive from Feature(04) functional requirements; test one behavior per test; follow Arrange-Act-Assert pattern
-> **enhancement_rules:** Add tests for new behaviors; update tests when behavior changes; remove tests for deleted features
-> **validation_rules:** Coverage targets are defined; naming conventions are explicit; assertion standards are clear
-> **audit_rules:** Must exist; must define coverage targets; must not test implementation details; must test behavior, not structure
+> *Structural rules: `audit/deterministic/section/qa/unit_testing.yaml`*
 
 ### Template
 
@@ -352,16 +328,7 @@ Unit testing is applicable to all projects. Define coverage targets appropriate 
 
 ## Integration Testing
 
-> **semantic_type:** `integration_testing`
-> **scope:** Testing how components interact — verifying that composed units work together correctly
-> **out_of_scope:** Individual component behavior, user-facing workflows, performance under load
-> **contributes:** Verifies that the component model defined in Architecture(05) actually works when components communicate
-> **relationships:** Validates Architecture(05) component interactions; references Feature(04) cross-component requirements
-> **responsibilities:** Define which integration boundaries to test, contract verification approach, and data flow validation
-> **generation_rules:** Derive from Architecture(05) component model; test each communication path; verify data contracts between components
-> **enhancement_rules:** Add integration tests for new component connections; update when interfaces change; remove tests for deprecated paths
-> **validation_rules:** Integration boundaries are defined; contract verification is explicit; data flow validation is complete
-> **audit_rules:** Must exist for multi-component projects; must reference Architecture(05) component model; must test actual communication paths
+> *Structural rules: `audit/deterministic/section/qa/integration_testing.yaml`*
 
 ### Template
 
@@ -430,16 +397,7 @@ Integration testing is mandatory for projects with multiple components. Map test
 
 ## End-to-End Testing
 
-> **semantic_type:** `e2e_testing`
-> **scope:** Testing complete user workflows from start to finish — verifying the full stack works as the user experiences it
-> **out_of_scope:** Individual component behavior, internal API contracts, implementation details
-> **contributes:** Verifies that the user experience defined in Design(06) actually works in the running application
-> **relationships:** Validates Design(06) user workflows; references Feature(04) user-facing requirements; tests against Implementation(13) as-built
-> **responsibilities:** Define critical user journeys to test, expected outcomes, and acceptance criteria
-> **generation_rules:** Derive from Design(06) user workflows and Feature(04) acceptance criteria; test the happy path first, then edge cases
-> **enhancement_rules:** Add tests for new user journeys; update when workflows change; remove tests for deprecated features
-> **validation_rules:** Critical user journeys are covered; expected outcomes are explicit; acceptance criteria are testable
-> **audit_rules:** Must exist for user-facing applications; must reference Design(06) workflows; must have clear pass/fail criteria
+> *Structural rules: `audit/deterministic/section/qa/e2e_testing.yaml`*
 
 ### Template
 
@@ -507,16 +465,7 @@ End-to-end testing is conditional — required for applications with user-facing
 
 ## Smoke Testing
 
-> **semantic_type:** `smoke_testing`
-> **scope:** Quick sanity checks after deployment — verifying the application starts and core functions work
-> **out_of_scope:** Deep functional testing, performance testing, edge case validation
-> **contributes:** Provides the first line of defense after deployment; catches critical failures before users do
-> **relationships:** References Implementation(13) deployed artifacts; validates Build(14) deployment output
-> **responsibilities:** Define smoke test scope (what "core functions" means), pass/fail criteria, and execution timing
-> **generation_rules:** Start from the most critical user journey; test that the application starts; verify core data flows
-> **enhancement_rules:** Add smoke tests for new critical paths; update when core functions change; keep the suite fast
-> **validation_rules:** Smoke tests are fast (< 5 minutes); cover critical paths; have clear pass/fail criteria
-> **audit_rules:** Must exist for deployed applications; must be fast enough for post-deployment execution; must cover critical paths
+> *Structural rules: `audit/deterministic/section/qa/smoke_testing.yaml`*
 
 ### Template
 
@@ -590,16 +539,7 @@ Smoke testing is conditional — required for deployed applications. Must be fas
 
 ## Load Testing
 
-> **semantic_type:** `load_testing`
-> **scope:** Testing application behavior under expected and peak load — verifying performance meets requirements
-> **out_of_scope:** Functional correctness, security vulnerabilities, deployment procedures
-> **contributes:** Verifies that the application meets the performance requirements implied by Feature(04) and Architecture(05)
-> **relationships:** References Architecture(05) scalability constraints; validates Engineering(07) performance standards
-> **responsibilities:** Define load profiles (expected, peak, stress), performance targets, and acceptable degradation
-> **generation_rules:** Derive from expected user load; define baseline, target, and stress profiles; set measurable performance targets
-> **enhancement_rules:** Update load profiles as user base grows; adjust targets as requirements evolve; add tests for new critical paths
-> **validation_rules:** Load profiles are realistic; performance targets are measurable; degradation behavior is defined
-> **audit_rules:** Must exist for applications expecting concurrent users; must define realistic load profiles; must have measurable targets
+> *Structural rules: `audit/deterministic/section/qa/load_testing.yaml`*
 
 ### Template
 
@@ -681,16 +621,7 @@ Load testing is conditional — required for applications expecting concurrent u
 
 ## Scalability Testing
 
-> **semantic_type:** `scalability_testing`
-> **scope:** Testing how the application behaves as load increases beyond normal — verifying it can grow gracefully
-> **out_of_scope:** Current performance validation, functional testing, deployment procedures
-> **contributes:** Verifies that Architecture(05) scalability decisions actually work under growth pressure
-> **relationships:** References Architecture(05) scalability constraints; validates system design handles growth
-> **responsibilities:** Define growth scenarios, breaking points, and scaling behavior expectations
-> **generation_rules:** Start from Architecture(05) scalability model; test scaling behavior at 2x, 5x, 10x expected load
-> **enhancement_rules:** Update growth scenarios as architecture evolves; adjust breaking point expectations; add tests for new scaling dimensions
-> **validation_rules:** Growth scenarios are defined; breaking points are documented; scaling behavior is characterized
-> **audit_rules:** Must exist for applications expecting growth; must reference Architecture(05) scalability model; must document breaking points
+> *Structural rules: `audit/deterministic/section/qa/scalability_testing.yaml`*
 
 ### Template
 
@@ -769,16 +700,7 @@ Scalability testing is conditional — required for applications expecting signi
 
 ## Security Testing
 
-> **semantic_type:** `security_testing`
-> **scope:** Verifying that Security(03) requirements are enforced in the implementation — testing for vulnerabilities, compliance, and data protection
-> **out_of_scope:** Security architecture design, threat modeling, security policy definition
-> **contributes:** Verifies that Security(03) requirements and Engineering(07) security standards are actually implemented correctly
-> **relationships:** Validates Security(03) threat model and data classification; references Engineering(07) security standards; tests Implementation(13) for vulnerabilities
-> **responsibilities:** Define security test types (SAST, DAST, dependency scanning, secrets detection), coverage targets, and severity thresholds
-> **generation_rules:** Derive from Security(03) threat model; map test types to threat categories; set severity thresholds for pass/fail
-> **enhancement_rules:** Add tests for new threat categories; update thresholds as risk posture changes; remove tests for mitigated threats
-> **validation_rules:** All Security(03) threat categories have corresponding tests; severity thresholds are defined; coverage targets are measurable
-> **audit_rules:** Must exist; must reference Security(03) threat model; must cover all mandatory threat categories; must have measurable severity thresholds
+> *Structural rules: `audit/deterministic/section/qa/security_testing.yaml`*
 
 ### Template
 

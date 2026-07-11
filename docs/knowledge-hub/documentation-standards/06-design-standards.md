@@ -1,5 +1,7 @@
 # Design Standard
 
+> *Deterministic rules for this domain: `audit/deterministic/document/design.yaml`*
+
 ## Table of Contents
 - [Purpose](#purpose)
 - [UX Principles](#ux-principles)
@@ -38,16 +40,7 @@
 
 ## Purpose
 
-> **semantic_type:** `purpose`
-> **scope:** Why Design Documentation exists — its role in establishing reusable design language across the product ecosystem
-> **out_of_scope:** Feature-specific design decisions, implementation details, technology choices, component specifications
-> **contributes:** Establishes the root intent that all design sections and downstream Feature Design documents derive from
-> **relationships:** References Vision(01) and Philosophy(02); feeds Feature Design(09) and Architecture(05)
-> **responsibilities:** Define what Design Documentation is, what it covers, and how it relates to other documentation standards
-> **generation_rules:** Start with the problem Design Documentation solves; state what it defines and what it does not; avoid feature-specific language
-> **enhancement_rules:** Strengthen clarity without adding scope; remove ambiguity; ensure purpose survives feature and technology changes
-> **validation_rules:** Purpose is clearly defined; no implementation details present; distinguishable from Feature Design; technology-independent
-> **audit_rules:** Must exist; must not contain feature lists; must not reference specific technologies; must distinguish Design from Feature Design
+> *Structural rules: `audit/deterministic/section/design/purpose.yaml`*
 
 ### Template
 
@@ -102,16 +95,7 @@ It does not describe how individual features behave.
 
 ## UX Principles
 
-> **semantic_type:** `ux_principles`
-> **scope:** User experience principles that govern how users interact with the product — interaction philosophy, navigation, feedback, and discoverability
-> **out_of_scope:** Visual design details, accessibility requirements, implementation frameworks, component specifications, feature-specific workflows
-> **contributes:** Ensures every feature delivers a consistent, predictable, and user-centered experience across the product ecosystem
-> **relationships:** Derived from Design Principles; referenced by Feature Design(09) for interaction decisions; complements Accessibility standards
-> **responsibilities:** Define reusable UX principles covering interaction patterns, navigation philosophy, feedback mechanisms, and discoverability
-> **generation_rules:** Extract from user-centered values; describe interaction philosophy at the product level; avoid feature-specific or technology-specific language
-> **enhancement_rules:** Strengthen user-centeredness; remove feature-specific UX guidance; ensure principles remain technology-independent
-> **validation_rules:** UX principles are reusable across features; technology-independent; actionable for designers and engineers; user-focused
-> **audit_rules:** Must exist; must not reference specific UI frameworks; must not describe feature-specific interactions; must be technology-independent
+> *Structural rules: `audit/deterministic/section/design/ux_principles.yaml`*
 
 ### Template
 
@@ -165,16 +149,7 @@ It does not describe how individual features behave.
 
 ## Accessibility
 
-> **semantic_type:** `accessibility`
-> **scope:** Accessibility standards and principles ensuring the product is usable by people of all abilities — inclusive design, assistive technology support, and compliance targets
-> **out_of_scope:** Feature-specific accessibility implementations, component-level ARIA patterns, testing scripts, code-level accessibility fixes
-> **contributes:** Ensures every feature and design decision considers accessibility by default, reducing retrofitting costs and expanding user reach
-> **relationships:** Complements UX Principles; referenced by Feature Design(09) and Engineering(07) for compliance; aligns with legal and organizational standards
-> **responsibilities:** Define accessibility principles, compliance targets, inclusive design guidelines, and assistive technology requirements
-> **generation_rules:** Reference applicable standards (WCAG, etc.); state principles at the product level; describe inclusive design philosophy before technical requirements
-> **enhancement_rules:** Update compliance targets when standards evolve; strengthen inclusive design guidance; remove feature-specific accessibility rules
-> **validation_rules:** Accessibility standards are documented; compliance targets are defined; principles are technology-independent; applicable to the product domain
-> **audit_rules:** Must exist if the product has a user interface; must reference applicable standards; must not contain component-level ARIA patterns; must be technology-independent
+> *Structural rules: `audit/deterministic/section/design/accessibility.yaml`*
 
 ### Template
 
@@ -230,16 +205,7 @@ It does not describe how individual features behave.
 
 ## Constraints
 
-> **semantic_type:** `constraints`
-> **scope:** Design-level limitations and non-functional requirements that bound how the product can be designed — platform constraints, regulatory requirements, and organizational mandates
-> **out_of_scope:** Technical architecture constraints, implementation limitations, coding standards, infrastructure requirements
-> **contributes:** Provides guardrails that Feature Design and Architecture must respect; prevents designs that violate organizational or regulatory requirements
-> **relationships:** Derived from Vision(01) and External Context; referenced by Feature Design(09) and Architecture(05) as binding constraints
-> **responsibilities:** Document design-level constraints including platform requirements, regulatory obligations, organizational mandates, and performance boundaries
-> **generation_rules:** Extract from Vision, regulatory requirements, and organizational standards; state as binding constraints, not suggestions; distinguish from preferences
-> **enhancement_rules:** Add constraints when new regulations or mandates emerge; remove obsolete constraints; ensure constraints remain binding and current
-> **validation_rules:** Constraints are binding and actionable; clearly distinguished from preferences; current and applicable; technology-independent where possible
-> **audit_rules:** Must exist if the product has regulatory or platform constraints; must state binding nature; must not conflate constraints with preferences
+> *Structural rules: `audit/deterministic/section/design/constraints.yaml`*
 
 ### Template
 
@@ -461,16 +427,7 @@ Every Feature Design should align with the Design Documentation.
 
 ## Traceability
 
-> **semantic_type:** `traceability`
-> **scope:** How Design Documentation connects to the documentation hierarchy — the derivation chain from Vision through Design to Feature Design
-> **out_of_scope:** Implementation traceability, test traceability, bug tracking, version history, code-level tracing
-> **contributes:** Makes Design's influence visible and verifiable across the entire documentation ecosystem
-> **relationships:** Derived from Vision(01); feeds Feature Design(09) and Architecture(05); referenced by Feature Technical Design(10)
-> **responsibilities:** Show the derivation path from Vision to Design; show how Design feeds Feature Design and downstream standards
-> **generation_rules:** Use the tier diagram; list which standards derive from or reference Design; assert the non-contradiction rule
-> **enhancement_rules:** Update the diagram when new standards are added; ensure derivation paths remain accurate
-> **validation_rules:** Derivation paths are complete; no orphaned standards; non-contradiction rule is stated
-> **audit_rules:** Must exist; must include tier diagram; must list downstream standards; must state non-contradiction constraint
+> *Structural rules: `audit/deterministic/section/design/traceability.yaml`*
 
 ### Template
 
@@ -768,16 +725,7 @@ Large documents should be decomposed into smaller focused documents.
 
 ## Design Principles
 
-> **semantic_type:** `design_principles`
-> **scope:** Core reusable design principles that govern all design decisions — consistency, simplicity, predictability, accessibility, and other foundational values
-> **out_of_scope:** Feature-specific design rules, implementation guidelines, technology-specific patterns, component specifications
-> **contributes:** Provides the shared design language that every Feature Design references rather than redefining
-> **relationships:** Derived from Vision(01) Philosophy; referenced by Feature Design(09), UX Principles, and Accessibility; guides Architecture(05)
-> **responsibilities:** Define principles that remain stable across features, applications, and technology changes
-> **generation_rules:** Extract from product philosophy; express as memorable, stable values; use concrete examples where helpful; keep at the product level
-> **enhancement_rules:** Add principles when new design concerns emerge; merge overlapping principles; strengthen clarity without adding scope
-> **validation_rules:** Principles are technology-independent; reusable across features; memorable; actionable when a design decision is ambiguous
-> **audit_rules:** Must exist; must not reference specific technologies; must not describe feature-specific behavior; must be evaluable against real design decisions
+> *Structural rules: `audit/deterministic/section/design/design_principles.yaml`*
 
 ### Template
 

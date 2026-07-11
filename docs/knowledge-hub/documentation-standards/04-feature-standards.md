@@ -1,5 +1,7 @@
 # Feature Standard
 
+> *Deterministic rules for this domain: `audit/deterministic/document/feature.yaml`*
+
 ## Table of Contents
 - [Purpose](#purpose)
 - [Functional Requirements](#functional-requirements)
@@ -44,16 +46,7 @@
 
 ## Purpose
 
-> **semantic_type:** `purpose`
-> **scope:** Why Feature Documentation exists — its role in defining product capabilities independent of implementation
-> **out_of_scope:** Feature specifications, architecture details, implementation approaches, technology choices
-> **contributes:** Establishes the root intent for all Feature Documentation sections and downstream standards
-> **relationships:** Derived from Vision(01); feeds Feature Design(09) and Feature Technical Design(10)
-> **responsibilities:** Define Feature Documentation's reason for being and its boundary within the documentation ecosystem
-> **generation_rules:** State what Feature Documentation is; explain what it defines and what it does not; reference the broader ecosystem
-> **enhancement_rules:** Strengthen clarity of scope boundaries; remove overlap with downstream standards; keep stable over time
-> **validation_rules:** Purpose is clearly defined; no feature specifications present; boundary with other standards is explicit
-> **audit_rules:** Must exist; must not contain feature lists; must define what Feature Documentation is and is not
+> *Structural rules: `audit/deterministic/section/feature/purpose.yaml`*
 
 ### Template
 
@@ -119,16 +112,7 @@ It does not describe implementation, architecture, or engineering decisions.
 
 ## Functional Requirements
 
-> **semantic_type:** `functional_requirements`
-> **scope:** The complete set of functional behaviors the feature must exhibit — what the product does for the user
-> **out_of_scope:** Implementation details, technical design, API contracts, database schemas, UI layout
-> **contributes:** Defines the core deliverable of every feature document — the "what" that drives all downstream design
-> **relationships:** Derived from Vision(01) goals; feeds Feature Design(09) and Feature Technical Design(10); referenced by Acceptance Criteria
-> **responsibilities:** List every functional behavior the feature must support, written as testable statements independent of technology
-> **generation_rules:** Write one requirement per behavior; use shall/must language; keep each requirement atomic and independently verifiable
-> **enhancement_rules:** Add requirements when scope clarifies; remove requirements that duplicate other features; split compound requirements
-> **validation_rules:** Every requirement is atomic, testable, technology-independent, and traceable to Vision; no implementation leakage
-> **audit_rules:** Must exist; must not contain implementation details; each requirement must be independently testable; must not reference specific technologies
+> *Structural rules: `audit/deterministic/section/feature/functional_requirements.yaml`*
 
 ### Template
 
@@ -188,16 +172,7 @@ It does not describe implementation, architecture, or engineering decisions.
 
 ## Business Rules
 
-> **semantic_type:** `business_rules`
-> **scope:** The business logic and rules that govern feature behavior — the constraints on how the feature operates
-> **out_of_scope:** Technical validation, input sanitization, database constraints, API rate limits
-> **contributes:** Captures domain knowledge that cannot be inferred from functional requirements alone
-> **relationships:** Derived from Business Requirements and Vision(01); feeds Feature Design(09); referenced by Acceptance Criteria
-> **responsibilities:** Document every business rule that governs feature behavior, including conditional logic and edge cases
-> **generation_rules:** Express rules as conditional statements; reference the business domain; keep rules independent of implementation
-> **enhancement_rules:** Add rules when domain knowledge clarifies; remove rules that are technical constraints; consolidate overlapping rules
-> **validation_rules:** Rules are complete, unambiguous, technology-independent, and testable; no implementation details present
-> **audit_rules:** Must exist if the feature has business logic; must not contain technical constraints; must be testable
+> *Structural rules: `audit/deterministic/section/feature/business_rules.yaml`*
 
 ### Template
 
@@ -256,16 +231,7 @@ It does not describe implementation, architecture, or engineering decisions.
 
 ## Constraints
 
-> **semantic_type:** `constraints`
-> **scope:** The limitations and boundaries the feature must operate within — regulatory, business, or technical constraints
-> **out_of_scope:** Implementation details, technology choices, framework limitations, performance benchmarks
-> **contributes:** Defines the boundary conditions within which the feature must function
-> **relationships:** May reference External Context; feeds Feature Design(09) and Architecture(05); referenced by Acceptance Criteria
-> **responsibilities:** Document every constraint that limits how the feature can be designed or implemented
-> **generation_rules:** List constraints by category (regulatory, business, technical); state each constraint as a clear limitation
-> **enhancement_rules:** Add constraints when new regulations or policies apply; remove constraints that no longer apply; clarify ambiguous constraints
-> **validation_rules:** Constraints are complete, clear, technology-independent, and enforceable; no implementation details present
-> **audit_rules:** Must exist if the feature has constraints; must not contain implementation details; must be enforceable
+> *Structural rules: `audit/deterministic/section/feature/constraints.yaml`*
 
 ### Template
 
@@ -334,16 +300,7 @@ It does not describe implementation, architecture, or engineering decisions.
 
 ## Dependencies
 
-> **semantic_type:** `dependencies`
-> **scope:** Other features, systems, or capabilities the feature relies on to function — the relationships that create coupling
-> **out_of_scope:** Implementation dependencies, library versions, framework dependencies, build dependencies
-> **contributes:** Makes feature coupling explicit so downstream design can address integration points
-> **relationships:** References other Feature documents; feeds Architecture(05) and Feature Technical Design(10); may reference External Context
-> **responsibilities:** List every feature, system, or capability this feature depends on, with the nature of the dependency
-> **generation_rules:** List dependencies by name and type; state the nature of each dependency; distinguish functional from data dependencies
-> **enhancement_rules:** Add dependencies when new coupling is discovered; remove dependencies when features are decoupled; clarify dependency nature
-> **validation_rules:** Dependencies are real and documented; nature of each dependency is stated; no circular dependencies exist
-> **audit_rules:** Must exist if the feature has dependencies; must not list implementation dependencies; must state the nature of each dependency
+> *Structural rules: `audit/deterministic/section/feature/dependencies.yaml`*
 
 ### Template
 
@@ -407,16 +364,7 @@ It does not describe implementation, architecture, or engineering decisions.
 
 ## Acceptance Criteria
 
-> **semantic_type:** `acceptance_criteria`
-> **scope:** The verifiable conditions that confirm the feature is complete and correct — the definition of done for the feature
-> **out_of_scope:** Test implementation details, code coverage targets, performance benchmarks, deployment criteria
-> **contributes:** Provides the testable contract that validates feature completeness and correctness
-> **relationships:** Derived from Functional Requirements and Business Rules; feeds Testing and Validation; referenced by Audit Rules
-> **responsibilities:** Define every verifiable condition that confirms the feature meets its requirements and business rules
-> **generation_rules:** Derive from each functional requirement and business rule; write as given/when/then or checklist; keep each criterion independently verifiable
-> **enhancement_rules:** Add criteria when requirements clarify; remove criteria that duplicate others; ensure every requirement has a corresponding criterion
-> **validation_rules:** Every requirement has at least one acceptance criterion; criteria are testable; no implementation details present
-> **audit_rules:** Must exist; must cover all functional requirements; must be independently testable; must not reference implementation details
+> *Structural rules: `audit/deterministic/section/feature/acceptance_criteria.yaml`*
 
 ### Template
 
@@ -476,16 +424,7 @@ It does not describe implementation, architecture, or engineering decisions.
 
 ## Future Extensions
 
-> **semantic_type:** `future_extensions`
-> **scope:** Known future work or planned extensions for the feature — what is explicitly deferred to a later iteration
-> **out_of_scope:** Current feature requirements, implementation plans, technology roadmap, release schedule
-> **contributes:** Documents intentional deferrals so downstream standards know what is planned but not yet scoped
-> **relationships:** References Vision(01) goals; feeds Feature Design(09) planning; may reference Backlog items
-> **responsibilities:** List known future work with enough context to understand why it was deferred and when it should be revisited
-> **generation_rules:** List deferred work with rationale; keep descriptions brief; reference the triggering condition for revisiting
-> **enhancement_rules:** Remove items that are now in scope; add items when deferral decisions are made; update triggering conditions
-> **validation_rules:** Items are genuinely deferred (not forgotten); rationale is clear; triggering conditions are stated
-> **audit_rules:** Must exist if future work is known; must not contain current requirements; must include rationale for deferral
+> *Structural rules: `audit/deterministic/section/feature/future_extensions.yaml`*
 
 ### Template
 
@@ -585,16 +524,7 @@ Feature Documentation aims to:
 
 ## Non-Goals
 
-> **semantic_type:** `non_goals`
-> **scope:** What Feature Documentation explicitly does not define — boundaries that prevent scope creep into other standards
-> **out_of_scope:** Goals, vision statements, success criteria, any positive framing of intent
-> **contributes:** Prevents Feature Documentation from conflating with Architecture, Design, or Engineering standards
-> **relationships:** Mirrors Goals; referenced by Audit Rules to detect scope violations in feature documents
-> **responsibilities:** List every responsibility that belongs to a different documentation standard, with ownership assigned
-> **generation_rules:** Invert the Goals list; reference the specific downstream standard that owns each excluded responsibility
-> **enhancement_rules:** Add new exclusions when scope creep is detected; remove exclusions for responsibilities that migrate to Feature Documentation
-> **validation_rules:** All excluded responsibilities have a clear owner in another standard; no ambiguity about where responsibility lies
-> **audit_rules:** Must exist; each excluded item must name its owning standard; must not contradict the Goals list
+> *Structural rules: `audit/deterministic/section/feature/non_goals.yaml`*
 
 ### Template
 
@@ -740,16 +670,7 @@ These belong to Architecture, Feature Technical Design, Engineering, Feature Des
 
 ## Inputs
 
-> **semantic_type:** `inputs`
-> **scope:** What feeds Feature Documentation — the upstream sources from which feature specifications derive
-> **out_of_scope:** Implementation sources, code analysis, technical constraints, architecture decisions
-> **contributes:** Defines the derivation chain so every feature can be traced to its originating intent
-> **relationships:** Consumes Vision(01) outputs; may reference External Context; referenced by Traceability sections
-> **responsibilities:** List every valid source of feature specifications and assert that implementation is not a source
-> **generation_rules:** List sources by name; state the derivation direction; assert that Feature Documentation should not derive from implementation
-> **enhancement_rules:** Add new sources when upstream standards are added; remove sources that no longer feed Feature Documentation
-> **validation_rules:** All listed sources exist as upstream standards; derivation direction is correct; no circular dependencies
-> **audit_rules:** Must exist; must list at least Vision as a source; must state that implementation is not a source; must not reference downstream standards as inputs
+> *Structural rules: `audit/deterministic/section/feature/inputs.yaml`*
 
 ### Template
 
@@ -823,16 +744,7 @@ Feature Documentation should not derive from implementation.
 
 ## Outputs
 
-> **semantic_type:** `outputs`
-> **scope:** What Feature Documentation feeds — the downstream standards that consume feature specifications
-> **out_of_scope:** Upstream sources, Vision content, implementation details
-> **contributes:** Makes explicit which downstream standards depend on Feature Documentation for their input
-> **relationships:** Feeds Feature Design(09), Architecture(05), Feature Technical Design(10), Engineering(07), and Testing
-> **responsibilities:** List every downstream standard that consumes Feature Documentation and state the nature of the dependency
-> **generation_rules:** List downstream consumers by name and standard number; state what each consumer derives from Feature Documentation
-> **enhancement_rules:** Add new consumers when downstream standards are added; update relationships when standards are reorganized
-> **validation_rules:** All listed consumers exist; the nature of dependency is stated; no upstream standards listed as consumers
-> **audit_rules:** Must exist; must list at least Feature Design as a consumer; must not list upstream standards as consumers
+> *Structural rules: `audit/deterministic/section/feature/outputs.yaml`*
 
 ### Template
 
@@ -903,16 +815,7 @@ Every implementation should trace back to one or more feature specifications.
 
 ## Traceability
 
-> **semantic_type:** `traceability`
-> **scope:** How Feature Documentation connects to the documentation hierarchy — the derivation chain from Vision to implementation
-> **out_of_scope:** Implementation traceability, test traceability, bug tracking, version history
-> **contributes:** Makes Feature Documentation's influence visible and verifiable across the entire documentation ecosystem
-> **relationships:** Vision(01) → Feature(04) → Feature Design(09) → Feature Technical Design(10) → Engineering(07) → Implementation
-> **responsibilities:** Show the derivation path from Vision through Feature to downstream standards; assert that no downstream document contradicts Feature intent
-> **generation_rules:** Use the tier model diagram; list which standards derive from Features; state the non-contradiction rule
-> **enhancement_rules:** Update the diagram when new standards are added; ensure derivation paths remain accurate
-> **validation_rules:** Derivation paths are complete; no orphaned standards; non-contradiction rule is stated
-> **audit_rules:** Must exist; must include tier diagram; must list downstream standards; must state non-contradiction constraint
+> *Structural rules: `audit/deterministic/section/feature/traceability.yaml`*
 
 ### Template
 

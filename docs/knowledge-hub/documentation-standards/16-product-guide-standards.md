@@ -1,6 +1,9 @@
 # Product Guide Standard
 
 ## Table of Contents
+
+> *Deterministic rules for this domain: `audit/deterministic/document/product-guide.yaml`*
+
 - [Purpose](#purpose)
   - [Template](#template)
 - [Title](#title)
@@ -38,16 +41,7 @@
 
 ## Purpose
 
-> **semantic_type:** `purpose`
-> **scope:** Why this Product Guide topic exists and what problem it solves for the reader
-> **out_of_scope:** Implementation details, architecture rationale, or non-user-facing context
-> **contributes:** Orients the reader by explaining the topic's value before diving into content
-> **relationships:** References the broader Purpose of Product Guide as a domain; may reference related standards
-> **responsibilities:** State the single user-facing problem this topic solves
-> **generation_rules:** Derive from the topic's actual function in the shipped product; keep to one sentence or short paragraph
-> **enhancement_rules:** Verify the stated purpose still matches the shipped behavior; prune aspirational language
-> **validation_rules:** Purpose must exist, be non-empty, and describe a user-facing goal — not an engineering goal
-> **audit_rules:** `help-002` — Has purpose (suggestion severity)
+> *Structural rules: `audit/deterministic/section/product-guide/purpose.yaml`*
 
 ### Template
 
@@ -90,16 +84,7 @@ Product Guide topics explain **how to use the finished product**. They do not de
 
 ## Title
 
-> **semantic_type:** `title`
-> **scope:** The topic's display name — shown in help.db indexes, navigation, and search results
-> **out_of_scope:** Full topic body, detailed descriptions, or multi-sentence explanations
-> **contributes:** The first thing a reader sees; must make the topic findable and scannable
-> **relationships:** Referenced by Navigation and Coverage checks in the Product Guide Audit Pipeline
-> **responsibilities:** Provide a concise, descriptive heading that identifies the command, concept, or workflow
-> **generation_rules:** Use the command name or concept name directly; avoid marketing language or vague labels
-> **enhancement_rules:** Ensure the title still matches the shipped feature name; keep under 60 characters
-> **validation_rules:** Title must exist, be non-empty, and be unique within the Product Guide corpus
-> **audit_rules:** `help-001` — Has title (error severity)
+> *Structural rules: `audit/deterministic/section/product-guide/title.yaml`*
 
 ### Template
 
@@ -140,16 +125,7 @@ Product Guide topics explain **how to use the finished product**. They do not de
 
 ## Content
 
-> **semantic_type:** `body`
-> **scope:** The main instructional or explanatory content of the topic — what the user came to learn
-> **out_of_scope:** Structural metadata, navigation links, or contextual framing that belongs in other sections
-> **contributes:** Delivers the core value of the topic; this is what the reader actually uses
-> **relationships:** Depends on Purpose for framing; may reference Public Contract for inputs/outputs
-> **responsibilities:** Explain how to use the feature, interpret the error, or complete the workflow — with examples
-> **generation_rules:** Start with the user's goal; provide step-by-step instructions or explanations with concrete examples
-> **enhancement_rules:** Verify against shipped product behavior; add examples for new edge cases; improve scannability with headers
-> **validation_rules:** Content must exist, be non-empty, and contain actionable information (not just placeholders)
-> **audit_rules:** `help-003` — Has content (error severity)
+> *Structural rules: `audit/deterministic/section/product-guide/body.yaml`*
 
 ### Template
 
@@ -212,16 +188,7 @@ Product Guide topics explain **how to use the finished product**. They do not de
 
 ## Product Context
 
-> **semantic_type:** `product-context`
-> **scope:** Background on where this feature sits in the product — prerequisites, default behavior, related features
-> **out_of_scope:** Internal implementation details, architecture, or design rationale
-> **contributes:** Helps the reader understand when and why to use this feature before learning how
-> **relationships:** May reference Build Standard for prerequisites; connects to Purpose for framing
-> **responsibilities:** State any prerequisites, default configurations, or product-version context the reader needs
-> **generation_rules:** Identify what the user must already know or have installed; note version-specific behavior if applicable
-> **enhancement_rules:** Update when prerequisites change; remove references to deprecated features or old versions
-> **validation_rules:** Should accurately reflect the current product state; must not contain aspirational language
-> **audit_rules:** `help-004` — Has product context (suggestion severity)
+> *Structural rules: `audit/deterministic/section/product-guide/product-context.yaml`*
 
 ### Template
 
@@ -270,16 +237,7 @@ Product Guide topics explain **how to use the finished product**. They do not de
 
 ## Public Contract
 
-> **semantic_type:** `public-contract`
-> **scope:** The interface surface — CLI flags, MCP parameters, config keys, inputs, outputs, and error conditions
-> **out_of_scope:** Internal implementation details, source code references, or non-public APIs
-> **contributes:** Gives the reader precise technical details on how to invoke and interact with the feature
-> **relationships:** Derives from Feature / Feature Design for specifications; validated against Build for shippability
-> **responsibilities:** List all inputs, outputs, flags, config keys, and error conditions the user can encounter
-> **generation_rules:** Enumerate the actual CLI/MCP/config surface from the shipped product; include types, defaults, and required/optional status
-> **enhancement_rules:** Sync with CLI/MCP changes; remove deprecated flags; document new error conditions
-> **validation_rules:** Must match the actual shipped interface; no invented or speculative parameters
-> **audit_rules:** `help-005` — Has public contract (warning severity)
+> *Structural rules: `audit/deterministic/section/product-guide/public-contract.yaml`*
 
 ### Template
 
@@ -354,16 +312,7 @@ Product Guide topics explain **how to use the finished product**. They do not de
 
 ## Related
 
-> **semantic_type:** `related`
-> **scope:** Links to other Product Guide topics, standards, or external references relevant to this topic
-> **out_of_scope:** Duplicate content from linked topics; links to unrelated domains without clear relevance
-> **contributes:** Enables navigation to adjacent knowledge, preventing dead-end reads
-> **relationships:** Links to other Product Guide topics, and potentially to Vision, Feature, Build, or README standards
-> **responsibilities:** Provide at least one relevant cross-reference; each link must have a brief label explaining why it's relevant
-> **generation_rules:** After writing the topic body, identify what else the reader might need; link to those topics or standards
-> **enhancement_rules:** Verify all links still resolve; add links when new related topics are created
-> **validation_rules:** Related section should exist; linked targets should be valid; labels should be descriptive
-> **audit_rules:** Cross-references validated by the Product Guide Audit Pipeline (Navigation check)
+> *Structural rules: `audit/deterministic/section/product-guide/related.yaml`*
 
 ### Template
 
