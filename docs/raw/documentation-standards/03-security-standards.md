@@ -74,6 +74,15 @@
 > Security(03) defines the authentication middleware, rate-limiting configuration, and WAF rule set used across all services.
 > *Why wrong: This describes specific control implementations (authentication middleware, rate limiting, WAF rules) — those belong in Engineering's Security Standards or Architecture's Security Considerations, not in the project-wide Security document.*
 
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** third person
+- **Structure:** paragraphs
+- **Audience:** new contributor
+- **Do:** State Security's role as the single project-wide authority; define the boundary between Security and per-domain sections explicitly; reference derivation from Vision(01) and Philosophy(02)
+- **Don't:** Name specific controls, libraries, or tooling; use imperative voice; embed implementation details that belong in downstream domains
+
 ---
 
 This document defines the standard for Security documentation within the engineering documentation ecosystem.
@@ -129,6 +138,15 @@ It does not define how any single component enforces that posture. That belongs 
 > Threat: Hackers might try to break in. Mitigation: We will use OWASP Top 10 and add WAF rules in the deployment pipeline.
 > *Why wrong: No named methodology is used ("OWASP Top 10" is a list, not a methodology), the adversary profile is missing, severity is absent, and the mitigation embeds specific tooling (WAF) that belongs in Engineering's Security Standards.*
 
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** third person
+- **Structure:** tables
+- **Audience:** architect
+- **Do:** Use a named methodology (STRIDE, PASTA, or OWASP Threat Modeling) consistently; link each threat to at least one downstream mitigation expectation; assign severity to every enumerated threat
+- **Don't:** List specific tooling or library mitigations; enumerate per-component trust boundaries that belong in Architecture; use vague severity labels without justification
+
 ---
 
 *(To be written by the domain expert. This section defines the project-wide threat model.)*
@@ -178,6 +196,15 @@ It does not define how any single component enforces that posture. That belongs 
 > Sensitive data goes in PostgreSQL with row-level security. Non-sensitive data goes in Elasticsearch.
 > *Why wrong: This classifies data by storage technology rather than by sensitivity level — a new team member reading this cannot determine what "sensitive" means without knowing the infrastructure, and the classification is not technology-independent.*
 
+### Writing Guidance
+
+- **Tone:** structural
+- **Voice:** third person
+- **Structure:** tables
+- **Audience:** engineer
+- **Do:** Provide one concrete example per sensitivity level; state handling expectations (access control, encryption, retention) per level; keep classification technology-independent
+- **Don't:** Classify data by storage location or database; embed encryption library or access-control implementation; omit handling expectations for any defined level
+
 ---
 
 *(To be written by the domain expert. This section defines the data classification scheme.)*
@@ -226,6 +253,15 @@ It does not define how any single component enforces that posture. That belongs 
 **Incorrect:**
 > Security Principle: Be Secure. All code must follow security best practices.
 > *Why wrong: This is a generic platitude that cannot constrain any concrete design decision — "best practices" is undefined, and "be secure" gives no evaluative criteria for a proposed design.*
+
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** imperative
+- **Structure:** paragraphs
+- **Audience:** architect
+- **Do:** State each principle with name, rationale, and at least one example decision it constrains; specialize Philosophy(02) guiding principles for the security context; ensure every principle is evaluable against a concrete design
+- **Don't:** Write generic platitudes ("be secure", "follow best practices"); embed specific technology choices or library recommendations; list more than seven principles — keep the set focused and memorable
 
 ---
 
@@ -278,6 +314,15 @@ It does not define how any single component enforces that posture. That belongs 
 > We need to comply with GDPR. We'll use a consent management platform and encrypt all personal data at rest with AES-256.
 > *Why wrong: This skips the obligation-to-control traceability — it jumps straight to implementation solutions (CMP, AES-256) instead of stating what the project must do and which downstream domains must implement controls.*
 
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** third person
+- **Structure:** tables
+- **Audience:** architect
+- **Do:** Name each compliance regime (GDPR, HIPAA, PCI-DSS, SOC 2) explicitly; define scope and applicability per regime; trace every obligation to at least one downstream control expectation
+- **Don't:** Prescribe specific implementation controls (tooling, libraries, configurations); skip the obligation-to-control traceability; lump all regimes into a single undifferentiated paragraph
+
 ---
 
 *(To be written by the domain expert. This section defines compliance obligations.)*
@@ -325,6 +370,15 @@ It does not define how any single component enforces that posture. That belongs 
 **Incorrect:**
 > We use Splunk for SIEM monitoring and PagerDuty for on-call alerting. The SOC team runs a weekly scan using Nessus.
 > *Why wrong: This mandates specific tooling (Splunk, PagerDuty, Nessus) and operational cadences — those belong in Engineering's Security Standards, not at the project-wide incident response level.*
+
+### Writing Guidance
+
+- **Tone:** structural
+- **Voice:** imperative
+- **Structure:** paragraphs
+- **Audience:** engineer
+- **Do:** State detection and response expectations as outcomes, not tooling; define escalation paths with timeframes and notification order; specify recovery objectives (time-to-contain, time-to-restore)
+- **Don't:** Mandate specific SIEM, alerting, or scanning tools; embed on-call rotation details or shift schedules; define post-mortem templates or review formats
 
 ---
 
@@ -374,6 +428,15 @@ It does not define how any single component enforces that posture. That belongs 
 **Incorrect:**
 > We should use a European cloud provider because it's closer to our users and reduces latency.
 > *Why wrong: This is a soft preference disguised as a constraint — latency is not a hard boundary, and it embeds a solution (cloud provider selection) instead of stating the non-negotiable limitation (data must remain in the EEA).*
+
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** architect
+- **Do:** State each constraint as a hard boundary expressed as a pass/fail condition; identify which downstream domains are affected by each constraint; attribute each constraint to its source (regulatory, contractual, infrastructure, organizational)
+- **Don't:** Embed implementation solutions within constraint statements; state soft preferences (performance, convenience) as hard constraints; omit source attribution for any listed constraint
 
 ---
 
@@ -554,6 +617,15 @@ Every per-domain Security section should be traceable to a threat, data class, o
 **Incorrect:**
 > Security derives from Architecture's trust-boundary analysis, which feeds Engineering's SAST tooling choices, which then inform the threat model.
 > *Why wrong: The derivation chain is inverted — Security must derive from Vision and Philosophy, not from downstream implementation decisions like Architecture or Engineering tooling.*
+
+### Writing Guidance
+
+- **Tone:** structural
+- **Voice:** third person
+- **Structure:** diagrams
+- **Audience:** new contributor
+- **Do:** Show the full derivation chain as a tier diagram; list every downstream domain that consumes Security and how it consumes it; state the non-duplication rule explicitly so downstream sections reference, not restate
+- **Don't:** Omit the tier diagram; list downstream domains without explaining their consumption pattern; allow downstream sections to re-derive threat models or data classification independently
 
 ---
 

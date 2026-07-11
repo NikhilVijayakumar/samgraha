@@ -92,6 +92,15 @@
 **Required diagrams:** none
 **Required cross-references:** Vision
 
+### Writing Guidance
+
+- **Tone:** inspirational
+- **Voice:** first person plural
+- **Structure:** paragraphs
+- **Audience:** product owner
+- **Do:** State the feature's existence and value in business terms; explain what capability the feature provides to users; keep scope boundaries explicit and clear
+- **Don't:** Mention specific technologies, frameworks, or implementation patterns; describe how the feature works internally; include lists of requirements or detailed specifications
+
 This document defines the standard for Feature Documentation within the engineering documentation ecosystem.
 
 Feature Documentation describes the functional capabilities of a product.
@@ -164,6 +173,15 @@ It does not describe implementation, architecture, or engineering decisions.
 **Required diagrams:** none
 **Required cross-references:** Vision, Acceptance Criteria
 
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** engineer
+- **Do:** Write one atomic requirement per bullet using shall/must language; make each requirement independently testable; describe the behavior the product must exhibit under specific conditions
+- **Don't:** Reference specific technologies, APIs, or libraries; write compound requirements that combine multiple behaviors; use vague terms like "should" or "might" without a testable condition
+
 *(To be written by the domain expert. This section defines what the feature must do.)*
 
 ---
@@ -222,6 +240,15 @@ It does not describe implementation, architecture, or engineering decisions.
 **Optional subsections:** none
 **Required diagrams:** flowchart (when rules involve branching logic)
 **Required cross-references:** Functional Requirements, Acceptance Criteria
+
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** product owner
+- **Do:** Express each rule as a conditional When/Then statement; capture domain-specific business logic that cannot be inferred from requirements alone; include edge cases and exception handling rules
+- **Don't:** Describe technical validation, input sanitization, or database constraints; reference implementation code or system components; write rules that duplicate functional requirements
 
 *(To be written by the domain expert. This section defines the business logic governing the feature.)*
 
@@ -292,6 +319,15 @@ It does not describe implementation, architecture, or engineering decisions.
 **Required diagrams:** none
 **Required cross-references:** External Context, Acceptance Criteria
 
+### Writing Guidance
+
+- **Tone:** structural
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** architect
+- **Do:** Categorize each constraint by type (Regulatory, Business, Technical); state the limitation clearly without prescribing a solution; reference the regulatory or business origin of each constraint
+- **Don't:** Specify particular technologies, frameworks, or vendor solutions; describe infrastructure requirements or performance benchmarks; include implementation workarounds or mitigation strategies
+
 *(To be written by the domain expert. This section defines the limitations the feature must operate within.)*
 
 ---
@@ -356,6 +392,15 @@ It does not describe implementation, architecture, or engineering decisions.
 **Required diagrams:** none
 **Required cross-references:** Other Feature documents, External Context
 
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** tables
+- **Audience:** architect
+- **Do:** List each dependency by feature or system name; specify whether the dependency is functional or data-related; indicate whether each dependency is required or optional
+- **Don't:** List software libraries, frameworks, or version-specific packages; include build dependencies or toolchain requirements; omit the nature or criticality of each dependency
+
 *(To be written by the domain expert. This section defines what other capabilities the feature relies on.)*
 
 ---
@@ -415,6 +460,15 @@ It does not describe implementation, architecture, or engineering decisions.
 **Optional subsections:** none
 **Required diagrams:** none
 **Required cross-references:** Functional Requirements, Business Rules
+
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** engineer
+- **Do:** Use Given/When/Then format for each criterion; derive every criterion from a specific functional requirement or business rule; make each criterion independently verifiable without code inspection
+- **Don't:** Reference specific code components, database tables, or API endpoints; write criteria that require reading source code to verify; use vague pass/fail conditions without observable outcomes
 
 *(To be written by the domain expert. This section defines how to verify the feature is complete.)*
 
@@ -477,6 +531,15 @@ It does not describe implementation, architecture, or engineering decisions.
 **Optional subsections:** none
 **Required diagrams:** none
 **Required cross-references:** Vision, Backlog
+
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** imperative
+- **Structure:** tables
+- **Audience:** product owner
+- **Do:** Describe deferred work as functional capabilities, not implementation tasks; include a clear rationale for why each item was deferred; specify the triggering condition that would prompt revisiting the item
+- **Don't:** List implementation components or technical optimizations as extensions; defer items without a rationale; include current in-scope requirements disguised as future work
 
 *(To be written by the domain expert. This section defines what extensions are planned for the future.)*
 
@@ -579,6 +642,15 @@ Feature Documentation does not define:
 **Optional subsections:** none
 **Required diagrams:** none
 **Required cross-references:** Goals
+
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** product owner
+- **Do:** Name the specific owning standard for each excluded responsibility; invert the Goals list to derive exclusions; state what Feature Documentation explicitly does not define
+- **Don't:** Use vague ownership like "handled by the backend" or "handled by DevOps"; list exclusions without naming the owning standard; include items that actually belong within Feature Documentation scope
 
 Feature Documentation does not define:
 
@@ -729,6 +801,15 @@ Feature Documentation should not derive from implementation.
 **Required diagrams:** none
 **Required cross-references:** Vision, Traceability
 
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** product owner
+- **Do:** List each upstream source by name and describe what it contributes; explicitly state that implementation is not a valid source; reference Vision as the primary upstream source
+- **Don't:** List downstream standards as inputs; include code, APIs, or database schemas as sources; omit the derivation direction between source and Feature Documentation
+
 Feature Documentation derives from:
 
 * Vision
@@ -797,6 +878,15 @@ Feature Documentation provides direction for:
 **Optional subsections:** none
 **Required diagrams:** none
 **Required cross-references:** Traceability
+
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** architect
+- **Do:** List each downstream consumer by name and standard number; state what each consumer derives from Feature Documentation; include Testing and Validation as consumers when acceptance criteria exist
+- **Don't:** List upstream standards as consumers; omit the nature of the dependency for each consumer; include implementation artifacts like source code or deployment pipelines as consumers
 
 Feature Documentation provides direction for:
 
@@ -874,6 +964,15 @@ Every feature should support the documented Vision.
 **Optional subsections:** none
 **Required diagrams:** flowchart (tier model)
 **Required cross-references:** Vision, all downstream standards
+
+### Writing Guidance
+
+- **Tone:** structural
+- **Voice:** third person
+- **Structure:** diagrams
+- **Audience:** new contributor
+- **Do:** Include the tier model diagram showing Vision through Implementation; name which downstream standards derive from Features; state the non-contradiction rule that downstream documents must not contradict feature intent
+- **Don't:** Present an implementation summary or technology stack overview; describe how individual features are coded; omit the derivation chain or leave downstream connections unnamed
 
 Feature Documentation should remain traceable.
 

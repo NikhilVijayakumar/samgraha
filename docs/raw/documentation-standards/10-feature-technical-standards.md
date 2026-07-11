@@ -99,6 +99,15 @@ It does not describe implementation details or source code.
 > Feature Technical Design covers all features in the system, including User Authentication, Order Processing, Payment Handling, and Notification Delivery. It combines shared architecture with feature-specific requirements into a single comprehensive document.
 > *Why wrong: This violates the one-to-one relationship principle — Feature Technical Design must correspond to exactly one Feature Specification, not combine multiple features into a single document.*
 
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** third person
+- **Structure:** paragraphs
+- **Audience:** architect
+- **Do:** Define Feature Technical Design in relation to the documentation ecosystem; explicitly state what it is not; maintain the one-to-one mapping constraint throughout
+- **Don't:** Drift into implementation specifics; conflate with Architecture or Feature Design; list features or technologies
+
 ---
 
 ## Participating Components
@@ -150,6 +159,15 @@ It does not describe implementation details or source code.
 > | LoginView | React 18 with TypeScript |
 > *Why wrong: This lists implementation technologies (Node.js, PostgreSQL, React) rather than architectural components with their purpose for participation. Component names should come from the Architecture component model, not from implementation.*
 
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** tables
+- **Audience:** architect
+- **Do:** Use component names from Architecture Documentation; state the reason each component participates in this specific feature; include a component diagram
+- **Don't:** List technologies, frameworks, or library names; describe component internals; include components not directly involved in the feature
+
 ---
 
 ## Component Interactions
@@ -200,6 +218,15 @@ It does not describe implementation details or source code.
 > - `OrderService` calls `PaymentClient.charge()` with a JWT token in the Authorization header
 > *Why wrong: This describes implementation-level details (React components, axios, Express routes, specific class methods, JWT tokens) rather than architectural component interactions, triggering conditions, and expected outcomes.*
 
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** engineer
+- **Do:** State the triggering condition, nature of exchange, and expected outcome for each interaction; trace every interaction to a Feature Specification behavior; include a sequence diagram
+- **Don't:** Name specific classes, methods, or API endpoints; describe serialization formats or protocols; use implementation-level communication details
+
 ---
 
 ## Data Ownership
@@ -247,6 +274,15 @@ It does not describe implementation details or source code.
 > | User Preferences | user_preferences | notification_enabled | BOOLEAN |
 > *Why wrong: This describes database schema details (table names, column names, data types) rather than component ownership, read/write access boundaries, and architectural constraints.*
 
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** tables
+- **Audience:** architect
+- **Do:** Assign one owning component per data element; define read and write access boundaries explicitly; reference Architecture ownership rules; include an ER diagram
+- **Don't:** Describe database schemas, column types, or ORM mappings; allow multiple owners for the same data element; use implementation-specific storage details
+
 ---
 
 ## Feature Specification
@@ -285,6 +321,15 @@ It does not describe implementation details or source code.
 **Incorrect:**
 > This Feature Technical Design realizes the **User Authentication** Feature Specification, which requires: users must be able to log in with email and password, reset passwords via email link, enable two-factor authentication, and manage session devices. The login form must validate input in real time and show inline error messages.
 > *Why wrong: This duplicates Feature Specification content (requirements, acceptance criteria, UI behavior) rather than referencing the Feature by name and confirming scope alignment.*
+
+### Writing Guidance
+
+- **Tone:** structural
+- **Voice:** third person
+- **Structure:** paragraphs
+- **Audience:** architect
+- **Do:** Reference the Feature by exact name; confirm scope alignment between Feature and this design; state that no additional features are addressed
+- **Don't:** Duplicate Feature requirements, acceptance criteria, or user stories; paraphrase Feature content; list multiple Feature Specifications
 
 ---
 
@@ -330,6 +375,15 @@ It does not describe implementation details or source code.
 >
 > **Data Component:** Uses TypeORM `@Repository` pattern with PostgreSQL. The `UserRepository` class provides `findById()`, `findByEmail()`, and `save()` methods.
 > *Why wrong: This describes class hierarchies, specific method implementations, library usage, and ORM patterns rather than architectural responsibilities and ownership boundaries.*
+
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** architect
+- **Do:** Assign a primary responsibility to every participating component; ensure responsibilities do not overlap; align each responsibility with Architecture ownership rules; include a component diagram
+- **Don't:** Describe class hierarchies, method signatures, or library usage; assign shared ownership; leave any participating component without a defined responsibility
 
 ---
 
@@ -377,6 +431,15 @@ It does not describe implementation details or source code.
 > 3. Use JPA entity states: `@Entity` Order with `@Enumerated` OrderStatus field.
 > 4. `@PreDestroy` method closes RabbitMQ connection.
 > *Why wrong: This describes Spring Boot initialization, AMQP connection strings, specific method names, JPA annotations, and `@PreDestroy` hooks rather than architectural runtime lifecycle, execution flow, and state transitions.*
+
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** mixed
+- **Audience:** engineer
+- **Do:** Describe the full lifecycle — initialization, execution flow, state transitions, and shutdown — at the architectural level; define each state and valid transitions; include a flowchart
+- **Don't:** Name specific runtime frameworks, connection strings, or configuration files; describe threading or process models; use implementation-level lifecycle hooks
 
 ---
 
@@ -428,6 +491,15 @@ It does not describe implementation details or source code.
 > - Protocol: HTTP/1.1 with Content-Type: application/json
 > *Why wrong: This describes HTTP methods, URLs, payload formats, and protocol versions rather than the architectural communication path direction, nature, and protocol reference.*
 
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** architect
+- **Do:** Define direction, nature, and architectural protocol for every communication path; trace each path to a Component Interaction; reference the Architecture communication model
+- **Don't:** Specify HTTP methods, URLs, or payload schemas; describe serialization or wire formats; use library-specific communication patterns
+
 ---
 
 ## Integration Points
@@ -478,6 +550,15 @@ It does not describe implementation details or source code.
 > - Retry on HTTP 503 with exponential backoff
 > *Why wrong: This describes API endpoint URLs, HTTP headers, response parsing, and retry logic rather than the architectural integration boundary, systems involved, and nature of the integration.*
 
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** architect
+- **Do:** Identify every integration point with systems involved, nature of integration, and boundary type; classify each as internal, external, or third-party; include a component diagram
+- **Don't:** Describe API endpoints, authentication token formats, or request/response schemas; specify retry logic or error handling at the integration; name client libraries
+
 ---
 
 ## External Dependency Integration
@@ -523,6 +604,15 @@ It does not describe implementation details or source code.
 > - Handle 401 responses by redirecting to `/login`
 > *Why wrong: This describes SDK versions, API endpoints, library usage, and HTTP status codes rather than the architectural role of the external dependency and constraints it imposes.*
 
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** architect
+- **Do:** Reference External Context documents by name; state the role of each dependency in the feature; describe constraints imposed without duplicating External Context content; include a component diagram
+- **Don't:** Duplicate External Context content; describe SDK versions or library APIs; specify implementation-level integration patterns
+
 ---
 
 ## Runtime Constraints
@@ -566,6 +656,15 @@ It does not describe implementation details or source code.
 > **Constraint: Concurrency Limit**
 > Use `java.util.concurrent.Semaphore` with permits=10 in the OrderService. Configure Tomcat max threads to 200 in server.xml. Set JVM heap to 4GB with `-Xmx4g`.
 > *Why wrong: This specifies implementation-level concurrency tools (Java Semaphore), server configuration (Tomcat, server.xml), and JVM settings rather than architectural operational constraints.*
+
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** architect
+- **Do:** State each constraint as a clear operational limitation; cite the source from Architecture or External Context; explain how the constraint applies to this specific feature
+- **Don't:** Specify implementation tools, frameworks, or configuration files; provide performance benchmarks or numerical thresholds; describe deployment or infrastructure details
 
 ---
 
@@ -611,6 +710,15 @@ It does not describe implementation details or source code.
 > Use a single PostgreSQL database for all component data. Each component writes to its own schema within the shared database using TypeORM repositories.
 > *Why wrong: This specifies technology choices (PostgreSQL, TypeORM) and implementation patterns (shared database, schema separation) rather than architectural ownership principles and communication model constraints.*
 
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** architect
+- **Do:** Reference each architectural constraint by its Architecture source principle; state how the constraint applies to this feature; avoid redefining architectural principles
+- **Don't:** Redefine or paraphrase Architecture principles; introduce implementation-level constraints; name technologies or frameworks as constraints
+
 ---
 
 ## Security Considerations
@@ -652,6 +760,15 @@ It does not describe implementation details or source code.
 **Incorrect:**
 > **Security Boundary:** Use bcrypt for password hashing with 12 salt rounds. Implement JWT tokens using the jsonwebtoken npm library with RS256 algorithm. Store tokens in httpOnly cookies with SameSite=Strict.
 > *Why wrong: This specifies implementation-level security details (specific algorithms, libraries, cookie configurations) rather than architectural security boundaries, authentication requirements, and authorization rules.*
+
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** architect
+- **Do:** Define security boundaries, authentication requirements, and authorization rules at the architectural level; identify sensitive data; reference Architecture security boundaries and External Context security constraints
+- **Don't:** Name specific encryption algorithms, libraries, or token formats; describe code-level security patterns; specify cookie or header configurations
 
 ---
 
@@ -697,6 +814,15 @@ It does not describe implementation details or source code.
 > - Node.js event loop must not be blocked for more than 50ms
 > - Use Redis caching with TTL of 300 seconds
 > *Why wrong: This specifies technology-specific benchmarks (Elasticsearch, Node.js, Redis), exact latency numbers, and implementation details (caching TTL) rather than architectural performance expectations.*
+
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** architect
+- **Do:** State performance expectations as architectural constraints traceable to Feature Specification; define throughput, latency, and resource expectations at the system level; reference Architecture performance patterns
+- **Don't:** Provide specific latency numbers or benchmarks; name profiling tools or caching libraries; describe optimization techniques or implementation strategies
 
 ---
 
@@ -744,6 +870,15 @@ It does not describe implementation details or source code.
 > - Log error with `LOGGER.error("Payment failed", e)`
 > *Why wrong: This describes implementation-level error handling (specific exception types, code lines, framework annotations, logging calls) rather than architectural failure modes and recovery strategies.*
 
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** mixed
+- **Audience:** engineer
+- **Do:** Define failure modes for every component interaction; trace error propagation paths across architectural boundaries; state recovery strategies and resilience boundaries; include a flowchart
+- **Don't:** Name specific exception types, error codes, or try/catch patterns; describe retry implementations or logging frameworks; reference code locations
+
 ---
 
 ## Extension Points
@@ -786,6 +921,15 @@ It does not describe implementation details or source code.
 > - Type: Custom JavaScript class extending BaseNotifier
 > - Constraint: Must override onSend() method using the EventEmitter library API
 > *Why wrong: This specifies implementation-level details (JavaScript class, method names, library APIs) rather than architectural extension type and constraints.*
+
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** architect
+- **Do:** Identify extension points with type (plugin, hook, event, configuration) and constraints; reference the Architecture plugin model; ensure extension points are architecturally sound
+- **Don't:** Name specific programming languages, class hierarchies, or library APIs; describe callback implementations; define extension mechanisms not present in Architecture
 
 ---
 
@@ -1025,6 +1169,15 @@ Every Feature Technical Design should trace directly to exactly one Feature Spec
 **Incorrect:**
 > Feature Technical Design: Authentication derives from the authentication API implementation in the source code.
 > *Why wrong: Traceability must flow from Feature Specification and Architecture, not from source code. The derivation chain starts at Vision, not at implementation.*
+
+### Writing Guidance
+
+- **Tone:** structural
+- **Voice:** third person
+- **Structure:** mixed
+- **Audience:** architect
+- **Do:** Show the full derivation chain from Vision through Feature to Implementation; assert one-to-one mapping with Feature Specification; reference Architecture and External Context as inputs; include a flowchart
+- **Don't:** Trace to source code or implementation artifacts; omit upstream or downstream standards; leave the one-to-one mapping unstated
 
 ---
 

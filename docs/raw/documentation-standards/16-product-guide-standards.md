@@ -72,6 +72,15 @@
 > This topic covers the backup feature.
 > *Why wrong: Vague and passive — describes what the topic "covers" rather than the user-facing problem it solves.*
 
+### Writing Guidance
+
+- **Tone:** conversational
+- **Voice:** second person
+- **Structure:** paragraphs
+- **Audience:** product owner
+- **Do:** Write from the reader's perspective — "you" language; lead with the benefit or outcome the user gets; keep to one sentence or a short paragraph
+- **Don't:** Use passive voice or vague phrasing like "this topic covers…"; describe internal implementation details or engineering rationale; exceed two sentences
+
 This document defines the standard for Product Guide documentation — the product docs shipped in `help.db` next to the binary, written for end users and for an LLM looking up how to use Samgraha or how to interpret an error.
 
 Product Guide topics explain **how to use the finished product**. They do not define product vision, architecture, engineering rationale, or any other domain's reasoning — those belong to their own standards, and Product Guide is written last, after everything else exists, because it can't be accurate until the product it describes is finished.
@@ -114,6 +123,15 @@ Product Guide topics explain **how to use the finished product**. They do not de
 **Incorrect:**
 > # The Backup System — Everything You Need To Know
 > *Why wrong: Over 60 characters, uses marketing language, and tries to be a catch-all instead of naming the specific command or concept.*
+
+### Writing Guidance
+
+- **Tone:** structural
+- **Voice:** imperative
+- **Structure:** paragraphs
+- **Audience:** engineer
+- **Do:** Use the exact command name or concept name as written in the shipped product; keep under 60 characters; describe the action, not the system
+- **Don't:** Use marketing adjectives or superlatives ("Everything You Need To Know"); include parenthetical qualifiers or version numbers in the title; use "How to" prefix when the command name already implies action
 
 <!-- TODO: Add content for this section. -->
 
@@ -178,6 +196,15 @@ Product Guide topics explain **how to use the finished product**. They do not de
 > The backup feature is very powerful and supports many use cases. See the source code for details on how it works internally.
 > *Why wrong: No How It Works or Examples subsections, references source code instead of providing actionable user instructions, and lacks concrete examples.*
 
+### Writing Guidance
+
+- **Tone:** conversational
+- **Voice:** second person
+- **Structure:** mixed
+- **Audience:** AI agent
+- **Do:** Start with the user's goal in one sentence before explaining how; provide at least one concrete command or code example with expected output; use headers (How It Works, Examples) to make the content scannable
+- **Don't:** Write long paragraphs without subheadings; reference source code, internal architecture, or implementation details; use passive constructions that obscure who performs the action
+
 <!-- TODO: Add content for this section. -->
 
 ---
@@ -226,6 +253,15 @@ Product Guide topics explain **how to use the finished product**. They do not de
 **Incorrect:**
 > Backup is a useful feature that helps protect your data. It was introduced in v1.0 and has been improved many times since then.
 > *Why wrong: Reads like marketing copy — does not state prerequisites, defaults, or version-specific context the reader needs before using the feature.*
+
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** new contributor
+- **Do:** List prerequisites as explicit bullet points with exact version numbers; state the default behavior concisely so the reader knows what happens without intervention; note any version-specific behavioral changes
+- **Don't:** Write promotional or historical prose ("has been improved many times"); omit minimum version requirements; mix aspirational language with factual prerequisites
 
 <!-- TODO: Add content for this section. -->
 
@@ -301,6 +337,15 @@ Product Guide topics explain **how to use the finished product**. They do not de
 **Incorrect:**
 > The backup command accepts a directory flag and writes files. Errors may occur if the directory is not writable.
 > *Why wrong: No structured tables, missing types/defaults/required status, and error conditions are buried in prose instead of listed with causes and resolutions.*
+
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** tables
+- **Audience:** engineer
+- **Do:** Use structured tables for every parameter, input, output, and error condition; include type, default value, and required/optional status for every flag; list error conditions with a Resolution column the user can act on
+- **Don't:** Bury interface details in prose paragraphs; omit type or default information; list error messages without actionable resolutions
 
 <!-- TODO: Add content for this section. -->
 
@@ -554,6 +599,15 @@ Written by whoever ships a feature that needs end-user-facing explanation — a 
 **Incorrect:**
 > - [Some Other Topic](broken-link.md)
 > *Why wrong: Link target does not resolve, and the label gives no indication of why the reader should follow it.*
+
+### Writing Guidance
+
+- **Tone:** conversational
+- **Voice:** second person
+- **Structure:** bullet lists
+- **Audience:** AI agent
+- **Do:** Provide at least one cross-reference with a brief label explaining relevance; link to adjacent Product Guide topics the reader is likely to need next; keep labels descriptive enough to stand alone without context
+- **Don't:** Include links without labels or with vague labels ("see also"); link to topics outside the Product Guide domain without clear relevance; duplicate content from the linked topic in the description
 
 - [Readme Standard](15-readme-standards.md) — the entry point Product Guide expands on
 - [Build Standard](14-build-standards.md) — install/run instructions Product Guide must stay accurate to

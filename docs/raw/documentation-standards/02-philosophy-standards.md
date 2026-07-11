@@ -78,6 +78,15 @@ This document defines the standard for [Domain] documentation within the enginee
 > This document defines the Philosophy for the React frontend and PostgreSQL backend of Project Horizon.
 > *Why wrong: Technology-specific — references concrete technologies instead of describing Philosophy's role in the ecosystem.*
 
+### Writing Guidance
+
+- **Tone:** inspirational
+- **Voice:** first person plural
+- **Structure:** paragraphs
+- **Audience:** product owner
+- **Do:** State Philosophy's role before listing contents; distinguish it from Vision using a clear contrast; use language that endures across technology changes
+- **Don't:** Mention specific technologies or frameworks; describe features or architecture; use implementation-level vocabulary
+
 This document defines the standard for Philosophy documentation within the engineering documentation ecosystem.
 
 Philosophy Documentation establishes the product's guiding principles, values, and the deliberate trade-offs that shape every downstream decision.
@@ -151,6 +160,15 @@ It shapes the judgment that produces them.
 > We prefer REST because it is easier to implement with Express.js and integrates well with our React frontend.
 > *Why wrong: Technology-specific — names concrete frameworks and technologies instead of expressing a stable, technology-independent decision rule.*
 
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** imperative
+- **Structure:** mixed
+- **Audience:** architect
+- **Do:** State each principle as a decision rule that resolves ambiguity; include a concrete example of the principle in action; keep phrasing memorable enough to cite in Architecture or Design
+- **Don't:** Name specific frameworks, languages, or libraries; write principles as aspirations without a decision outcome; list more than five principles
+
 *(To be written by the product owner. This section defines the guiding principles of the product.)*
 
 ---
@@ -216,6 +234,15 @@ It shapes the judgment that produces them.
 > We value TypeScript because it catches bugs at compile time and is the industry standard for modern frontend development.
 > *Why wrong: Names a specific technology instead of expressing an underlying value. The value is correctness, not a language choice.*
 
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** first person plural
+- **Structure:** mixed
+- **Audience:** product owner
+- **Do:** Name the value explicitly in the heading; state what the value costs or what it sacrifices; make trade-offs between values visible so downstream standards can reference them
+- **Don't:** Use aspirational platitudes without substance; conflate values with feature priorities; name technologies as values
+
 *(To be written by the product owner. This section defines the core values of the product.)*
 
 ---
@@ -276,6 +303,15 @@ It shapes the judgment that produces them.
 > **Sacrificed:** Vue's smaller bundle size.
 > **Reason:** The team already knows React so it is faster to build with.
 > *Why wrong: Describes a technology selection, not a deliberate trade-off in product values. This belongs in Architecture or Engineering, not Philosophy.*
+
+### Writing Guidance
+
+- **Tone:** structural
+- **Voice:** imperative
+- **Structure:** tables
+- **Audience:** architect
+- **Do:** Use the Chosen / Sacrificed / Reason format consistently; tie each trade-off back to a named value; explain the reasoning so downstream standards can cite it
+- **Don't:** Describe technology selections as trade-offs; list accidental constraints as deliberate choices; omit the reason or tie it to a named value
 
 *(To be written by the product owner. This section defines the deliberate trade-offs the product makes.)*
 

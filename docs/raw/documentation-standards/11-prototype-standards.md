@@ -70,6 +70,15 @@
 > This document covers the Order Tracking feature and describes the system architecture.
 > *Why wrong: No falsifiable question is stated, the prototype is not identified as disposable, and no upstream documents are referenced.*
 
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** paragraphs
+- **Audience:** engineer
+- **Do:** Lead with the falsifiable question in one sentence; state explicitly that the prototype is disposable; name the upstream documents by title and number
+- **Don't:** Describe production architecture or implementation details; omit the falsifiable question or leave it vague; present the prototype as permanent or reusable
+
 This document defines the standard for Prototype Documentation within the engineering documentation ecosystem.
 
 A Prototype is an executable simulation of the application built to answer a specific falsifiable question or de-risk a specific unknown before production engineering commits to an approach.
@@ -190,6 +199,15 @@ Section headings are case-insensitive. Sections not listed here are stored as `g
 > | Payment Gateway | POST /charge | {status: "approved"} |
 > *Why wrong: The fidelity indicator column is missing. Without knowing whether the mock is low, medium, or high fidelity, reviewers cannot assess what the prototype actually simulates versus what is faked.*
 
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** tables
+- **Audience:** engineer
+- **Do:** List every mocked dependency in a table with a fidelity column; explain the fidelity choice for each mock in a sentence after the table; use concrete request/response examples with realistic field names
+- **Don't:** Omit the fidelity indicator for any dependency; use vague descriptions like "some mock data"; include real production endpoints or credentials in the contract
+
 > **⚠️ IMPORTANT:** This section is required by the Prototype standard but does not yet exist as a heading. Please add it when drafting a real Prototype document.
 
 ---
@@ -262,6 +280,15 @@ Section headings are case-insensitive. Sections not listed here are stored as `g
 > **Seed data:** `{ "name": "John Smith", "email": "john@example.com", "ssn": "123-45-6789" }`
 > *Why wrong: Contains PII fields (name, email, SSN) and seed data uses realistic personal information. The data model is not minimal — it includes fields irrelevant to the prototype scenario.*
 
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** mixed
+- **Audience:** engineer
+- **Do:** Define only the fields the prototype scenario exercises; provide seed data that is realistic but entirely fake; explain why excluded fields are not in scope
+- **Don't:** Include PII, real email addresses, or production identifiers; replicate the full production schema; add fields that do not serve the falsifiable question
+
 > **⚠️ IMPORTANT:** This section is required by the Prototype standard but does not yet exist as a heading. Please add it when drafting a real Prototype document.
 
 ---
@@ -310,6 +337,15 @@ Section headings are case-insensitive. Sections not listed here are stored as `g
 > | API latency under 200ms | hard | Response time must meet production SLA |
 >
 > *Why wrong: This is a production performance requirement, not a prototype constraint. The prototype does not validate production latency — that belongs in Engineering(07) or Feature Technical Design(10).*
+
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** tables
+- **Audience:** engineer
+- **Do:** Classify each constraint as either hard or known-shortcoming; describe the concrete impact on the prototype for each entry; keep constraints specific to the prototype's simulation scope
+- **Don't:** List production performance targets or SLAs as prototype constraints; describe preferences or nice-to-haves as constraints; leave the Impact column blank or vague
 
 ## Goals
 
@@ -419,6 +455,15 @@ Prototype turns a Feature Design or Feature Technical Design into something a st
 > - Nothing — the prototype covers everything
 > *Why wrong: The question is not falsifiable ("can it work" has no pass/fail threshold), no fidelity levels are assigned to scope items, and nothing is excluded — the prototype has no boundaries.*
 
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** engineer
+- **Do:** State the falsifiable question before listing scope; assign a fidelity level to every in-scope item; provide a reason for every out-of-scope exclusion
+- **Don't:** Leave the falsifiable question vague or untestable; list items without fidelity levels; claim "nothing is out of scope" — a prototype without boundaries is not a prototype
+
 Prototype may describe:
 
 * In-scope and out-of-scope behavior
@@ -518,6 +563,15 @@ Prototype code itself is not an output — it's discarded once the question is a
 > More Docs ──┘
 > ```
 > *Why wrong: Upstream documents are not identified by name or number. The downstream impact is unclear. This diagram could belong to any prototype and provides no traceable lineage.*
+
+### Writing Guidance
+
+- **Tone:** structural
+- **Voice:** imperative
+- **Structure:** diagrams
+- **Audience:** architect
+- **Do:** Name each upstream document by title and number in the diagram; show the validation direction from Prototype to downstream impact; keep the diagram minimal with one arrow per relationship
+- **Don't:** Use generic labels like "some docs" or "more docs"; omit the downstream impact of the prototype; include unrelated documents or internal section-level traceability
 
 ```text
 Feature Design ──┐

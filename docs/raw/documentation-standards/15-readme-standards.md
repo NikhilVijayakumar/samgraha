@@ -93,6 +93,15 @@
 > This README covers all project documentation including API references, database schemas, and deployment procedures.
 > *Why wrong: Purpose section must define README scope and boundaries, not duplicate detailed documentation from other standards.*
 
+### Writing Guidance
+
+- **Tone:** conversational
+- **Voice:** first person plural
+- **Structure:** paragraphs
+- **Audience:** new contributor
+- **Do:** State what the README is and what it is not; reference the broader documentation ecosystem
+- **Don't:** Include feature lists; duplicate content from other documentation standards; use vague scope language
+
 This document defines the standard for README documentation within the engineering documentation ecosystem.
 
 A README is the primary entry point to a repository.
@@ -149,6 +158,15 @@ It does not replace project documentation.
 > The Acme Platform is a comprehensive project management solution.
 > *Why wrong: Project Name section must state only the canonical name, not a description of the project.*
 
+### Writing Guidance
+
+- **Tone:** structural
+- **Voice:** imperative
+- **Structure:** paragraphs
+- **Audience:** engineer
+- **Do:** Use the exact canonical name from package manifests; verify name matches across documentation
+- **Don't:** Add descriptions or taglines; abbreviate the name; use marketing or codenames
+
 *(To be written by the domain expert. This section provides the project's canonical name.)*
 
 ---
@@ -197,6 +215,15 @@ It does not replace project documentation.
 >
 > Acme Scheduler is a tool built with Python 3.12, uses Apache Airflow as its backend, stores data in PostgreSQL, and supports Docker deployment. Install it with pip install acme-scheduler. It has 15 commands and supports cron expressions.
 > *Why wrong: Short Description must be one to two sentences under 200 characters summarizing what the project does, not listing technology stack, installation instructions, or feature counts.*
+
+### Writing Guidance
+
+- **Tone:** conversational
+- **Voice:** imperative
+- **Structure:** paragraphs
+- **Audience:** product owner
+- **Do:** Write one to two sentences under 200 characters; state what the project does and who it is for
+- **Don't:** Include technology stack details; mention installation steps; list feature counts or version numbers
 
 *(To be written by the domain expert. This section provides a one-sentence summary of the project.)*
 
@@ -249,6 +276,15 @@ It does not replace project documentation.
 >
 > Acme Scheduler is a Python application using the Celery task queue with Redis as a broker. It consists of a scheduler module, a task runner, and a REST API built with FastAPI.
 > *Why wrong: Overview must explain the problem and solution at a high level, not describe the technology stack or internal architecture.*
+
+### Writing Guidance
+
+- **Tone:** inspirational
+- **Voice:** third person
+- **Structure:** paragraphs
+- **Audience:** new contributor
+- **Do:** Explain the problem the project solves; describe the approach at a high level; reference Vision for deeper context
+- **Don't:** Describe the technology stack; include architecture diagrams; list implementation details or internal components
 
 *(To be written by the domain expert. This section provides a high-level overview of the project.)*
 
@@ -307,6 +343,15 @@ It does not replace project documentation.
 > - Deploys via Docker Compose or Kubernetes Helm chart
 > *Why wrong: Key Capabilities must list high-level capabilities as scannable phrases, not implementation details like library versions, test counts, or deployment mechanisms.*
 
+### Writing Guidance
+
+- **Tone:** structural
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** product owner
+- **Do:** List three to seven capabilities as short descriptive phrases; keep each capability independent and scannable
+- **Don't:** Include library versions or test counts; describe deployment mechanisms; use technical jargon or implementation details
+
 *(To be written by the domain expert. This section lists the project's main capabilities.)*
 
 ---
@@ -362,6 +407,15 @@ It does not replace project documentation.
 >
 > All documentation is in the docs folder. There is a lot of markdown in there.
 > *Why wrong: Documentation Structure must list directories with their purpose and provide navigation guidance, not vague statements about file locations.*
+
+### Writing Guidance
+
+- **Tone:** structural
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** new contributor
+- **Do:** List documentation directories with one-sentence purpose descriptions; provide navigation guidance from README to detailed docs
+- **Don't:** Omit directory purposes; list individual files; provide navigation without linking to specific standards
 
 *(To be written by the domain expert. This section describes how documentation is organized.)*
 
@@ -432,6 +486,15 @@ It does not replace project documentation.
 > Just clone the repo and it works. You might need to install some things first.
 > *Why wrong: Installation must provide specific step-by-step commands with prerequisites listed, not vague instructions that leave the reader guessing what to install.*
 
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** engineer
+- **Do:** List prerequisites with version numbers first; provide step-by-step commands with expected output; verify each step works
+- **Don't:** Use vague instructions like "install dependencies"; omit version requirements; skip verification steps
+
 *(To be written by the domain expert. This section provides installation instructions.)*
 
 ---
@@ -496,6 +559,15 @@ It does not replace project documentation.
 >
 > Run the build. It compiles everything and puts the output somewhere in the build directory.
 > *Why wrong: Build must list prerequisites, provide specific commands, and describe expected output, not leave the reader guessing about tool versions and where artifacts appear.*
+
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** engineer
+- **Do:** List build prerequisites with version numbers; provide specific build commands; describe expected output and artifact locations
+- **Don't:** Omit prerequisite versions; use ambiguous build commands; skip expected output descriptions
 
 *(To be written by the domain expert. This section explains how to build the project.)*
 
@@ -562,6 +634,15 @@ It does not replace project documentation.
 >
 > The config file is in YAML. You can set environment variables too. Change things as needed.
 > *Why wrong: Configuration must list specific options with their defaults, valid values, and examples, not vague statements about available configuration mechanisms.*
+
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** tables
+- **Audience:** engineer
+- **Do:** List configuration options by category; state defaults and valid values; provide working examples for each option
+- **Don't:** Omit default values; list internal configuration mechanisms; use vague descriptions without valid value ranges
 
 *(To be written by the domain expert. This section documents configuration options.)*
 
@@ -637,6 +718,15 @@ It does not replace project documentation.
 > To develop, clone the repo and start coding. Write tests for your changes.
 > *Why wrong: Development must provide specific setup steps, test commands, and workflow description, not assume the reader knows the toolchain or contribution process.*
 
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** engineer
+- **Do:** Describe development environment setup with specific commands; explain how to run tests; reference coding standards
+- **Don't:** Assume prior knowledge of the toolchain; omit test commands; skip workflow description or coding standard references
+
 *(To be written by the domain expert. This section describes the development workflow.)*
 
 ---
@@ -710,6 +800,15 @@ It does not replace project documentation.
 > Contributions welcome! Just open a PR.
 > *Why wrong: Contributing must describe the full contribution workflow, code review process, and quality standards, not provide a one-line invitation with no actionable guidance.*
 
+### Writing Guidance
+
+- **Tone:** conversational
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** new contributor
+- **Do:** Describe the full contribution workflow step by step; explain code review expectations; list quality standards for contributions
+- **Don't:** Use vague invitations like "contributions welcome"; omit code review process; skip quality standards or testing requirements
+
 *(To be written by the domain expert. This section explains how to contribute.)*
 
 ---
@@ -760,6 +859,15 @@ It does not replace project documentation.
 >
 > You can use this software however you want. See the license file for details.
 > *Why wrong: License must state the specific license name and provide a direct link to the full license text, not use vague language that leaves the legal terms ambiguous.*
+
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** imperative
+- **Structure:** paragraphs
+- **Audience:** architect
+- **Do:** State the exact license name; link directly to the full license text; include copyright notices if applicable
+- **Don't:** Use vague language like "see license file"; omit the license name; include legal advice or license comparisons
 
 *(To be written by the domain expert. This section specifies the project's license.)*
 
@@ -1117,6 +1225,15 @@ There is exactly one README per repository. It is not placed under `docs/raw/`.
 > - `src/api/routes/v2/health.py` — Health check endpoint returning 200 OK
 > *Why wrong: Repository Structure must provide high-level directory descriptions, not file-level implementation details.*
 
+### Writing Guidance
+
+- **Tone:** structural
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** new contributor
+- **Do:** List major directories with one-sentence purpose descriptions; keep descriptions high-level and focused on purpose
+- **Don't:** List individual files or modules; include implementation details; describe internal code organization
+
 The README should explain the purpose of major directories.
 
 Examples:
@@ -1191,6 +1308,15 @@ Only high-level descriptions are required.
 >
 > The scheduler can be used to run pipelines. It supports many options. Check `--help` for more information.
 > *Why wrong: Usage must provide working command examples with expected output demonstrating primary functions, not vague descriptions that require the reader to explore help text.*
+
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** mixed
+- **Audience:** engineer
+- **Do:** Provide working command examples with expected output; cover primary functions; show common workflows
+- **Don't:** Use vague descriptions like "check --help"; omit expected output; skip primary function examples
 
 Written once at repository creation, updated whenever the repository's purpose, structure, or getting-started steps change. Use `samgraha audit --domain readme` to check the README has a title and a getting-started section before merging.
 
@@ -1294,6 +1420,15 @@ The README should act as a documentation index.
 >
 > Clone the repo, install dependencies, and run the app. See Installation and Build sections for details.
 > *Why wrong: Getting Started must provide a complete, linear zero-to-running path with prerequisites and working commands, not delegate the reader to other sections.*
+
+### Writing Guidance
+
+- **Tone:** conversational
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** new contributor
+- **Do:** Provide a complete linear path from clone to running project; include all prerequisites and version numbers; verify each step works
+- **Don't:** Delegate readers to other sections; omit prerequisites; skip verification steps or expected outcomes
 
 The README should provide enough information to begin using or contributing to the repository.
 

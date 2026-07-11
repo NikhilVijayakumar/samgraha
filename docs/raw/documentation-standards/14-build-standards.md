@@ -89,6 +89,15 @@
 > The Build Plan defines the CI/CD pipeline configuration, deployment procedures, and release management workflows.
 > *Why wrong: Deployment procedures and release management are out of scope for Build(14) — they belong to their own documentation standards.*
 
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** third person
+- **Structure:** paragraphs
+- **Audience:** architect
+- **Do:** State scope boundaries as definitive exclusions; explicitly name which standards handle what Build does not cover; define Build's role in the documentation ecosystem
+- **Don't:** Conflate Build with CI/CD implementation details; describe deployment or release procedures; leave scope boundaries ambiguous
+
 This document defines the standard for Build Plans — artifact generation and validation pipelines that take verified code and produce shippable packages.
 
 Unlike other standards that define what to build or how to verify it, Build defines how to package, validate, and deliver what was built. Not every build stage applies to every project — the plan defines applicability conditions.
@@ -226,6 +235,15 @@ Security Threat produces a targeted security check plan. Scope is limited to the
 > Documentation quality checks verify that README files are written in clear English and follow the project's style guide.
 > *Why wrong: Content style and writing quality are out of scope — documentation quality validates structural completeness and audit compliance, not prose style.*
 
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** imperative
+- **Structure:** paragraphs
+- **Audience:** engineer
+- **Do:** Reference the samgraha audit pipeline by name; state that this stage is mandatory and gates all downstream stages; specify what "valid" means in concrete terms
+- **Don't:** Describe writing style or prose quality checks; conflate documentation quality with content decisions; omit the mandatory/gating nature of this stage
+
 Documentation quality is the first build stage. If the documentation is invalid, nothing downstream should proceed.
 
 ---
@@ -272,6 +290,15 @@ Documentation quality is the first build stage. If the documentation is invalid,
 **Incorrect:**
 > Security checks run optional vulnerability scans and log warnings for critical findings without blocking the build.
 > *Why wrong: Security checks must be mandatory with blocking thresholds for critical/high findings — logging warnings defeats the purpose of security validation.*
+
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** imperative
+- **Structure:** paragraphs
+- **Audience:** engineer
+- **Do:** Define concrete severity thresholds (critical/high block, low/medium log); map each check to a Security(03) threat category; specify what happens when a check fails
+- **Don't:** Allow security checks to be optional; use vague terms like "thoroughly" instead of measurable thresholds; omit the blocking behavior for critical findings
 
 Security checks are mandatory for all projects. Map checks to Security(03) threat categories.
 
@@ -320,6 +347,15 @@ Security checks are mandatory for all projects. Map checks to Security(03) threa
 > Size checks monitor documentation line counts and report the total without any thresholds or enforcement.
 > *Why wrong: Without defined limits and enforcement actions, size checks provide no value — they must specify measurable thresholds and what happens when they are exceeded.*
 
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** paragraphs
+- **Audience:** engineer
+- **Do:** Define numeric limits per artifact type (e.g., "5 MB for distributable package"); specify the measurement method (compressed vs. uncompressed); state enforcement action (block vs. warn)
+- **Don't:** Leave size limits undefined or use relative terms like "reasonable"; omit the measurement method; skip enforcement action definition
+
 Size checks are conditional — required for projects with size constraints (mobile apps, embedded systems, CLI tools).
 
 ---
@@ -366,6 +402,15 @@ Size checks are conditional — required for projects with size constraints (mob
 **Incorrect:**
 > ML models are saved as model-latest.pkl and overwritten on each training run. Training data is stored locally without versioning.
 > *Why wrong: Without versioning, model lineage is untraceable and reproducibility is impossible — this is the core problem ML artifact management solves.*
+
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** third person
+- **Structure:** paragraphs
+- **Audience:** engineer
+- **Do:** Name specific tools (DVC, MLflow) and their roles; define the versioning scheme format explicitly; state reproducibility requirements (same data version → same model)
+- **Don't:** Use generic terms like "version your models" without specifying the scheme; omit the tooling stack; conflate artifact management with model training
 
 ML artifact management is conditional — required for projects with ML models. Use DVC for data versioning, MLflow for experiment tracking.
 
@@ -414,6 +459,15 @@ ML artifact management is conditional — required for projects with ML models. 
 > All CI/CD checks run in parallel. If a security check fails, the build continues and the artifact is deployed anyway.
 > *Why wrong: CI/CD validation must enforce that failures block downstream stages — deploying artifacts that failed security checks defeats the purpose of the pipeline.*
 
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** imperative
+- **Structure:** paragraphs
+- **Audience:** engineer
+- **Do:** Define the gate sequence as an ordered list (lint → test → security → build); specify failure handling per gate; identify deployment blockers explicitly
+- **Don't:** Allow parallel execution of dependent gates; omit failure handling policies; deploy artifacts that failed any gate
+
 CI/CD validation is conditional — required for projects with automated pipelines. Define gates in the right sequence.
 
 ---
@@ -461,6 +515,15 @@ CI/CD validation is conditional — required for projects with automated pipelin
 > All builds apply full obfuscation, including development builds. Source maps are never generated.
 > *Why wrong: Obfuscating development builds breaks debugging capability — this stage must differentiate between build types and preserve debug info where needed.*
 
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** third person
+- **Structure:** paragraphs
+- **Audience:** engineer
+- **Do:** Differentiate transformation rules per build type (release vs. development); quantify impact (e.g., "40% size reduction"); state what debug info is preserved and where
+- **Don't:** Apply transformations uniformly across build types; omit measurable impact metrics; skip the trade-off between security/size and debuggability
+
 Obfuscation and optimization are conditional — apply to release builds, not development builds. Document the trade-offs.
 
 ---
@@ -507,6 +570,15 @@ Obfuscation and optimization are conditional — apply to release builds, not de
 **Incorrect:**
 > Artifacts are versioned sequentially (v1, v2, v3) with no naming convention. There are no documented compatibility rules between versions.
 > *Why wrong: Sequential versioning without a defined scheme or compatibility rules makes it impossible to determine the impact of an upgrade or maintain multiple versions.*
+
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** imperative
+- **Structure:** paragraphs
+- **Audience:** engineer
+- **Do:** Name the versioning scheme (semver, calver) and when to use each; define the naming template (e.g., `{name}-{version}.{ext}`); document compatibility rules for each version component
+- **Don't:** Use ad-hoc or sequential versioning without justification; omit compatibility rules between versions; leave naming conventions implicit
 
 Versioning and naming are mandatory for all projects. Define the scheme once, apply it consistently.
 

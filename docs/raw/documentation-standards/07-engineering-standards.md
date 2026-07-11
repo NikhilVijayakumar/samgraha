@@ -79,6 +79,15 @@ its scope boundaries, and how it differs from adjacent standards]
 > This document describes the login page implementation, including the OAuth2 flow, JWT token storage, and session management using Redis.
 > *Why wrong: This is feature-specific and describes implementation details, not the repository-wide role of Engineering Documentation in the ecosystem.*
 
+### Writing Guidance
+
+- **Tone:** structural
+- **Voice:** third person
+- **Structure:** paragraphs
+- **Audience:** architect
+- **Do:** Define the document's role in the documentation ecosystem explicitly; distinguish Engineering Documentation from adjacent standards (Architecture, Feature Technical Design); set clear scope boundaries with what is included and excluded
+- **Don't:** Include implementation details or feature-specific content; blur boundaries with adjacent documentation standards; describe what the document contains rather than why it exists
+
 ---
 
 This document defines the standard for Engineering Documentation within the engineering documentation ecosystem.
@@ -148,6 +157,15 @@ It does not describe feature implementations.
 > **Build System:** We use Jenkins. Our pipeline is: checkout → build → deploy to staging.
 > *Why wrong: Missing rationale, missing quality gates, describes deployment which is out of scope, and does not explain why the pipeline is structured this way.*
 
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** imperative
+- **Structure:** mixed
+- **Audience:** engineer
+- **Do:** Document each pipeline stage with purpose, inputs, outputs, and quality gates; explain the rationale for each stage; include a pipeline flowchart showing stage ordering
+- **Don't:** Describe deployment or release details that are out of scope; omit quality gates between stages; list pipeline stages without explaining why they exist
+
 *(To be written by the domain expert. This section defines the repository-wide build process, CI/CD pipeline, and build tooling standards.)*
 
 ---
@@ -203,6 +221,15 @@ It does not describe feature implementations.
 > We have unit tests and some integration tests. Coverage is pretty good.
 > *Why wrong: Vague, no specific test type definitions, no coverage targets, and no rationale for the testing strategy.*
 
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** mixed
+- **Audience:** engineer
+- **Do:** Define each test type with its purpose, scope, and tooling; set measurable coverage targets with specific thresholds; document test tooling configuration and rationale
+- **Don't:** Use vague claims like "coverage is pretty good"; omit specific coverage thresholds; describe feature-specific test cases rather than repository-wide test strategy
+
 *(To be written by the domain expert. This section defines the repository-wide testing strategy, test types, and testing tooling standards.)*
 
 ---
@@ -257,6 +284,15 @@ It does not describe feature implementations.
 **Incorrect:**
 > We use tabs for indentation and camelCase for variables. Our linter catches some errors.
 > *Why wrong: Missing rationale, missing configuration location, no connection to engineering principles, and lacks completeness on scope.*
+
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** engineer
+- **Do:** Reference the specific style guide by name and language; document linting configuration file location and key rules; explain non-obvious conventions that deviate from defaults
+- **Don't:** Assume universal knowledge of conventions; omit configuration file locations; describe feature-specific patterns or implementation details
 
 *(To be written by the domain expert. This section defines the repository-wide coding style, conventions, and code quality standards.)*
 
@@ -316,6 +352,15 @@ each with source attribution and verifiability]
 **Incorrect:**
 > The application should be fast and secure. We follow industry best practices.
 > *Why wrong: Not verifiable, no specific thresholds, no source attribution, and no categorization by type — making it impossible to audit.*
+
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** engineer
+- **Do:** Categorize every constraint by type (performance, security, compliance); cite the source of each constraint (Architecture section, External Context); make every constraint verifiable with specific thresholds
+- **Don't:** State vague requirements like "the application should be fast"; omit source attribution for constraints; list constraints without categorization or verification criteria
 
 *(To be written by the domain expert. This section defines the non-functional requirements and engineering limitations that bound all implementation decisions.)*
 
@@ -545,6 +590,15 @@ Implementation should conform to the documented engineering standards.
 **Incorrect:**
 > This document traces to Architecture.
 > *Why wrong: Missing downstream consumers, no non-contradiction rule, no derivation diagram, and incomplete traceability chain.*
+
+### Writing Guidance
+
+- **Tone:** structural
+- **Voice:** imperative
+- **Structure:** mixed
+- **Audience:** architect
+- **Do:** Include a derivation diagram showing the full chain; list every upstream source and downstream consumer explicitly; state the non-contradiction rule as an enforceable constraint
+- **Don't:** Leave derivation paths implicit or assume they are obvious; omit downstream consumers; use traceability as a summary rather than a verifiable chain
 
 Engineering Documentation remains traceable.
 
@@ -843,6 +897,15 @@ Large documents should be decomposed into smaller focused documents.
 > * Write clean code.
 > * *Why wrong: Technology-dependent ("fastest framework"), unstable ("latest version"), and vague ("clean code") — none of these survive technology changes or guide engineering decisions when ambiguity arises.*
 
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** engineer
+- **Do:** Phrase each principle as a memorable, technology-independent value; ensure every principle is actionable when an engineering decision is ambiguous; keep the total number of principles manageable
+- **Don't:** Use technology-specific language or framework references; state vague platitudes like "write clean code"; add principles that change with technology versions or feature scope
+
 Engineering Documentation should establish reusable principles such as:
 
 * Documentation First
@@ -909,6 +972,15 @@ connected to architectural constraints and external context]
 **Incorrect:**
 > **Language:** Python. **Framework:** Django. **Database:** PostgreSQL.
 > *Why wrong: This is a bare list with no rationale, no connection to Architecture or External Context, and no explanation of why these technologies were chosen.*
+
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** third person
+- **Structure:** paragraphs
+- **Audience:** engineer
+- **Do:** Connect every technology choice to an architectural constraint or External Context source; explain why each technology was chosen, not just what was chosen; group rationale by engineering concern
+- **Don't:** Present technology choices as bare lists without rationale; justify choices on business or trend grounds rather than engineering grounds; conflate selection rationale with implementation details
 
 Technology selection should describe engineering rationale rather than implementation details.
 

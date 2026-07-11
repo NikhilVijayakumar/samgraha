@@ -72,6 +72,15 @@ This Implementation Plan documents the as-built record for [feature/system name]
 > This section describes the purpose of the project and how we plan to build it.
 > *Why wrong: Describes project intent rather than recording what was actually built; confuses Implementation Purpose with Vision or Feature documentation.*
 
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** third person
+- **Structure:** paragraphs
+- **Audience:** engineer
+- **Do:** State the feature name and scope explicitly; link every relationship to its upstream document number; define boundaries by listing what is excluded
+- **Don't:** Describe project vision or strategy; use vague phrases like "various aspects"; conflate purpose with goals or success criteria
+
 This document defines the standard for Implementation Plans — per-feature documents that record how code was generated, what deviations were made, and why.
 
 Implementation is the generation point where all upstream documentation converges into working code. Unlike other standards that define what to build, Implementation records what was actually built and how it satisfies (or intentionally deviates from) every upstream decision.
@@ -224,6 +233,15 @@ How deviations from upstream docs are documented and justified.
 > **Deviation Recording:** None needed.
 > *Why wrong: No upstream documents referenced, generation sequence lacks tier ordering, no verification checkpoints defined, and deviation recording is dismissed rather than established as a process.*
 
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** engineer
+- **Do:** List every upstream document consumed in the Inputs subsection; number the generation sequence steps in tier order; specify exact verification criteria at each checkpoint
+- **Don't:** Omit upstream document references; skip verification checkpoints; write generation steps without referencing which standard each satisfies
+
 Every new feature implementation starts with a Generation Plan. The plan verifies alignment with all upstream documentation before code is written.
 
 ---
@@ -280,6 +298,15 @@ How behavior preservation is verified (test suite must pass before and after).
 > **Behavior to Preserve:** None — this is a full rewrite.
 > **Verification Strategy:** Manual testing after deployment.
 > *Why wrong: Refactor must preserve existing behavior explicitly, not discard it; target architecture lacks specificity; verification strategy relies on manual testing rather than automated regression.*
+
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** engineer
+- **Do:** Specify the target architecture by referencing Architecture(05); enumerate every behavior contract that must be preserved with measurable criteria; require automated test suite pass/fail comparison before and after
+- **Don't:** Introduce new features or behavior changes in a refactor; rely on manual testing for verification; omit the before/after test comparison
 
 Refactoring is not feature generation. It is structural improvement with behavior preservation. Every refactor must verify that existing tests still pass.
 
@@ -338,6 +365,15 @@ How to revert the change if verification fails.
 > **Rollback Strategy:** Revert the commit.
 > *Why wrong: Change description lacks specificity about what and why; impact analysis is vague with no affected modules or tests identified; rollback strategy does not account for database migrations or frontend deployments.*
 
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** engineer
+- **Do:** Describe the exact behavior change with before/after state; list every affected module, API endpoint, and test case in impact analysis; define a rollback strategy that accounts for database migrations and feature flags
+- **Don't:** Write vague change descriptions like "improve X"; skip the impact analysis or list no affected components; assume rollback is just "revert the commit"
+
 Change requests modify existing behavior. Every change request must include impact analysis and a rollback strategy before implementation begins.
 
 ---
@@ -394,6 +430,15 @@ Tests that confirm no existing behavior is broken.
 > **Enhancement Approach:** Rewrite the search engine from scratch.
 > **Regression Verification:** None — performance improvement is the only goal.
 > *Why wrong: Improvement targets are not measurable; enhancement approach changes core behavior rather than improving existing functionality; regression verification is absent, risking broken existing features.*
+
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** engineer
+- **Do:** Define improvement targets as measurable metrics with baseline and target values; describe the enhancement approach as additive layers that do not alter core behavior; specify the regression test suite that must pass unchanged
+- **Don't:** Set improvement targets without measurable criteria; rewrite core components instead of layering improvements; skip regression verification or assume no breakage
 
 Enhancements improve existing functionality. Every enhancement must define measurable improvement targets and verify no regression.
 
@@ -457,6 +502,15 @@ Security tests that must pass post-fix.
 > **Verification:** Tested manually.
 > **Re-test Requirements:** None specified.
 > *Why wrong: Vulnerability description lacks location, severity, and upstream reference; fix approach is vague without specifying the exact remediation technique; verification is manual rather than reproducible; re-test requirements are missing entirely.*
+
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** engineer
+- **Do:** Specify the exact vulnerability location (endpoint, parameter, file path) and its severity; reference the Security(03) threat model entry; define reproducible verification steps with specific attack payloads; list the QA(12) security test suite and category counts
+- **Don't:** Write vague descriptions like "security issue in search"; use manual testing as the sole verification method; omit re-test requirements or skip checking for new vulnerability introduction
 
 Security fixes are the highest-priority implementation type. They must follow a strict process: identify, fix, verify, re-test. No shortcuts.
 

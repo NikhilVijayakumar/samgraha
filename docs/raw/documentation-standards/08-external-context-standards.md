@@ -86,6 +86,15 @@
 > External Context Documentation covers npm packages, pip dependencies, and Cargo crates required by the project. It lists version numbers, installation commands, and upgrade procedures for each library.
 > *Why wrong: This conflates External Context with package dependency documentation. External Context captures knowledge about external systems, not package manifests or version management.*
 
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** third person
+- **Structure:** paragraphs
+- **Audience:** architect
+- **Do:** State what External Context is in one declarative sentence; draw a clear boundary between knowledge dependencies and package dependencies; reference the atomic-per-dependency principle explicitly
+- **Don't:** Describe internal architecture or implementation details; list package managers or version numbers; use inspirational or motivational language
+
 This document defines the standard for External Context Documentation within the engineering documentation ecosystem.
 
 External Context Documentation describes knowledge that exists **outside the current repository** but is required to correctly understand, design, implement, or maintain the repository.
@@ -163,6 +172,15 @@ Projects may contain zero, one, or many External Context documents depending on 
 > ```
 > *Why wrong: This includes implementation code rather than describing the contract. The Integration Contract should define what the external system exposes, not how the repository calls it. Implementation details belong in Engineering.*
 
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** third person
+- **Structure:** mixed
+- **Audience:** engineer
+- **Do:** Describe the external system's contract surface in implementation-neutral terms; always include the authoritative documentation URL; distinguish required endpoints from optional ones
+- **Don't:** Paste code snippets or client implementations; document internal request/response transformation logic; omit authentication mechanism details
+
 *(To be written by the integrating engineer. This section defines the formal interface contract with the external system.)*
 
 ---
@@ -216,6 +234,15 @@ Projects may contain zero, one, or many External Context documents depending on 
 > We decided to use connection pooling because our application needs high throughput. Our team prefers TypeScript over JavaScript for type safety. We chose PostgreSQL for the database layer.
 > *Why wrong: These are internal design decisions, not constraints imposed by the external system. External Constraints must originate from the external dependency, not from internal project choices.*
 
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** third person
+- **Structure:** bullet lists
+- **Audience:** architect
+- **Do:** Categorize every constraint by type (functional, performance, legal, compliance); cite the external source for each constraint; state limits as specific numeric values where possible
+- **Don't:** List internal project decisions as constraints; use vague qualifiers like "may" or "should" for hard limits; omit constraints that affect data handling or compliance
+
 *(To be written by the integrating engineer. This section defines the limitations imposed by the external dependency.)*
 
 ---
@@ -264,6 +291,15 @@ Projects may contain zero, one, or many External Context documents depending on 
 **Incorrect:**
 > This project depends on Express.js for HTTP routing, Mongoose for database access, and Jest for testing.
 > *Why wrong: These are internal project dependencies (package.json entries), not transitive dependencies of the external system. The Dependencies section describes what the external dependency itself requires, not what this repository packages.*
+
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** third person
+- **Structure:** bullet lists
+- **Audience:** architect
+- **Do:** Distinguish runtime dependencies from build-time dependencies explicitly; note criticality level for each transitive dependency; cross-reference other External Context documents when a transitive dependency is itself documented
+- **Don't:** List this repository's package.json or requirements.txt entries; include development tooling or test frameworks; omit companion systems that the integration silently depends on
 
 *(To be written by the integrating engineer. This section defines what the external dependency itself requires.)*
 
@@ -460,6 +496,15 @@ Any document may reference External Context rather than duplicating external kno
 **Incorrect:**
 > Traceability shows that External Context was last updated in March and is owned by the platform team. It includes a changelog of all edits made to the document.
 > *Why wrong: Traceability in this context means showing how External Context influences downstream documentation standards, not tracking document metadata or ownership history. Version tracking belongs in change management, not in the Traceability section.*
+
+### Writing Guidance
+
+- **Tone:** structural
+- **Voice:** third person
+- **Structure:** diagrams
+- **Audience:** architect
+- **Do:** Include a text-based tier diagram showing External Context's lateral position; list every downstream standard that consumes External Context by name; explicitly state the non-duplication rule (reference, don't copy)
+- **Don't:** Include version history or changelog entries; treat Traceability as document metadata; omit a standard from the consuming list if it references External Context content
 
 External Context supports multiple documentation domains.
 

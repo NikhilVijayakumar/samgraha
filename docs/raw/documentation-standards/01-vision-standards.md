@@ -76,6 +76,15 @@
 > DataSync is a Python-based ETL pipeline using Apache Airflow that runs daily cron jobs to sync PostgreSQL databases via REST APIs.
 > *Why wrong: Contains implementation details (technology stack, scheduling mechanism, protocol) that belong in downstream documentation, not in the Purpose section.*
 
+### Writing Guidance
+
+- **Tone:** inspirational
+- **Voice:** third person
+- **Structure:** paragraphs
+- **Audience:** new contributor
+- **Do:** Write from the user's world, not the engineer's; anchor the purpose in the problem space; keep the language stable enough to survive technology changes
+- **Don't:** Name programming languages, frameworks, or infrastructure; describe what the product does or how it works; use jargon that requires domain expertise to understand
+
 This document defines the standard for Vision documentation within the engineering documentation ecosystem.
 
 A Vision document establishes the long-term purpose, direction, and identity of a product or repository.
@@ -126,6 +135,15 @@ All downstream documentation ultimately derives from the Vision.
 > CloudBridge will migrate from REST to GraphQL by Q3, reaching 10,000 API calls per second with sub-50ms latency on AWS.
 > *Why wrong: Describes a technology roadmap with specific implementation targets (latency, throughput, cloud provider) rather than an aspirational future state.*
 
+### Writing Guidance
+
+- **Tone:** inspirational
+- **Voice:** third person
+- **Structure:** paragraphs
+- **Audience:** product owner
+- **Do:** Paint a vivid picture of the fully realized product state; write in the future tense with aspirational language; tie the vision back to the Purpose section's "why"
+- **Don't:** Mention specific technologies, release timelines, or implementation milestones; describe current product state or features; use metrics or benchmarks that belong in Success Criteria
+
 *(To be written by the product owner. This section defines where the product is going.)*
 
 ---
@@ -169,6 +187,15 @@ All downstream documentation ultimately derives from the Vision.
 > Teams struggle with data silos. DataSync solves this by using scheduled Python scripts and a Redis cache layer to automatically merge CSV files.
 > *Why wrong: Mixes solution details (technology, mechanism) into the Problem section. The Problem section should describe pain, not how the product addresses it.*
 
+### Writing Guidance
+
+- **Tone:** concrete
+- **Voice:** third person
+- **Structure:** paragraphs
+- **Audience:** product owner
+- **Do:** Use specific, quantifiable examples of the pain; describe the problem from the user's perspective; include the cost of inaction
+- **Don't:** Mention the product name or any solution approach; describe the problem in abstract or theoretical terms; include technical error messages or stack traces
+
 *(To be written by the product owner. This section defines what problem the product exists to solve.)*
 
 ---
@@ -210,6 +237,15 @@ All downstream documentation ultimately derives from the Vision.
 **Incorrect:**
 > DataSync uses Python with Celery workers and RabbitMQ to queue data jobs, storing results in a PostgreSQL database with a React dashboard for monitoring.
 > *Why wrong: Describes architecture and implementation technology instead of the product-level approach to solving the problem.*
+
+### Writing Guidance
+
+- **Tone:** structural
+- **Voice:** third person
+- **Structure:** paragraphs
+- **Audience:** product owner
+- **Do:** Describe the approach at the product level using action verbs; connect the solution directly back to the Problem section; keep descriptions at the "what it does" level
+- **Don't:** Name libraries, frameworks, or databases; describe data flows, APIs, or internal system boundaries; discuss trade-offs between technology options
 
 *(To be written by the product owner. This section defines the high-level solution approach.)*
 
@@ -253,6 +289,15 @@ All downstream documentation ultimately derives from the Vision.
 **Incorrect:**
 > CloudBridge is used by Python developers with 5+ years of experience who write pandas scripts and prefer CLI tools with YAML configuration.
 > *Why wrong: Describes the audience by technical profile and specific skill requirements instead of goals and needs. The audience section should be understandable without code knowledge.*
+
+### Writing Guidance
+
+- **Tone:** conversational
+- **Voice:** third person
+- **Structure:** paragraphs
+- **Audience:** product owner
+- **Do:** Describe audiences by their goals, pain points, and decision-making criteria; distinguish between end users and decision-makers; include what each audience expects from the product
+- **Don't:** List programming skills, tool proficiencies, or job titles as the defining trait; write user stories or persona cards; conflate technical users with the primary audience
 
 *(To be written by the product owner. This section defines who the product serves.)*
 
@@ -309,6 +354,15 @@ All downstream documentation ultimately derives from the Vision.
 > **CI/CD Pipeline** — Continuous integration ensures code quality.
 > *Why wrong: Describes technology choices and implementation architecture instead of foundational capability pillars that organize the product.*
 
+### Writing Guidance
+
+- **Tone:** structural
+- **Voice:** third person
+- **Structure:** bullet lists
+- **Audience:** architect
+- **Do:** Name each pillar with a memorable, two-word phrase; write one sentence per pillar that explains its role in the product; ensure pillars cover the full product scope without overlap
+- **Don't:** Name specific technologies or components; use abstract nouns without a clear product connection; list more than five pillars
+
 *(To be written by the product owner. This section defines the foundational pillars of the product.)*
 
 ---
@@ -363,6 +417,15 @@ All downstream documentation ultimately derives from the Vision.
 > **Use FastAPI** — The product favors high-performance Python web frameworks.
 > **PostgreSQL First** — All persistent data must use PostgreSQL for consistency.
 > *Why wrong: States technology preferences rather than guiding values. Philosophy should influence decisions at any abstraction level, not prescribe specific tools.*
+
+### Writing Guidance
+
+- **Tone:** inspirational
+- **Voice:** third person
+- **Structure:** bullet lists
+- **Audience:** architect
+- **Do:** Express each value as a memorable, memorable value with a one-sentence rationale; tie each value back to the product's purpose; keep the language abstract enough to survive technology changes
+- **Don't:** Name frameworks, databases, or deployment targets; write rules that require specific tools; list more than five values
 
 *(To be written by the product owner. This section defines the philosophy guiding the product.)*
 
@@ -459,6 +522,15 @@ These responsibilities belong to other documentation standards.
 > * The test suite achieves 95% code coverage.
 > * Deployment frequency increases to daily releases.
 > *Why wrong: Describes implementation-level metrics (performance, test coverage, release cadence) rather than observable outcomes tied to the Vision and product purpose.*
+
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** third person
+- **Structure:** bullet lists
+- **Audience:** product owner
+- **Do:** Write each criterion as a measurable or evaluable outcome; tie every criterion directly to the Vision statement; use concrete units of measure where possible
+- **Don't:** Describe technical benchmarks like latency or throughput; include test coverage or deployment frequency; list more than six criteria
 
 A Vision document is successful when:
 
@@ -601,6 +673,15 @@ Tier 0: Vision (Purpose)
 **Incorrect:**
 > Vision traces to the README and the CI/CD pipeline configuration.
 > *Why wrong: References an implementation artifact (CI/CD pipeline) instead of the documentation hierarchy. Traceability should connect to other documentation standards, not to code or infrastructure.*
+
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** diagrams
+- **Audience:** architect
+- **Do:** Include a tier diagram showing the derivation hierarchy; list every downstream standard that derives from Vision; state the non-contradiction rule explicitly
+- **Don't:** Reference source code files, CI/CD pipelines, or infrastructure artifacts; omit standards from the diagram; use prose where a diagram would be clearer
 
 No downstream document should contradict the Vision.
 
@@ -832,6 +913,15 @@ These describe values rather than implementation.
 > **Use Kubernetes** — The product should always be deployed on Kubernetes for orchestration.
 > **TypeScript Everywhere** — All frontend and backend code must use TypeScript.
 > *Why wrong: States technology mandates rather than enduring principles. Principles should survive technology changes and guide decisions regardless of implementation stack.*
+
+### Writing Guidance
+
+- **Tone:** inspirational
+- **Voice:** third person
+- **Structure:** bullet lists
+- **Audience:** engineer
+- **Do:** Phrase each principle as a decision rule that applies across technologies; include a one-sentence rationale for each; ensure principles are testable against real decisions
+- **Don't:** Name programming languages, frameworks, or cloud providers; write principles that are only true for one implementation; list more than five principles
 
 Vision should define enduring principles that influence future decisions.
 

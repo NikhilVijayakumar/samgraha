@@ -77,6 +77,15 @@
 **Required diagrams:** none
 **Required cross-references:** Vision, Feature Design Standard
 
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** third person
+- **Structure:** paragraphs
+- **Audience:** architect
+- **Do:** State the problem Design Documentation solves before describing what it defines. Distinguish Design Documentation from Feature Design explicitly. Keep scope boundaries firm and technology-free.
+- **Don't:** List specific features or products. Reference implementation technologies or frameworks. Describe how individual features behave.
+
 This document defines the standard for Design Documentation within the engineering documentation ecosystem.
 
 Design Documentation establishes the shared design language, design principles, interaction philosophy, and user experience standards that govern an entire product or product ecosystem.
@@ -141,6 +150,15 @@ It does not describe how individual features behave.
 **Required diagrams:** none
 **Required cross-references:** Design Principles, Accessibility
 
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** third person
+- **Structure:** mixed
+- **Audience:** product owner
+- **Do:** Frame each principle as a product-level interaction philosophy applicable across all features. Provide at least one cross-feature example per principle. Ground each principle in user outcomes, not UI mechanics.
+- **Don't:** Reference specific UI frameworks, libraries, or component names. Describe feature-specific interaction workflows. Conflate UX principles with visual design specifications.
+
 *(To be written by the domain expert. This section defines user experience principles governing interaction, navigation, feedback, and discoverability.)*
 
 ---
@@ -196,6 +214,15 @@ It does not describe how individual features behave.
 **Optional subsections:** Assistive Technology Support, Testing Strategy
 **Required diagrams:** none
 **Required cross-references:** UX Principles, Feature Design Standard, Engineering Standard
+
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** imperative
+- **Structure:** paragraphs
+- **Audience:** engineer
+- **Do:** Reference specific compliance standards (e.g. WCAG level) with enforcement scope. Define inclusive design principles at the product level before any technical requirements. State which interfaces the compliance targets apply to.
+- **Don't:** Specify component-level ARIA attributes or HTML patterns. Write testing scripts or code snippets. Confuse design-level accessibility with engineering-level implementation details.
 
 *(To be written by the domain expert. This section defines accessibility standards and inclusive design principles for the product.)*
 
@@ -254,6 +281,15 @@ It does not describe how individual features behave.
 **Optional subsections:** none
 **Required diagrams:** none
 **Required cross-references:** Vision, Feature Design Standard, Architecture Standard
+
+### Writing Guidance
+
+- **Tone:** structural
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** architect
+- **Do:** State each constraint with its source, enforcement level, and scope. Clearly distinguish binding constraints from advisory guidance. Explain why each constraint is non-negotiable.
+- **Don't:** List team preferences as constraints. Omit the source or enforcement level. Conflate platform requirements with organizational preferences.
 
 *(To be written by the domain expert. This section defines design-level constraints, non-functional requirements, and regulatory or organizational mandates.)*
 
@@ -478,6 +514,15 @@ Every Feature Design should align with the Design Documentation.
 **Optional subsections:** none
 **Required diagrams:** tier/derivation flowchart
 **Required cross-references:** Vision, Feature Design, Architecture, Feature Technical Design
+
+### Writing Guidance
+
+- **Tone:** structural
+- **Voice:** third person
+- **Structure:** diagrams
+- **Audience:** AI agent
+- **Do:** Include a visual tier diagram showing the full derivation chain. List every upstream source and downstream consumer explicitly. State the non-contradiction rule as a binding constraint, not a suggestion.
+- **Don't:** Describe code-level module dependencies or call graphs. Omit any standard in the derivation chain. Leave the non-contradiction rule implicit or optional.
 
 Design Documentation remains traceable.
 
@@ -784,6 +829,15 @@ Large documents should be decomposed into smaller focused documents.
 **Optional subsections:** none
 **Required diagrams:** none
 **Required cross-references:** Vision, Philosophy, UX Principles, Feature Design Standard
+
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** third person
+- **Structure:** mixed
+- **Audience:** new contributor
+- **Do:** Define each principle with a one-sentence definition and explicit scope. Include at least one cross-feature example and a contrast showing what violates the principle. Add a Principle Prioritization subsection resolving conflicts between competing principles.
+- **Don't:** Reference specific CSS classes, frameworks, or design tokens. Describe feature-specific behavior as a principle. Leave principle conflicts unaddressed or implicitly resolved.
 
 Design Documentation should establish reusable principles such as:
 

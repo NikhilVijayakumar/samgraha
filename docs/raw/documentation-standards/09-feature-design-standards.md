@@ -77,6 +77,15 @@
 > Feature Design defines how to implement authentication using OAuth 2.0, including token storage with Redis and session management via JWT middleware.
 > *Why wrong: This introduces implementation details (OAuth, Redis, JWT), which belongs in Feature Technical Design or Engineering, not Feature Design.*
 
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** third person
+- **Structure:** paragraphs
+- **Audience:** architect
+- **Do:** Define scope boundaries explicitly; State the one-to-one relationship with Feature; Explain what Feature Design is and is not
+- **Don't:** Include implementation details or technology references; Leave scope boundaries ambiguous; Conflate with Design or Architecture standards
+
 This document defines the standard for Feature Design Documentation within the engineering documentation ecosystem.
 
 Feature Design translates a single Feature Specification into a complete user-centered design by applying the shared principles defined by the Design Documentation together with any relevant External Context.
@@ -181,6 +190,15 @@ It does not define implementation, architecture, or engineering decisions.
 > The `DataFetchError` component renders when the API call returns a 500 status. It calls `retryRequest()` with exponential backoff (initial delay 1000ms, max 5 retries). The error boundary catches exceptions from the `FeatureController` class.
 > *Why wrong: This describes implementation internals (API status codes, retry logic, class names) rather than the user-facing experience. Feature Design should describe what the user sees and can do, not how the system is coded.*
 
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** imperative
+- **Structure:** mixed
+- **Audience:** engineer
+- **Do:** Describe every interaction from the user's perspective; Cover all states including error, empty, loading, and success; Reference Design Principles that govern the UX
+- **Don't:** Reference APIs, frameworks, or component names; Describe internal system behavior or processing logic; Skip error, empty, or loading states
+
 *(To be written by the domain expert. This section defines the complete user experience for the feature.)*
 
 ---
@@ -258,6 +276,15 @@ It does not define implementation, architecture, or engineering decisions.
 > 2. The middleware calls `POST /api/items/:id` with the form payload
 > 3. On success, the router navigates to `/items/:id`
 > *Why wrong: This describes implementation mechanics (Redux, API routes, router navigation) instead of user actions and observable system responses. The workflow must be technology-independent.*
+
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** engineer
+- **Do:** Write each step as user action → observable system response; Include error recovery paths for every failure point; Ensure every functional requirement maps to at least one workflow step
+- **Don't:** Describe implementation mechanics or API calls; Skip error recovery or branching paths; Use function names, class names, or route paths
 
 *(To be written by the domain expert. This section defines the step-by-step user workflow for the feature.)*
 
@@ -343,6 +370,15 @@ It does not define implementation, architecture, or engineering decisions.
 > | CACHED | Data in localStorage | Data hydrated into store |
 > *Why wrong: This describes internal state management (Redux store states, Axios, localStorage, component rendering) rather than observable user-facing states. States must be described from the user's perspective.*
 
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** imperative
+- **Structure:** tables
+- **Audience:** engineer
+- **Do:** Enumerate every observable UI state including empty and error states; Document all valid transitions with explicit triggers; Describe what the user sees in each state, not what the system does internally
+- **Don't:** Describe internal state management or component lifecycle; Omit transition triggers or leave them implicit; Reference framework-specific state concepts (Redux, stores, context)
+
 *(To be written by the domain expert. This section defines the observable states and state transitions for the feature.)*
 
 ---
@@ -406,6 +442,15 @@ It does not define implementation, architecture, or engineering decisions.
 > | Use `maxlength="128"` on the input element | Hard | HTML spec | Input validation in the DOM layer |
 > | Must use CSS `direction: rtl` for Arabic | Hard | W3C CSS spec | Stylesheet must set text direction |
 > *Why wrong: These describe implementation techniques (HTML attributes, CSS properties) rather than user-facing design constraints. Constraints should state what the design must accommodate, not how to code it.*
+
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** imperative
+- **Structure:** tables
+- **Audience:** architect
+- **Do:** Cite the source of every constraint; Distinguish hard constraints from advisory preferences; State the concrete impact on design decisions
+- **Don't:** Describe implementation techniques (HTML attributes, CSS properties); Omit source attribution; Conflate constraints with implementation preferences
 
 *(To be written by the domain expert. This section defines user-facing constraints from external systems.)*
 
@@ -503,6 +548,15 @@ Feature Design does not define:
 > * What the feature does for users
 > * Whether the feature is accessible
 > *Why wrong: Every item listed here actually belongs within Feature Design scope (look and feel, navigation, user purpose, accessibility). Non-Goals must only list responsibilities that belong to other standards, not the feature's own design concerns.*
+
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** architect
+- **Do:** Name the owning standard for each excluded responsibility; List only responsibilities that genuinely belong to other standards; Keep the list current as the ecosystem evolves
+- **Don't:** Include items that belong in Feature Design scope; List goals or positive scope statements; Leave ownership of excluded items ambiguous
 
 Feature Design does not define:
 
@@ -692,6 +746,15 @@ Implementation should realize the documented feature design.
 **Incorrect:**
 > This Feature Design derives from the Authentication module's architecture document and the REST API specification. It covers Export, Import, and Archive features as a unified workflow.
 > *Why wrong: (1) Derivation should trace to Feature Specification and Design Documentation, not architecture or API specs. (2) Multiple features are combined, violating the one-to-one relationship constraint.*
+
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** imperative
+- **Structure:** diagrams
+- **Audience:** architect
+- **Do:** Show the complete derivation chain from Vision through Feature and Design; State the one-to-one mapping constraint with Feature Specification explicitly; List all downstream consumers and their relationship
+- **Don't:** Include implementation-level traceability (code, tests, bugs); Omit the one-to-one mapping assertion; Reference unrelated standards or documents
 
 Feature Design remains traceable.
 

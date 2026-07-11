@@ -87,6 +87,15 @@
 > This document defines the QA process for Project Nova. The team uses Jest for unit tests and Cypress for E2E tests.
 > *Why wrong: This section defines verification scope and philosophy, not tool choices or implementation details. Framework selection belongs in Engineering(07), not here.*
 
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** third person
+- **Structure:** paragraphs
+- **Audience:** architect
+- **Do:** State the verification scope before any implementation details; reference every upstream document by its standard number and role; use measurable language for what the section governs
+- **Don't:** Mention specific test frameworks, tools, or CI/CD systems; describe what the team "does" — describe what the document "defines"; conflate purpose with a roadmap or project status
+
 This document defines the standard for Quality Assurance documentation within the engineering documentation ecosystem.
 
 QA Documentation defines how features are verified against their specifications — the testing strategy, test types, and verification chain from feature requirements to implementation.
@@ -229,6 +238,15 @@ Enhancement produces targeted test additions. Scope is limited to what changed.
 > We will test everything because all tests are important.
 > *Why wrong: Applicability must state WHEN a test type applies (a condition), not just "Yes." Priority must use the standard scale (Mandatory/Conditional), not adjectives. The strategy must be justified by project profile and risk analysis.*
 
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** third person
+- **Structure:** tables
+- **Audience:** architect
+- **Do:** Use the Mandatory/Conditional priority scale consistently; state applicability as a condition, not a boolean; justify each test type's inclusion by referencing project profile and risk areas
+- **Don't:** Use adjectives like "High/Medium/Low" for priority; list test types without applicability conditions; assume every test type applies to every project
+
 Every QA document must define the overall test strategy before individual test types. The strategy maps test types to project needs.
 
 | Test Type | Applicability | Priority |
@@ -319,6 +337,15 @@ Section headings are case-insensitive. Sections not listed here are stored as `g
 > Unit tests should cover most of the code. The team writes unit tests for all new features and fixes.
 > *Why wrong: Coverage targets must be measurable with explicit percentages and a defined measurement method. Vague statements like "most of the code" or "all new features" cannot be audited or verified.*
 
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** tables
+- **Audience:** engineer
+- **Do:** Specify numeric coverage thresholds per metric (line, branch, function); name the measurement tool; define one behavior per test in conventions
+- **Don't:** Use qualitative targets like "good coverage"; list frameworks instead of behavioral conventions; define implementation-level details like file paths or class structures
+
 Unit testing is applicable to all projects. Define coverage targets appropriate to the project's risk profile.
 
 ---
@@ -388,6 +415,15 @@ Unit testing is applicable to all projects. Define coverage targets appropriate 
 > We test that the API works with the database and the cache. All services communicate over HTTP.
 > *Why wrong: Integration boundaries must be explicitly listed as a table mapping specific component pairs, their contracts, and verification methods. Vague descriptions of "services communicating" don't define testable boundaries.*
 
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** tables
+- **Audience:** engineer
+- **Do:** Map each boundary to specific component pairs from Architecture(05); state the contract type (API schema, message format, protocol); define a concrete verification method per boundary
+- **Don't:** Describe integration testing in prose without a boundary table; use vague terms like "services talk to each other"; omit the contract type or verification method for any listed boundary
+
 Integration testing is mandatory for projects with multiple components. Map test coverage to Architecture(05) component boundaries.
 
 ---
@@ -455,6 +491,15 @@ Integration testing is mandatory for projects with multiple components. Map test
 **Incorrect:**
 > Test that users can log in, add items to cart, and check out. Make sure the UI works.
 > *Why wrong: Critical user journeys must be mapped to specific Design(06) references with explicit expected outcomes and measurable pass/fail criteria. Generic descriptions without traceability to design docs cannot be verified or audited.*
+
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** imperative
+- **Structure:** tables
+- **Audience:** engineer
+- **Do:** Link each journey to a specific Design(06) section; define expected outcomes as observable system states; write pass/fail criteria as automated assertions
+- **Don't:** List journeys without a Design(06) reference; describe expected outcomes in user-emotion terms ("user is happy"); leave pass/fail criteria implicit or subjective
 
 End-to-end testing is conditional — required for applications with user-facing interfaces. Map test coverage to Design(06) user workflows.
 
@@ -529,6 +574,15 @@ End-to-end testing is conditional — required for applications with user-facing
 **Incorrect:**
 > Smoke test: make sure the app works. Check that users can log in and the dashboard loads.
 > *Why wrong: Smoke tests require a structured checklist of core functions with pass/fail criteria and a maximum execution time. Unstructured descriptions without timing constraints cannot function as deployment gates.*
+
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** engineer
+- **Do:** Use a checkbox list format for core functions; state a maximum execution time in minutes; define pass as "all checks pass" and fail as "any check fails"
+- **Don't:** Write smoke tests as prose narratives; include edge cases or deep functional checks; omit the maximum execution time threshold
 
 Smoke testing is conditional — required for deployed applications. Must be fast enough to run after every deployment.
 
@@ -612,6 +666,15 @@ Smoke testing is conditional — required for deployed applications. Must be fas
 > The app should be fast. We expect it to handle many users without slowing down.
 > *Why wrong: Load testing requires specific numerical profiles (concurrent user counts, durations, response times) and measurable performance targets. Qualitative descriptions like "fast" and "many users" cannot be tested or verified.*
 
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** tables
+- **Audience:** engineer
+- **Do:** Define load profiles with numeric concurrent-user counts and durations; set performance targets with specific thresholds (p95, throughput, error rate); name the measurement tool for each target
+- **Don't:** Use qualitative load descriptions ("heavy traffic"); define targets without units (ms, req/s, %); skip the baseline profile — every load plan needs a known-good reference point
+
 Load testing is conditional — required for applications expecting concurrent users. Define realistic load profiles based on expected usage.
 
 ---
@@ -690,6 +753,15 @@ Load testing is conditional — required for applications expecting concurrent u
 **Incorrect:**
 > The system should scale to handle more users as we grow. We will add servers when needed.
 > *Why wrong: Scalability testing requires defined growth scenarios with specific load multipliers, expected behaviors, and documented breaking points. Statements about future intent don't characterize how the system actually behaves under growth pressure.*
+
+### Writing Guidance
+
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** tables
+- **Audience:** architect
+- **Do:** Define growth scenarios with explicit load multipliers (2x, 5x, 10x); document the breaking point and failure mode for each critical component; specify a recovery strategy per component
+- **Don't:** Describe scalability as future intent ("we plan to scale"); omit breaking points — untested limits are unknown limits; list components without stating how each fails under load
 
 Scalability testing is conditional — required for applications expecting significant growth. Document where the system breaks and how it scales.
 
@@ -776,6 +848,15 @@ Scalability testing is conditional — required for applications expecting signi
 **Incorrect:**
 > Run security scans and fix any issues found. Use whatever security tools the team prefers.
 > *Why wrong: Security testing requires explicit test types mapped to threat categories, a defined tool, scan frequency, and severity thresholds that determine build pass/fail. Generic directives without measurable thresholds cannot be audited.*
+
+### Writing Guidance
+
+- **Tone:** prescriptive
+- **Voice:** imperative
+- **Structure:** tables
+- **Audience:** security engineer
+- **Do:** Map each test type to Security(03) threat categories; define severity thresholds with explicit fail-build rules and response times; specify scan frequency for every test type
+- **Don't:** List security tools without stating what threat categories they cover; use severity labels without defining their build impact; omit scan frequency — untimed scans are unverifiable scans
 
 Security testing is mandatory for all projects. Map test coverage to Security(03) threat categories. Severity thresholds determine pass/fail.
 
