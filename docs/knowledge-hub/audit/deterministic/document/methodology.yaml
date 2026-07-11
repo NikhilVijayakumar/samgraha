@@ -1,0 +1,31 @@
+---
+system_id: research-paper-publishing
+standard_id: rp-methodology
+domain: methodology
+document_type: research-paper
+rule_id: RP-M-D1
+rule_type: deterministic
+severity: Critical
+scope: document
+description: Paper must have a methodology section
+applies_to:
+  - research-paper
+  - technical-report
+tags:
+  - document-presence
+  - methodology
+created_at: "2026-07-12"
+---
+
+Document of type `research-paper` must contain a section titled `Methodology`
+(or equivalent heading such as `Methods`, `Approach`, `Experimental Design`).
+
+## Pass
+
+- Section exists with recognized heading variant
+- Section appears after Introduction and before Results
+
+## Fail
+
+- No methodology section found
+- Methodology section appears after Results/Conclusion

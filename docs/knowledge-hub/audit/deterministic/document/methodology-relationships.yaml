@@ -1,0 +1,39 @@
+---
+system_id: research-paper-publishing
+standard_id: rp-methodology
+domain: methodology
+scope: relationships
+ownership: methodology
+
+# De-duplication ownership
+# Each relationship checked at exactly one level.
+
+references:
+  level: document
+  rationale: Literature references are a document-level property in research papers
+  rule_id: RP-M-D1
+
+audience:
+  level: document
+  rationale: Target audience is a document-level concern
+  rule_id: RP-AUD-1
+
+reproducibility:
+  level: section
+  rationale: Reproducibility details belong in methodology section specifically
+  rule_id: RP-M-2
+
+terminology:
+  level: document
+  rationale: Term consistency checked across entire paper
+  rule_id: RP-TERM-1
+
+scope:
+  level: section
+  rationale: Scope boundaries defined per section in research papers
+  rule_id: RP-SCOPE-1
+
+coverage:
+  level: document
+  rationale: Claim coverage checked against full paper
+  rule_id: RP-COV-1

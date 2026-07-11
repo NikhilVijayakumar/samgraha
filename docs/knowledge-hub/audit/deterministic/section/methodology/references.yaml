@@ -1,0 +1,33 @@
+---
+system_id: research-paper-publishing
+standard_id: rp-methodology
+domain: methodology
+section_type: methodology
+rule_id: RP-M-2
+rule_type: deterministic
+severity: Warning
+description: Methodology must reference relevant prior work
+scope: section
+rationale: Research must position itself relative to existing literature
+applies_to:
+  - research-paper
+  - technical-report
+tags:
+  - references
+  - methodology
+created_at: "2026-07-12"
+---
+## Check
+
+Section `methodology` must include at least one citation or reference to prior work
+that justifies or contextualizes the chosen approach.
+
+## Pass
+
+- At least one citation present
+- Reference is contextually relevant to methodology choice
+
+## Fail
+
+- No citations in methodology section
+- Citations present but unrelated to methodology
