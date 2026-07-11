@@ -78,6 +78,15 @@
 [1-2 paragraphs stating what the feature is and why it exists]
 ```
 
+### Examples
+
+**Correct:**
+> CloudBridge is a data synchronization feature that transfers datasets between distributed storage systems. It exists to ensure data consistency across environments without requiring manual intervention. CloudBridge focuses on the capability of synchronization, not the underlying protocol or transport mechanism.
+
+**Incorrect:**
+> CloudBridge is a feature built with Python 3.12 using Apache Kafka for message streaming and PostgreSQL for state tracking. It exists to move data between clusters.
+> *Why wrong: The purpose section contains implementation details (Python, Kafka, PostgreSQL) that belong in Engineering Documentation, not Feature Documentation.*
+
 **Required subsections:** none
 **Optional subsections:** none
 **Required diagrams:** none
@@ -137,6 +146,19 @@ It does not describe implementation, architecture, or engineering decisions.
 - [FR-003] The feature shall [behavior] when [condition].
 ```
 
+### Examples
+
+**Correct:**
+> - [FR-001] CloudBridge shall synchronize data between source and target systems when a sync request is initiated.
+> - [FR-002] CloudBridge shall detect conflicting changes when both source and target contain modifications to the same record.
+> - [FR-003] CloudBridge shall preserve data integrity when a partial failure occurs during synchronization.
+
+**Incorrect:**
+> - [FR-001] CloudBridge shall use the Apache Kafka producer API to publish sync events to the broker topic.
+> - [FR-002] CloudBridge shall query the PostgreSQL `sync_status` table using the SQLAlchemy ORM.
+> - [FR-003] CloudBridge shall retry failed HTTP requests using exponential backoff with a maximum of 5 retries.
+> *Why wrong: Each requirement describes a specific technology choice (Kafka API, PostgreSQL ORM, HTTP retry logic) rather than the functional behavior the feature must exhibit.*
+
 **Required subsections:** none
 **Optional subsections:** none
 **Required diagrams:** none
@@ -184,6 +206,17 @@ It does not describe implementation, architecture, or engineering decisions.
 
 [Optional: flowchart showing rule decision logic]
 ```
+
+### Examples
+
+**Correct:**
+> - [BR-001] When a record exists in both source and target with different values, then CloudBridge shall flag the conflict and pause synchronization for that record.
+> - [BR-002] When the source dataset is empty, then CloudBridge shall complete with a no-op result and log the condition.
+
+**Incorrect:**
+> - [BR-001] When a conflict is detected, then the system shall execute the `resolve_conflict()` method defined in `sync_engine.py`.
+> - [BR-002] When no source data exists, then the application shall return HTTP 204 No Content from the sync endpoint.
+> *Why wrong: These rules reference implementation details (specific Python files and methods, HTTP status codes) instead of describing the business logic in technology-independent terms.*
 
 **Required subsections:** none
 **Optional subsections:** none
@@ -237,6 +270,23 @@ It does not describe implementation, architecture, or engineering decisions.
 - [C-003] [Technical constraint and its impact on the feature]
 ```
 
+### Examples
+
+**Correct:**
+> ### Regulatory
+> - [C-001] CloudBridge must comply with data residency requirements that restrict cross-border data transfer.
+>
+> ### Business
+> - [C-002] CloudBridge must complete synchronization within the agreed maintenance window of 4 hours.
+
+**Incorrect:**
+> ### Regulatory
+> - [C-001] CloudBridge must use AES-256 encryption at rest and TLS 1.3 in transit per compliance requirements.
+>
+> ### Technical
+> - [C-002] CloudBridge must run on Kubernetes pods with a minimum of 2 GB memory and 1 CPU core.
+> *Why wrong: The first constraint specifies a particular encryption standard rather than stating the regulatory requirement it serves. The second constraint specifies infrastructure requirements that belong in Architecture or Engineering Documentation.*
+
 **Required subsections:** none
 **Optional subsections:** Regulatory, Business, Technical
 **Required diagrams:** none
@@ -283,6 +333,23 @@ It does not describe implementation, architecture, or engineering decisions.
 |------------|--------|----------|
 | [Feature/System Name] | [functional \| data] | [yes \| no] |
 ```
+
+### Examples
+
+**Correct:**
+> | Dependency | Nature | Required |
+> |------------|--------|----------|
+> | User Authentication | functional | yes |
+> | Data Encryption | functional | yes |
+> | Audit Logging | data | no |
+
+**Incorrect:**
+> | Dependency | Nature | Required |
+> |------------|--------|----------|
+> | Spring Security | functional | yes |
+> | Apache Kafka 3.4 | data | yes |
+> | Redis 7.0 Cache | functional | no |
+> *Why wrong: The dependency column lists specific software libraries and version numbers rather than the feature or system capabilities the feature relies on. These are implementation dependencies.*
 
 **Required subsections:** none
 **Optional subsections:** none
@@ -331,6 +398,19 @@ It does not describe implementation, architecture, or engineering decisions.
 - [AC-003] Given [precondition], when [action], then [expected result].
 ```
 
+### Examples
+
+**Correct:**
+> - [AC-001] Given a dataset in the source system, when a sync request is initiated, then CloudBridge shall transfer all records to the target system without data loss.
+> - [AC-002] Given conflicting records in both systems, when sync encounters a conflict, then CloudBridge shall flag the conflicting records and preserve both versions for review.
+> - [AC-003] Given a partial failure during synchronization, when the process is interrupted, then CloudBridge shall resume from the last successful checkpoint without duplicating records.
+
+**Incorrect:**
+> - [AC-001] Given a sync request, when the `SyncManager.process()` method is called, then it should return a 200 status code within 500ms.
+> - [AC-002] Given a conflict, when the `ConflictResolver` class is invoked, then it should insert a row into the `conflict_log` table.
+> - [AC-003] Given a failure, when the retry mechanism triggers, then exponential backoff should be applied up to 3 attempts.
+> *Why wrong: These criteria reference specific code components, database tables, and implementation mechanics rather than describing the verifiable conditions that confirm feature completeness from the user's perspective.*
+
 **Required subsections:** none
 **Optional subsections:** none
 **Required diagrams:** none
@@ -377,6 +457,21 @@ It does not describe implementation, architecture, or engineering decisions.
 |-----------|-----------|---------|
 | [Description] | [Why deferred] | [When to revisit] |
 ```
+
+### Examples
+
+**Correct:**
+> | Extension | Rationale | Trigger |
+> |-----------|-----------|---------|
+> | Multi-directional sync | Current scope limited to one-way transfer to reduce complexity | When bidirectional use cases are validated with users |
+> | Incremental sync | Requires a change-detection mechanism not yet designed | When full-sync performance becomes a bottleneck |
+
+**Incorrect:**
+> | Extension | Rationale | Trigger |
+> |-----------|-----------|---------|
+> | Add Redis caching layer | Performance optimization deferred to phase 2 | When database queries exceed 200ms |
+> | Implement webhook notifications | User notification feature deferred to backlog | When user feedback requests it |
+> *Why wrong: The extensions describe implementation components (Redis caching, webhooks) rather than functional capabilities. These are engineering decisions, not feature-level deferred work.*
 
 **Required subsections:** none
 **Optional subsections:** none
@@ -464,6 +559,21 @@ Feature Documentation does not define:
 * [Non-goal] — belongs to [owning standard].
 * [Non-goal] — belongs to [owning standard].
 ```
+
+### Examples
+
+**Correct:**
+> Feature Documentation does not define:
+> * How CloudBridge implements conflict resolution — belongs to Feature Technical Design.
+> * Which programming language CloudBridge is built with — belongs to Engineering Documentation.
+> * The API contract for CloudBridge endpoints — belongs to Feature Technical Design.
+
+**Incorrect:**
+> Feature Documentation does not define:
+> * Database schema design — this is handled in the backend.
+> * Deployment configuration — this is handled in DevOps.
+> * Unit test implementation — this is handled by QA.
+> *Why wrong: The exclusions fail to name the specific owning standard for each responsibility, making it unclear which documentation standard owns each excluded item. Vague attribution prevents traceability.*
 
 **Required subsections:** none
 **Optional subsections:** none
@@ -597,6 +707,23 @@ Feature Documentation derives from:
 Feature Documentation should not derive from implementation.
 ```
 
+### Examples
+
+**Correct:**
+> Feature Documentation derives from:
+> * Vision — the product's strategic direction and goals
+> * Business Requirements — domain rules and constraints
+> * User Needs — validated user problems and expectations
+>
+> Feature Documentation should not derive from implementation.
+
+**Incorrect:**
+> Feature Documentation derives from:
+> * Existing codebase — reverse-engineering features from source code
+> * API documentation — deriving feature specs from endpoint definitions
+> * Database schemas — extracting feature behavior from table structures
+> *Why wrong: These sources are implementation artifacts. Deriving feature documentation from code, APIs, or schemas introduces technology-specific details that violate the technology-independence requirement.*
+
 **Required subsections:** none
 **Optional subsections:** none
 **Required diagrams:** none
@@ -651,6 +778,20 @@ Feature Documentation provides direction for:
 * [Consumer Name] — [nature of dependency]
 * [Consumer Name] — [nature of dependency]
 ```
+
+### Examples
+
+**Correct:**
+> Feature Documentation provides direction for:
+> * Feature Design — derives user experience and interaction patterns from feature requirements
+> * Feature Technical Design — derives technical specifications from functional requirements
+> * Testing — derives test cases from acceptance criteria and business rules
+
+**Incorrect:**
+> Feature Documentation provides direction for:
+> * Source code — the codebase reads feature docs to generate implementation
+> * Deployment pipeline — CI/CD reads feature specs to configure infrastructure
+> *Why wrong: Source code and deployment pipelines are not documentation standards. They are implementation artifacts that belong downstream of Feature Documentation, not consumers within the documentation ecosystem.*
 
 **Required subsections:** none
 **Optional subsections:** none
@@ -711,6 +852,23 @@ Vision → Feature → Feature Design → Architecture → Feature Technical Des
 
 Every feature should support the documented Vision.
 ```
+
+### Examples
+
+**Correct:**
+> Feature Documentation should remain traceable.
+>
+> ```text
+> Vision → Feature → Feature Design → Architecture → Feature Technical Design → Engineering → Implementation
+> ```
+>
+> CloudBridge derives from the Vision goal of "automated data consistency across environments." Its Feature Design and Architecture must not contradict this intent.
+
+**Incorrect:**
+> Feature Documentation should remain traceable.
+>
+> CloudBridge uses Python 3.12 with FastAPI and connects to PostgreSQL. The implementation uses a message queue pattern.
+> *Why wrong: This section presents an implementation summary rather than showing the derivation chain from Vision to downstream standards. It contains technology choices that violate the traceability section's purpose of documenting documentation hierarchy connections.*
 
 **Required subsections:** none
 **Optional subsections:** none

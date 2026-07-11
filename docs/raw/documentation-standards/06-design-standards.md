@@ -63,6 +63,15 @@
 [1 paragraph: scope — what it defines and what it does not; distinction from Feature Design]
 ```
 
+### Examples
+
+**Correct:**
+> Design Documentation solves the problem of inconsistent design across features by establishing reusable design principles, interaction philosophy, and UX standards that govern an entire product ecosystem. It defines how products should be designed at the product level — not how individual features behave.
+
+**Incorrect:**
+> Design Documentation defines the checkout flow for the payment module, including screen layouts and button placement for the order form.
+> *Why wrong: This describes a feature-specific workflow, not a product-level design standard. Design Documentation must not contain feature-specific content.*
+
 **Required subsections:** none
 **Optional subsections:** none
 **Required diagrams:** none
@@ -117,6 +126,16 @@ It does not describe how individual features behave.
 [Repeat for each principle — minimum 3]
 ```
 
+### Examples
+
+**Correct:**
+> ### Feedback Visibility
+> Users should always receive immediate, clear feedback when they perform an action. Whether submitting a form, navigating to a new view, or encountering an error, the system confirms the action occurred and indicates the result. This applies across all features — a user submitting feedback gets the same feedback pattern as a user updating settings.
+
+**Incorrect:**
+> When the user clicks the "Submit" button in React, the onClick handler should call the API endpoint and display a Material UI Snackbar component with the success message.
+> *Why wrong: This is technology-specific implementation guidance (React, Material UI, Snackbar) rather than a product-level UX principle. UX principles must describe interaction philosophy, not component choices.*
+
 **Required subsections:** one per principle (minimum 3)
 **Optional subsections:** Interaction Patterns, Navigation Philosophy, Feedback Mechanisms
 **Required diagrams:** none
@@ -163,6 +182,16 @@ It does not describe how individual features behave.
 [1 paragraph: screen readers, keyboard navigation, voice control — product-level guidance]
 ```
 
+### Examples
+
+**Correct:**
+> ### Compliance Targets
+> The product targets WCAG 2.1 Level AA conformance across all user-facing interfaces. This applies to every feature with a user interface, including web, mobile, and desktop applications. Exceptions are documented per feature and must receive explicit approval.
+
+**Incorrect:**
+> All buttons must include `aria-label="Submit"` and use the `role="button"` attribute to comply with WCAG 2.1 Level AA.
+> *Why wrong: This contains component-level ARIA patterns, which belong to Engineering, not Design. Accessibility at the design level should define compliance targets and inclusive design principles, not HTML attribute requirements.*
+
 **Required subsections:** Compliance Targets, Inclusive Design Principles
 **Optional subsections:** Assistive Technology Support, Testing Strategy
 **Required diagrams:** none
@@ -206,6 +235,20 @@ It does not describe how individual features behave.
 
 [Repeat for each constraint category — minimum 1]
 ```
+
+### Examples
+
+**Correct:**
+> ### Regulatory
+> > **source:** Federal accessibility regulation
+> > **enforcement:** binding
+> > **scope:** All user-facing interfaces
+>
+> The product must comply with federal accessibility requirements. All features must be usable by individuals with disabilities. This constraint is non-negotiable and applies regardless of timeline or budget.
+
+**Incorrect:**
+> We prefer using a specific CSS framework because the team knows it well and it speeds up development.
+> *Why wrong: This is a team preference, not a binding constraint. Constraints must come from regulatory, platform, or organizational mandates and state their binding nature explicitly.*
 
 **Required subsections:** one per constraint category (minimum 1)
 **Optional subsections:** none
@@ -418,6 +461,18 @@ Every Feature Design should align with the Design Documentation.
 
 [1 paragraph: downstream documents must not contradict design principles]
 ```
+
+### Examples
+
+**Correct:**
+> ### Tier Diagram
+> Vision → Design Documentation → Feature Design → Engineering → Implementation
+>
+> Design Documentation derives its principles from the product Vision and Philosophy. It feeds Feature Design, which applies those principles to specific features. No downstream document may contradict the design principles established here.
+
+**Incorrect:**
+> Traceability shows that module A calls module B, which calls module C, through a dependency graph of the codebase.
+> *Why wrong: This describes code-level implementation traceability, not documentation hierarchy traceability. Design Traceability must show the derivation chain across documentation standards, not source code dependencies.*
 
 **Required subsections:** Tier Diagram, Upstream Derivation, Downstream Consumers, Non-Contradiction Rule
 **Optional subsections:** none
@@ -709,6 +764,21 @@ Large documents should be decomposed into smaller focused documents.
 
 [1 paragraph: how to resolve conflicts when principles compete]
 ```
+
+### Examples
+
+**Correct:**
+> ### Consistency
+> > **definition:** Every feature uses the same interaction patterns, visual language, and terminology for the same type of action.
+> > **scope:** Navigation, feedback, input, error handling, and layout across all features.
+>
+> Consistency ensures users transfer learning between features. When one feature uses a swipe gesture for deletion, every feature should use the same gesture for the same action. This prevents users from relearning interaction patterns per feature.
+>
+> *Contrast:* If one feature requires a long-press to delete and another requires a swipe, users must relearn the pattern — eroding trust and increasing cognitive load.
+
+**Incorrect:**
+> Consistency means all buttons should use the same CSS class (`btn-primary`) and follow the design tokens defined in the component library's theme configuration.
+> *Why wrong: This conflates design consistency (a product-level principle about interaction patterns) with CSS implementation details. Design Principles must describe values and behaviors, not technology-specific styling rules.*
 
 **Required subsections:** one per principle (minimum 3), Principle Prioritization
 **Optional subsections:** none

@@ -61,6 +61,15 @@
 **Required diagrams:** none
 **Required cross-references:** Feature Design(09), Feature Technical Design(10)
 
+### Examples
+
+**Correct:**
+> This prototype answers whether a real-time search interface can return results within 200ms on a 3G connection. It is a disposable simulation — not production code — and validates the interaction flow defined in Feature Design(09) and the data access pattern proposed in Feature Technical Design(10).
+
+**Incorrect:**
+> This document covers the Order Tracking feature and describes the system architecture.
+> *Why wrong: No falsifiable question is stated, the prototype is not identified as disposable, and no upstream documents are referenced.*
+
 This document defines the standard for Prototype Documentation within the engineering documentation ecosystem.
 
 A Prototype is an executable simulation of the application built to answer a specific falsifiable question or de-risk a specific unknown before production engineering commits to an approach.
@@ -165,6 +174,22 @@ Section headings are case-insensitive. Sections not listed here are stored as `g
 **Required diagrams:** none
 **Required cross-references:** Scope, Data Model
 
+### Examples
+
+**Correct:**
+> | Dependency | Fidelity | Request Contract | Response Contract |
+> |------------|----------|------------------|-------------------|
+> | Payment Gateway | low | POST /charge {amount, currency} | {status: "approved", id: "ch_123"} |
+> | Inventory Service | medium | GET /stock/{sku} | {sku: "WIDGET-01", quantity: 42} |
+>
+> Payment Gateway is low fidelity because the prototype only tests the happy path. Inventory Service is medium fidelity because it returns realistic stock levels for the scenario.
+
+**Incorrect:**
+> | Dependency | Request Contract | Response Contract |
+> |------------|------------------|-------------------|
+> | Payment Gateway | POST /charge | {status: "approved"} |
+> *Why wrong: The fidelity indicator column is missing. Without knowing whether the mock is low, medium, or high fidelity, reviewers cannot assess what the prototype actually simulates versus what is faked.*
+
 > **⚠️ IMPORTANT:** This section is required by the Prototype standard but does not yet exist as a heading. Please add it when drafting a real Prototype document.
 
 ---
@@ -205,6 +230,38 @@ Section headings are case-insensitive. Sections not listed here are stored as `g
 **Required diagrams:** none
 **Required cross-references:** Mock APIs
 
+### Examples
+
+**Correct:**
+> ```json
+> {
+>   "order": {
+>     "id": "string — unique order identifier",
+>     "status": "string — pending | confirmed | shipped",
+>     "total": "number — order total in cents"
+>   }
+> }
+> ```
+>
+> **Seed data:** `{ "id": "ORD-001", "status": "pending", "total": 4999 }`
+>
+> Minimal structure exercises the checkout flow. No PII — customer name is not included because the prototype does not test profile management.
+
+**Incorrect:**
+> ```json
+> {
+>   "customer": {
+>     "id": "string — unique identifier",
+>     "name": "string — full legal name",
+>     "email": "string — personal email address",
+>     "ssn": "string — social security number"
+>   }
+> }
+> ```
+>
+> **Seed data:** `{ "name": "John Smith", "email": "john@example.com", "ssn": "123-45-6789" }`
+> *Why wrong: Contains PII fields (name, email, SSN) and seed data uses realistic personal information. The data model is not minimal — it includes fields irrelevant to the prototype scenario.*
+
 > **⚠️ IMPORTANT:** This section is required by the Prototype standard but does not yet exist as a heading. Please add it when drafting a real Prototype document.
 
 ---
@@ -237,7 +294,22 @@ Section headings are case-insensitive. Sections not listed here are stored as `g
 **Required diagrams:** none
 **Required cross-references:** Scope
 
-> **⚠️ IMPORTANT:** This section is required by the Prototype standard but does not yet exist as a heading. Please add it when drafting a real Prototype document.
+### Examples
+
+**Correct:**
+> | Constraint | Type | Impact |
+> |------------|------|--------|
+> | No network access | hard | All external services must be mocked locally |
+> | Response time not measured | known-shortcoming | Prototype does not validate latency — that is deferred to Engineering |
+>
+> The hard constraint shapes the entire mock strategy. The known-shortcoming is honest about what the prototype does not prove.
+
+**Incorrect:**
+> | Constraint | Type | Impact |
+> |------------|------|--------|
+> | API latency under 200ms | hard | Response time must meet production SLA |
+>
+> *Why wrong: This is a production performance requirement, not a prototype constraint. The prototype does not validate production latency — that belongs in Engineering(07) or Feature Technical Design(10).*
 
 ## Goals
 
@@ -319,6 +391,34 @@ Prototype turns a Feature Design or Feature Technical Design into something a st
 **Required diagrams:** none
 **Required cross-references:** Goals, Success Criteria
 
+### Examples
+
+**Correct:**
+> **Falsifiable question:** Can a search-as-you-type interface return results within 200ms on a 3G connection?
+>
+> **In-scope:**
+> - Search input field — fidelity: full
+> - Results list rendering — fidelity: mocked
+> - Network latency simulation — fidelity: partial
+>
+> **Out-of-scope:**
+> - User authentication — reason: not relevant to the search interaction
+> - Result ranking algorithm — reason: deferred to Feature Technical Design(10)
+>
+> Each item has a fidelity level, and out-of-scope items explain why they are excluded.
+
+**Incorrect:**
+> **Falsifiable question:** Can the search feature work?
+>
+> **In-scope:**
+> - Search
+> - Results
+> - Filters
+>
+> **Out-of-scope:**
+> - Nothing — the prototype covers everything
+> *Why wrong: The question is not falsifiable ("can it work" has no pass/fail threshold), no fidelity levels are assigned to scope items, and nothing is excluded — the prototype has no boundaries.*
+
 Prototype may describe:
 
 * In-scope and out-of-scope behavior
@@ -399,6 +499,25 @@ Prototype code itself is not an output — it's discarded once the question is a
 **Optional subsections:** none
 **Required diagrams:** traceability flowchart
 **Required cross-references:** Feature Design(09), Feature Technical Design(10)
+
+### Examples
+
+**Correct:**
+> ```text
+> Feature Design(09)     ──┐
+>                            ├──> Prototype ── validates ──> confidence to proceed with Implementation(13)
+> Feature Technical(10)  ──┘
+> ```
+>
+> Both upstream documents are named. The downstream impact — confidence for Implementation — is explicit.
+
+**Incorrect:**
+> ```text
+> Some Docs ──┐
+>              ├──> Prototype ──> ??? 
+> More Docs ──┘
+> ```
+> *Why wrong: Upstream documents are not identified by name or number. The downstream impact is unclear. This diagram could belong to any prototype and provides no traceable lineage.*
 
 ```text
 Feature Design ──┐

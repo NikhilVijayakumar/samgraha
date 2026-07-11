@@ -123,6 +123,15 @@ It does not explain implementation details.
 [High-level component or system context diagram]
 ```
 
+### Examples
+
+**Correct:**
+> DataSync is a distributed data synchronization platform that coordinates data exchange between enterprise systems. It provides reliable, ordered delivery of data changes across heterogeneous datastores, supporting both real-time and batch synchronization modes. The system is organized into an ingestion layer, a transformation engine, and a distribution layer, each with distinct ownership and scaling characteristics.
+
+**Incorrect:**
+> DataSync uses Apache Kafka 3.4 with Spring Boot 3.1 for event streaming, PostgreSQL 15 for metadata storage, and Redis 7 for caching. The backend runs on AWS EKS with Kubernetes 1.27.
+> *Why wrong: names specific library versions, frameworks, and cloud infrastructure — this is Engineering detail, not architectural overview.*
+
 **Required subsections:** Overview, Diagram
 **Optional subsections:** Structural Approach, Key Capabilities
 **Required diagrams:** system context or component overview diagram
@@ -172,6 +181,23 @@ It does not explain implementation details.
 [Diagram showing all components and their relationships]
 ```
 
+### Examples
+
+**Correct:**
+> **Ingestion Service**
+> - **Responsibility:** Accepts data changes from external systems and validates their structure before passing them downstream.
+> - **Ownership:** Raw incoming change events, ingestion queues.
+> - **Interfaces:** Exposes a submission endpoint; publishes validated events to the Transform Engine.
+>
+> **Transform Engine**
+> - **Responsibility:** Applies mapping rules to convert incoming data formats into the canonical system model.
+> - **Ownership:** Mapping rules, transformation state, intermediate representations.
+> - **Interfaces:** Consumes validated events from Ingestion; publishes canonical records to Distribution.
+
+**Incorrect:**
+> The Ingestion Service is implemented as a Node.js 20 Express app with 4 REST endpoints (`/api/v1/ingest`, `/api/v1/batch`, `/api/v1/status`, `/api/v1/health`). It uses Bull queues backed by Redis and calls `validateSchema()` from the shared `@datasync/validation` package.
+> *Why wrong: describes implementation details (runtime, endpoints, package names, function signatures) instead of responsibility and ownership boundaries.*
+
 **Required subsections:** Components (with one entry per component), Component Diagram
 **Optional subsections:** Component Relationships, Boundary Definitions
 **Required diagrams:** component relationship diagram
@@ -214,6 +240,21 @@ It does not explain implementation details.
 ### Communication Diagram
 [Sequence or flow diagram showing inter-component communication]
 ```
+
+### Examples
+
+**Correct:**
+> **Ingestion → Transform Engine**
+> - **Pattern:** Asynchronous, event-driven.
+> - **Contract:** Ingestion publishes a validated event; Transform Engine acknowledges receipt and processes independently. Events are idempotent and ordered within a single source.
+>
+> **Transform Engine → Distribution**
+> - **Pattern:** Asynchronous, queue-based.
+> - **Contract:** Transform publishes canonical records with a unique identifier. Distribution guarantees at-least-once delivery and deduplicates on the identifier.
+
+**Incorrect:**
+> Ingestion calls Transform via HTTP POST to `http://transform:8080/process` with a JSON body. It uses Axios with a 5-second timeout and retries 3 times with exponential backoff. Responses are validated against the OpenAPI schema in `transform-api.yaml`.
+> *Why wrong: specifies network protocols, library choices, timeout values, and implementation-level retry logic — all of which belong in Engineering, not Architecture.*
 
 **Required subsections:** Communication Paths, Communication Diagram
 **Optional subsections:** Interaction Patterns, Contract Definitions
@@ -258,6 +299,26 @@ It does not explain implementation details.
 [Flowchart showing data movement through the system]
 ```
 
+### Examples
+
+**Correct:**
+> **Inbound Data Path**
+> - **Entry point:** External system submits data changes.
+> - **Transformations:** Schema validation and format normalization.
+> - **Ownership boundary:** Ingestion Service owns raw events until transformation completes.
+> - **Exit point:** Canonical records delivered to Distribution.
+>
+> **Data Ownership**
+> | Data Entity | Owning Component |
+> |---|---|
+> | Raw incoming events | Ingestion Service |
+> | Canonical records | Transform Engine |
+> | Delivery confirmations | Distribution Service |
+
+**Incorrect:**
+> Data flows through a PostgreSQL table called `raw_events` with columns `id`, `payload`, `created_at`. The Transform Engine runs a SQL query `SELECT * FROM raw_events WHERE processed = false`, deserializes the JSONB payload using `JSON.parse()`, and inserts into `canonical_records` via an ORM bulk insert.
+> *Why wrong: describes database schemas, SQL queries, and code-level operations — these are implementation details, not architectural data flow.*
+
 **Required subsections:** Data Paths, Data Flow Diagram
 **Optional subsections:** Data Ownership, Data Transformations
 **Required diagrams:** data flow diagram covering all major paths
@@ -300,6 +361,21 @@ It does not explain implementation details.
 ### Security Controls
 [Architectural security measures — access control model, data protection requirements]
 ```
+
+### Examples
+
+**Correct:**
+> **Trust Boundaries**
+> - **External → Ingestion:** Untrusted external systems submit data; Ingestion validates all inputs before internal processing.
+> - **Ingestion → Transform:** Trusted boundary — both are internal components communicating over an internal network.
+>
+> **Threat Model**
+> - **Spoofing:** External systems may impersonate legitimate data sources. Mitigation: authenticated submission with signed payloads.
+> - **Data tampering:** Malicious payloads may attempt to exploit downstream processing. Mitigation: schema validation at the Ingestion boundary.
+
+**Incorrect:**
+> We use JWT tokens signed with RS256 via the `jsonwebtoken` library. Passwords are hashed with bcrypt (12 rounds). The API gateway uses Kong 3.4 with rate limiting of 100 req/min. All traffic is encrypted with TLS 1.3.
+> *Why wrong: specifies concrete libraries, library versions, configuration values, and protocol versions — these are Engineering implementation details, not architectural security controls.*
 
 **Required subsections:** Trust Boundaries, Threat Model
 **Optional subsections:** Security Controls, Access Control Model

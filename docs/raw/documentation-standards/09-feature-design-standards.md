@@ -68,6 +68,15 @@
 **Required diagrams:** none
 **Required cross-references:** none
 
+### Examples
+
+**Correct:**
+> Feature Design translates a single Feature Specification into a user-centered design. It applies the shared principles defined by Design Documentation together with any relevant External Context. Feature Design is **not** reusable design guidance — it is the application of reusable principles to one specific feature.
+
+**Incorrect:**
+> Feature Design defines how to implement authentication using OAuth 2.0, including token storage with Redis and session management via JWT middleware.
+> *Why wrong: This introduces implementation details (OAuth, Redis, JWT), which belongs in Feature Technical Design or Engineering, not Feature Design.*
+
 This document defines the standard for Feature Design Documentation within the engineering documentation ecosystem.
 
 Feature Design translates a single Feature Specification into a complete user-centered design by applying the shared principles defined by the Design Documentation together with any relevant External Context.
@@ -161,6 +170,17 @@ It does not define implementation, architecture, or engineering decisions.
 **Required diagrams:** flowchart (primary user interaction flow)
 **Required cross-references:** Feature Specification, Design Documentation UX Principles
 
+### Examples
+
+**Correct:**
+> **Discovery:** Users encounter the feature via a dedicated entry point in the main navigation. The entry point uses a consistent label and icon matching the design system. First-time users see a brief onboarding tooltip.
+>
+> **Error Handling:** When the feature cannot complete the primary action, users see a clear inline message explaining what went wrong and a specific suggestion for resolution. A retry button is available. No technical error codes are shown to the user.
+
+**Incorrect:**
+> The `DataFetchError` component renders when the API call returns a 500 status. It calls `retryRequest()` with exponential backoff (initial delay 1000ms, max 5 retries). The error boundary catches exceptions from the `FeatureController` class.
+> *Why wrong: This describes implementation internals (API status codes, retry logic, class names) rather than the user-facing experience. Feature Design should describe what the user sees and can do, not how the system is coded.*
+
 *(To be written by the domain expert. This section defines the complete user experience for the feature.)*
 
 ---
@@ -219,6 +239,25 @@ It does not define implementation, architecture, or engineering decisions.
 **Optional subsections:** Alternative Workflows
 **Required diagrams:** flowchart (primary workflow)
 **Required cross-references:** Feature Specification, User Experience
+
+### Examples
+
+**Correct:**
+> **Primary Workflow**
+>
+> 1. User selects the item to modify → System displays the edit form with current values pre-filled
+> 2. User updates one or more fields → System validates each field inline as the user types
+> 3. User submits the form → System processes the update and displays a confirmation message with the saved values
+>
+> **Error Recovery**
+>
+> If submission fails due to a validation error, the system highlights the invalid fields, displays a message describing the issue, and keeps the user's entered values so they can correct the problem without re-entering data.
+
+**Incorrect:**
+> 1. User clicks submit → `handleSubmit()` dispatches an action to the Redux store
+> 2. The middleware calls `POST /api/items/:id` with the form payload
+> 3. On success, the router navigates to `/items/:id`
+> *Why wrong: This describes implementation mechanics (Redux, API routes, router navigation) instead of user actions and observable system responses. The workflow must be technology-independent.*
 
 *(To be written by the domain expert. This section defines the step-by-step user workflow for the feature.)*
 
@@ -282,6 +321,28 @@ It does not define implementation, architecture, or engineering decisions.
 **Required diagrams:** state (state transition diagram)
 **Required cross-references:** User Experience, Workflow
 
+### Examples
+
+**Correct:**
+> **State Definitions**
+>
+> | State | Description | What User Sees |
+> |-------|-------------|----------------|
+> | Initial | Feature has not been activated | Entry point with a prompt to begin |
+> | Active | Feature is in use | Interactive form with current data |
+> | Processing | System is handling user input | Inline spinner with status message |
+> | Empty | No data exists to display | Friendly message explaining why and suggesting next steps |
+> | Error | Processing failed | Error message with retry option |
+> | Success | Task completed | Confirmation message with saved result |
+
+**Incorrect:**
+> | State | Description | What User Sees |
+> |-------|-------------|----------------|
+> | IDLE | Store state is `idle` | Component renders null |
+> | FETCHING | Axios request in flight | `<Loader />` component mounted |
+> | CACHED | Data in localStorage | Data hydrated into store |
+> *Why wrong: This describes internal state management (Redux store states, Axios, localStorage, component rendering) rather than observable user-facing states. States must be described from the user's perspective.*
+
 *(To be written by the domain expert. This section defines the observable states and state transitions for the feature.)*
 
 ---
@@ -329,6 +390,22 @@ It does not define implementation, architecture, or engineering decisions.
 **Optional subsections:** none
 **Required diagrams:** none
 **Required cross-references:** External Context, Platform requirements
+
+### Examples
+
+**Correct:**
+> | Constraint | Type | Source | Impact on Design |
+> |-----------|------|--------|-----------------|
+> | Maximum password length is 128 characters | Hard | Platform Security Policy | Input field must accept and display up to 128 characters without truncation |
+> | Feature must support right-to-left text | Hard | Localization Requirements | Layout must mirror for RTL locales; labels and icons must flip alignment |
+> | Dark mode support is preferred but not mandatory | Advisory | Design System Guidelines | Color choices should work in both themes if feasible |
+
+**Incorrect:**
+> | Constraint | Type | Source | Impact on Design |
+> |-----------|------|--------|-----------------|
+> | Use `maxlength="128"` on the input element | Hard | HTML spec | Input validation in the DOM layer |
+> | Must use CSS `direction: rtl` for Arabic | Hard | W3C CSS spec | Stylesheet must set text direction |
+> *Why wrong: These describe implementation techniques (HTML attributes, CSS properties) rather than user-facing design constraints. Constraints should state what the design must accommodate, not how to code it.*
 
 *(To be written by the domain expert. This section defines user-facing constraints from external systems.)*
 
@@ -407,6 +484,25 @@ Feature Design does not define:
 **Optional subsections:** none
 **Required diagrams:** none
 **Required cross-references:** Goals, owning standard for each excluded item
+
+### Examples
+
+**Correct:**
+> Feature Design does not define:
+>
+> * Product Vision — owned by Vision(01)
+> * Feature Requirements — owned by Feature Specification(04)
+> * Database schema for storing user preferences — owned by Architecture(05)
+> * API endpoint design — owned by Feature Technical Design(10)
+
+**Incorrect:**
+> Feature Design does not define:
+>
+> * The look and feel of the feature
+> * How users navigate the feature
+> * What the feature does for users
+> * Whether the feature is accessible
+> *Why wrong: Every item listed here actually belongs within Feature Design scope (look and feel, navigation, user purpose, accessibility). Non-Goals must only list responsibilities that belong to other standards, not the feature's own design concerns.*
 
 Feature Design does not define:
 
@@ -581,6 +677,21 @@ Implementation should realize the documented feature design.
 **Optional subsections:** none
 **Required diagrams:** custom (derivation chain diagram)
 **Required cross-references:** Feature(04), Design(06), Feature Technical Design(10), Engineering(07)
+
+### Examples
+
+**Correct:**
+> This Feature Design derives from Feature Specification "Report Export" and applies Design Documentation's Interaction Principles and Accessibility Principles. It has a strict one-to-one relationship with the "Report Export" Feature Specification.
+>
+> | Consumer | Relationship |
+> |----------|-------------|
+> | Feature Technical Design | Technical realization of this design |
+> | Engineering | Implementation of the designed UX |
+> | User Acceptance Testing | Validation of designed behavior |
+
+**Incorrect:**
+> This Feature Design derives from the Authentication module's architecture document and the REST API specification. It covers Export, Import, and Archive features as a unified workflow.
+> *Why wrong: (1) Derivation should trace to Feature Specification and Design Documentation, not architecture or API specs. (2) Multiple features are combined, violating the one-to-one relationship constraint.*
 
 Feature Design remains traceable.
 

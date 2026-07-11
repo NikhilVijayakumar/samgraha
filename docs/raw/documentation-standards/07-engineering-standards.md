@@ -70,6 +70,17 @@ its scope boundaries, and how it differs from adjacent standards]
 **Required diagrams:** none
 **Required cross-references:** Architecture(05), adjacent documentation standards
 
+### Examples
+
+**Correct:**
+> This document defines Engineering Documentation's role in the documentation ecosystem. It establishes repository-wide engineering decisions, implementation standards, technology selection rationale, and development conventions. Unlike Feature Technical Design, Engineering Documentation is not feature-specific — it provides reusable knowledge that governs the entire repository.
+
+**Incorrect:**
+> This document describes the login page implementation, including the OAuth2 flow, JWT token storage, and session management using Redis.
+> *Why wrong: This is feature-specific and describes implementation details, not the repository-wide role of Engineering Documentation in the ecosystem.*
+
+---
+
 This document defines the standard for Engineering Documentation within the engineering documentation ecosystem.
 
 Engineering Documentation describes the repository-wide engineering decisions, implementation standards, technology selection rationale, development conventions, and operational practices required to realize the documented architecture.
@@ -128,6 +139,15 @@ It does not describe feature implementations.
 **Required diagrams:** Pipeline flowchart
 **Required cross-references:** Architecture(05), Testing Standards
 
+### Examples
+
+**Correct:**
+> **Build System:** The repository uses a task runner configured via `build.config.toml`. Each pipeline stage runs in an isolated container to ensure reproducibility. The compile stage produces a deterministic artifact; the lint stage enforces style rules; the test stage runs the full test suite. Rationale: deterministic builds ensure that any commit produces the same artifact regardless of the build environment.
+
+**Incorrect:**
+> **Build System:** We use Jenkins. Our pipeline is: checkout → build → deploy to staging.
+> *Why wrong: Missing rationale, missing quality gates, describes deployment which is out of scope, and does not explain why the pipeline is structured this way.*
+
 *(To be written by the domain expert. This section defines the repository-wide build process, CI/CD pipeline, and build tooling standards.)*
 
 ---
@@ -174,6 +194,15 @@ It does not describe feature implementations.
 **Required diagrams:** Test strategy flowchart
 **Required cross-references:** Architecture(05), Build Standards
 
+### Examples
+
+**Correct:**
+> **Test Types:** Unit tests validate individual modules in isolation. Integration tests verify module interactions against contract specifications. End-to-end tests exercise critical user journeys through the full system. **Coverage Expectations:** Unit tests target 80% line coverage on core modules; integration tests cover all cross-module interfaces; e2e tests cover the top five user journeys.
+
+**Incorrect:**
+> We have unit tests and some integration tests. Coverage is pretty good.
+> *Why wrong: Vague, no specific test type definitions, no coverage targets, and no rationale for the testing strategy.*
+
 *(To be written by the domain expert. This section defines the repository-wide testing strategy, test types, and testing tooling standards.)*
 
 ---
@@ -219,6 +248,15 @@ It does not describe feature implementations.
 **Optional subsections:** Naming Conventions
 **Required diagrams:** none
 **Required cross-references:** Engineering Principles
+
+### Examples
+
+**Correct:**
+> **Style Guide:** All modules follow the language's canonical style guide. Functions are named with verb-noun convention. Files are named after the module they contain. **Linting Configuration:** The linter is configured to enforce the style guide. Config lives at the repository root. All CI builds must pass the linter before merge.
+
+**Incorrect:**
+> We use tabs for indentation and camelCase for variables. Our linter catches some errors.
+> *Why wrong: Missing rationale, missing configuration location, no connection to engineering principles, and lacks completeness on scope.*
 
 *(To be written by the domain expert. This section defines the repository-wide coding style, conventions, and code quality standards.)*
 
@@ -269,6 +307,15 @@ each with source attribution and verifiability]
 **Optional subsections:** Performance Constraints, Security Constraints, Compliance Constraints
 **Required diagrams:** none
 **Required cross-references:** Architecture(05), External Context
+
+### Examples
+
+**Correct:**
+> **Performance:** API responses must complete within 200ms at the 95th percentile (source: Architecture Section 4.3). **Security:** All data in transit must use TLS 1.2 or higher (source: External Context compliance requirements). **Compliance:** User data must be deletable on request within 30 days (source: regulatory requirements).
+
+**Incorrect:**
+> The application should be fast and secure. We follow industry best practices.
+> *Why wrong: Not verifiable, no specific thresholds, no source attribution, and no categorization by type — making it impossible to audit.*
 
 *(To be written by the domain expert. This section defines the non-functional requirements and engineering limitations that bound all implementation decisions.)*
 
@@ -489,6 +536,15 @@ Implementation should conform to the documented engineering standards.
 **Optional subsections:** none
 **Required diagrams:** Derivation chain flowchart
 **Required cross-references:** Architecture(05), Feature Technical Design(10), Implementation
+
+### Examples
+
+**Correct:**
+> **Upstream Sources:** Architecture(05) provides system-wide design decisions. External Context provides compliance and platform constraints. **Downstream Consumers:** Implementation derives build, test, and code conventions from this document. Feature Technical Design references engineering standards for technology conformance. **Non-contradiction rule:** No downstream document may contradict a standard established here.
+
+**Incorrect:**
+> This document traces to Architecture.
+> *Why wrong: Missing downstream consumers, no non-contradiction rule, no derivation diagram, and incomplete traceability chain.*
 
 Engineering Documentation remains traceable.
 
@@ -775,6 +831,18 @@ Large documents should be decomposed into smaller focused documents.
 **Required diagrams:** none
 **Required cross-references:** Architecture(05), Vision(01)
 
+### Examples
+
+**Correct:**
+> * **Minimal Dependencies:** We prefer fewer external dependencies to reduce maintenance burden and security surface. When a choice exists between a library and a self-contained implementation, the trade-off is evaluated against long-term maintenance cost.
+> * **Explicit Configuration:** All configuration must be declared in version-controlled files. Environment-specific overrides use a documented override mechanism, not undocumented runtime state.
+
+**Incorrect:**
+> * Use the fastest framework available.
+> * Always use the latest version of every library.
+> * Write clean code.
+> * *Why wrong: Technology-dependent ("fastest framework"), unstable ("latest version"), and vague ("clean code") — none of these survive technology changes or guide engineering decisions when ambiguity arises.*
+
 Engineering Documentation should establish reusable principles such as:
 
 * Documentation First
@@ -833,6 +901,17 @@ connected to architectural constraints and external context]
 **Required diagrams:** none
 **Required cross-references:** Architecture(05), External Context, Constraints
 
+### Examples
+
+**Correct:**
+> **Language:** Project Alpha uses Python 3.12+ because the team has deep expertise, the ecosystem provides mature libraries for data processing, and the architecture requires rapid prototyping cycles. This choice is constrained by the organization's existing Python infrastructure (External Context) and the need for readable, maintainable code (Architecture Section 2.1).
+
+**Incorrect:**
+> **Language:** Python. **Framework:** Django. **Database:** PostgreSQL.
+> *Why wrong: This is a bare list with no rationale, no connection to Architecture or External Context, and no explanation of why these technologies were chosen.*
+
+Technology selection should describe engineering rationale rather than implementation details.
+
 Engineering Documentation should explain **why** technologies were selected.
 
 Examples include:
@@ -846,8 +925,6 @@ Examples include:
 * Why MCP
 * Why gRPC
 * Why Local Storage
-
-Technology selection should describe engineering rationale rather than implementation details.
 
 ---
 

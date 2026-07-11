@@ -77,6 +77,15 @@
 **Required diagrams:** none
 **Required cross-references:** none
 
+### Examples
+
+**Correct:**
+> External Context Documentation captures knowledge dependencies that live outside the repository but materially influence implementation. It is distinct from package dependency documentation, which tracks library versions and build artifacts. External Context documents **knowledge dependencies** — the understanding contributors need about external systems to design and implement integrations correctly. Each document describes a single external dependency, making the collection atomic and independently maintainable.
+
+**Incorrect:**
+> External Context Documentation covers npm packages, pip dependencies, and Cargo crates required by the project. It lists version numbers, installation commands, and upgrade procedures for each library.
+> *Why wrong: This conflates External Context with package dependency documentation. External Context captures knowledge about external systems, not package manifests or version management.*
+
 This document defines the standard for External Context Documentation within the engineering documentation ecosystem.
 
 External Context Documentation describes knowledge that exists **outside the current repository** but is required to correctly understand, design, implement, or maintain the repository.
@@ -139,6 +148,21 @@ Projects may contain zero, one, or many External Context documents depending on 
 **Required diagrams:** none
 **Required cross-references:** authoritative external documentation
 
+### Examples
+
+**Correct:**
+> The external system exposes a REST API over HTTPS. Authentication uses OAuth 2.0 client credentials flow. Requests must include a Bearer token in the Authorization header. The API supports JSON request and response bodies. Rate limiting is enforced at 100 requests per minute. Versioning follows a URL path prefix model (`/v1/`, `/v2/`). Authoritative documentation: `https://docs.externalsystem.example/api`.
+
+**Incorrect:**
+> Here is the code we use to call the API:
+> ```python
+> import requests
+> resp = requests.post("https://api.externalsystem.example/v1/data",
+>                       headers={"Authorization": f"Bearer {token}"},
+>                       json=payload)
+> ```
+> *Why wrong: This includes implementation code rather than describing the contract. The Integration Contract should define what the external system exposes, not how the repository calls it. Implementation details belong in Engineering.*
+
 *(To be written by the integrating engineer. This section defines the formal interface contract with the external system.)*
 
 ---
@@ -183,6 +207,15 @@ Projects may contain zero, one, or many External Context documents depending on 
 **Required diagrams:** none
 **Required cross-references:** authoritative external documentation
 
+### Examples
+
+**Correct:**
+> The external platform enforces a maximum payload size of 1 MB per request. API calls are limited to 10 requests per second with a burst allowance of 20. Data stored by the platform must comply with GDPR; no personal data may be stored in fields the platform retains beyond 30 days. The platform requires a minimum TLS version of 1.2. All constraints are sourced from the platform's published service limits documentation.
+
+**Incorrect:**
+> We decided to use connection pooling because our application needs high throughput. Our team prefers TypeScript over JavaScript for type safety. We chose PostgreSQL for the database layer.
+> *Why wrong: These are internal design decisions, not constraints imposed by the external system. External Constraints must originate from the external dependency, not from internal project choices.*
+
 *(To be written by the integrating engineer. This section defines the limitations imposed by the external dependency.)*
 
 ---
@@ -222,6 +255,15 @@ Projects may contain zero, one, or many External Context documents depending on 
 **Optional subsections:** Runtime Dependencies, Build-Time Dependencies
 **Required diagrams:** none
 **Required cross-references:** other External Context documents for transitive dependencies
+
+### Examples
+
+**Correct:**
+> The external platform requires a running message broker as a runtime dependency — without it, webhook delivery fails silently. It also requires a valid TLS certificate for all inbound connections. At build time, the platform's CLI tool must be installed for schema validation. These are transitive requirements of the platform itself, not choices made by this repository.
+
+**Incorrect:**
+> This project depends on Express.js for HTTP routing, Mongoose for database access, and Jest for testing.
+> *Why wrong: These are internal project dependencies (package.json entries), not transitive dependencies of the external system. The Dependencies section describes what the external dependency itself requires, not what this repository packages.*
 
 *(To be written by the integrating engineer. This section defines what the external dependency itself requires.)*
 
@@ -409,6 +451,15 @@ Any document may reference External Context rather than duplicating external kno
 **Optional subsections:** none
 **Required diagrams:** flowchart (tier diagram)
 **Required cross-references:** Feature Technical Design(10), Engineering(07), Architecture(05)
+
+### Examples
+
+**Correct:**
+> External Context informs Feature Technical Design by surfacing integration constraints before implementation begins. It informs Architecture by revealing system boundaries and platform requirements. It informs Engineering by providing rationale for technology choices tied to the external dependency. Downstream standards **reference** External Context rather than duplicating its content.
+
+**Incorrect:**
+> Traceability shows that External Context was last updated in March and is owned by the platform team. It includes a changelog of all edits made to the document.
+> *Why wrong: Traceability in this context means showing how External Context influences downstream documentation standards, not tracking document metadata or ownership history. Version tracking belongs in change management, not in the Traceability section.*
 
 External Context supports multiple documentation domains.
 

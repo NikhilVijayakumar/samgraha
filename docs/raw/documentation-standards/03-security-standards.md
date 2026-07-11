@@ -65,6 +65,15 @@
 **Required diagrams:** none
 **Required cross-references:** Vision(01), Philosophy(02)
 
+### Examples
+
+**Correct:**
+> Security(03) establishes the project-wide threat model, data classification scheme, and security principles. It is the single source of truth for what the project defends against and why — every downstream domain's Security Considerations or Security Standards section derives from this document rather than re-deriving its own posture.
+
+**Incorrect:**
+> Security(03) defines the authentication middleware, rate-limiting configuration, and WAF rule set used across all services.
+> *Why wrong: This describes specific control implementations (authentication middleware, rate limiting, WAF rules) — those belong in Engineering's Security Standards or Architecture's Security Considerations, not in the project-wide Security document.*
+
 ---
 
 This document defines the standard for Security documentation within the engineering documentation ecosystem.
@@ -109,6 +118,17 @@ It does not define how any single component enforces that posture. That belongs 
 **Required diagrams:** threat landscape overview (flowchart or table)
 **Required cross-references:** Data Classification, Security Principles
 
+### Examples
+
+**Correct:**
+> **Methodology:** STRIDE
+> **Adversary Profile — External Attacker:** Motivated by financial gain; capability includes automated scanning, phishing, and exploiting known vulnerabilities. Target: user authentication flows and data export endpoints.
+> **Threat — Tampering (STRIDE):** An attacker modifies payment amount during transit between checkout and billing. Severity: High. Affected asset: transaction integrity. Downstream expectation: Engineering must implement request signing or integrity checks.
+
+**Incorrect:**
+> Threat: Hackers might try to break in. Mitigation: We will use OWASP Top 10 and add WAF rules in the deployment pipeline.
+> *Why wrong: No named methodology is used ("OWASP Top 10" is a list, not a methodology), the adversary profile is missing, severity is absent, and the mitigation embeds specific tooling (WAF) that belongs in Engineering's Security Standards.*
+
 ---
 
 *(To be written by the domain expert. This section defines the project-wide threat model.)*
@@ -145,6 +165,18 @@ It does not define how any single component enforces that posture. That belongs 
 **Optional subsections:** data inventory examples, classification decision tree
 **Required diagrams:** none
 **Required cross-references:** Threat Model, Security Principles
+
+### Examples
+
+**Correct:**
+> **Internal:** Data intended for project members only — internal documentation, architecture diagrams, meeting notes.
+> **Handling:** Access restricted to authenticated project members; no external sharing without approval.
+> **Confidential:** Data whose unauthorized disclosure would cause material harm — user PII, financial records, authentication secrets.
+> **Handling:** Encrypted at rest and in transit; access logged and auditable; retention policy enforced.
+
+**Incorrect:**
+> Sensitive data goes in PostgreSQL with row-level security. Non-sensitive data goes in Elasticsearch.
+> *Why wrong: This classifies data by storage technology rather than by sensitivity level — a new team member reading this cannot determine what "sensitive" means without knowing the infrastructure, and the classification is not technology-independent.*
 
 ---
 
@@ -183,6 +215,17 @@ It does not define how any single component enforces that posture. That belongs 
 **Optional subsections:** principle-to-decision examples, derivation from Philosophy
 **Required diagrams:** none
 **Required cross-references:** Philosophy(02), Threat Model
+
+### Examples
+
+**Correct:**
+> **Principle:** Least Privilege by Default
+> **Rationale:** Every component, service, and user must start with the minimum permissions required for its function — no more.
+> **Decision it constrains:** Architecture's service-to-service communication design must not grant blanket access between services.
+
+**Incorrect:**
+> Security Principle: Be Secure. All code must follow security best practices.
+> *Why wrong: This is a generic platitude that cannot constrain any concrete design decision — "best practices" is undefined, and "be secure" gives no evaluative criteria for a proposed design.*
 
 ---
 
@@ -223,6 +266,18 @@ It does not define how any single component enforces that posture. That belongs 
 **Required diagrams:** none
 **Required cross-references:** Threat Model, Vision(01)
 
+### Examples
+
+**Correct:**
+> **Regime:** GDPR (General Data Protection Regulation)
+> **Scope:** All user personal data collected and processed by the platform, regardless of storage location.
+> **Key obligations:** Data minimization, right to erasure, breach notification within 72 hours, data protection impact assessment for high-risk processing.
+> **Downstream expectations:** Architecture must design for erasure capability; Engineering must implement audit logging for data access; Feature Technical must scope consent flows per feature.
+
+**Incorrect:**
+> We need to comply with GDPR. We'll use a consent management platform and encrypt all personal data at rest with AES-256.
+> *Why wrong: This skips the obligation-to-control traceability — it jumps straight to implementation solutions (CMP, AES-256) instead of stating what the project must do and which downstream domains must implement controls.*
+
 ---
 
 *(To be written by the domain expert. This section defines compliance obligations.)*
@@ -259,6 +314,17 @@ It does not define how any single component enforces that posture. That belongs 
 **Optional subsections:** communication templates, post-incident review expectations
 **Required diagrams:** escalation flowchart
 **Required cross-references:** Threat Model
+
+### Examples
+
+**Correct:**
+> **Detection Expectations:** Unauthorized access attempts to restricted data stores must be detected within 15 minutes.
+> **Response Escalation:** Security lead notified first; project lead notified within 1 hour; external counsel notified if data breach is confirmed.
+> **Recovery Objectives:** Containment within 4 hours; full restoration within 24 hours.
+
+**Incorrect:**
+> We use Splunk for SIEM monitoring and PagerDuty for on-call alerting. The SOC team runs a weekly scan using Nessus.
+> *Why wrong: This mandates specific tooling (Splunk, PagerDuty, Nessus) and operational cadences — those belong in Engineering's Security Standards, not at the project-wide incident response level.*
 
 ---
 
@@ -297,6 +363,17 @@ It does not define how any single component enforces that posture. That belongs 
 **Optional subsections:** constraint-to-domain impact matrix
 **Required diagrams:** none
 **Required cross-references:** Vision(01), External Context
+
+### Examples
+
+**Correct:**
+> **Source:** Regulatory (data residency law)
+> **Statement:** All user personal data must be stored and processed within the European Economic Area.
+> **Impact:** Architecture (data storage design), Engineering (database deployment region), Feature Technical (data flow design)
+
+**Incorrect:**
+> We should use a European cloud provider because it's closer to our users and reduces latency.
+> *Why wrong: This is a soft preference disguised as a constraint — latency is not a hard boundary, and it embeds a solution (cloud provider selection) instead of stating the non-negotiable limitation (data must remain in the EEA).*
 
 ---
 
@@ -457,6 +534,26 @@ Every per-domain Security section should be traceable to a threat, data class, o
 **Optional subsections:** none
 **Required diagrams:** tier derivation chain (flowchart or text diagram)
 **Required cross-references:** Vision(01), Philosophy(02), Architecture(05), Engineering(07), Feature Technical(10)
+
+### Examples
+
+**Correct:**
+> Vision, Philosophy
+>        │
+>        ↓
+>    Security (03)
+>        │
+>        ├── guides ──> Architecture (05) ── Security Considerations
+>        └── guides ──> Engineering (07) ── Security Standards
+>                             │
+>                             ↓
+>                   Feature Technical (10) ── Security Considerations
+>
+> Every downstream Security section references this document's threat model, data classification, or principles — it does not restate them.
+
+**Incorrect:**
+> Security derives from Architecture's trust-boundary analysis, which feeds Engineering's SAST tooling choices, which then inform the threat model.
+> *Why wrong: The derivation chain is inverted — Security must derive from Vision and Philosophy, not from downstream implementation decisions like Architecture or Engineering tooling.*
 
 ---
 

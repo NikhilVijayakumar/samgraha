@@ -65,6 +65,19 @@ This document defines the standard for [Domain] documentation within the enginee
 **Required diagrams:** none
 **Required cross-references:** Vision(01)
 
+### Examples
+
+**Correct:**
+> This document defines the standard for Project Horizon documentation within the engineering documentation ecosystem.
+>
+> Project Horizon Documentation establishes the product's guiding principles, values, and the deliberate trade-offs that shape every downstream decision.
+>
+> Unlike Vision, which explains **why** the product exists, Philosophy explains **how the people building it choose to think and decide**.
+
+**Incorrect:**
+> This document defines the Philosophy for the React frontend and PostgreSQL backend of Project Horizon.
+> *Why wrong: Technology-specific — references concrete technologies instead of describing Philosophy's role in the ecosystem.*
+
 This document defines the standard for Philosophy documentation within the engineering documentation ecosystem.
 
 Philosophy Documentation establishes the product's guiding principles, values, and the deliberate trade-offs that shape every downstream decision.
@@ -123,6 +136,21 @@ It shapes the judgment that produces them.
 **Required diagrams:** none
 **Required cross-references:** Values, Vision(01)
 
+### Examples
+
+**Correct:**
+> ### Simplicity First
+>
+> When two designs solve the same problem, choose the simpler one. Complexity is a cost, not a feature.
+>
+> If adding a framework means the team must learn a new paradigm, it must clearly reduce complexity in the rest of the system to justify itself.
+
+**Incorrect:**
+> ### Use REST Over GraphQL
+>
+> We prefer REST because it is easier to implement with Express.js and integrates well with our React frontend.
+> *Why wrong: Technology-specific — names concrete frameworks and technologies instead of expressing a stable, technology-independent decision rule.*
+
 *(To be written by the product owner. This section defines the guiding principles of the product.)*
 
 ---
@@ -173,6 +201,21 @@ It shapes the judgment that produces them.
 **Required diagrams:** none
 **Required cross-references:** Principles, Vision(01)
 
+### Examples
+
+**Correct:**
+> ### Developer Productivity
+>
+> We optimize for how quickly a developer can understand, modify, and ship a change. Fast iteration beats perfect architecture.
+>
+> This sometimes means choosing a straightforward solution over a more elegant one that takes longer to implement.
+
+**Incorrect:**
+> ### Use TypeScript
+>
+> We value TypeScript because it catches bugs at compile time and is the industry standard for modern frontend development.
+> *Why wrong: Names a specific technology instead of expressing an underlying value. The value is correctness, not a language choice.*
+
 *(To be written by the product owner. This section defines the core values of the product.)*
 
 ---
@@ -216,6 +259,23 @@ It shapes the judgment that produces them.
 **Optional subsections:** none
 **Required diagrams:** none
 **Required cross-references:** Values, Principles, Architecture(05)
+
+### Examples
+
+**Correct:**
+> ### Speed vs. Completeness
+>
+> **Chosen:** Fast iteration and rapid delivery of working features.
+> **Sacrificed:** Comprehensive documentation and exhaustive test coverage at launch.
+> **Reason:** Our value of Developer Productivity demands we ship early; documentation and coverage catch up after the feature is validated.
+
+**Incorrect:**
+> ### React vs. Vue
+>
+> **Chosen:** React for the frontend.
+> **Sacrificed:** Vue's smaller bundle size.
+> **Reason:** The team already knows React so it is faster to build with.
+> *Why wrong: Describes a technology selection, not a deliberate trade-off in product values. This belongs in Architecture or Engineering, not Philosophy.*
 
 *(To be written by the product owner. This section defines the deliberate trade-offs the product makes.)*
 

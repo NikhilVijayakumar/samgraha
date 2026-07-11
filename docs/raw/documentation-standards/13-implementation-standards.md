@@ -63,6 +63,15 @@ This Implementation Plan documents the as-built record for [feature/system name]
 **Required diagrams:** none
 **Required cross-references:** Feature(04), Architecture(05), Engineering(07), Security(03)
 
+### Examples
+
+**Correct:**
+> This Implementation Plan documents the as-built record for the payment processing feature. It covers the payment flow from checkout to confirmation, excludes currency conversion and subscription billing, and traces every implementation decision back to Feature(04) payment requirements and Security(03) PCI-DSS constraints.
+
+**Incorrect:**
+> This section describes the purpose of the project and how we plan to build it.
+> *Why wrong: Describes project intent rather than recording what was actually built; confuses Implementation Purpose with Vision or Feature documentation.*
+
 This document defines the standard for Implementation Plans — per-feature documents that record how code was generated, what deviations were made, and why.
 
 Implementation is the generation point where all upstream documentation converges into working code. Unlike other standards that define what to build, Implementation records what was actually built and how it satisfies (or intentionally deviates from) every upstream decision.
@@ -200,6 +209,21 @@ How deviations from upstream docs are documented and justified.
 **Required diagrams:** none
 **Required cross-references:** Feature(04), Feature Design(09), Prototype(11), Architecture(05), Design(06), Engineering(07), External Context(08), Security(03)
 
+### Examples
+
+**Correct:**
+> **Inputs:** Feature(04) notification requirements, Feature Design(09) alert UX mockups, Architecture(05) message queue topology, Engineering(07) async processing standards, Security(03) data-at-rest encryption.
+> **Generation Sequence:** 1) Verify notification requirements against Feature(04). 2) Validate UX against Feature Design(09). 3) Implement message producer per Architecture(05) queue topology. 4) Apply encryption per Security(03). 5) Verify coding standards per Engineering(07).
+> **Verification Checkpoints:** After step 2 — UX matches mockups. After step 5 — all unit tests pass, encryption verified.
+> **Deviation Recording:** Deviated from Architecture(05) by using a persistent queue instead of in-memory; rationale: notification delivery must survive process restarts.
+
+**Incorrect:**
+> **Inputs:** None listed.
+> **Generation Sequence:** Write code, test it, deploy it.
+> **Verification Checkpoints:** None.
+> **Deviation Recording:** None needed.
+> *Why wrong: No upstream documents referenced, generation sequence lacks tier ordering, no verification checkpoints defined, and deviation recording is dismissed rather than established as a process.*
+
 Every new feature implementation starts with a Generation Plan. The plan verifies alignment with all upstream documentation before code is written.
 
 ---
@@ -243,6 +267,19 @@ How behavior preservation is verified (test suite must pass before and after).
 **Optional subsections:** none
 **Required diagrams:** none
 **Required cross-references:** Architecture(05), Engineering(07), Feature(04)
+
+### Examples
+
+**Correct:**
+> **Target Architecture:** Consolidate the three notification modules (email, sms, push) into a single notification service with a strategy pattern dispatcher, per Architecture(05) service consolidation directive.
+> **Behavior to Preserve:** All existing notification delivery contracts — email must arrive within 5 seconds, SMS within 10 seconds, push within 2 seconds. API request/response shapes remain identical.
+> **Verification Strategy:** Run full integration test suite (42 tests) before and after refactor. Both runs must produce identical pass/fail results. Benchmark delivery latency for each channel.
+
+**Incorrect:**
+> **Target Architecture:** Rewrite the notification system in a new framework.
+> **Behavior to Preserve:** None — this is a full rewrite.
+> **Verification Strategy:** Manual testing after deployment.
+> *Why wrong: Refactor must preserve existing behavior explicitly, not discard it; target architecture lacks specificity; verification strategy relies on manual testing rather than automated regression.*
 
 Refactoring is not feature generation. It is structural improvement with behavior preservation. Every refactor must verify that existing tests still pass.
 
@@ -288,6 +325,19 @@ How to revert the change if verification fails.
 **Required diagrams:** none
 **Required cross-references:** Feature(04), Feature Design(09), QA(12)
 
+### Examples
+
+**Correct:**
+> **Change Description:** The checkout API response must now include a loyalty points balance field. Stakeholder request per updated Feature(04) requirements.
+> **Impact Analysis:** Affects checkout API response schema, three frontend components consuming the response, QA(12) integration tests (8 tests need new assertions), and Feature Design(09) API documentation.
+> **Rollback Strategy:** Deploy with feature flag disabled. If verification fails, toggle flag off — old response schema is restored with zero downtime. Database migration is additive only (new column), safe to leave in place.
+
+**Incorrect:**
+> **Change Description:** Add loyalty points to checkout.
+> **Impact Analysis:** Should be straightforward.
+> **Rollback Strategy:** Revert the commit.
+> *Why wrong: Change description lacks specificity about what and why; impact analysis is vague with no affected modules or tests identified; rollback strategy does not account for database migrations or frontend deployments.*
+
 Change requests modify existing behavior. Every change request must include impact analysis and a rollback strategy before implementation begins.
 
 ---
@@ -331,6 +381,19 @@ Tests that confirm no existing behavior is broken.
 **Optional subsections:** none
 **Required diagrams:** none
 **Required cross-references:** Feature(04), Architecture(05), Engineering(07)
+
+### Examples
+
+**Correct:**
+> **Improvement Targets:** Reduce search query latency from 800ms to under 200ms at P95. Current baseline measured via Engineering(07) performance benchmarks.
+> **Enhancement Approach:** Add a read-through cache layer between the search controller and database, per Architecture(05) caching patterns. No changes to the search algorithm or response format.
+> **Regression Verification:** Run the full search integration test suite (23 tests) to confirm identical results. Verify cache invalidation works correctly on data updates. Confirm no change in API response schema.
+
+**Incorrect:**
+> **Improvement Targets:** Make search faster.
+> **Enhancement Approach:** Rewrite the search engine from scratch.
+> **Regression Verification:** None — performance improvement is the only goal.
+> *Why wrong: Improvement targets are not measurable; enhancement approach changes core behavior rather than improving existing functionality; regression verification is absent, risking broken existing features.*
 
 Enhancements improve existing functionality. Every enhancement must define measurable improvement targets and verify no regression.
 
@@ -379,6 +442,21 @@ Security tests that must pass post-fix.
 **Optional subsections:** none
 **Required diagrams:** none
 **Required cross-references:** Security(03), QA(12), Architecture(05), Engineering(07)
+
+### Examples
+
+**Correct:**
+> **Vulnerability Description:** SQL injection vulnerability in the user search endpoint (GET /api/users?name=). User-supplied `name` parameter is interpolated directly into a SQL query string without parameterization. Identified in Security(03) threat model as high-severity for data exfiltration.
+> **Fix Approach:** Replace string interpolation with parameterized queries using the database driver's prepared statement API, per Engineering(07) secure coding standards. Apply fix to all three search endpoints (users, products, orders).
+> **Verification:** Confirm parameterized queries reject injected payloads — test with `'; DROP TABLE users; --` and `1' OR '1'='1`. Verify legitimate search results are unchanged.
+> **Re-test Requirements:** Run QA(12) full security test suite (15 tests). specifically the SQL injection test category (5 tests). Verify no new injection vectors introduced in affected endpoints.
+
+**Incorrect:**
+> **Vulnerability Description:** Security bug in search.
+> **Fix Approach:** Add input validation.
+> **Verification:** Tested manually.
+> **Re-test Requirements:** None specified.
+> *Why wrong: Vulnerability description lacks location, severity, and upstream reference; fix approach is vague without specifying the exact remediation technique; verification is manual rather than reproducible; re-test requirements are missing entirely.*
 
 Security fixes are the highest-priority implementation type. They must follow a strict process: identify, fix, verify, re-test. No shortcuts.
 

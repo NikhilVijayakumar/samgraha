@@ -90,6 +90,15 @@ Every Feature Technical Design document has a strict one-to-one relationship wit
 Feature Technical Design explains **how the system architecture realizes a feature**.
 It does not describe implementation details or source code.
 
+### Examples
+
+**Correct:**
+> Feature Technical Design is the architectural realization of a single Feature Specification. It applies the shared principles defined by Architecture Documentation together with relevant External Context to one specific feature. Every Feature Technical Design document maintains a strict one-to-one relationship with its corresponding Feature Specification, explaining how the system architecture realizes that feature without describing implementation details.
+
+**Incorrect:**
+> Feature Technical Design covers all features in the system, including User Authentication, Order Processing, Payment Handling, and Notification Delivery. It combines shared architecture with feature-specific requirements into a single comprehensive document.
+> *Why wrong: This violates the one-to-one relationship principle — Feature Technical Design must correspond to exactly one Feature Specification, not combine multiple features into a single document.*
+
 ---
 
 ## Participating Components
@@ -122,6 +131,25 @@ It does not describe implementation details or source code.
 
 *(To be written. This section lists the components involved in realizing the feature.)*
 
+### Examples
+
+**Correct:**
+> | Component | Reason for Participation |
+> |---|---|
+> | Authentication Component | Validates user credentials and manages session lifecycle for the login feature |
+> | Data Component | Stores and retrieves user account data required for authentication |
+> | Notification Component | Delivers security alerts (e.g., new device login) triggered by authentication events |
+> | UI Component | Presents the login interface and communicates user input to the Authentication Component |
+
+**Incorrect:**
+> | Component | Technology |
+> |---|---|
+> | AuthService | Node.js microservice using Express framework |
+> | UserDatabase | PostgreSQL 15 with TypeORM |
+> | EmailSender | Nodemailer with SMTP transport |
+> | LoginView | React 18 with TypeScript |
+> *Why wrong: This lists implementation technologies (Node.js, PostgreSQL, React) rather than architectural components with their purpose for participation. Component names should come from the Architecture component model, not from implementation.*
+
 ---
 
 ## Component Interactions
@@ -151,6 +179,26 @@ It does not describe implementation details or source code.
 **Required cross-references:** Participating Components, Feature Specification, Architecture(05) communication model
 
 *(To be written. This section describes how components interact to realize the feature.)*
+
+### Examples
+
+**Correct:**
+> **Interaction: Order Submission**
+> - Triggering condition: User submits an order through the UI Component
+> - Nature of exchange: UI Component sends a synchronous request to the Order Component; Order Component validates and delegates payment to the Payment Component
+> - Expected outcome: Order is created in Submitted state; payment is initiated; user receives confirmation or rejection
+>
+> **Interaction: Order Completion Notification**
+> - Triggering condition: Order Component transitions order to Completed state
+> - Nature of exchange: Order Component publishes an asynchronous event to the Event Bus; Notification Component consumes the event
+> - Expected outcome: User receives a notification confirming order completion
+
+**Incorrect:**
+> **Interaction: Order Submission**
+> - The React `OrderForm` component calls `POST /api/orders` using axios
+> - Express router passes to `OrderController.submit()` which calls `OrderService.process()`
+> - `OrderService` calls `PaymentClient.charge()` with a JWT token in the Authorization header
+> *Why wrong: This describes implementation-level details (React components, axios, Express routes, specific class methods, JWT tokens) rather than architectural component interactions, triggering conditions, and expected outcomes.*
 
 ---
 
@@ -182,6 +230,23 @@ It does not describe implementation details or source code.
 
 *(To be written. This section defines data ownership boundaries for the feature.)*
 
+### Examples
+
+**Correct:**
+> | Data Element | Owner | Read Access | Write Access | Constraints |
+> |---|---|---|---|---|
+> | User Credentials | Authentication Component | Authentication Component only | Authentication Component only | Must not be exposed outside security boundary |
+> | Order Records | Order Component | Order Component, Notification Component (read-only) | Order Component only | Order state transitions follow the lifecycle defined in Runtime Behavior |
+> | User Preferences | Data Component | Notification Component, Order Component | Data Component only | Preferences affect notification routing |
+
+**Incorrect:**
+> | Data Element | Table | Column | Type |
+> |---|---|---|---|
+> | User Credentials | users | password_hash | VARCHAR(255) |
+> | Order Records | orders | status | ENUM('pending','confirmed','failed') |
+> | User Preferences | user_preferences | notification_enabled | BOOLEAN |
+> *Why wrong: This describes database schema details (table names, column names, data types) rather than component ownership, read/write access boundaries, and architectural constraints.*
+
 ---
 
 ## Feature Specification
@@ -211,6 +276,15 @@ It does not describe implementation details or source code.
 **Required cross-references:** Feature(04)
 
 *(To be written. This section references the Feature Specification this design realizes.)*
+
+### Examples
+
+**Correct:**
+> This Feature Technical Design realizes the **User Authentication** Feature Specification. The scope of this design covers credential validation, session management, and secure access — matching the Feature's defined scope. No additional features are addressed in this document.
+
+**Incorrect:**
+> This Feature Technical Design realizes the **User Authentication** Feature Specification, which requires: users must be able to log in with email and password, reset passwords via email link, enable two-factor authentication, and manage session devices. The login form must validate input in real time and show inline error messages.
+> *Why wrong: This duplicates Feature Specification content (requirements, acceptance criteria, UI behavior) rather than referencing the Feature by name and confirming scope alignment.*
 
 ---
 
@@ -242,6 +316,21 @@ It does not describe implementation details or source code.
 
 *(To be written. This section defines what each component is responsible for.)*
 
+### Examples
+
+**Correct:**
+> **Authentication Component:** Responsible for validating user credentials and issuing session tokens. Operates within the security boundary defined in Architecture.
+>
+> **Data Component:** Responsible for storing and retrieving user account information. Owns all account data per Architecture ownership rules. No other component may write account data directly.
+>
+> **Notification Component:** Responsible for delivering user-facing messages. Reads user preferences from the Data Component but does not own or modify account data.
+
+**Incorrect:**
+> **Authentication Component:** The `AuthService` class extends `BaseAuth` and implements the `login()` method using bcrypt.compare() for password verification and jsonwebtoken.sign() for token generation.
+>
+> **Data Component:** Uses TypeORM `@Repository` pattern with PostgreSQL. The `UserRepository` class provides `findById()`, `findByEmail()`, and `save()` methods.
+> *Why wrong: This describes class hierarchies, specific method implementations, library usage, and ORM patterns rather than architectural responsibilities and ownership boundaries.*
+
 ---
 
 ## Runtime Behavior
@@ -271,6 +360,23 @@ It does not describe implementation details or source code.
 **Required cross-references:** Component Interactions, Architecture(05) runtime boundaries
 
 *(To be written. This section describes the runtime execution model for the feature.)*
+
+### Examples
+
+**Correct:**
+> **Lifecycle: Order Processing**
+> 1. **Initialization:** The Order Component starts and registers with the Event Bus. It subscribes to order submission events.
+> 2. **Execution Flow:** When an order submission event arrives, the Order Component validates the request, delegates payment to the Payment Component, and updates order state.
+> 3. **State Transitions:** An order moves through states: Submitted → Validated → PaymentPending → Confirmed → Completed (or Failed).
+> 4. **Shutdown:** The Order Component unsubscribes from the Event Bus and completes any in-flight order processing before terminating.
+
+**Incorrect:**
+> **Lifecycle: Order Processing**
+> 1. Initialize Spring Boot application context and connect to RabbitMQ using `amqp://guest:guest@localhost:5672`.
+> 2. `OrderService.processOrder()` method validates input, calls `PaymentClient.charge()`, then `OrderRepository.save()`.
+> 3. Use JPA entity states: `@Entity` Order with `@Enumerated` OrderStatus field.
+> 4. `@PreDestroy` method closes RabbitMQ connection.
+> *Why wrong: This describes Spring Boot initialization, AMQP connection strings, specific method names, JPA annotations, and `@PreDestroy` hooks rather than architectural runtime lifecycle, execution flow, and state transitions.*
 
 ---
 
@@ -302,6 +408,26 @@ It does not describe implementation details or source code.
 
 *(To be written. This section defines communication paths between components.)*
 
+### Examples
+
+**Correct:**
+> **Path: Order Component → Notification Component**
+> - Direction: Outbound from Order to Notification
+> - Nature: Asynchronous event publication — order completion triggers notification delivery
+> - Architectural protocol: Event Bus (as defined in Architecture communication model)
+>
+> **Path: UI Component → Order Component**
+> - Direction: Inbound request from UI to Order
+> - Nature: Synchronous request — UI submits order and awaits confirmation
+> - Architectural protocol: REST Gateway (as defined in Architecture communication model)
+
+**Incorrect:**
+> **Path: Order Component → Notification Component**
+> - Direction: POST request to `https://notification-service/internal/events`
+> - Nature: JSON payload with order ID and status fields
+> - Protocol: HTTP/1.1 with Content-Type: application/json
+> *Why wrong: This describes HTTP methods, URLs, payload formats, and protocol versions rather than the architectural communication path direction, nature, and protocol reference.*
+
 ---
 
 ## Integration Points
@@ -331,6 +457,26 @@ It does not describe implementation details or source code.
 **Required cross-references:** Feature Specification, Architecture(05) boundaries
 
 *(To be written. This section identifies where the feature integrates with external systems.)*
+
+### Examples
+
+**Correct:**
+> **Integration Point: Payment Processing**
+> - Systems involved: Order Component and external Payment Processor
+> - Nature: Synchronous request-response for transaction authorization
+> - Boundary type: External — crosses the system boundary to a third-party service
+>
+> **Integration Point: User Notifications**
+> - Systems involved: Notification Component and internal Messaging Platform
+> - Nature: Asynchronous event publication
+> - Boundary type: Internal — communication between components within the system boundary
+
+**Incorrect:**
+> **Integration Point: Payment Processing**
+> - Call `POST https://api.paymentprocessor.com/v2/charge` with API key in `Authorization: Bearer` header
+> - Parse JSON response and extract `transaction_id` field
+> - Retry on HTTP 503 with exponential backoff
+> *Why wrong: This describes API endpoint URLs, HTTP headers, response parsing, and retry logic rather than the architectural integration boundary, systems involved, and nature of the integration.*
 
 ---
 
@@ -362,6 +508,21 @@ It does not describe implementation details or source code.
 
 *(To be written. This section describes how external dependencies participate in the feature.)*
 
+### Examples
+
+**Correct:**
+> **Dependency: Identity Provider** (reference: External Context identity services)
+> - Role in feature: Authenticates user credentials during login flow; provides identity verification for protected operations
+> - Nature of integration: The Authentication Component delegates credential verification to the Identity Provider
+> - Constraints: The Identity Provider requires network connectivity; authentication is unavailable if the provider is unreachable (see Failure Handling)
+
+**Incorrect:**
+> **Dependency: Identity Provider**
+> - Use Auth0 SDK v4.2.1 to call the `/oauth/token` endpoint
+> - Store refresh tokens in memory using the `auth0-spa-js` library
+> - Handle 401 responses by redirecting to `/login`
+> *Why wrong: This describes SDK versions, API endpoints, library usage, and HTTP status codes rather than the architectural role of the external dependency and constraints it imposes.*
+
 ---
 
 ## Runtime Constraints
@@ -391,6 +552,20 @@ It does not describe implementation details or source code.
 **Required cross-references:** Architecture(05) runtime boundaries, External Context(08)
 
 *(To be written. This section defines operational constraints on runtime behavior.)*
+
+### Examples
+
+**Correct:**
+> **Constraint: Concurrency Limit** (source: Architecture runtime boundaries)
+> The Order Processing Component must handle concurrent order submissions without data corruption. The architectural model limits concurrent processing to the resource allocation defined for this component class.
+>
+> **Constraint: Resource Boundary** (source: External Context platform constraints)
+> The feature must operate within the memory and compute boundaries defined by the hosting platform. Component lifecycle must respect the platform's resource management model.
+
+**Incorrect:**
+> **Constraint: Concurrency Limit**
+> Use `java.util.concurrent.Semaphore` with permits=10 in the OrderService. Configure Tomcat max threads to 200 in server.xml. Set JVM heap to 4GB with `-Xmx4g`.
+> *Why wrong: This specifies implementation-level concurrency tools (Java Semaphore), server configuration (Tomcat, server.xml), and JVM settings rather than architectural operational constraints.*
 
 ---
 
@@ -422,6 +597,20 @@ It does not describe implementation details or source code.
 
 *(To be written. This section defines architectural constraints the feature must respect.)*
 
+### Examples
+
+**Correct:**
+> **Constraint: Component Ownership** (source: Architecture ownership rules)
+> Each data element must have exactly one owning component. The Authentication Component owns credential data; no other component may write to it directly.
+>
+> **Constraint: Communication Model** (source: Architecture communication model)
+> All inter-component communication must use the event bus defined in Architecture. Direct component-to-component calls are not permitted.
+
+**Incorrect:**
+> **Constraint: Component Ownership**
+> Use a single PostgreSQL database for all component data. Each component writes to its own schema within the shared database using TypeORM repositories.
+> *Why wrong: This specifies technology choices (PostgreSQL, TypeORM) and implementation patterns (shared database, schema separation) rather than architectural ownership principles and communication model constraints.*
+
 ---
 
 ## Security Considerations
@@ -451,6 +640,18 @@ It does not describe implementation details or source code.
 **Required cross-references:** Architecture(05) security boundaries, External Context(08), Security Documentation(03)
 
 *(To be written. This section defines security considerations for the feature.)*
+
+### Examples
+
+**Correct:**
+> **Security Boundary:** The Authentication Component operates within the security boundary defined by Architecture. Only authenticated requests may access the Data Component.
+> **Authentication:** Requests from external systems must be validated against the identity provider defined in External Context(08).
+> **Authorization:** The Notification Component may read user preferences but may not modify account data. Account data modification is restricted to the Account Component.
+> **Sensitive Data:** User credentials and session tokens are classified as sensitive; they must not appear in communication paths that cross the external boundary.
+
+**Incorrect:**
+> **Security Boundary:** Use bcrypt for password hashing with 12 salt rounds. Implement JWT tokens using the jsonwebtoken npm library with RS256 algorithm. Store tokens in httpOnly cookies with SameSite=Strict.
+> *Why wrong: This specifies implementation-level security details (specific algorithms, libraries, cookie configurations) rather than architectural security boundaries, authentication requirements, and authorization rules.*
 
 ---
 
@@ -482,6 +683,21 @@ It does not describe implementation details or source code.
 
 *(To be written. This section defines performance considerations for the feature.)*
 
+### Examples
+
+**Correct:**
+> **Performance Expectation: Search Response**
+> - Throughput: The search component must support concurrent queries from multiple client components without degrading response times
+> - Latency constraint: Search results must be available to the UI component within the time expected for interactive use
+> - Resource limitation: Search indexing must not consume more than the resource allocation defined in Architecture runtime boundaries
+
+**Incorrect:**
+> **Performance Expectation: Search Response**
+> - Elasticsearch query must complete in under 200ms
+> - Node.js event loop must not be blocked for more than 50ms
+> - Use Redis caching with TTL of 300 seconds
+> *Why wrong: This specifies technology-specific benchmarks (Elasticsearch, Node.js, Redis), exact latency numbers, and implementation details (caching TTL) rather than architectural performance expectations.*
+
 ---
 
 ## Failure Handling
@@ -511,6 +727,22 @@ It does not describe implementation details or source code.
 **Required cross-references:** Component Interactions, Architecture(05) error boundaries, Component Responsibilities
 
 *(To be written. This section defines how failures and errors are handled.)*
+
+### Examples
+
+**Correct:**
+> **Failure Mode: External Service Unavailable**
+> - Interaction affected: Order Service queries Payment Gateway
+> - Propagation: Failure propagates from Payment Gateway to Order Service to Notification Service
+> - Recovery: Order Service queues the order for retry; Notification Service informs the user that processing is delayed
+> - Resilience boundary: Failure does not propagate beyond Order Service to the User Interface layer
+
+**Incorrect:**
+> **Failure Mode: External Service Unavailable**
+> - Catch `PaymentTimeoutException` in `OrderService.java` line 142
+> - Retry 3 times with exponential backoff using Spring Retry `@Retryable`
+> - Log error with `LOGGER.error("Payment failed", e)`
+> *Why wrong: This describes implementation-level error handling (specific exception types, code lines, framework annotations, logging calls) rather than architectural failure modes and recovery strategies.*
 
 ---
 
@@ -542,9 +774,20 @@ It does not describe implementation details or source code.
 
 *(To be written. This section identifies where the feature can be extended.)*
 
----
+### Examples
 
-## Required Sections
+**Correct:**
+> **Extension Point: Notification Dispatch**
+> - Type: Event hook
+> - Constraint: Extensions must implement the notification dispatch contract defined in Architecture plugin model; extensions cannot modify core notification routing
+
+**Incorrect:**
+> **Extension Point: Notification Dispatch**
+> - Type: Custom JavaScript class extending BaseNotifier
+> - Constraint: Must override onSend() method using the EventEmitter library API
+> *Why wrong: This specifies implementation-level details (JavaScript class, method names, library APIs) rather than architectural extension type and constraints.*
+
+---
 
 Every Feature Technical Design document must contain the following sections.
 Sections are identified by heading text; the compiler maps each to a semantic type.
@@ -771,6 +1014,17 @@ Feature Design (optional)             │
 Feature Specification and Architecture Documentation are required inputs. Feature Design is an optional input considered only where UX decisions influence architectural realization.
 
 Every Feature Technical Design should trace directly to exactly one Feature Specification.
+
+### Examples
+
+**Correct:**
+> Vision(01) → Feature: Authentication → Feature Technical Design: Authentication → Engineering: Authentication → Implementation: Authentication
+>
+> This Feature Technical Design traces to exactly one Feature Specification (Authentication). Architecture(05) security boundaries and External Context(08) identity provider constraints are applied as inputs.
+
+**Incorrect:**
+> Feature Technical Design: Authentication derives from the authentication API implementation in the source code.
+> *Why wrong: Traceability must flow from Feature Specification and Architecture, not from source code. The derivation chain starts at Vision, not at implementation.*
 
 ---
 

@@ -63,6 +63,15 @@
 **Required diagrams:** none
 **Required cross-references:** none
 
+### Examples
+
+**Correct:**
+> This topic explains how to configure automatic backups so your data is never lost.
+
+**Incorrect:**
+> This topic covers the backup feature.
+> *Why wrong: Vague and passive — describes what the topic "covers" rather than the user-facing problem it solves.*
+
 This document defines the standard for Product Guide documentation — the product docs shipped in `help.db` next to the binary, written for end users and for an LLM looking up how to use Samgraha or how to interpret an error.
 
 Product Guide topics explain **how to use the finished product**. They do not define product vision, architecture, engineering rationale, or any other domain's reasoning — those belong to their own standards, and Product Guide is written last, after everything else exists, because it can't be accurate until the product it describes is finished.
@@ -96,6 +105,15 @@ Product Guide topics explain **how to use the finished product**. They do not de
 **Optional subsections:** none
 **Required diagrams:** none
 **Required cross-references:** none
+
+### Examples
+
+**Correct:**
+> # Configure Automatic Backups
+
+**Incorrect:**
+> # The Backup System — Everything You Need To Know
+> *Why wrong: Over 60 characters, uses marketing language, and tries to be a catch-all instead of naming the specific command or concept.*
 
 <!-- TODO: Add content for this section. -->
 
@@ -139,6 +157,27 @@ Product Guide topics explain **how to use the finished product**. They do not de
 **Required diagrams:** none
 **Required cross-references:** none
 
+### Examples
+
+**Correct:**
+> ## Configure Automatic Backups
+>
+> Backups run daily at 02:00 by default. You can change the schedule or target directory.
+>
+> ### How It Works
+>
+> The backup service reads the `[backup]` section in your config file and writes compressed snapshots to the specified directory.
+>
+> ### Examples
+>
+> Run `app backup --now` to trigger an immediate backup. Output: `Backup saved to /data/backups/2026-07-11.snap`.
+
+**Incorrect:**
+> ## Backup
+>
+> The backup feature is very powerful and supports many use cases. See the source code for details on how it works internally.
+> *Why wrong: No How It Works or Examples subsections, references source code instead of providing actionable user instructions, and lacks concrete examples.*
+
 <!-- TODO: Add content for this section. -->
 
 ---
@@ -176,6 +215,17 @@ Product Guide topics explain **how to use the finished product**. They do not de
 **Optional subsections:** none
 **Required diagrams:** none
 **Required cross-references:** none
+
+### Examples
+
+**Correct:**
+> - **Prerequisites:** App Server v2.0 or later must be installed
+> - **Default behavior:** Backups run daily at 02:00 to the default directory
+> - **Version:** Behavior changed in v2.3 — earlier versions require manual scheduling
+
+**Incorrect:**
+> Backup is a useful feature that helps protect your data. It was introduced in v1.0 and has been improved many times since then.
+> *Why wrong: Reads like marketing copy — does not state prerequisites, defaults, or version-specific context the reader needs before using the feature.*
 
 <!-- TODO: Add content for this section. -->
 
@@ -232,6 +282,25 @@ Product Guide topics explain **how to use the finished product**. They do not de
 **Optional subsections:** Config Keys, MCP Parameters
 **Required diagrams:** none
 **Required cross-references:** none
+
+### Examples
+
+**Correct:**
+> ### CLI Interface
+>
+> | Flag | Type | Default | Required | Description |
+> |------|------|---------|----------|-------------|
+> | `--dir` | string | `/data/backups` | no | Target directory for snapshots |
+>
+> ### Error Conditions
+>
+> | Error | Cause | Resolution |
+> |-------|-------|------------|
+> | `Backup directory not writable` | Target directory lacks write permissions | Run `chmod u+w` on the target directory |
+
+**Incorrect:**
+> The backup command accepts a directory flag and writes files. Errors may occur if the directory is not writable.
+> *Why wrong: No structured tables, missing types/defaults/required status, and error conditions are buried in prose instead of listed with causes and resolutions.*
 
 <!-- TODO: Add content for this section. -->
 
@@ -475,6 +544,16 @@ Written by whoever ships a feature that needs end-user-facing explanation — a 
 **Optional subsections:** none
 **Required diagrams:** none
 **Required cross-references:** at least one valid link with descriptive label
+
+### Examples
+
+**Correct:**
+> - [Scheduled Backups](scheduled-backups.md) — how to change the backup schedule
+> - [Restore From Backup](restore-backup.md) — recovering data from a saved snapshot
+
+**Incorrect:**
+> - [Some Other Topic](broken-link.md)
+> *Why wrong: Link target does not resolve, and the label gives no indication of why the reader should follow it.*
 
 - [Readme Standard](15-readme-standards.md) — the entry point Product Guide expands on
 - [Build Standard](14-build-standards.md) — install/run instructions Product Guide must stay accurate to

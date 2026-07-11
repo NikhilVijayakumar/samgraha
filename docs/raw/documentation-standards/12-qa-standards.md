@@ -78,6 +78,15 @@
 **Required diagrams:** none
 **Required cross-references:** Feature(04), Architecture(05), Design(06), Security(03), Implementation(13)
 
+### Examples
+
+**Correct:**
+> This document defines how Project Nova verifies that features meet their specifications. It derives verification targets from Feature requirements, Architecture boundaries, and Security constraints. The testing strategy covers all applicable risk areas with measurable pass/fail criteria, and every test type traces back to the upstream documentation it validates.
+
+**Incorrect:**
+> This document defines the QA process for Project Nova. The team uses Jest for unit tests and Cypress for E2E tests.
+> *Why wrong: This section defines verification scope and philosophy, not tool choices or implementation details. Framework selection belongs in Engineering(07), not here.*
+
 This document defines the standard for Quality Assurance documentation within the engineering documentation ecosystem.
 
 QA Documentation defines how features are verified against their specifications — the testing strategy, test types, and verification chain from feature requirements to implementation.
@@ -196,6 +205,30 @@ Enhancement produces targeted test additions. Scope is limited to what changed.
 **Required diagrams:** none
 **Required cross-references:** Feature(04), Architecture(05), Engineering(07)
 
+### Examples
+
+**Correct:**
+> | Test Type | Applicability | Priority |
+> |-----------|--------------|----------|
+> | Unit Testing | All projects | Mandatory |
+> | Integration Testing | Multi-component system with 4 services | Mandatory |
+> | End-to-End Testing | Application has web UI | Conditional |
+> | Smoke Testing | Application is deployed to production | Conditional |
+> | Load Testing | Expected 500+ concurrent users | Conditional |
+> | Security Testing | All projects | Mandatory |
+>
+> Project Profile: Web application with REST API, background workers, and PostgreSQL database. Risk areas prioritized by user-facing surface area and data sensitivity.
+
+**Incorrect:**
+> | Test Type | Applicability | Priority |
+> |-----------|--------------|----------|
+> | Unit Testing | Yes | High |
+> | Integration Testing | Yes | High |
+> | E2E Testing | Yes | High |
+>
+> We will test everything because all tests are important.
+> *Why wrong: Applicability must state WHEN a test type applies (a condition), not just "Yes." Priority must use the standard scale (Mandatory/Conditional), not adjectives. The strategy must be justified by project profile and risk analysis.*
+
 Every QA document must define the overall test strategy before individual test types. The strategy maps test types to project needs.
 
 | Test Type | Applicability | Priority |
@@ -265,6 +298,27 @@ Section headings are case-insensitive. Sections not listed here are stored as `g
 **Required diagrams:** none
 **Required cross-references:** Feature(04), Engineering(07)
 
+### Examples
+
+**Correct:**
+> ### Coverage Targets
+>
+> | Metric | Target | Measurement Method |
+> |--------|--------|-------------------|
+> | Line coverage | 80% | ProjectNova test runner |
+> | Branch coverage | 75% | ProjectNova test runner |
+> | Function coverage | 90% | ProjectNova test runner |
+>
+> ### Conventions
+>
+> - **Naming:** `test_<unit>_<scenario>_<expected>`
+> - **Pattern:** Arrange-Act-Assert
+> - **One assertion per behavior**
+
+**Incorrect:**
+> Unit tests should cover most of the code. The team writes unit tests for all new features and fixes.
+> *Why wrong: Coverage targets must be measurable with explicit percentages and a defined measurement method. Vague statements like "most of the code" or "all new features" cannot be audited or verified.*
+
 Unit testing is applicable to all projects. Define coverage targets appropriate to the project's risk profile.
 
 ---
@@ -317,6 +371,23 @@ Unit testing is applicable to all projects. Define coverage targets appropriate 
 **Required diagrams:** Component diagram showing integration boundaries
 **Required cross-references:** Architecture(05), Feature(04)
 
+### Examples
+
+**Correct:**
+> ### Integration Boundaries
+>
+> | Boundary | Components | Contract | Verification Method |
+> |----------|-----------|----------|-------------------|
+> | API Gateway ↔ Auth Service | Gateway ↔ Auth | OAuth2 token endpoint | Contract test with mock IdP |
+> | Auth Service ↔ User Database | Auth ↔ PostgreSQL | SQL schema + query contracts | Integration test with test database |
+> | Worker Queue ↔ Processing Service | Queue ↔ Worker | Message schema v2 | Contract test with fixture messages |
+>
+> [Diagram showing the three component boundaries and their communication paths]
+
+**Incorrect:**
+> We test that the API works with the database and the cache. All services communicate over HTTP.
+> *Why wrong: Integration boundaries must be explicitly listed as a table mapping specific component pairs, their contracts, and verification methods. Vague descriptions of "services communicating" don't define testable boundaries.*
+
 Integration testing is mandatory for projects with multiple components. Map test coverage to Architecture(05) component boundaries.
 
 ---
@@ -368,6 +439,22 @@ Integration testing is mandatory for projects with multiple components. Map test
 **Optional subsections:** none
 **Required diagrams:** Flowchart of user journey paths
 **Required cross-references:** Design(06), Feature(04), Implementation(13)
+
+### Examples
+
+**Correct:**
+> ### Critical User Journeys
+>
+> | Journey | Design Reference | Expected Outcome | Pass/Fail Criteria |
+> |---------|-----------------|------------------|-------------------|
+> | New user registration | Design(06) §Onboarding Flow | User receives confirmation email within 60s; profile created in database | HTTP 200 response; email sent; DB row exists |
+> | Complete purchase | Design(06) §Checkout | Order created; payment processed; confirmation displayed | Order ID returned; payment status "success"; confirmation page renders |
+>
+> [Flowchart showing happy path and critical edge cases for registration and checkout]
+
+**Incorrect:**
+> Test that users can log in, add items to cart, and check out. Make sure the UI works.
+> *Why wrong: Critical user journeys must be mapped to specific Design(06) references with explicit expected outcomes and measurable pass/fail criteria. Generic descriptions without traceability to design docs cannot be verified or audited.*
 
 End-to-end testing is conditional — required for applications with user-facing interfaces. Map test coverage to Design(06) user workflows.
 
@@ -423,6 +510,25 @@ End-to-end testing is conditional — required for applications with user-facing
 **Optional subsections:** none
 **Required diagrams:** none
 **Required cross-references:** Implementation(13), Build(14)
+
+### Examples
+
+**Correct:**
+> ### Core Functions
+>
+> - [ ] Application starts and responds on port 8080
+> - [ ] Health check endpoint returns 200 OK
+> - [ ] Database connection pool initializes (max 10 connections)
+> - [ ] Authentication endpoint accepts valid credentials
+> - [ ] Primary API endpoint returns expected response schema
+>
+> **Maximum execution time:** 3 minutes
+> **Pass criteria:** All checks pass
+> **Fail criteria:** Any check fails — block deployment rollback
+
+**Incorrect:**
+> Smoke test: make sure the app works. Check that users can log in and the dashboard loads.
+> *Why wrong: Smoke tests require a structured checklist of core functions with pass/fail criteria and a maximum execution time. Unstructured descriptions without timing constraints cannot function as deployment gates.*
 
 Smoke testing is conditional — required for deployed applications. Must be fast enough to run after every deployment.
 
@@ -483,6 +589,29 @@ Smoke testing is conditional — required for deployed applications. Must be fas
 **Required diagrams:** none
 **Required cross-references:** Architecture(05), Engineering(07), Feature(04)
 
+### Examples
+
+**Correct:**
+> ### Load Profiles
+>
+> | Profile | Concurrent Users | Duration | Expected Response Time | Error Rate Threshold |
+> |---------|-----------------|----------|----------------------|---------------------|
+> | Baseline | 50 | 10 min | 200 ms | 0.1% |
+> | Target | 200 | 30 min | 500 ms | 0.5% |
+> | Stress | 500 | 15 min | 1000 ms | 2.0% |
+>
+> ### Performance Targets
+>
+> | Metric | Target | Measurement |
+> |--------|--------|-------------|
+> | Response time (p95) | 500 ms | Load testing tool metrics |
+> | Throughput | 100 req/s | Load testing tool metrics |
+> | Error rate | < 0.5% | Application logs |
+
+**Incorrect:**
+> The app should be fast. We expect it to handle many users without slowing down.
+> *Why wrong: Load testing requires specific numerical profiles (concurrent user counts, durations, response times) and measurable performance targets. Qualitative descriptions like "fast" and "many users" cannot be tested or verified.*
+
 Load testing is conditional — required for applications expecting concurrent users. Define realistic load profiles based on expected usage.
 
 ---
@@ -539,6 +668,28 @@ Load testing is conditional — required for applications expecting concurrent u
 **Optional subsections:** none
 **Required diagrams:** none
 **Required cross-references:** Architecture(05)
+
+### Examples
+
+**Correct:**
+> ### Growth Scenarios
+>
+> | Scenario | Load Multiplier | Expected Behavior | Breaking Point | Scaling Strategy |
+> |----------|----------------|-------------------|----------------|-----------------|
+> | Moderate growth | 2x baseline | Response time increases < 20% | N/A | Horizontal pod autoscaling |
+> | Significant growth | 5x baseline | Response time increases < 50% | 8x — connection pool exhaustion | Add read replicas + connection pooling |
+> | Extreme growth | 10x baseline | Graceful degradation with queuing | 15x — message queue overflow | Rate limiting + queue partitioning |
+>
+> ### Breaking Points
+>
+> | Component | Breaking Point | Failure Mode | Recovery Strategy |
+> |-----------|---------------|--------------|-------------------|
+> | Database connection pool | 800 connections | New connections rejected | Drain idle connections; scale read replicas |
+> | Message queue | 100k pending messages | Messages dropped after 1h TTL | Increase consumer count; archive old messages |
+
+**Incorrect:**
+> The system should scale to handle more users as we grow. We will add servers when needed.
+> *Why wrong: Scalability testing requires defined growth scenarios with specific load multipliers, expected behaviors, and documented breaking points. Statements about future intent don't characterize how the system actually behaves under growth pressure.*
 
 Scalability testing is conditional — required for applications expecting significant growth. Document where the system breaks and how it scales.
 
@@ -600,6 +751,31 @@ Scalability testing is conditional — required for applications expecting signi
 **Optional subsections:** none
 **Required diagrams:** none
 **Required cross-references:** Security(03), Engineering(07), Implementation(13)
+
+### Examples
+
+**Correct:**
+> ### Security Test Types
+>
+> | Test Type | Threat Category Coverage | Tool | Frequency | Severity Threshold |
+> |-----------|------------------------|------|-----------|-------------------|
+> | SAST | Injection, XSS, insecure deserialization | Static analyzer | Every commit | Critical |
+> | DAST | Authentication bypass, privilege escalation | DAST scanner | Nightly build | Critical |
+> | Dependency scanning | Known CVEs in third-party packages | Dependency checker | Daily | High |
+> | Secrets detection | Hardcoded credentials, API keys | Secret scanner | Every commit | Critical |
+>
+> ### Severity Thresholds
+>
+> | Severity | Fail Build? | Required Response Time | Examples |
+> |----------|------------|----------------------|----------|
+> | Critical | Yes | 4 hours | Remote code execution, SQL injection |
+> | High | Yes | 24 hours | Authentication bypass, privilege escalation |
+> | Medium | No | 7 days | Information disclosure, missing security headers |
+> | Low | No | Next sprint | Verbose error messages, outdated TLS version |
+
+**Incorrect:**
+> Run security scans and fix any issues found. Use whatever security tools the team prefers.
+> *Why wrong: Security testing requires explicit test types mapped to threat categories, a defined tool, scan frequency, and severity thresholds that determine build pass/fail. Generic directives without measurable thresholds cannot be audited.*
 
 Security testing is mandatory for all projects. Map test coverage to Security(03) threat categories. Severity thresholds determine pass/fail.
 

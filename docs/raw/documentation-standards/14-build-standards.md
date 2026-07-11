@@ -80,6 +80,15 @@
 **Required cross-references:** Implementation(13), QA(12), Engineering(07)
 ```
 
+### Examples
+
+**Correct:**
+> The Build Plan defines how verified code is packaged, validated, and delivered as shippable artifacts. It covers artifact generation, quality gates, security validation, and versioning — but does not define what to build (Implementation(13)), how to test it (QA(12)), or how to deploy it.
+
+**Incorrect:**
+> The Build Plan defines the CI/CD pipeline configuration, deployment procedures, and release management workflows.
+> *Why wrong: Deployment procedures and release management are out of scope for Build(14) — they belong to their own documentation standards.*
+
 This document defines the standard for Build Plans — artifact generation and validation pipelines that take verified code and produce shippable packages.
 
 Unlike other standards that define what to build or how to verify it, Build defines how to package, validate, and deliver what was built. Not every build stage applies to every project — the plan defines applicability conditions.
@@ -208,6 +217,15 @@ Security Threat produces a targeted security check plan. Scope is limited to the
 **Required cross-references:** samgraha audit pipeline
 ```
 
+### Examples
+
+**Correct:**
+> Documentation quality checks validate that all documentation compiles without errors and passes the samgraha audit pipeline. This stage is mandatory and gates all downstream build stages.
+
+**Incorrect:**
+> Documentation quality checks verify that README files are written in clear English and follow the project's style guide.
+> *Why wrong: Content style and writing quality are out of scope — documentation quality validates structural completeness and audit compliance, not prose style.*
+
 Documentation quality is the first build stage. If the documentation is invalid, nothing downstream should proceed.
 
 ---
@@ -245,6 +263,15 @@ Documentation quality is the first build stage. If the documentation is invalid,
 **Required diagrams:** none
 **Required cross-references:** Security(03)
 ```
+
+### Examples
+
+**Correct:**
+> Security checks run dependency vulnerability scanning, SAST on source code, and secrets detection. All critical and high severity findings block the build. Checks map to the threat categories defined in Security(03).
+
+**Incorrect:**
+> Security checks run optional vulnerability scans and log warnings for critical findings without blocking the build.
+> *Why wrong: Security checks must be mandatory with blocking thresholds for critical/high findings — logging warnings defeats the purpose of security validation.*
 
 Security checks are mandatory for all projects. Map checks to Security(03) threat categories.
 
@@ -284,6 +311,15 @@ Security checks are mandatory for all projects. Map checks to Security(03) threa
 **Required cross-references:** Engineering(07)
 ```
 
+### Examples
+
+**Correct:**
+> Size checks enforce a 5 MB limit on the distributable package. Measurement uses uncompressed artifact size. Exceeding the limit blocks the build with an actionable error message.
+
+**Incorrect:**
+> Size checks monitor documentation line counts and report the total without any thresholds or enforcement.
+> *Why wrong: Without defined limits and enforcement actions, size checks provide no value — they must specify measurable thresholds and what happens when they are exceeded.*
+
 Size checks are conditional — required for projects with size constraints (mobile apps, embedded systems, CLI tools).
 
 ---
@@ -321,6 +357,15 @@ Size checks are conditional — required for projects with size constraints (mob
 **Required diagrams:** none
 **Required cross-references:** Feature(04)
 ```
+
+### Examples
+
+**Correct:**
+> ML artifacts are versioned using semantic versioning (model-1.2.3). Data versions are tracked with DVC. Experiments are logged in MLflow with parameters, metrics, and model hashes. Each build reproduces the same model from the same data version.
+
+**Incorrect:**
+> ML models are saved as model-latest.pkl and overwritten on each training run. Training data is stored locally without versioning.
+> *Why wrong: Without versioning, model lineage is untraceable and reproducibility is impossible — this is the core problem ML artifact management solves.*
 
 ML artifact management is conditional — required for projects with ML models. Use DVC for data versioning, MLflow for experiment tracking.
 
@@ -360,6 +405,15 @@ ML artifact management is conditional — required for projects with ML models. 
 **Required cross-references:** Engineering(07), QA(12)
 ```
 
+### Examples
+
+**Correct:**
+> Gate sequence: lint → unit tests → integration tests → security scan → build → package. A failure at any gate blocks subsequent gates. Deployment is blocked until all gates pass. Failures notify the team via the configured alert channel.
+
+**Incorrect:**
+> All CI/CD checks run in parallel. If a security check fails, the build continues and the artifact is deployed anyway.
+> *Why wrong: CI/CD validation must enforce that failures block downstream stages — deploying artifacts that failed security checks defeats the purpose of the pipeline.*
+
 CI/CD validation is conditional — required for projects with automated pipelines. Define gates in the right sequence.
 
 ---
@@ -398,6 +452,15 @@ CI/CD validation is conditional — required for projects with automated pipelin
 **Required cross-references:** Engineering(07)
 ```
 
+### Examples
+
+**Correct:**
+> Release builds apply minification and tree-shaking, reducing bundle size by approximately 40%. Development builds skip obfuscation and preserve source maps for debugging. The size reduction is measured and reported in the build log.
+
+**Incorrect:**
+> All builds apply full obfuscation, including development builds. Source maps are never generated.
+> *Why wrong: Obfuscating development builds breaks debugging capability — this stage must differentiate between build types and preserve debug info where needed.*
+
 Obfuscation and optimization are conditional — apply to release builds, not development builds. Document the trade-offs.
 
 ---
@@ -435,6 +498,15 @@ Obfuscation and optimization are conditional — apply to release builds, not de
 **Required diagrams:** none
 **Required cross-references:** Engineering(07)
 ```
+
+### Examples
+
+**Correct:**
+> Artifacts use semantic versioning (MAJOR.MINOR.PATCH). Library artifacts are named `{name}-{version}.{ext}`. Breaking changes increment MAJOR. Compatibility rules: MAJOR bumps require migration guide; MINOR bumps are backward-compatible.
+
+**Incorrect:**
+> Artifacts are versioned sequentially (v1, v2, v3) with no naming convention. There are no documented compatibility rules between versions.
+> *Why wrong: Sequential versioning without a defined scheme or compatibility rules makes it impossible to determine the impact of an upgrade or maintain multiple versions.*
 
 Versioning and naming are mandatory for all projects. Define the scheme once, apply it consistently.
 

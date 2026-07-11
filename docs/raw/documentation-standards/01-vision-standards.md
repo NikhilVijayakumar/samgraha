@@ -67,6 +67,15 @@
 **Required diagrams:** none
 **Required cross-references:** none
 
+### Examples
+
+**Correct:**
+> DataSync exists to help teams move information between systems without manual intervention, eliminating hours of repetitive data entry each week. DataSync is the bridge that turns fragmented data into a single source of truth.
+
+**Incorrect:**
+> DataSync is a Python-based ETL pipeline using Apache Airflow that runs daily cron jobs to sync PostgreSQL databases via REST APIs.
+> *Why wrong: Contains implementation details (technology stack, scheduling mechanism, protocol) that belong in downstream documentation, not in the Purpose section.*
+
 This document defines the standard for Vision documentation within the engineering documentation ecosystem.
 
 A Vision document establishes the long-term purpose, direction, and identity of a product or repository.
@@ -108,6 +117,15 @@ All downstream documentation ultimately derives from the Vision.
 **Required diagrams:** none
 **Required cross-references:** Purpose
 
+### Examples
+
+**Correct:**
+> CloudBridge will become the trusted backbone for cross-organization data exchange, where any team can connect to any data source within minutes and trust that the information is accurate and current.
+
+**Incorrect:**
+> CloudBridge will migrate from REST to GraphQL by Q3, reaching 10,000 API calls per second with sub-50ms latency on AWS.
+> *Why wrong: Describes a technology roadmap with specific implementation targets (latency, throughput, cloud provider) rather than an aspirational future state.*
+
 *(To be written by the product owner. This section defines where the product is going.)*
 
 ---
@@ -142,6 +160,15 @@ All downstream documentation ultimately derives from the Vision.
 **Required diagrams:** none
 **Required cross-references:** Purpose
 
+### Examples
+
+**Correct:**
+> Teams that need to consolidate data from multiple sources spend hours each week on manual copying and pasting between spreadsheets. A mid-size operations team reports losing 12 hours per week to data reconciliation tasks, leading to delayed reports and costly errors.
+
+**Incorrect:**
+> Teams struggle with data silos. DataSync solves this by using scheduled Python scripts and a Redis cache layer to automatically merge CSV files.
+> *Why wrong: Mixes solution details (technology, mechanism) into the Problem section. The Problem section should describe pain, not how the product addresses it.*
+
 *(To be written by the product owner. This section defines what problem the product exists to solve.)*
 
 ---
@@ -174,6 +201,15 @@ All downstream documentation ultimately derives from the Vision.
 **Optional subsections:** none
 **Required diagrams:** none
 **Required cross-references:** Problem
+
+### Examples
+
+**Correct:**
+> DataSync automates the collection, transformation, and delivery of data across connected systems. It provides a single place to define data flows and ensures that information stays consistent wherever it is used.
+
+**Incorrect:**
+> DataSync uses Python with Celery workers and RabbitMQ to queue data jobs, storing results in a PostgreSQL database with a React dashboard for monitoring.
+> *Why wrong: Describes architecture and implementation technology instead of the product-level approach to solving the problem.*
 
 *(To be written by the product owner. This section defines the high-level solution approach.)*
 
@@ -208,6 +244,15 @@ All downstream documentation ultimately derives from the Vision.
 **Optional subsections:** none
 **Required diagrams:** none
 **Required cross-references:** Purpose
+
+### Examples
+
+**Correct:**
+> CloudBridge serves operations teams who need to consolidate data from multiple sources into a single, reliable view. These teams prioritize accuracy and speed over technical flexibility, and their managers make adoption decisions based on time savings and error reduction.
+
+**Incorrect:**
+> CloudBridge is used by Python developers with 5+ years of experience who write pandas scripts and prefer CLI tools with YAML configuration.
+> *Why wrong: Describes the audience by technical profile and specific skill requirements instead of goals and needs. The audience section should be understandable without code knowledge.*
 
 *(To be written by the product owner. This section defines who the product serves.)*
 
@@ -250,6 +295,19 @@ All downstream documentation ultimately derives from the Vision.
 **Optional subsections:** none
 **Required diagrams:** none
 **Required cross-references:** Vision
+
+### Examples
+
+**Correct:**
+> **Reliable Connections** — Every connection to an external system is resilient, recoverable, and transparent in its status.
+> **Data Integrity** — Information delivered through the product is always accurate and traceable to its source.
+> **Simple Configuration** — Setting up a new data flow requires no coding and minimal manual steps.
+
+**Incorrect:**
+> **Microservices** — The product uses a microservices architecture for scalability.
+> **Docker Containers** — All components run in Docker for consistent deployment.
+> **CI/CD Pipeline** — Continuous integration ensures code quality.
+> *Why wrong: Describes technology choices and implementation architecture instead of foundational capability pillars that organize the product.*
 
 *(To be written by the product owner. This section defines the foundational pillars of the product.)*
 
@@ -294,6 +352,17 @@ All downstream documentation ultimately derives from the Vision.
 **Optional subsections:** none
 **Required diagrams:** none
 **Required cross-references:** none
+
+### Examples
+
+**Correct:**
+> **Clarity Over Cleverness** — Every feature should be immediately understandable to the person using it, even if that means a less elegant implementation.
+> **Trust by Default** — Users should never have to wonder whether their data is correct; accuracy is assumed, not requested.
+
+**Incorrect:**
+> **Use FastAPI** — The product favors high-performance Python web frameworks.
+> **PostgreSQL First** — All persistent data must use PostgreSQL for consistency.
+> *Why wrong: States technology preferences rather than guiding values. Philosophy should influence decisions at any abstraction level, not prescribe specific tools.*
 
 *(To be written by the product owner. This section defines the philosophy guiding the product.)*
 
@@ -377,6 +446,19 @@ These responsibilities belong to other documentation standards.
 **Optional subsections:** none
 **Required diagrams:** none
 **Required cross-references:** Vision, Purpose
+
+### Examples
+
+**Correct:**
+> * Teams report spending less than 2 hours per week on data reconciliation tasks.
+> * At least 80% of new data flows are set up without engineering support.
+> * Data delivered through the product is accurate 99.9% of the time as verified by audits.
+
+**Incorrect:**
+> * The API response time is under 200ms.
+> * The test suite achieves 95% code coverage.
+> * Deployment frequency increases to daily releases.
+> *Why wrong: Describes implementation-level metrics (performance, test coverage, release cadence) rather than observable outcomes tied to the Vision and product purpose.*
 
 A Vision document is successful when:
 
@@ -505,6 +587,20 @@ Tier 0: Vision (Purpose)
 **Optional subsections:** derivation list
 **Required diagrams:** tier hierarchy flowchart
 **Required cross-references:** all downstream standards listed
+
+### Examples
+
+**Correct:**
+> Tier 0: Vision (Purpose, Problem, Solution)
+>     ├──→ Tier 1: Philosophy (Values, Principles)
+>     ├──→ Tier 1: Features (Feature List, Feature Details)
+>     └──→ Tier 2: Architecture (System Design, Technology Choices)
+>
+> **Non-contradiction rule:** No downstream document may state a goal, constraint, or priority that contradicts the Vision. When conflicts arise, the Vision takes precedence.
+
+**Incorrect:**
+> Vision traces to the README and the CI/CD pipeline configuration.
+> *Why wrong: References an implementation artifact (CI/CD pipeline) instead of the documentation hierarchy. Traceability should connect to other documentation standards, not to code or infrastructure.*
 
 No downstream document should contradict the Vision.
 
@@ -725,6 +821,17 @@ These describe values rather than implementation.
 **Optional subsections:** none
 **Required diagrams:** none
 **Required cross-references:** Philosophy
+
+### Examples
+
+**Correct:**
+> **Fail Safely** — When a connection to an external system fails, the product preserves existing data and retries automatically rather than losing work.
+> **Show, Don't Assume** — Every automated action should be visible to the user so they can verify correctness.
+
+**Incorrect:**
+> **Use Kubernetes** — The product should always be deployed on Kubernetes for orchestration.
+> **TypeScript Everywhere** — All frontend and backend code must use TypeScript.
+> *Why wrong: States technology mandates rather than enduring principles. Principles should survive technology changes and guide decisions regardless of implementation stack.*
 
 Vision should define enduring principles that influence future decisions.
 
