@@ -17,7 +17,7 @@ Generic, standard-agnostic storage for the audit engine. Seven tables, fixed for
 | 02 | `standards` | Pluggable rule sets scoped to a system |
 | 03 | `documents` | One row per audited document |
 | 04 | `sections` | One row per section of a document |
-| 05 | `rules` | One row per check, pointing at a YAML rule file via `rule_ref` |
+| 05 | `rules` | One row per rule (not per file). Each YAML file's `rules:` list produces multiple rows. `rule_ref` = `path#rule_id` |
 | 06 | `audit_results` | One row per rule evaluation (score + evidence JSON) |
 | 07 | `scores` | Aggregated scores per document per audit run |
 

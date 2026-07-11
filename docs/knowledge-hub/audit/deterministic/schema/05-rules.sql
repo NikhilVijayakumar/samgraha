@@ -1,10 +1,11 @@
--- Rules: one row per check, pointing at a YAML file that defines what the
--- check evaluates. rule_ref is a path relative to the knowledge-hub root,
--- e.g. "audit/deterministic/document/05-architecture.yaml" or
--- "audit/deterministic/section/architecture/01-purpose.yaml".
+-- Rules: one row per rule (not per file). Each YAML file contains a rules:
+-- list; every entry in that list becomes its own row here. rule_ref uses
+-- the format "path/to/file.yaml#rule_id" so the engine knows which rule
+-- within the file this row represents.
 --
--- The schema does not interpret rule_ref — the engine loads the file and
--- executes its condition (deterministic) or sends it to the LLM (semantic).
+-- mandatory, weight, and severity are per-rule properties that can differ
+-- between rules in the same file (e.g. 3 mandatory + 1 optional in
+-- vision/01-purpose.yaml).
 
 CREATE TABLE rules (
     id           INTEGER PRIMARY KEY,
@@ -15,5 +16,6 @@ CREATE TABLE rules (
     scope        TEXT NOT NULL CHECK (scope IN ('document','section')),
     mandatory    INTEGER NOT NULL DEFAULT 0,
     weight       REAL NOT NULL DEFAULT 1.0,
-    rule_ref     TEXT NOT NULL
+    severity     TEXT NOT NULL CHECK (severity IN ('Critical','Warning','Suggestion')),
+    rule_ref     TEXT NOT NULL     -- "path/to/file.yaml#rule_id"
 );
