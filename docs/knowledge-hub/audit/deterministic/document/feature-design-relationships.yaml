@@ -11,70 +11,70 @@ relationships:
   # --- Section-owned: outgoing edges from this section ---
   - id: fd-purpose-derives-feature
     from_section: purpose
-    type: derives_from
+    type: derives_from_from
     target_domain: feature
     target_section: purpose
     owner: section
 
   - id: fd-purpose-derives-design
     from_section: purpose
-    type: derives_from
+    type: derives_from_from
     target_domain: design
     target_section: purpose
     owner: section
 
   - id: fd-ux-derives-feature
     from_section: user_experience
-    type: derives_from
+    type: derives_from_from
     target_domain: feature
     target_section: purpose
     owner: section
 
   - id: fd-ux-derives-design
     from_section: user_experience
-    type: derives_from
+    type: derives_from_from
     target_domain: design
     target_section: user_experience
     owner: section
 
   - id: fd-workflow-derives-feature
     from_section: workflow
-    type: derives_from
+    type: derives_from_from
     target_domain: feature
     target_section: purpose
     owner: section
 
   - id: fd-workflow-derives-design
     from_section: workflow
-    type: derives_from
+    type: derives_from_from
     target_domain: design
     target_section: workflow
     owner: section
 
   - id: fd-states-derives-feature
     from_section: states
-    type: derives_from
+    type: derives_from_from
     target_domain: feature
     target_section: purpose
     owner: section
 
   - id: fd-states-derives-design
     from_section: states
-    type: derives_from
+    type: derives_from_from
     target_domain: design
     target_section: states
     owner: section
 
   - id: fd-nongoals-derives-feature
     from_section: non_goals
-    type: derives_from
+    type: derives_from_from
     target_domain: feature
     target_section: non_goals
     owner: section
 
   - id: fd-nongoals-derives-design
     from_section: non_goals
-    type: derives_from
+    type: derives_from_from
     target_domain: design
     target_section: non_goals
     owner: section
@@ -88,7 +88,7 @@ relationships:
 
   - id: fd-constraints-derives-design
     from_section: constraints
-    type: derives_from
+    type: derives_from_from
     target_domain: design
     target_section: constraints
     owner: section

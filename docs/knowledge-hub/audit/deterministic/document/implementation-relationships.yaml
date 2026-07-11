@@ -12,28 +12,28 @@ relationships:
   # --- Section-owned: outgoing edges from this section ---
   - id: impl-gen-plan-derives-feature-technical
     from_section: generation_plan
-    type: derives_from
+    type: derives_from_from
     target_domain: feature-technical
     target_section: component_responsibilities
     owner: section
 
   - id: impl-gen-plan-derives-engineering
     from_section: generation_plan
-    type: derives_from
+    type: derives_from_from
     target_domain: engineering
     target_section: code_standards
     owner: section
 
   - id: impl-gen-plan-derives-prototype
     from_section: generation_plan
-    type: derives_from
+    type: derives_from_from
     target_domain: prototype
     target_section: scope
     owner: section
 
   - id: impl-security-fix-derives-security
     from_section: security_fix_plan
-    type: derives_from
+    type: derives_from_from
     target_domain: security
     target_section: threat_model
     owner: section
@@ -47,7 +47,7 @@ relationships:
 
   - id: impl-purpose-derives-vision
     from_section: purpose
-    type: derives_from
+    type: derives_from_from
     target_domain: vision
     target_section: purpose
     owner: section

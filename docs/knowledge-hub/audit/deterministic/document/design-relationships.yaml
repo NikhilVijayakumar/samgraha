@@ -37,7 +37,7 @@ relationships:
 
   - id: design-constraints-guided-by-philosophy
     from_section: constraints
-    type: constrained_by
+    type: constrains
     target_domain: philosophy
     target_section: guiding_principles
     owner: section
@@ -51,7 +51,7 @@ relationships:
 
   - id: design-traceability-derives-feature-design
     from_section: traceability
-    type: derives
+    type: derives_from
     target_domain: feature_design
     target_section: design_rationale
     owner: section

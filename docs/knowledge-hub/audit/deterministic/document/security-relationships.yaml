@@ -11,7 +11,7 @@ relationships:
   # --- Section-owned: outgoing edges from this section ---
   - id: sec-purpose-derives-vision
     from_section: purpose
-    type: derives_from
+    type: derives_from_from
     target_domain: vision
     target_section: purpose
     owner: section
@@ -25,7 +25,7 @@ relationships:
 
   - id: sec-threat-model-derives-vision
     from_section: threat_model
-    type: derives_from
+    type: derives_from_from
     target_domain: vision
     target_section: vision_statement
     owner: section
@@ -46,14 +46,14 @@ relationships:
 
   - id: sec-threat-model-references-data-classification
     from_section: threat_model
-    type: references
+    type: traceable_to
     target_domain: security
     target_section: data_classification
     owner: section
 
   - id: sec-data-classification-derives-vision
     from_section: data_classification
-    type: derives_from
+    type: derives_from_from
     target_domain: vision
     target_section: vision_statement
     owner: section
@@ -67,35 +67,35 @@ relationships:
 
   - id: sec-data-classification-referenced-by-threat-model
     from_section: data_classification
-    type: referenced_by
+    type: traceable_to
     target_domain: security
     target_section: threat_model
     owner: section
 
   - id: sec-security-principles-derives-philosophy
     from_section: security_principles
-    type: derives_from
+    type: derives_from_from
     target_domain: philosophy
     target_section: guiding_principles
     owner: section
 
   - id: sec-security-principles-guides-architecture
     from_section: security_principles
-    type: guides
+    type: derives_from
     target_domain: architecture
     target_section: security_considerations
     owner: section
 
   - id: sec-security-principles-guides-engineering
     from_section: security_principles
-    type: guides
+    type: derives_from
     target_domain: engineering
     target_section: code_standards
     owner: section
 
   - id: sec-constraints-derives-philosophy
     from_section: constraints
-    type: derives_from
+    type: derives_from_from
     target_domain: philosophy
     target_section: tradeoffs
     owner: section

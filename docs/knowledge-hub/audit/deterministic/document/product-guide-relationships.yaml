@@ -13,7 +13,7 @@ relationships:
   # --- Section-owned: outgoing edges from this section ---
   - id: pg-context-derives-vision
     from_section: product_context
-    type: derives_from
+    type: derives_from_from
     target_domain: vision
     target_section: purpose
     owner: section

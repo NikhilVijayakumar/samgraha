@@ -11,7 +11,7 @@ relationships:
   # --- Section-owned: outgoing edges from this section ---
   - id: phil-purpose-derives-vision
     from_section: purpose
-    type: derives_from
+    type: derives_from_from
     target_domain: vision
     target_section: purpose
     owner: section
@@ -25,56 +25,56 @@ relationships:
 
   - id: phil-guiding-principles-derives-vision
     from_section: guiding_principles
-    type: derives_from
+    type: derives_from_from
     target_domain: vision
     target_section: vision_statement
     owner: section
 
   - id: phil-guiding-principles-guides-architecture
     from_section: guiding_principles
-    type: guides
+    type: derives_from
     target_domain: architecture
     target_section: purpose
     owner: section
 
   - id: phil-guiding-principles-guides-design
     from_section: guiding_principles
-    type: guides
+    type: derives_from
     target_domain: design
     target_section: purpose
     owner: section
 
   - id: phil-guiding-principles-guides-engineering
     from_section: guiding_principles
-    type: guides
+    type: derives_from
     target_domain: engineering
     target_section: purpose
     owner: section
 
   - id: phil-values-derives-vision
     from_section: values
-    type: derives_from
+    type: derives_from_from
     target_domain: vision
     target_section: vision_statement
     owner: section
 
   - id: phil-values-guides-architecture
     from_section: values
-    type: guides
+    type: derives_from
     target_domain: architecture
     target_section: component_model
     owner: section
 
   - id: phil-values-guides-design
     from_section: values
-    type: guides
+    type: derives_from
     target_domain: design
     target_section: design_principles
     owner: section
 
   - id: phil-tradeoffs-derives-vision
     from_section: tradeoffs
-    type: derives_from
+    type: derives_from_from
     target_domain: vision
     target_section: vision_statement
     owner: section
@@ -88,7 +88,7 @@ relationships:
 
   - id: phil-tradeoffs-guides-feature
     from_section: tradeoffs
-    type: guides
+    type: derives_from
     target_domain: feature
     target_section: priority
     owner: section

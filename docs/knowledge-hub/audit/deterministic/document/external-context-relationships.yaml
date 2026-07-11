@@ -44,7 +44,7 @@ relationships:
 
   - id: ext-traceability-traces-external
     from_section: traceability
-    type: traces_to
+    type: traceable_to
     target_domain: external
     target_section: source
     owner: section

@@ -12,49 +12,49 @@ relationships:
   # --- Section-owned: outgoing edges from this section ---
   - id: vis-purpose-inspires-philosophy
     from_section: purpose
-    type: inspires
+    type: derives_from
     target_domain: philosophy
     target_section: purpose
     owner: section
 
   - id: vis-vision-statement-inspires-philosophy
     from_section: vision_statement
-    type: inspires
+    type: derives_from
     target_domain: philosophy
     target_section: vision_alignment
     owner: section
 
   - id: vis-vision-statement-inspires-feature
     from_section: vision_statement
-    type: inspires
+    type: derives_from
     target_domain: feature
     target_section: purpose
     owner: section
 
   - id: vis-vision-statement-inspires-security
     from_section: vision_statement
-    type: inspires
+    type: derives_from
     target_domain: security
     target_section: purpose
     owner: section
 
   - id: vis-problem-inspires-philosophy
     from_section: problem
-    type: inspires
+    type: derives_from
     target_domain: philosophy
     target_section: problem_framing
     owner: section
 
   - id: vis-solution-inspires-feature
     from_section: solution
-    type: inspires
+    type: derives_from
     target_domain: feature
     target_section: purpose
     owner: section
 
   - id: vis-solution-inspires-architecture
     from_section: solution
-    type: inspires
+    type: derives_from
     target_domain: architecture
     target_section: system_overview
     owner: section
@@ -68,14 +68,14 @@ relationships:
 
   - id: vis-pillars-inspires-philosophy
     from_section: pillars
-    type: inspires
+    type: derives_from
     target_domain: philosophy
     target_section: guiding_principles
     owner: section
 
   - id: vis-guiding-principles-inspires-philosophy
     from_section: guiding_principles
-    type: inspires
+    type: derives_from
     target_domain: philosophy
     target_section: guiding_principles
     owner: section
