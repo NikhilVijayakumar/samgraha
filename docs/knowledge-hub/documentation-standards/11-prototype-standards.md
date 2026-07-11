@@ -38,7 +38,7 @@
 
 ## Purpose
 
-> *Structural rules: `audit/deterministic/section/prototype/purpose.yaml`*
+> *Structural rules: `audit/deterministic/section/prototype/04-purpose.yaml`*
 
 ### Template
 
@@ -149,7 +149,7 @@ Section headings are case-insensitive. Sections not listed here are stored as `g
 
 ## Mock APIs
 
-> *Structural rules: `audit/deterministic/section/prototype/mock_apis.yaml`*
+> *Structural rules: `audit/deterministic/section/prototype/02-mock_apis.yaml`*
 
 ### Template
 
@@ -199,7 +199,7 @@ Section headings are case-insensitive. Sections not listed here are stored as `g
 
 ## Data Model
 
-> *Structural rules: `audit/deterministic/section/prototype/data_model.yaml`*
+> *Structural rules: `audit/deterministic/section/prototype/03-data_model.yaml`*
 
 ### Template
 
@@ -271,7 +271,7 @@ Section headings are case-insensitive. Sections not listed here are stored as `g
 
 ## Constraints
 
-> *Structural rules: `audit/deterministic/section/prototype/constraints.yaml`*
+> *Structural rules: `audit/deterministic/section/prototype/05-constraints.yaml`*
 
 ### Template
 
@@ -364,7 +364,7 @@ Prototype turns a Feature Design or Feature Technical Design into something a st
 
 ## Scope
 
-> *Structural rules: `audit/deterministic/section/prototype/scope.yaml`*
+> *Structural rules: `audit/deterministic/section/prototype/01-scope.yaml`*
 
 ### Template
 
@@ -475,7 +475,7 @@ Prototype code itself is not an output — it's discarded once the question is a
 
 ## Traceability
 
-> *Structural rules: `audit/deterministic/section/prototype/traceability.yaml`*
+> *Structural rules: `audit/deterministic/section/prototype/06-traceability.yaml`*
 
 ### Template
 

@@ -38,7 +38,7 @@
 
 ## Purpose
 
-> *Structural rules: `audit/deterministic/section/implementation/purpose.yaml`*
+> *Structural rules: `audit/deterministic/section/implementation/03-purpose.yaml`*
 
 ### Template
 
@@ -170,7 +170,7 @@ Change Request produces a modification plan. Impact analysis and rollback strate
 
 ## Generation Plan
 
-> *Structural rules: `audit/deterministic/section/implementation/generation_plan.yaml`*
+> *Structural rules: `audit/deterministic/section/implementation/01-generation_plan.yaml`*
 
 ### Template
 
@@ -404,7 +404,7 @@ Enhancements improve existing functionality. Every enhancement must define measu
 
 ## Security Fix Plan
 
-> *Structural rules: `audit/deterministic/section/implementation/security_fix_plan.yaml`*
+> *Structural rules: `audit/deterministic/section/implementation/02-security_fix_plan.yaml`*
 
 ### Template
 

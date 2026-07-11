@@ -41,7 +41,7 @@
 
 ## Purpose
 
-> *Structural rules: `audit/deterministic/section/product-guide/purpose.yaml`*
+> *Structural rules: `audit/deterministic/section/product-guide/03-purpose.yaml`*
 
 ### Template
 
@@ -84,7 +84,7 @@ Product Guide topics explain **how to use the finished product**. They do not de
 
 ## Title
 
-> *Structural rules: `audit/deterministic/section/product-guide/title.yaml`*
+> *Structural rules: `audit/deterministic/section/product-guide/01-title.yaml`*
 
 ### Template
 
@@ -125,7 +125,7 @@ Product Guide topics explain **how to use the finished product**. They do not de
 
 ## Content
 
-> *Structural rules: `audit/deterministic/section/product-guide/body.yaml`*
+> *Structural rules: `audit/deterministic/section/product-guide/02-body.yaml`*
 
 ### Template
 
@@ -312,7 +312,7 @@ Product Guide topics explain **how to use the finished product**. They do not de
 
 ## Related
 
-> *Structural rules: `audit/deterministic/section/product-guide/related.yaml`*
+> *Structural rules: `audit/deterministic/section/product-guide/06-related.yaml`*
 
 ### Template
 

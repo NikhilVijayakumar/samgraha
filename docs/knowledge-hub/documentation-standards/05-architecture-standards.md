@@ -45,7 +45,7 @@
 
 ## Purpose
 
-> *Structural rules: `audit/deterministic/section/architecture/purpose.yaml`*
+> *Structural rules: `audit/deterministic/section/architecture/01-purpose.yaml`*
 
 ### Template
 
@@ -102,7 +102,7 @@ It does not explain implementation details.
 
 ## System Overview
 
-> *Structural rules: `audit/deterministic/section/architecture/system_overview.yaml`*
+> *Structural rules: `audit/deterministic/section/architecture/02-system_overview.yaml`*
 
 ### Template
 
@@ -154,7 +154,7 @@ It does not explain implementation details.
 
 ## Component Model
 
-> *Structural rules: `audit/deterministic/section/architecture/component_model.yaml`*
+> *Structural rules: `audit/deterministic/section/architecture/03-component_model.yaml`*
 
 ### Template
 
@@ -220,7 +220,7 @@ It does not explain implementation details.
 
 ## Communication
 
-> *Structural rules: `audit/deterministic/section/architecture/communication_paths.yaml`*
+> *Structural rules: `audit/deterministic/section/architecture/04-communication_paths.yaml`*
 
 ### Template
 
@@ -278,7 +278,7 @@ It does not explain implementation details.
 
 ## Data Flow
 
-> *Structural rules: `audit/deterministic/section/architecture/data_flow.yaml`*
+> *Structural rules: `audit/deterministic/section/architecture/05-data_flow.yaml`*
 
 ### Template
 
@@ -341,7 +341,7 @@ It does not explain implementation details.
 
 ## Security
 
-> *Structural rules: `audit/deterministic/section/architecture/security_considerations.yaml`*
+> *Structural rules: `audit/deterministic/section/architecture/06-security_considerations.yaml`*
 
 ### Template
 
@@ -399,7 +399,7 @@ It does not explain implementation details.
 
 ## Rationale
 
-> *Structural rules: `audit/deterministic/section/architecture/rationale.yaml`*
+> *Structural rules: `audit/deterministic/section/architecture/07-rationale.yaml`*
 
 ### Template
 
@@ -454,7 +454,7 @@ It does not explain implementation details.
 
 ## Constraints
 
-> *Structural rules: `audit/deterministic/section/architecture/constraints.yaml`*
+> *Structural rules: `audit/deterministic/section/architecture/08-constraints.yaml`*
 
 ### Template
 
@@ -671,7 +671,7 @@ Implementation should conform to Architecture.
 
 ## Traceability
 
-> *Structural rules: `audit/deterministic/section/architecture/traceability.yaml`*
+> *Structural rules: `audit/deterministic/section/architecture/09-traceability.yaml`*
 
 ### Template
 

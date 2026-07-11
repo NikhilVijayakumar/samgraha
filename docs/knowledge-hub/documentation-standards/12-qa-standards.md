@@ -40,7 +40,7 @@
 
 ## Purpose
 
-> *Structural rules: `audit/deterministic/section/qa/purpose.yaml`*
+> *Structural rules: `audit/deterministic/section/qa/05-purpose.yaml`*
 
 ### Template
 
@@ -159,7 +159,7 @@ Enhancement produces targeted test additions. Scope is limited to what changed.
 
 ## Test Strategy
 
-> *Structural rules: `audit/deterministic/section/qa/test_strategy.yaml`*
+> *Structural rules: `audit/deterministic/section/qa/01-test_strategy.yaml`*
 
 ### Template
 
@@ -250,7 +250,7 @@ Section headings are case-insensitive. Sections not listed here are stored as `g
 
 ## Unit Testing
 
-> *Structural rules: `audit/deterministic/section/qa/unit_testing.yaml`*
+> *Structural rules: `audit/deterministic/section/qa/02-unit_testing.yaml`*
 
 ### Template
 
@@ -328,7 +328,7 @@ Unit testing is applicable to all projects. Define coverage targets appropriate 
 
 ## Integration Testing
 
-> *Structural rules: `audit/deterministic/section/qa/integration_testing.yaml`*
+> *Structural rules: `audit/deterministic/section/qa/03-integration_testing.yaml`*
 
 ### Template
 
@@ -700,7 +700,7 @@ Scalability testing is conditional — required for applications expecting signi
 
 ## Security Testing
 
-> *Structural rules: `audit/deterministic/section/qa/security_testing.yaml`*
+> *Structural rules: `audit/deterministic/section/qa/04-security_testing.yaml`*
 
 ### Template
 

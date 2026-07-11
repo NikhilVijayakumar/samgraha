@@ -40,7 +40,7 @@
 
 ## Purpose
 
-> *Structural rules: `audit/deterministic/section/security/purpose.yaml`*
+> *Structural rules: `audit/deterministic/section/security/04-purpose.yaml`*
 
 ### Template
 
@@ -90,7 +90,7 @@ It does not define how any single component enforces that posture. That belongs 
 
 ## Threat Model
 
-> *Structural rules: `audit/deterministic/section/security/threat_model.yaml`*
+> *Structural rules: `audit/deterministic/section/security/01-threat_model.yaml`*
 
 ### Template
 
@@ -139,7 +139,7 @@ It does not define how any single component enforces that posture. That belongs 
 
 ## Data Classification
 
-> *Structural rules: `audit/deterministic/section/security/data_classification.yaml`*
+> *Structural rules: `audit/deterministic/section/security/02-data_classification.yaml`*
 
 ### Template
 
@@ -188,7 +188,7 @@ It does not define how any single component enforces that posture. That belongs 
 
 ## Security Principles
 
-> *Structural rules: `audit/deterministic/section/security/security_principles.yaml`*
+> *Structural rules: `audit/deterministic/section/security/03-security_principles.yaml`*
 
 ### Template
 
@@ -336,7 +336,7 @@ It does not define how any single component enforces that posture. That belongs 
 
 ## Constraints
 
-> *Structural rules: `audit/deterministic/section/security/constraints.yaml`*
+> *Structural rules: `audit/deterministic/section/security/05-constraints.yaml`*
 
 ### Template
 
@@ -509,7 +509,7 @@ Every per-domain Security section should be traceable to a threat, data class, o
 
 ## Traceability
 
-> *Structural rules: `audit/deterministic/section/security/traceability.yaml`*
+> *Structural rules: `audit/deterministic/section/security/06-traceability.yaml`*
 
 ### Template
 

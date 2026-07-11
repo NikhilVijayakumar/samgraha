@@ -46,7 +46,7 @@
 
 ## Purpose
 
-> *Structural rules: `audit/deterministic/section/feature/purpose.yaml`*
+> *Structural rules: `audit/deterministic/section/feature/01-purpose.yaml`*
 
 ### Template
 
@@ -112,7 +112,7 @@ It does not describe implementation, architecture, or engineering decisions.
 
 ## Functional Requirements
 
-> *Structural rules: `audit/deterministic/section/feature/functional_requirements.yaml`*
+> *Structural rules: `audit/deterministic/section/feature/02-functional_requirements.yaml`*
 
 ### Template
 
@@ -172,7 +172,7 @@ It does not describe implementation, architecture, or engineering decisions.
 
 ## Business Rules
 
-> *Structural rules: `audit/deterministic/section/feature/business_rules.yaml`*
+> *Structural rules: `audit/deterministic/section/feature/04-business_rules.yaml`*
 
 ### Template
 
@@ -231,7 +231,7 @@ It does not describe implementation, architecture, or engineering decisions.
 
 ## Constraints
 
-> *Structural rules: `audit/deterministic/section/feature/constraints.yaml`*
+> *Structural rules: `audit/deterministic/section/feature/07-constraints.yaml`*
 
 ### Template
 
@@ -300,7 +300,7 @@ It does not describe implementation, architecture, or engineering decisions.
 
 ## Dependencies
 
-> *Structural rules: `audit/deterministic/section/feature/dependencies.yaml`*
+> *Structural rules: `audit/deterministic/section/feature/08-dependencies.yaml`*
 
 ### Template
 
@@ -364,7 +364,7 @@ It does not describe implementation, architecture, or engineering decisions.
 
 ## Acceptance Criteria
 
-> *Structural rules: `audit/deterministic/section/feature/acceptance_criteria.yaml`*
+> *Structural rules: `audit/deterministic/section/feature/03-acceptance_criteria.yaml`*
 
 ### Template
 
@@ -424,7 +424,7 @@ It does not describe implementation, architecture, or engineering decisions.
 
 ## Future Extensions
 
-> *Structural rules: `audit/deterministic/section/feature/future_extensions.yaml`*
+> *Structural rules: `audit/deterministic/section/feature/10-future_extensions.yaml`*
 
 ### Template
 
@@ -524,7 +524,7 @@ Feature Documentation aims to:
 
 ## Non-Goals
 
-> *Structural rules: `audit/deterministic/section/feature/non_goals.yaml`*
+> *Structural rules: `audit/deterministic/section/feature/09-non_goals.yaml`*
 
 ### Template
 
@@ -670,7 +670,7 @@ These belong to Architecture, Feature Technical Design, Engineering, Feature Des
 
 ## Inputs
 
-> *Structural rules: `audit/deterministic/section/feature/inputs.yaml`*
+> *Structural rules: `audit/deterministic/section/feature/05-inputs.yaml`*
 
 ### Template
 
@@ -744,7 +744,7 @@ Feature Documentation should not derive from implementation.
 
 ## Outputs
 
-> *Structural rules: `audit/deterministic/section/feature/outputs.yaml`*
+> *Structural rules: `audit/deterministic/section/feature/06-outputs.yaml`*
 
 ### Template
 
@@ -815,7 +815,7 @@ Every implementation should trace back to one or more feature specifications.
 
 ## Traceability
 
-> *Structural rules: `audit/deterministic/section/feature/traceability.yaml`*
+> *Structural rules: `audit/deterministic/section/feature/11-traceability.yaml`*
 
 ### Template
 

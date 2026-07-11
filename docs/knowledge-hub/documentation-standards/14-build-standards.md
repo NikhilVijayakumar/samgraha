@@ -48,7 +48,7 @@
 
 ## Purpose
 
-> *Structural rules: `audit/deterministic/section/build/purpose.yaml`*
+> *Structural rules: `audit/deterministic/section/build/04-purpose.yaml`*
 
 ### Template
 
@@ -188,7 +188,7 @@ Security Threat produces a targeted security check plan. Scope is limited to the
 
 ## Documentation Quality
 
-> *Structural rules: `audit/deterministic/section/build/documentation_quality.yaml`*
+> *Structural rules: `audit/deterministic/section/build/01-documentation_quality.yaml`*
 
 ### Template
 
@@ -235,7 +235,7 @@ Documentation quality is the first build stage. If the documentation is invalid,
 
 ## Security Checks
 
-> *Structural rules: `audit/deterministic/section/build/security_checks.yaml`*
+> *Structural rules: `audit/deterministic/section/build/02-security_checks.yaml`*
 
 ### Template
 
@@ -470,7 +470,7 @@ Obfuscation and optimization are conditional — apply to release builds, not de
 
 ## Versioning & Naming
 
-> *Structural rules: `audit/deterministic/section/build/versioning_naming.yaml`*
+> *Structural rules: `audit/deterministic/section/build/03-versioning_naming.yaml`*
 
 ### Template
 

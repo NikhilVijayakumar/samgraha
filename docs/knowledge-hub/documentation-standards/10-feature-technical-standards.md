@@ -54,7 +54,7 @@
 
 ## Purpose
 
-> *Structural rules: `audit/deterministic/section/feature-technical/purpose.yaml`*
+> *Structural rules: `audit/deterministic/section/feature-technical/01-purpose.yaml`*
 
 ### Template
 
@@ -106,7 +106,7 @@ It does not describe implementation details or source code.
 
 ## Participating Components
 
-> *Structural rules: `audit/deterministic/section/feature-technical/participating_components.yaml`*
+> *Structural rules: `audit/deterministic/section/feature-technical/02-participating_components.yaml`*
 
 ### Template
 
@@ -157,7 +157,7 @@ It does not describe implementation details or source code.
 
 ## Component Interactions
 
-> *Structural rules: `audit/deterministic/section/feature-technical/component_interactions.yaml`*
+> *Structural rules: `audit/deterministic/section/feature-technical/03-component_interactions.yaml`*
 
 ### Template
 
@@ -207,7 +207,7 @@ It does not describe implementation details or source code.
 
 ## Data Ownership
 
-> *Structural rules: `audit/deterministic/section/feature-technical/data_ownership.yaml`*
+> *Structural rules: `audit/deterministic/section/feature-technical/04-data_ownership.yaml`*
 
 ### Template
 
@@ -254,7 +254,7 @@ It does not describe implementation details or source code.
 
 ## Feature Specification
 
-> *Structural rules: `audit/deterministic/section/feature-technical/feature_specification.yaml`*
+> *Structural rules: `audit/deterministic/section/feature-technical/05-feature_specification.yaml`*
 
 ### Template
 
@@ -293,7 +293,7 @@ It does not describe implementation details or source code.
 
 ## Component Responsibilities
 
-> *Structural rules: `audit/deterministic/section/feature-technical/component_responsibilities.yaml`*
+> *Structural rules: `audit/deterministic/section/feature-technical/06-component_responsibilities.yaml`*
 
 ### Template
 
@@ -338,7 +338,7 @@ It does not describe implementation details or source code.
 
 ## Runtime Behavior
 
-> *Structural rules: `audit/deterministic/section/feature-technical/runtime_behavior.yaml`*
+> *Structural rules: `audit/deterministic/section/feature-technical/07-runtime_behavior.yaml`*
 
 ### Template
 
@@ -385,7 +385,7 @@ It does not describe implementation details or source code.
 
 ## Communication Paths
 
-> *Structural rules: `audit/deterministic/section/feature-technical/communication_paths.yaml`*
+> *Structural rules: `audit/deterministic/section/feature-technical/08-communication_paths.yaml`*
 
 ### Template
 
@@ -435,7 +435,7 @@ It does not describe implementation details or source code.
 
 ## Integration Points
 
-> *Structural rules: `audit/deterministic/section/feature-technical/integration_points.yaml`*
+> *Structural rules: `audit/deterministic/section/feature-technical/09-integration_points.yaml`*
 
 ### Template
 
@@ -485,7 +485,7 @@ It does not describe implementation details or source code.
 
 ## External Dependency Integration
 
-> *Structural rules: `audit/deterministic/section/feature-technical/external_dependencies.yaml`*
+> *Structural rules: `audit/deterministic/section/feature-technical/10-external_dependencies.yaml`*
 
 ### Template
 
@@ -530,7 +530,7 @@ It does not describe implementation details or source code.
 
 ## Runtime Constraints
 
-> *Structural rules: `audit/deterministic/section/feature-technical/runtime_constraints.yaml`*
+> *Structural rules: `audit/deterministic/section/feature-technical/11-runtime_constraints.yaml`*
 
 ### Template
 
@@ -574,7 +574,7 @@ It does not describe implementation details or source code.
 
 ## Architectural Constraints
 
-> *Structural rules: `audit/deterministic/section/feature-technical/architectural_constraints.yaml`*
+> *Structural rules: `audit/deterministic/section/feature-technical/12-architectural_constraints.yaml`*
 
 ### Template
 
@@ -618,7 +618,7 @@ It does not describe implementation details or source code.
 
 ## Security Considerations
 
-> *Structural rules: `audit/deterministic/section/feature-technical/security_considerations.yaml`*
+> *Structural rules: `audit/deterministic/section/feature-technical/13-security_considerations.yaml`*
 
 ### Template
 
@@ -660,7 +660,7 @@ It does not describe implementation details or source code.
 
 ## Performance Considerations
 
-> *Structural rules: `audit/deterministic/section/feature-technical/performance_considerations.yaml`*
+> *Structural rules: `audit/deterministic/section/feature-technical/14-performance_considerations.yaml`*
 
 ### Template
 
@@ -705,7 +705,7 @@ It does not describe implementation details or source code.
 
 ## Failure Handling
 
-> *Structural rules: `audit/deterministic/section/feature-technical/failure_handling.yaml`*
+> *Structural rules: `audit/deterministic/section/feature-technical/15-failure_handling.yaml`*
 
 ### Template
 
@@ -751,7 +751,7 @@ It does not describe implementation details or source code.
 
 ## Extension Points
 
-> *Structural rules: `audit/deterministic/section/feature-technical/extension_points.yaml`*
+> *Structural rules: `audit/deterministic/section/feature-technical/16-extension_points.yaml`*
 
 ### Template
 
@@ -970,7 +970,7 @@ Implementation should conform to the documented technical design.
 
 ## Traceability
 
-> *Structural rules: `audit/deterministic/section/feature-technical/traceability.yaml`*
+> *Structural rules: `audit/deterministic/section/feature-technical/17-traceability.yaml`*
 
 ### Template
 

@@ -43,7 +43,7 @@
 
 ## Purpose
 
-> *Structural rules: `audit/deterministic/section/engineering/purpose.yaml`*
+> *Structural rules: `audit/deterministic/section/engineering/05-purpose.yaml`*
 
 ### Template
 
@@ -99,7 +99,7 @@ It does not describe feature implementations.
 
 ## Build Standards
 
-> *Structural rules: `audit/deterministic/section/engineering/build_standards.yaml`*
+> *Structural rules: `audit/deterministic/section/engineering/03-build_standards.yaml`*
 
 ### Template
 
@@ -156,7 +156,7 @@ It does not describe feature implementations.
 
 ## Testing Standards
 
-> *Structural rules: `audit/deterministic/section/engineering/testing_standards.yaml`*
+> *Structural rules: `audit/deterministic/section/engineering/04-testing_standards.yaml`*
 
 ### Template
 
@@ -211,7 +211,7 @@ It does not describe feature implementations.
 
 ## Code Standards
 
-> *Structural rules: `audit/deterministic/section/engineering/code_standards.yaml`*
+> *Structural rules: `audit/deterministic/section/engineering/06-code_standards.yaml`*
 
 ### Template
 
@@ -266,7 +266,7 @@ It does not describe feature implementations.
 
 ## Constraints
 
-> *Structural rules: `audit/deterministic/section/engineering/constraints.yaml`*
+> *Structural rules: `audit/deterministic/section/engineering/07-constraints.yaml`*
 
 ### Template
 
@@ -499,7 +499,7 @@ Implementation should conform to the documented engineering standards.
 
 ## Traceability
 
-> *Structural rules: `audit/deterministic/section/engineering/traceability.yaml`*
+> *Structural rules: `audit/deterministic/section/engineering/08-traceability.yaml`*
 
 ### Template
 
@@ -801,7 +801,7 @@ Large documents should be decomposed into smaller focused documents.
 
 ## Engineering Principles
 
-> *Structural rules: `audit/deterministic/section/engineering/guiding_principles.yaml`*
+> *Structural rules: `audit/deterministic/section/engineering/01-guiding_principles.yaml`*
 
 ### Template
 
@@ -868,7 +868,7 @@ Projects may define additional engineering principles appropriate to their domai
 
 ## Technology Selection
 
-> *Structural rules: `audit/deterministic/section/engineering/rationale.yaml`*
+> *Structural rules: `audit/deterministic/section/engineering/02-rationale.yaml`*
 
 ### Template
 
