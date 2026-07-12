@@ -1,0 +1,15 @@
+id: trend_v1
+calculation: trend_comparison
+inputs: [current_score, previous_score]
+tolerance: 0.1
+formula: |
+  if previous_score is null: "baseline"
+  elif current_score - previous_score > tolerance: "Improved"
+  elif previous_score - current_score > tolerance: "Regressed"
+  else: "Unchanged"
+note: >
+  Tolerance prevents float-noise flip-flopping (e.g. 87.0 → 87.04 should not
+  count as Improved). The tolerance applies independently to each scored entity:
+  deterministic_whole, deterministic_section, semantic_whole, semantic_section,
+  and final_score each get their own trend comparison with this same tolerance.
+  The 0.1 value is a placeholder until real scoring runs exist to measure noise.
