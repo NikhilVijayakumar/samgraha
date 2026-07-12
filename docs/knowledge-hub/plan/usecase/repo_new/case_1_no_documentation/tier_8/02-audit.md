@@ -1,0 +1,30 @@
+# Stage 2 — Audit
+
+**Use case:** `repo_new/case_1_no_documentation`
+**Tier:** 8
+**Domains:** readme, product-guide
+
+## Input
+
+Documents produced by stage 1 (`01-generation.md`): `readme.md` and `product-guide.md`.
+
+## Procedure
+
+For each domain, run the real audit files unmodified against the generated document. Produce a report per domain.
+
+### Per-Domain Audit Files
+
+| Domain | Deterministic doc | Deterministic section | Semantic doc | Semantic section |
+|---|---|---|---|---|
+| readme | `audit/deterministic/document/16-readme.yaml` | `audit/deterministic/section/readme/*.yaml` | `audit/semantic/document/16-readme.md` | `audit/semantic/section/readme/*.md` |
+| product-guide | `audit/deterministic/document/17-product-guide.yaml` | `audit/deterministic/section/product-guide/*.yaml` | `audit/semantic/document/17-product-guide.md` | `audit/semantic/section/product-guide/*.md` |
+
+Score via `calculation/summary/final_score.yaml` — 4 equal buckets (25% each).
+
+## Output
+
+A report per domain. This stage never fixes anything.
+
+## Differs From Other Use Cases
+
+No difference — same audit files, same procedure.
