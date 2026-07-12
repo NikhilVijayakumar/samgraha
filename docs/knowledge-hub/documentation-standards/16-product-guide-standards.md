@@ -2,7 +2,7 @@
 
 ## Table of Contents
 
-> *Deterministic rules for this domain: `audit/deterministic/document/product-guide.yaml`*
+> *Deterministic rules for this domain: `audit/deterministic/document/16-product-guide.yaml`*
 
 - [Purpose](#purpose)
   - [Template](#template)
@@ -41,7 +41,7 @@
 
 ## Purpose
 
-> *Structural rules: `audit/deterministic/section/product-guide/03-purpose.yaml`*
+> *Structural rules: `audit/deterministic/section/16-product-guide/03-purpose.yaml`*
 
 ### Template
 
@@ -84,7 +84,7 @@ Product Guide topics explain **how to use the finished product**. They do not de
 
 ## Title
 
-> *Structural rules: `audit/deterministic/section/product-guide/01-title.yaml`*
+> *Structural rules: `audit/deterministic/section/16-product-guide/01-title.yaml`*
 
 ### Template
 
@@ -125,7 +125,7 @@ Product Guide topics explain **how to use the finished product**. They do not de
 
 ## Content
 
-> *Structural rules: `audit/deterministic/section/product-guide/02-body.yaml`*
+> *Structural rules: `audit/deterministic/section/16-product-guide/02-body.yaml`*
 
 ### Template
 
@@ -188,7 +188,7 @@ Product Guide topics explain **how to use the finished product**. They do not de
 
 ## Product Context
 
-> *Structural rules: `audit/deterministic/section/product-guide/product-context.yaml`*
+> *Structural rules: `audit/deterministic/section/16-product-guide/07-product_context.yaml`*
 
 ### Template
 
@@ -237,7 +237,7 @@ Product Guide topics explain **how to use the finished product**. They do not de
 
 ## Public Contract
 
-> *Structural rules: `audit/deterministic/section/product-guide/public-contract.yaml`*
+> *Structural rules: `audit/deterministic/section/16-product-guide/08-public_contract.yaml`*
 
 ### Template
 
@@ -312,7 +312,7 @@ Product Guide topics explain **how to use the finished product**. They do not de
 
 ## Related
 
-> *Structural rules: `audit/deterministic/section/product-guide/06-related.yaml`*
+> *Structural rules: `audit/deterministic/section/16-product-guide/06-related.yaml`*
 
 ### Template
 

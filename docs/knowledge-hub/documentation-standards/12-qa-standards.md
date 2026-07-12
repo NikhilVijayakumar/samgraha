@@ -2,7 +2,7 @@
 
 ## Table of Contents
 
-> *Deterministic rules for this domain: `audit/deterministic/document/qa.yaml`*
+> *Deterministic rules for this domain: `audit/deterministic/document/12-qa.yaml`*
 
 - [Purpose](#purpose)
 - [Plan Scenarios](#plan-scenarios)
@@ -40,7 +40,7 @@
 
 ## Purpose
 
-> *Structural rules: `audit/deterministic/section/qa/05-purpose.yaml`*
+> *Structural rules: `audit/deterministic/section/12-qa/05-purpose.yaml`*
 
 ### Template
 
@@ -159,7 +159,7 @@ Enhancement produces targeted test additions. Scope is limited to what changed.
 
 ## Test Strategy
 
-> *Structural rules: `audit/deterministic/section/qa/01-test_strategy.yaml`*
+> *Structural rules: `audit/deterministic/section/12-qa/01-test_strategy.yaml`*
 
 ### Template
 
@@ -250,7 +250,7 @@ Section headings are case-insensitive. Sections not listed here are stored as `g
 
 ## Unit Testing
 
-> *Structural rules: `audit/deterministic/section/qa/02-unit_testing.yaml`*
+> *Structural rules: `audit/deterministic/section/12-qa/02-unit_testing.yaml`*
 
 ### Template
 
@@ -328,7 +328,7 @@ Unit testing is applicable to all projects. Define coverage targets appropriate 
 
 ## Integration Testing
 
-> *Structural rules: `audit/deterministic/section/qa/03-integration_testing.yaml`*
+> *Structural rules: `audit/deterministic/section/12-qa/03-integration_testing.yaml`*
 
 ### Template
 
@@ -397,7 +397,7 @@ Integration testing is mandatory for projects with multiple components. Map test
 
 ## End-to-End Testing
 
-> *Structural rules: `audit/deterministic/section/qa/e2e_testing.yaml`*
+> *Structural rules: `audit/deterministic/section/12-qa/06-e2e_testing.yaml`*
 
 ### Template
 
@@ -465,7 +465,7 @@ End-to-end testing is conditional — required for applications with user-facing
 
 ## Smoke Testing
 
-> *Structural rules: `audit/deterministic/section/qa/smoke_testing.yaml`*
+> *Structural rules: `audit/deterministic/section/12-qa/07-smoke_testing.yaml`*
 
 ### Template
 
@@ -539,7 +539,7 @@ Smoke testing is conditional — required for deployed applications. Must be fas
 
 ## Load Testing
 
-> *Structural rules: `audit/deterministic/section/qa/load_testing.yaml`*
+> *Structural rules: `audit/deterministic/section/12-qa/08-load_testing.yaml`*
 
 ### Template
 
@@ -621,7 +621,7 @@ Load testing is conditional — required for applications expecting concurrent u
 
 ## Scalability Testing
 
-> *Structural rules: `audit/deterministic/section/qa/scalability_testing.yaml`*
+> *Structural rules: `audit/deterministic/section/12-qa/09-scalability_testing.yaml`*
 
 ### Template
 
@@ -700,7 +700,7 @@ Scalability testing is conditional — required for applications expecting signi
 
 ## Security Testing
 
-> *Structural rules: `audit/deterministic/section/qa/04-security_testing.yaml`*
+> *Structural rules: `audit/deterministic/section/12-qa/04-security_testing.yaml`*
 
 ### Template
 

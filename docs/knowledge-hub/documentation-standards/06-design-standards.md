@@ -1,6 +1,6 @@
 # Design Standard
 
-> *Deterministic rules for this domain: `audit/deterministic/document/design.yaml`*
+> *Deterministic rules for this domain: `audit/deterministic/document/06-design.yaml`*
 
 ## Table of Contents
 - [Purpose](#purpose)
@@ -40,7 +40,7 @@
 
 ## Purpose
 
-> *Structural rules: `audit/deterministic/section/design/04-purpose.yaml`*
+> *Structural rules: `audit/deterministic/section/06-design/04-purpose.yaml`*
 
 ### Template
 
@@ -95,7 +95,7 @@ It does not describe how individual features behave.
 
 ## UX Principles
 
-> *Structural rules: `audit/deterministic/section/design/02-ux_principles.yaml`*
+> *Structural rules: `audit/deterministic/section/06-design/02-ux_principles.yaml`*
 
 ### Template
 
@@ -149,7 +149,7 @@ It does not describe how individual features behave.
 
 ## Accessibility
 
-> *Structural rules: `audit/deterministic/section/design/03-accessibility.yaml`*
+> *Structural rules: `audit/deterministic/section/06-design/03-accessibility.yaml`*
 
 ### Template
 
@@ -205,7 +205,7 @@ It does not describe how individual features behave.
 
 ## Constraints
 
-> *Structural rules: `audit/deterministic/section/design/05-constraints.yaml`*
+> *Structural rules: `audit/deterministic/section/06-design/05-constraints.yaml`*
 
 ### Template
 
@@ -427,7 +427,7 @@ Every Feature Design should align with the Design Documentation.
 
 ## Traceability
 
-> *Structural rules: `audit/deterministic/section/design/06-traceability.yaml`*
+> *Structural rules: `audit/deterministic/section/06-design/06-traceability.yaml`*
 
 ### Template
 
@@ -725,7 +725,7 @@ Large documents should be decomposed into smaller focused documents.
 
 ## Design Principles
 
-> *Structural rules: `audit/deterministic/section/design/01-design_principles.yaml`*
+> *Structural rules: `audit/deterministic/section/06-design/01-design_principles.yaml`*
 
 ### Template
 

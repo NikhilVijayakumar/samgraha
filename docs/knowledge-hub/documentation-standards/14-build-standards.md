@@ -2,7 +2,7 @@
 
 ## Table of Contents
 
-> *Deterministic rules for this domain: `audit/deterministic/document/build.yaml`*
+> *Deterministic rules for this domain: `audit/deterministic/document/14-build.yaml`*
 
 - [Purpose](#purpose)
   - [Template](#template)
@@ -48,7 +48,7 @@
 
 ## Purpose
 
-> *Structural rules: `audit/deterministic/section/build/04-purpose.yaml`*
+> *Structural rules: `audit/deterministic/section/14-build/04-purpose.yaml`*
 
 ### Template
 
@@ -188,7 +188,7 @@ Security Threat produces a targeted security check plan. Scope is limited to the
 
 ## Documentation Quality
 
-> *Structural rules: `audit/deterministic/section/build/01-documentation_quality.yaml`*
+> *Structural rules: `audit/deterministic/section/14-build/01-documentation_quality.yaml`*
 
 ### Template
 
@@ -235,7 +235,7 @@ Documentation quality is the first build stage. If the documentation is invalid,
 
 ## Security Checks
 
-> *Structural rules: `audit/deterministic/section/build/02-security_checks.yaml`*
+> *Structural rules: `audit/deterministic/section/14-build/02-security_checks.yaml`*
 
 ### Template
 
@@ -282,7 +282,7 @@ Security checks are mandatory for all projects. Map checks to Security(03) threa
 
 ## Size Checks
 
-> *Structural rules: `audit/deterministic/section/build/size_checks.yaml`*
+> *Structural rules: `audit/deterministic/section/14-build/05-size_checks.yaml`*
 
 ### Template
 
@@ -329,7 +329,7 @@ Size checks are conditional — required for projects with size constraints (mob
 
 ## ML Artifact Management
 
-> *Structural rules: `audit/deterministic/section/build/ml_artifact_management.yaml`*
+> *Structural rules: `audit/deterministic/section/14-build/06-ml_artifact_management.yaml`*
 
 ### Template
 
@@ -376,7 +376,7 @@ ML artifact management is conditional — required for projects with ML models. 
 
 ## CI/CD Validation
 
-> *Structural rules: `audit/deterministic/section/build/cicd_validation.yaml`*
+> *Structural rules: `audit/deterministic/section/14-build/07-cicd_validation.yaml`*
 
 ### Template
 
@@ -423,7 +423,7 @@ CI/CD validation is conditional — required for projects with automated pipelin
 
 ## Obfuscation & Optimization
 
-> *Structural rules: `audit/deterministic/section/build/obfuscation_optimization.yaml`*
+> *Structural rules: `audit/deterministic/section/14-build/08-obfuscation_optimization.yaml`*
 
 ### Template
 
@@ -470,7 +470,7 @@ Obfuscation and optimization are conditional — apply to release builds, not de
 
 ## Versioning & Naming
 
-> *Structural rules: `audit/deterministic/section/build/03-versioning_naming.yaml`*
+> *Structural rules: `audit/deterministic/section/14-build/03-versioning_naming.yaml`*
 
 ### Template
 

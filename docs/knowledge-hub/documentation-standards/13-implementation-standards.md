@@ -2,7 +2,7 @@
 
 ## Table of Contents
 
-> *Deterministic rules for this domain: `audit/deterministic/document/implementation.yaml`*
+> *Deterministic rules for this domain: `audit/deterministic/document/13-implementation.yaml`*
 
 - [Purpose](#purpose)
 - [Plan Scenarios](#plan-scenarios)
@@ -38,7 +38,7 @@
 
 ## Purpose
 
-> *Structural rules: `audit/deterministic/section/implementation/03-purpose.yaml`*
+> *Structural rules: `audit/deterministic/section/13-implementation/03-purpose.yaml`*
 
 ### Template
 
@@ -170,7 +170,7 @@ Change Request produces a modification plan. Impact analysis and rollback strate
 
 ## Generation Plan
 
-> *Structural rules: `audit/deterministic/section/implementation/01-generation_plan.yaml`*
+> *Structural rules: `audit/deterministic/section/13-implementation/01-generation_plan.yaml`*
 
 ### Template
 
@@ -233,7 +233,7 @@ Every new feature implementation starts with a Generation Plan. The plan verifie
 
 ## Refactor Plan
 
-> *Structural rules: `audit/deterministic/section/implementation/refactor_plan.yaml`*
+> *Structural rules: `audit/deterministic/section/13-implementation/04-refactor_plan.yaml`*
 
 ### Template
 
@@ -290,7 +290,7 @@ Refactoring is not feature generation. It is structural improvement with behavio
 
 ## Change Request Plan
 
-> *Structural rules: `audit/deterministic/section/implementation/change_request_plan.yaml`*
+> *Structural rules: `audit/deterministic/section/13-implementation/05-change_request_plan.yaml`*
 
 ### Template
 
@@ -347,7 +347,7 @@ Change requests modify existing behavior. Every change request must include impa
 
 ## Enhancement Plan
 
-> *Structural rules: `audit/deterministic/section/implementation/enhancement_plan.yaml`*
+> *Structural rules: `audit/deterministic/section/13-implementation/06-enhancement_plan.yaml`*
 
 ### Template
 
@@ -404,7 +404,7 @@ Enhancements improve existing functionality. Every enhancement must define measu
 
 ## Security Fix Plan
 
-> *Structural rules: `audit/deterministic/section/implementation/02-security_fix_plan.yaml`*
+> *Structural rules: `audit/deterministic/section/13-implementation/02-security_fix_plan.yaml`*
 
 ### Template
 

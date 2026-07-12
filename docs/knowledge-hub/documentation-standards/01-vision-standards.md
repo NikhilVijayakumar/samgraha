@@ -1,6 +1,6 @@
 # Vision Standard
 
-> *Deterministic rules for this domain: `audit/deterministic/document/vision.yaml`*
+> *Deterministic rules for this domain: `audit/deterministic/document/01-vision.yaml`*
 
 ## Table of Contents
 - [Purpose](#purpose)
@@ -41,7 +41,7 @@
 
 ## Purpose
 
-> *Structural rules: `audit/deterministic/section/vision/01-purpose.yaml`*
+> *Structural rules: `audit/deterministic/section/01-vision/01-purpose.yaml`*
 
 ### Template
 
@@ -92,7 +92,7 @@ All downstream documentation ultimately derives from the Vision.
 
 ## Vision
 
-> *Structural rules: `audit/deterministic/section/vision/02-vision_statement.yaml`*
+> *Structural rules: `audit/deterministic/section/01-vision/02-vision_statement.yaml`*
 
 ### Template
 
@@ -134,7 +134,7 @@ All downstream documentation ultimately derives from the Vision.
 
 ## Problem
 
-> *Structural rules: `audit/deterministic/section/vision/03-problem.yaml`*
+> *Structural rules: `audit/deterministic/section/01-vision/03-problem.yaml`*
 
 ### Template
 
@@ -177,7 +177,7 @@ All downstream documentation ultimately derives from the Vision.
 
 ## Solution
 
-> *Structural rules: `audit/deterministic/section/vision/04-solution.yaml`*
+> *Structural rules: `audit/deterministic/section/01-vision/04-solution.yaml`*
 
 ### Template
 
@@ -219,7 +219,7 @@ All downstream documentation ultimately derives from the Vision.
 
 ## Target Audience
 
-> *Structural rules: `audit/deterministic/section/vision/05-target_audience.yaml`*
+> *Structural rules: `audit/deterministic/section/01-vision/05-target_audience.yaml`*
 
 ### Template
 
@@ -262,7 +262,7 @@ All downstream documentation ultimately derives from the Vision.
 
 ## Platform Pillars
 
-> *Structural rules: `audit/deterministic/section/vision/06-pillars.yaml`*
+> *Structural rules: `audit/deterministic/section/01-vision/06-pillars.yaml`*
 
 ### Template
 
@@ -317,7 +317,7 @@ All downstream documentation ultimately derives from the Vision.
 
 ## Philosophy
 
-> *Structural rules: `audit/deterministic/section/vision/07-philosophy.yaml`*
+> *Structural rules: `audit/deterministic/section/01-vision/07-philosophy.yaml`*
 
 ### Template
 
@@ -421,7 +421,7 @@ These responsibilities belong to other documentation standards.
 
 ## Success Criteria
 
-> *Structural rules: `audit/deterministic/section/vision/09-success_criteria.yaml`*
+> *Structural rules: `audit/deterministic/section/01-vision/09-success_criteria.yaml`*
 
 ### Template
 
@@ -561,7 +561,7 @@ Every Feature should be traceable to the Vision.
 
 ## Traceability
 
-> *Structural rules: `audit/deterministic/section/vision/10-traceability.yaml`*
+> *Structural rules: `audit/deterministic/section/01-vision/10-traceability.yaml`*
 
 ### Template
 
@@ -786,7 +786,7 @@ These describe values rather than implementation.
 
 ## Guiding Principles
 
-> *Structural rules: `audit/deterministic/section/vision/08-guiding_principles.yaml`*
+> *Structural rules: `audit/deterministic/section/01-vision/08-guiding_principles.yaml`*
 
 ### Template
 

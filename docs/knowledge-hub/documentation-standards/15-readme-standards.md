@@ -2,7 +2,7 @@
 
 ## Table of Contents
 
-> *Deterministic rules for this domain: `audit/deterministic/document/readme.yaml`*
+> *Deterministic rules for this domain: `audit/deterministic/document/15-readme.yaml`*
 
 - [Purpose](#purpose)
 - [Project Name](#project-name)
@@ -50,7 +50,7 @@
 
 ## Purpose
 
-> *Structural rules: `audit/deterministic/section/readme/04-purpose.yaml`*
+> *Structural rules: `audit/deterministic/section/15-readme/04-purpose.yaml`*
 
 ### Template
 
@@ -111,7 +111,7 @@ It does not replace project documentation.
 
 ## Project Name
 
-> *Structural rules: `audit/deterministic/section/readme/01-project_name.yaml`*
+> *Structural rules: `audit/deterministic/section/15-readme/01-project_name.yaml`*
 
 ### Template
 
@@ -159,7 +159,7 @@ It does not replace project documentation.
 
 ## Short Description
 
-> *Structural rules: `audit/deterministic/section/readme/02-short_description.yaml`*
+> *Structural rules: `audit/deterministic/section/15-readme/02-short_description.yaml`*
 
 ### Template
 
@@ -208,7 +208,7 @@ It does not replace project documentation.
 
 ## Overview
 
-> *Structural rules: `audit/deterministic/section/readme/03-overview.yaml`*
+> *Structural rules: `audit/deterministic/section/15-readme/03-overview.yaml`*
 
 ### Template
 
@@ -260,7 +260,7 @@ It does not replace project documentation.
 
 ## Key Capabilities
 
-> *Structural rules: `audit/deterministic/section/readme/05-key_capabilities.yaml`*
+> *Structural rules: `audit/deterministic/section/15-readme/05-key_capabilities.yaml`*
 
 ### Template
 
@@ -317,7 +317,7 @@ It does not replace project documentation.
 
 ## Repository Structure
 
-> *Structural rules: `audit/deterministic/section/readme/06-repository_structure.yaml`*
+> *Structural rules: `audit/deterministic/section/15-readme/06-repository_structure.yaml`*
 
 ### Template
 
@@ -373,7 +373,7 @@ It does not replace project documentation.
 
 ## Documentation Structure
 
-> *Structural rules: `audit/deterministic/section/readme/07-documentation_structure.yaml`*
+> *Structural rules: `audit/deterministic/section/15-readme/07-documentation_structure.yaml`*
 
 ### Template
 
@@ -429,7 +429,7 @@ It does not replace project documentation.
 
 ## Installation
 
-> *Structural rules: `audit/deterministic/section/readme/09-installation.yaml`*
+> *Structural rules: `audit/deterministic/section/15-readme/09-installation.yaml`*
 
 ### Template
 
@@ -498,7 +498,7 @@ It does not replace project documentation.
 
 ## Build
 
-> *Structural rules: `audit/deterministic/section/readme/10-build.yaml`*
+> *Structural rules: `audit/deterministic/section/15-readme/10-build.yaml`*
 
 ### Template
 
@@ -563,7 +563,7 @@ It does not replace project documentation.
 
 ## Usage
 
-> *Structural rules: `audit/deterministic/section/readme/11-usage.yaml`*
+> *Structural rules: `audit/deterministic/section/15-readme/11-usage.yaml`*
 
 ### Template
 
@@ -628,7 +628,7 @@ It does not replace project documentation.
 
 ## Getting Started
 
-> *Structural rules: `audit/deterministic/section/readme/08-getting_started.yaml`*
+> *Structural rules: `audit/deterministic/section/15-readme/08-getting_started.yaml`*
 
 ### Template
 
@@ -695,7 +695,7 @@ It does not replace project documentation.
 
 ## Configuration
 
-> *Structural rules: `audit/deterministic/section/readme/configuration.yaml`*
+> *Structural rules: `audit/deterministic/section/15-readme/14-configuration.yaml`*
 
 ### Template
 
@@ -761,7 +761,7 @@ It does not replace project documentation.
 
 ## Development
 
-> *Structural rules: `audit/deterministic/section/readme/12-development.yaml`*
+> *Structural rules: `audit/deterministic/section/15-readme/12-development.yaml`*
 
 ### Template
 
@@ -835,7 +835,7 @@ It does not replace project documentation.
 
 ## Contributing
 
-> *Structural rules: `audit/deterministic/section/readme/13-contributing.yaml`*
+> *Structural rules: `audit/deterministic/section/15-readme/13-contributing.yaml`*
 
 ### Template
 
@@ -908,7 +908,7 @@ It does not replace project documentation.
 
 ## License
 
-> *Structural rules: `audit/deterministic/section/readme/license.yaml`*
+> *Structural rules: `audit/deterministic/section/15-readme/15-license.yaml`*
 
 ### Template
 

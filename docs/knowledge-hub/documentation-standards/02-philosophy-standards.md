@@ -1,6 +1,6 @@
 # Philosophy Standard
 
-> *Deterministic rules for this domain: `audit/deterministic/document/philosophy.yaml`*
+> *Deterministic rules for this domain: `audit/deterministic/document/02-philosophy.yaml`*
 
 ## Table of Contents
 - [Purpose](#purpose)
@@ -35,7 +35,7 @@
 
 ## Purpose
 
-> *Structural rules: `audit/deterministic/section/philosophy/04-purpose.yaml`*
+> *Structural rules: `audit/deterministic/section/02-philosophy/04-purpose.yaml`*
 
 ### Template
 
@@ -94,7 +94,7 @@ It shapes the judgment that produces them.
 
 ## Principles
 
-> *Structural rules: `audit/deterministic/section/philosophy/01-guiding_principles.yaml`*
+> *Structural rules: `audit/deterministic/section/02-philosophy/01-guiding_principles.yaml`*
 
 ### Template
 
@@ -159,7 +159,7 @@ It shapes the judgment that produces them.
 
 ## Values
 
-> *Structural rules: `audit/deterministic/section/philosophy/02-values.yaml`*
+> *Structural rules: `audit/deterministic/section/02-philosophy/02-values.yaml`*
 
 ### Template
 
@@ -224,7 +224,7 @@ It shapes the judgment that produces them.
 
 ## Trade-offs
 
-> *Structural rules: `audit/deterministic/section/philosophy/03-tradeoffs.yaml`*
+> *Structural rules: `audit/deterministic/section/02-philosophy/03-tradeoffs.yaml`*
 
 ### Template
 

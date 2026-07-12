@@ -1,6 +1,6 @@
 # External Context Standard
 
-> *Deterministic rules for this domain: `audit/deterministic/document/external-context.yaml`*
+> *Deterministic rules for this domain: `audit/deterministic/document/08-external-context.yaml`*
 
 ## Table of Contents
 - [Purpose](#purpose)
@@ -50,7 +50,7 @@
 
 ## Purpose
 
-> *Structural rules: `audit/deterministic/section/external-context/01-purpose.yaml`*
+> *Structural rules: `audit/deterministic/section/08-external-context/01-purpose.yaml`*
 
 ### Template
 
@@ -104,7 +104,7 @@ Projects may contain zero, one, or many External Context documents depending on 
 
 ## Integration Contract
 
-> *Structural rules: `audit/deterministic/section/external-context/02-integration_contract.yaml`*
+> *Structural rules: `audit/deterministic/section/08-external-context/02-integration_contract.yaml`*
 
 ### Template
 
@@ -171,7 +171,7 @@ Projects may contain zero, one, or many External Context documents depending on 
 
 ## Constraints
 
-> *Structural rules: `audit/deterministic/section/external-context/03-constraints.yaml`*
+> *Structural rules: `audit/deterministic/section/08-external-context/03-constraints.yaml`*
 
 ### Template
 
@@ -224,7 +224,7 @@ Projects may contain zero, one, or many External Context documents depending on 
 
 ## Dependencies
 
-> *Structural rules: `audit/deterministic/section/external-context/04-dependencies.yaml`*
+> *Structural rules: `audit/deterministic/section/08-external-context/04-dependencies.yaml`*
 
 ### Template
 
@@ -422,7 +422,7 @@ Any document may reference External Context rather than duplicating external kno
 
 ## Traceability
 
-> *Structural rules: `audit/deterministic/section/external-context/05-traceability.yaml`*
+> *Structural rules: `audit/deterministic/section/08-external-context/05-traceability.yaml`*
 
 ### Template
 

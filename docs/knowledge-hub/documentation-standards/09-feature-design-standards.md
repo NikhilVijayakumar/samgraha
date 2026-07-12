@@ -2,7 +2,7 @@
 
 ## Table of Contents
 
-> *Deterministic rules for this domain: `audit/deterministic/document/feature-design.yaml`*
+> *Deterministic rules for this domain: `audit/deterministic/document/09-feature-design.yaml`*
 
 - [Purpose](#purpose)
 - [User Experience](#user-experience)
@@ -42,7 +42,7 @@
 
 ## Purpose
 
-> *Structural rules: `audit/deterministic/section/feature-design/04-purpose.yaml`*
+> *Structural rules: `audit/deterministic/section/09-feature-design/04-purpose.yaml`*
 
 ### Template
 
@@ -98,7 +98,7 @@ It does not define implementation, architecture, or engineering decisions.
 
 ## User Experience
 
-> *Structural rules: `audit/deterministic/section/feature-design/01-user_experience.yaml`*
+> *Structural rules: `audit/deterministic/section/09-feature-design/01-user_experience.yaml`*
 
 ### Template
 
@@ -190,7 +190,7 @@ It does not define implementation, architecture, or engineering decisions.
 
 ## Workflow
 
-> *Structural rules: `audit/deterministic/section/feature-design/02-workflow.yaml`*
+> *Structural rules: `audit/deterministic/section/09-feature-design/02-workflow.yaml`*
 
 ### Template
 
@@ -268,7 +268,7 @@ It does not define implementation, architecture, or engineering decisions.
 
 ## States
 
-> *Structural rules: `audit/deterministic/section/feature-design/03-states.yaml`*
+> *Structural rules: `audit/deterministic/section/09-feature-design/03-states.yaml`*
 
 ### Template
 
@@ -352,7 +352,7 @@ It does not define implementation, architecture, or engineering decisions.
 
 ## Constraints
 
-> *Structural rules: `audit/deterministic/section/feature-design/06-constraints.yaml`*
+> *Structural rules: `audit/deterministic/section/09-feature-design/06-constraints.yaml`*
 
 ### Template
 
@@ -445,7 +445,7 @@ Feature Design aims to:
 
 ## Non-Goals
 
-> *Structural rules: `audit/deterministic/section/feature-design/05-non_goals.yaml`*
+> *Structural rules: `audit/deterministic/section/09-feature-design/05-non_goals.yaml`*
 
 ### Template
 
@@ -638,7 +638,7 @@ Implementation should realize the documented feature design.
 
 ## Traceability
 
-> *Structural rules: `audit/deterministic/section/feature-design/07-traceability.yaml`*
+> *Structural rules: `audit/deterministic/section/09-feature-design/07-traceability.yaml`*
 
 ### Template
 
