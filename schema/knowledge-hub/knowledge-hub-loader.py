@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """Knowledge Hub Loader — ingests docs/knowledge-hub/ files into schema rows.
 
+The schema (this script's own directory, schema/knowledge-hub/) is a
+sibling of docs/knowledge-hub/, not nested inside it — kept separate so
+docs/knowledge-hub/ has no samgraha-specific dependency, only document
+system content.
+
 Usage:
-    python scripts/knowledge-hub-loader.py [--db PATH] [--system NAME]
-        [--knowledge-hub PATH] [--dry-run]
+    python schema/knowledge-hub/knowledge-hub-loader.py [--db PATH] [--system NAME]
+        [--knowledge-hub PATH] [--schema PATH] [--dry-run]
 
 Runs all passes in order inside a single transaction. Idempotent — re-running
 updates existing rows via upsert, never duplicates.
@@ -1237,6 +1242,10 @@ def parse_args() -> argparse.Namespace:
         help="Path to docs/knowledge-hub/ (default: auto-detect relative to repo root)",
     )
     parser.add_argument(
+        "--schema", default=None,
+        help="Path to the schema/*.sql directory (default: this script's own directory)",
+    )
+    parser.add_argument(
         "--dry-run", action="store_true",
         help="Parse and validate without writing to DB",
     )
@@ -1267,7 +1276,10 @@ def main() -> int:
     args = parse_args()
     script_path = Path(__file__).resolve()
     kh_dir = Path(args.knowledge_hub) if args.knowledge_hub else find_knowledge_hub(script_path)
-    schema_dir = kh_dir / "schema"
+    # schema/ is a sibling of docs/knowledge-hub/, not nested inside it —
+    # this script lives inside the schema directory itself, so that's the
+    # default; --schema overrides for a different layout.
+    schema_dir = Path(args.schema) if args.schema else script_path.parent
 
     if not schema_dir.is_dir():
         print(f"Error: schema directory not found at {schema_dir}", file=sys.stderr)

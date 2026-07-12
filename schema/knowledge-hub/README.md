@@ -4,9 +4,13 @@ Generic, standard-agnostic storage for registering document systems and
 running the audit engine against them. Fixed forever at 22 tables — a new
 domain, standard, or whole system is rows, never a migration.
 
-Scope is `docs/knowledge-hub` only — deciding which system a given repo
-uses is samgraha's own concern, not this schema's (no `repo_registrations`
-table here for that reason).
+This directory (`schema/knowledge-hub/`) lives outside `docs/knowledge-hub/`
+deliberately — it's a samgraha-specific artifact (the schema + the loader
+script, `knowledge-hub-loader.py`, that populates it), kept separate so
+`docs/knowledge-hub/` itself holds only document-system content with no
+samgraha dependency. Deciding which system a given repo uses is samgraha's
+own concern too, not this schema's (no `repo_registrations` table here for
+that reason).
 
 ## Design rules
 
@@ -36,7 +40,7 @@ table here for that reason).
 
 | # | Table | Purpose |
 |---|-------|---------|
-| 01 | `systems` | Outer use-case / tenant (e.g. "samgraha-documentation", "research-paper-publishing"), with the single `is_default` flag |
+| 01 | `systems` | Outer use-case / tenant (e.g. "samgraha-documentation"), with the single `is_default` flag |
 | 02 | `standards` | Pluggable rule sets scoped to a system |
 | 03 | `domains` | Canonical domain catalog per standard, with tier assignment |
 | 04 | `relationship_types` | Closed, per-standard vocabulary of domain-graph edge types |
@@ -84,10 +88,16 @@ script to write — e.g. a `samgraha-documentation` loader reads
 `templates/`, and `plan/` from this repo and inserts the matching rows.
 Nothing in this schema depends on those directories existing.
 
-See `docs/proposal.md` for the full pass-by-pass mapping of
-`samgraha-documentation`'s files to these tables.
+`knowledge-hub-loader.py`, in this same directory, is the
+`samgraha-documentation` loader — see `docs/proposal.md` (repo root) for
+its full pass-by-pass mapping of `docs/knowledge-hub/` files to these
+tables. Run it with `python schema/knowledge-hub/knowledge-hub-loader.py`
+from the repo root; defaults auto-detect both this schema directory (its
+own location) and `docs/knowledge-hub/` (walking up from the script).
 
 ## See also
+
+All paths below are relative to `docs/knowledge-hub/`, not this directory:
 
 - `00-domain-relationships.md` — the human-readable source `domains` +
   `relationship_types` + `domain_relationships` transcribe for the
