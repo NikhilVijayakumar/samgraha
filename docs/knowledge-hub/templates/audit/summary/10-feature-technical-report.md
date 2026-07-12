@@ -13,11 +13,14 @@
 **{{ final_score }} / 100** — **{{ rating }}**
 {% if previous_score %}({{ '↑ Improved' if final_score > previous_score else '↓ Regressed' if final_score < previous_score else '→ Unchanged' }} vs. previous run){% else %}(baseline — first audit of this document){% endif %}
 
+*Trend computed per `calculation: trend_v1`.*
+
 ```
 final_score = (deterministic_whole/100 × 25)
             + (deterministic_section/100 × 25)
             + (semantic_whole/100 × 25)
             + (semantic_section/100 × 25)
+# calculation: final_score_v1
 ```
 
 | Report | Score | Previous | Trend | Weight | Contribution |
@@ -134,6 +137,8 @@ Full detail, including per-rule/per-criterion evidence for every row above: see 
 | 80–89 | Good | Solid foundation, a few issues to resolve |
 | 70–79 | Acceptable | Core present but gaps exist |
 | Below 70 | Needs Improvement | Significant gaps, not ready |
+
+*Ratings computed per `calculation: score_bands_v1`.*
 
 ---
 

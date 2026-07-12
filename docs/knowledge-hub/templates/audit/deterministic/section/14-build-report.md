@@ -17,6 +17,7 @@
 ```
 overall = average of the 8 section scores below
 section_score = 100 × (Σ weight of passed rules in that section) / (Σ weight of all rules in that section)
+# calculation: deterministic_section_v1
 ```
 
 ### Score History

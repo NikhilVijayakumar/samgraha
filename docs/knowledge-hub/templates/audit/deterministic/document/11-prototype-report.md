@@ -15,6 +15,7 @@
 
 ```
 score = 100 × (Σ weight of passed rules) / (Σ weight of all rules)
+# calculation: deterministic_document_v1
       = 100 × {{ passed_weight }} / 4.5
 ```
 

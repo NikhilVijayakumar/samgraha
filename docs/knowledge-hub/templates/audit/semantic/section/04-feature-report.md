@@ -17,6 +17,7 @@
 ```
 overall = average of the section scores below, for sections actually present in the document
 section_score = sum of passed criterion points in that section, capped at 100
+# calculation: semantic_section_v1
 ```
 
 ### Score History

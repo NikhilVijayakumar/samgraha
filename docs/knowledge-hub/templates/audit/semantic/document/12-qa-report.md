@@ -16,6 +16,7 @@
 
 ```
 score = sum of passed criterion scores, capped at 100
+# calculation: semantic_document_v1
 ```
 
 ### Score History
