@@ -31,11 +31,17 @@ All sections must cohere as a single decision-making posture. Principles must be
 **Template:**
 
 ```markdown
-This document defines the standard for [System Name] documentation within the engineering documentation ecosystem.
+## Purpose
 
-[One paragraph explaining what this documentation type does and why it exists.]
+> **Philosophical purpose:** [1-2 sentences: what decision-making philosophy guides this team, what values it establishes]
 
-[One paragraph distinguishing it from related standards — what it covers that others do not.]
+> **Distinction from Vision:**
+> - **Vision says:** [why the product exists — one sentence]
+> - **Philosophy says:** [how the team chooses to think and decide — one sentence]
+
+> **Scope boundaries:**
+> - **In scope:** [principles, values, trade-offs this document defines]
+> - **Out of scope:** [what this document does not define — features, architecture, engineering decisions]
 ```
 
 > **Generation note:** When generating for a specific system, fill this template with *that system's* philosophy purpose: what Philosophy establishes and how it differs from Vision. The meta-level "This document defines the standard for Philosophy..." language belongs in the standard itself, not in a generated document.
