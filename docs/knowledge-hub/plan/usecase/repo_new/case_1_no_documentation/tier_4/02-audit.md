@@ -12,14 +12,11 @@ Document produced by stage 1 (`01-generation.md`): `prototype.md`.
 
 Run the real audit files unmodified against the generated document.
 
-### Audit Files
+### Per-Domain Audit Files
 
-| Audit type | File |
-|---|---|
-| Deterministic document | `audit/deterministic/document/11-prototype.yaml` |
-| Deterministic section | `audit/deterministic/section/11-prototype/*.yaml` |
-| Semantic document | `audit/semantic/document/11-prototype.md` |
-| Semantic section | `audit/semantic/section/11-prototype/*.md` |
+| Domain | Scripts (check-name) | Deterministic doc | Deterministic section | Semantic doc | Semantic section |
+|---|---|---|---|---|---|
+| prototype | `mock-api-runs` | `audit/deterministic/document/11-prototype.yaml` | `audit/deterministic/section/11-prototype/*.yaml` | `audit/semantic/document/11-prototype.md` | `audit/semantic/section/11-prototype/*.md` |
 
 Score via `calculation/summary/final_score.yaml` — 4 equal buckets (25% each).
 

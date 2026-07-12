@@ -14,10 +14,10 @@ For each domain, run the real audit files unmodified. Produce a report per domai
 
 ### Per-Domain Audit Files
 
-| Domain | Deterministic doc | Deterministic section | Semantic doc | Semantic section |
-|---|---|---|---|---|
-| feature-design | `audit/deterministic/document/09-feature-design.yaml` | `audit/deterministic/section/09-feature-design/*.yaml` | `audit/semantic/document/09-feature-design.md` | `audit/semantic/section/09-feature-design/*.md` |
-| feature-technical | `audit/deterministic/document/10-feature-technical.yaml` | `audit/deterministic/section/10-feature-technical/*.yaml` | `audit/semantic/document/10-feature-technical.md` | `audit/semantic/section/10-feature-technical/*.md` |
+| Domain | Scripts (check-name) | Deterministic doc | Deterministic section | Semantic doc | Semantic section |
+|---|---|---|---|---|---|
+| feature-design |  | `audit/deterministic/document/09-feature-design.yaml` | `audit/deterministic/section/09-feature-design/*.yaml` | `audit/semantic/document/09-feature-design.md` | `audit/semantic/section/09-feature-design/*.md` |
+| feature-technical | `integration-points-exist` | `audit/deterministic/document/10-feature-technical.yaml` | `audit/deterministic/section/10-feature-technical/*.yaml` | `audit/semantic/document/10-feature-technical.md` | `audit/semantic/section/10-feature-technical/*.md` |
 
 Score via `calculation/summary/final_score.yaml` — 4 equal buckets (25% each).
 

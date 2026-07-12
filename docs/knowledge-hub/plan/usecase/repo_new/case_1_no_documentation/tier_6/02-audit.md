@@ -12,14 +12,11 @@ Document produced by stage 1 (`01-generation.md`): `qa.md`.
 
 Run the real audit files unmodified against the generated document.
 
-### Audit Files
+### Per-Domain Audit Files
 
-| Audit type | File |
-|---|---|
-| Deterministic document | `audit/deterministic/document/12-qa.yaml` |
-| Deterministic section | `audit/deterministic/section/12-qa/*.yaml` |
-| Semantic document | `audit/semantic/document/12-qa.md` |
-| Semantic section | `audit/semantic/section/12-qa/*.md` |
+| Domain | Scripts (check-name) | Deterministic doc | Deterministic section | Semantic doc | Semantic section |
+|---|---|---|---|---|---|
+| qa | `unit-test-coverage` | `audit/deterministic/document/12-qa.yaml` | `audit/deterministic/section/12-qa/*.yaml` | `audit/semantic/document/12-qa.md` | `audit/semantic/section/12-qa/*.md` |
 
 Score via `calculation/summary/final_score.yaml` — 4 equal buckets (25% each).
 

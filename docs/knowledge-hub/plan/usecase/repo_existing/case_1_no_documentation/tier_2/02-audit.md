@@ -14,14 +14,14 @@ For each domain, run the real audit files unmodified against the generated docum
 
 ### Per-Domain Audit Files
 
-| Domain | Deterministic doc | Deterministic section | Semantic doc | Semantic section |
-|---|---|---|---|---|
-| security | `audit/deterministic/document/03-security.yaml` | `audit/deterministic/section/03-security/*.yaml` | `audit/semantic/document/03-security.md` | `audit/semantic/section/03-security/*.md` |
-| feature | `audit/deterministic/document/04-feature.yaml` | `audit/deterministic/section/04-feature/*.yaml` | `audit/semantic/document/04-feature.md` | `audit/semantic/section/04-feature/*.md` |
-| architecture | `audit/deterministic/document/05-architecture.yaml` | `audit/deterministic/section/05-architecture/*.yaml` | `audit/semantic/document/05-architecture.md` | `audit/semantic/section/05-architecture/*.md` |
-| design | `audit/deterministic/document/06-design.yaml` | `audit/deterministic/section/06-design/*.yaml` | `audit/semantic/document/06-design.md` | `audit/semantic/section/06-design/*.md` |
-| engineering | `audit/deterministic/document/07-engineering.yaml` | `audit/deterministic/section/07-engineering/*.yaml` | `audit/semantic/document/07-engineering.md` | `audit/semantic/section/07-engineering/*.md` |
-| external-context | `audit/deterministic/document/08-external-context.yaml` | `audit/deterministic/section/08-external-context/*.yaml` | `audit/semantic/document/08-external-context.md` | `audit/semantic/section/08-external-context/*.md` |
+| Domain | Scripts (check-name) | Deterministic doc | Deterministic section | Semantic doc | Semantic section |
+|---|---|---|---|---|---|
+| security | `secret-scan`, `dependency-vuln-scan` | `audit/deterministic/document/03-security.yaml` | `audit/deterministic/section/03-security/*.yaml` | `audit/semantic/document/03-security.md` | `audit/semantic/section/03-security/*.md` |
+| feature |  | `audit/deterministic/document/04-feature.yaml` | `audit/deterministic/section/04-feature/*.yaml` | `audit/semantic/document/04-feature.md` | `audit/semantic/section/04-feature/*.md` |
+| architecture | `module-boundary-diff` | `audit/deterministic/document/05-architecture.yaml` | `audit/deterministic/section/05-architecture/*.yaml` | `audit/semantic/document/05-architecture.md` | `audit/semantic/section/05-architecture/*.md` |
+| design | `design-tokens-in-implementation` | `audit/deterministic/document/06-design.yaml` | `audit/deterministic/section/06-design/*.yaml` | `audit/semantic/document/06-design.md` | `audit/semantic/section/06-design/*.md` |
+| engineering | `lint-standards` | `audit/deterministic/document/07-engineering.yaml` | `audit/deterministic/section/07-engineering/*.yaml` | `audit/semantic/document/07-engineering.md` | `audit/semantic/section/07-engineering/*.md` |
+| external-context | `dependency-reachable` | `audit/deterministic/document/08-external-context.yaml` | `audit/deterministic/section/08-external-context/*.yaml` | `audit/semantic/document/08-external-context.md` | `audit/semantic/section/08-external-context/*.md` |
 
 Score via `calculation/summary/final_score.yaml` — 4 equal buckets (25% each).
 

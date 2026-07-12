@@ -14,14 +14,14 @@ Run the real audit files unmodified against each document.
 
 ### Per-Domain Audit Files
 
-| Domain | Deterministic doc | Semantic doc |
-|---|---|---|
-| security | `audit/deterministic/document/03-security.yaml` | `audit/semantic/document/03-security.md` |
-| feature | `audit/deterministic/document/04-feature.yaml` | `audit/semantic/document/04-feature.md` |
-| architecture | `audit/deterministic/document/05-architecture.yaml` | `audit/semantic/document/05-architecture.md` |
-| design | `audit/deterministic/document/06-design.yaml` | `audit/semantic/document/06-design.md` |
-| engineering | `audit/deterministic/document/07-engineering.yaml` | `audit/semantic/document/07-engineering.md` |
-| external-context | `audit/deterministic/document/08-external-context.yaml` | `audit/semantic/document/08-external-context.md` |
+| Domain | Scripts (check-name) | Deterministic doc | Semantic doc |
+|---|---|---|---|
+| security | `secret-scan`, `dependency-vuln-scan` | `audit/deterministic/document/03-security.yaml` | `audit/semantic/document/03-security.md` |
+| feature |  | `audit/deterministic/document/04-feature.yaml` | `audit/semantic/document/04-feature.md` |
+| architecture | `module-boundary-diff` | `audit/deterministic/document/05-architecture.yaml` | `audit/semantic/document/05-architecture.md` |
+| design | `design-tokens-in-implementation` | `audit/deterministic/document/06-design.yaml` | `audit/semantic/document/06-design.md` |
+| engineering | `lint-standards` | `audit/deterministic/document/07-engineering.yaml` | `audit/semantic/document/07-engineering.md` |
+| external-context | `dependency-reachable` | `audit/deterministic/document/08-external-context.yaml` | `audit/semantic/document/08-external-context.md` |
 
 Plus section-level audits for each. Score via `calculation/summary/final_score.yaml` — 4 equal buckets.
 

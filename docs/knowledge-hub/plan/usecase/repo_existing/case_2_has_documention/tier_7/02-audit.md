@@ -12,12 +12,11 @@ Document produced by stage 1 (`01-generation.md`).
 
 Run the real audit files unmodified.
 
-### Audit Files
+### Per-Domain Audit Files
 
-| Audit type | File |
-|---|---|
-| Deterministic document | `audit/deterministic/document/14-build.yaml` |
-| Semantic document | `audit/semantic/document/14-build.md` |
+| Domain | Scripts (check-name) | Deterministic doc | Semantic doc |
+|---|---|---|---|
+| build | `build-succeeds`, `artifact-exists` | `audit/deterministic/document/14-build.yaml` | `audit/semantic/document/14-build.md` |
 
 Plus section-level audits. Score via `calculation/summary/final_score.yaml` — 4 equal buckets.
 

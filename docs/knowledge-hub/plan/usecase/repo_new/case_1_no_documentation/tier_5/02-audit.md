@@ -12,14 +12,11 @@ Document produced by stage 1 (`01-generation.md`): `implementation.md`.
 
 Run the real audit files unmodified against the generated document.
 
-### Audit Files
+### Per-Domain Audit Files
 
-| Audit type | File |
-|---|---|
-| Deterministic document | `audit/deterministic/document/13-implementation.yaml` |
-| Deterministic section | `audit/deterministic/section/13-implementation/*.yaml` |
-| Semantic document | `audit/semantic/document/13-implementation.md` |
-| Semantic section | `audit/semantic/section/13-implementation/*.md` |
+| Domain | Scripts (check-name) | Deterministic doc | Deterministic section | Semantic doc | Semantic section |
+|---|---|---|---|---|---|
+| implementation | `folder-structure`, `dependency-manifest`, `lint-pass` | `audit/deterministic/document/13-implementation.yaml` | `audit/deterministic/section/13-implementation/*.yaml` | `audit/semantic/document/13-implementation.md` | `audit/semantic/section/13-implementation/*.md` |
 
 Score via `calculation/summary/final_score.yaml` — 4 equal buckets (25% each).
 

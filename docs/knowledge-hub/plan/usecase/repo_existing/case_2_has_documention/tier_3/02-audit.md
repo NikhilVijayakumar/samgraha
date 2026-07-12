@@ -14,10 +14,10 @@ Run the real audit files unmodified. Produce a report per domain.
 
 ### Per-Domain Audit Files
 
-| Domain | Deterministic doc | Semantic doc |
-|---|---|---|
-| feature-design | `audit/deterministic/document/09-feature-design.yaml` | `audit/semantic/document/09-feature-design.md` |
-| feature-technical | `audit/deterministic/document/10-feature-technical.yaml` | `audit/semantic/document/10-feature-technical.md` |
+| Domain | Scripts (check-name) | Deterministic doc | Semantic doc |
+|---|---|---|---|
+| feature-design |  | `audit/deterministic/document/09-feature-design.yaml` | `audit/semantic/document/09-feature-design.md` |
+| feature-technical | `integration-points-exist` | `audit/deterministic/document/10-feature-technical.yaml` | `audit/semantic/document/10-feature-technical.md` |
 
 Plus section-level audits. Score via `calculation/summary/final_score.yaml` — 4 equal buckets.
 

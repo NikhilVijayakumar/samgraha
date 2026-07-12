@@ -14,12 +14,10 @@ For each domain, run the real audit files unmodified against the document. Produ
 
 ### Per-Domain Audit Files
 
-| Audit type | Vision | Philosophy |
-|---|---|---|
-| Deterministic document | `audit/deterministic/document/01-vision.yaml` | `audit/deterministic/document/02-philosophy.yaml` |
-| Deterministic section | `audit/deterministic/section/01-vision/*.yaml` | `audit/deterministic/section/02-philosophy/*.yaml` |
-| Semantic document | `audit/semantic/document/01-vision.md` | `audit/semantic/document/02-philosophy.md` |
-| Semantic section | `audit/semantic/section/01-vision/*.md` | `audit/semantic/section/02-philosophy/*.md` |
+| Domain | Scripts (check-name) | Deterministic doc | Deterministic section | Semantic doc | Semantic section |
+|---|---|---|---|---|---|
+| vision |  | `audit/deterministic/document/01-vision.yaml` | `audit/deterministic/section/01-vision/*.yaml` | `audit/semantic/document/01-vision.md` | `audit/semantic/section/01-vision/*.md` |
+| philosophy |  | `audit/deterministic/document/02-philosophy.yaml` | `audit/deterministic/section/02-philosophy/*.yaml` | `audit/semantic/document/02-philosophy.md` | `audit/semantic/section/02-philosophy/*.md` |
 
 Score via `calculation/summary/final_score.yaml` — 4 equal buckets (25% each).
 
