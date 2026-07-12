@@ -1,6 +1,5 @@
-use crate::builtin;
 use crate::loader::StandardLoader;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use schemas::standard::{AuditRuleDef, StandardDeclaration, StandardDefinition};
 use std::collections::HashMap;
 use std::path::Path;
@@ -17,19 +16,40 @@ impl StandardRegistry {
         }
     }
 
+    /// Empty registry — all standards now come from the knowledge-hub DB
+    /// via `from_standards_db_and_overrides()`. Kept for backward compat
+    /// with the `Default` trait and call sites that need an empty registry.
     pub fn with_builtins() -> Self {
-        let mut registry = Self::new();
-        for std in builtin::all_builtin_standards() {
-            registry.register(std);
-        }
-        registry
+        Self::new()
     }
 
-    /// Built-ins, then any repo-supplied `StandardDefinition` JSON/TOML
-    /// files under `{repo_root}/.samgraha/standards/` layered on top —
-    /// a repo-supplied standard overrides a built-in of the same
-    /// `id@version` (register() always overwrites); anything new is added
-    /// alongside. Missing directory behaves exactly like `with_builtins()`.
+    /// Open a knowledge-hub SQLite database at `{repo_root}/.samgraha/knowledge.db`
+    /// and project it onto `StandardDefinition` structs via `db_reader`, then
+    /// layer any repo-supplied `StandardDefinition` JSON/TOML files from
+    /// `{repo_root}/.samgraha/standards/` on top.
+    ///
+    /// If the DB file does not exist, returns an empty registry with only
+    /// repo-supplied overrides (if any).
+    pub fn from_standards_db_and_overrides(repo_root: &Path) -> Result<Self> {
+        let db_path = repo_root.join(".samgraha").join("knowledge.db");
+        if db_path.exists() {
+            let conn = rusqlite::Connection::open(&db_path)
+                .with_context(|| format!("Failed to open knowledge-hub DB at {}", db_path.display()))?;
+            let mut registry = crate::db_reader::from_standards_db(&conn)?;
+            let custom = StandardLoader::discover_from_path(&repo_root.join(".samgraha").join("standards"))?;
+            for std in custom {
+                registry.register(std);
+            }
+            Ok(registry)
+        } else {
+            tracing::info!(
+                "No knowledge-hub DB at {}; no standards loaded",
+                db_path.display()
+            );
+            Self::with_builtins_and_overrides(repo_root)
+        }
+    }
+
     pub fn with_builtins_and_overrides(repo_root: &Path) -> Result<Self> {
         let mut registry = Self::with_builtins();
         let custom = StandardLoader::discover_from_path(&repo_root.join(".samgraha").join("standards"))?;
@@ -95,28 +115,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn with_builtins_and_overrides_returns_builtins_when_no_custom_dir() {
+    fn with_builtins_and_overrides_returns_empty_when_no_custom_dir() {
         let repo_root = std::env::temp_dir().join(format!(
             "samgraha-standards-test-empty-{}",
             std::process::id()
         ));
         let registry = StandardRegistry::with_builtins_and_overrides(&repo_root).unwrap();
-        assert!(registry.has_standard("architecture"));
-        assert_eq!(
-            registry.get("architecture", "1.0.0").unwrap().required_sections.len(),
-            StandardRegistry::with_builtins()
-                .get("architecture", "1.0.0")
-                .unwrap()
-                .required_sections
-                .len()
-        );
+        // No builtins anymore — registry is empty without a DB or custom overrides.
+        assert!(registry.all().is_empty());
     }
 
     #[test]
-    fn with_builtins_and_overrides_lets_repo_override_a_builtin() {
-        // Regression: StandardRegistry was always with_builtins() — a repo
-        // had no way to supply its own StandardDefinition even though
-        // StandardLoader::discover_from_path existed for exactly this.
+    fn with_builtins_and_overrides_lets_repo_supply_custom_standard() {
         let repo_root = std::env::temp_dir().join(format!(
             "samgraha-standards-test-override-{}",
             std::process::id()
@@ -141,11 +151,8 @@ mod tests {
         .unwrap();
 
         let registry = StandardRegistry::with_builtins_and_overrides(&repo_root).unwrap();
-        let overridden = registry.get("architecture", "1.0.0").unwrap();
-        assert_eq!(overridden.name, "Custom Architecture Standard");
-        assert!(overridden.required_sections.is_empty());
-        // Unrelated builtins remain untouched.
-        assert!(registry.has_standard("feature"));
+        let custom = registry.get("architecture", "1.0.0").unwrap();
+        assert_eq!(custom.name, "Custom Architecture Standard");
 
         std::fs::remove_dir_all(&repo_root).ok();
     }

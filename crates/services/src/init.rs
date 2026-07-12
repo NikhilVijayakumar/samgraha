@@ -30,13 +30,12 @@ pub fn init_repository(root: &Path, force: bool) -> Result<InitResult> {
     template.repository.id = Some(dir_name.clone());
     template.repository.name = Some(dir_name);
     template.repository.uuid = Some(uuid::Uuid::new_v4());
-    // Declare every builtin standard by default; repos that don't use one
+    // Declare every known standard domain by default; repos that don't use one
     // (e.g. no `prototype` docs) add it to `domain_exclusion` instead of
     // deleting it here, so the full catalog stays visible in the toml.
-    template.repository.documentation.domain = standards::all_builtin_standards()
-        .into_iter()
-        .map(|s| s.domain)
-        .collect();
+    // Phase 2: built-in definitions removed; domain list will come from the
+    // knowledge-hub DB once `init` is DB-aware (Phase 3).
+    template.repository.documentation.domain = Vec::new();
 
     let (config, status) = if config_path.exists() && !force {
         let existing = std::fs::read_to_string(&config_path)

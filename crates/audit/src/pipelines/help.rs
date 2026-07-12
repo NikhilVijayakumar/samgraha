@@ -72,8 +72,9 @@ impl Pipeline for HelpPipeline {
             Some("docs/raw/product-guide/configuration/".into()),
         ), &mut findings);
 
-        let standard_domains: Vec<String> = standards::builtin::all_builtin_standards()
-            .into_iter().map(|s| s.domain).collect();
+        // Phase 2: built-in definitions removed; domain list will come from
+        // the knowledge-hub DB once pipelines are DB-aware (Phase 3).
+        let standard_domains: Vec<String> = Vec::new();
         let missing_domains = missing_by_stem(&files, "documentation-guide", &standard_domains.iter().map(String::as_str).collect::<Vec<_>>());
         pc.check(missing_domains.is_empty(), || finding(
             "PC4", Severity::Suggestion,
