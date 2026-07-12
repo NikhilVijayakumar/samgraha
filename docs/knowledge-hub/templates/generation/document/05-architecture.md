@@ -20,6 +20,8 @@ Generate a complete Architecture document for a system. The document must satisf
 | 7 | Rationale | `rationale` | | Decision reasoning, alternatives considered, trade-offs, rejection criteria |
 | 8 | Constraints | `constraints` | | Non-functional requirements, platform limitations, organizational rules with source attribution |
 | 9 | Traceability | `traceability` | | Tier model, derivation chain, downstream standards, non-contradiction rule |
+| 10 | Operational Readiness | `operational_readiness` | | Deployment automation, rollback, runbooks, scaling, disaster recovery |
+| 11 | Observability | `observability` | | Telemetry backend, correlation ID strategy, log aggregation, metrics retention |
 
 ## Cross-Section Coherence Constraint
 
@@ -423,9 +425,126 @@ Unlike [related type], [distinctive characteristic].
 **Required diagrams:** tier model diagram
 **Required cross-references:** Vision(01), Feature Technical Design(10), Engineering(07)
 
+---
+
+### 10. Operational Readiness
+
+**Template:**
+
+```markdown
+## Operational Readiness
+
+### Deployment Automation
+[CI/CD pipeline stages, gating criteria for production promotion]
+
+### Rollback Procedure
+[Automated vs. manual rollback, time target, tested status]
+
+### Runbooks
+[Top N known failure modes with linked runbooks and on-call routing]
+
+### Scaling
+[Horizontal and vertical scaling triggers with thresholds]
+
+### Disaster Recovery
+[RTO and RPO targets, derived from business requirements]
+
+### Change Management
+[Approval process, freeze windows, production promotion gates]
+```
+
+**Correct example:**
+> **Deployment Automation**
+> - Pipeline: Build → Integration Tests → Staging → Production
+> - Gating: All integration tests pass; staging smoke test passes; one human approval for production
+>
+> **Rollback Procedure**
+> - Automated rollback to previous version on health check failure
+> - Rollback time target: < 5 minutes
+> - Tested: Yes, weekly during game day exercises
+>
+> **Runbooks**
+> - **Data ingestion stall:** Check ingestion queue depth; if > 10k for 5 min, restart ingestion service. [Runbook: ingestion-stall.md]
+>
+> **Disaster Recovery**
+> - RPO: 1 hour (snapshot-based backup)
+> - RTO: 4 hours (full re-deployment from last snapshot)
+
+**Incorrect example:**
+> We deploy using Kubernetes. Rollback is handled on a case-by-case basis by the on-call engineer. Scaling is manual.
+> *Why wrong: lacks specific procedures, time targets, and tested status.*
+
+**Writing guidance:**
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** operator
+- **Do:** Document deployment pipeline stages with gating criteria; define rollback procedure with time target; link runbooks to specific failure modes; specify scaling triggers with thresholds; state RTO/RPO targets
+- **Don't:** Describe deployment tools without procedures; state rollback as aspirational; omit time targets; leave scaling triggers vague
+
+**Required subsections:** Deployment Automation, Rollback Procedure
+**Optional subsections:** Runbooks, Scaling, Disaster Recovery, Change Management
+**Required diagrams:** none
+**Required cross-references:** Component Model, Engineering(07)
+
+---
+
+### 11. Observability
+
+**Template:**
+
+```markdown
+## Observability
+
+### Telemetry Backend
+[Identified backend with justification relative to scale and cost]
+
+### Correlation ID Strategy
+[How correlation IDs are generated, propagated through async boundaries, and used for request tracing]
+
+### Log Aggregation Pipeline
+[Collection, storage, retention period, access controls]
+
+### Metrics Retention
+[Retention and downsampling policy, SLO monitoring architecture]
+
+### On-Call and Alerting
+[Alert routing, on-call escalation, SLO breach notification]
+```
+
+**Correct example:**
+> **Telemetry Backend**
+> - Backend: OpenTelemetry Collector → ClickHouse for traces, Prometheus for metrics
+> - Justification: ClickHouse handles high-cardinality trace data at scale
+>
+> **Correlation ID Strategy**
+> - Generated: UUID v4 at system entry point
+> - Propagated: X-Correlation-ID header across HTTP; embedded in event envelope for async paths
+>
+> **Log Aggregation Pipeline**
+> - Collection: Fluentd sidecar per component
+> - Storage: ClickHouse, 90-day hot retention, 1-year cold (S3)
+
+**Incorrect example:**
+> We use logs and metrics. Correlation IDs are nice to have. Retention is handled by the platform team.
+> *Why wrong: lacks specific infrastructure, retention periods, and correlation strategy.*
+
+**Writing guidance:**
+- **Tone:** technical
+- **Voice:** imperative
+- **Structure:** bullet lists
+- **Audience:** operator
+- **Do:** Identify the telemetry backend with justification; document correlation ID generation and propagation across all async boundaries; define log retention and access controls; specify SLO monitoring architecture
+- **Don't:** Name tools without justification; leave correlation ID propagation implicit; omit retention periods
+
+**Required subsections:** Telemetry Backend, Correlation ID Strategy
+**Optional subsections:** Log Aggregation Pipeline, Metrics Retention, On-Call and Alerting
+**Required diagrams:** none
+**Required cross-references:** Component Model, Communication, Engineering(07)
+
 ## Output Contract
 
-Output a single complete markdown document containing all 9 sections above, in the order listed. Each section must:
+Output a single complete markdown document containing all 11 sections above, in the order listed. Each section must:
 
 1. Use the template skeleton as its structural basis
 2. Fill every placeholder with domain-appropriate content (not lorem ipsum)

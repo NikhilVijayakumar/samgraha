@@ -21,6 +21,9 @@ Generate the Data Flow section for an Architecture document.
 ### Data Paths
 [For each major data path: entry point, transformations, ownership boundaries, exit point]
 
+### Processing Semantics
+[For each data path: sync vs. async, batch vs. stream, ordering guarantees]
+
 ### Data Ownership
 [Table or list mapping data entities to owning components]
 
@@ -33,6 +36,7 @@ Generate the Data Flow section for an Architecture document.
 **Correct:**
 > **Inbound Data Path**
 > - **Entry point:** External system submits data changes.
+> - **Processing semantics:** Asynchronous, event-driven. Events are ordered within a single source; cross-source ordering is not guaranteed.
 > - **Transformations:** Schema validation and format normalization.
 > - **Ownership boundary:** Ingestion Service owns raw events until transformation completes.
 > - **Exit point:** Canonical records delivered to Distribution.
@@ -54,8 +58,8 @@ Generate the Data Flow section for an Architecture document.
 - **Voice:** third person
 - **Structure:** tables
 - **Audience:** architect
-- **Do:** Trace every major data path from entry to exit; assign ownership to a specific component at each boundary; include a data flow diagram
-- **Don't:** Describe database schemas or SQL queries; reference ORM methods or serialization code; document data paths that bypass component boundaries
+- **Do:** Trace every major data path from entry to exit; distinguish synchronous vs. asynchronous flows and batch vs. stream processing; assign ownership to a specific component at each boundary; include a data flow diagram
+- **Don't:** Describe database schemas or SQL queries; reference ORM methods or serialization code; document data paths that bypass component boundaries; leave processing semantics implicit
 
 **Required subsections:** Data Paths, Data Flow Diagram
 **Optional subsections:** Data Ownership, Data Transformations
