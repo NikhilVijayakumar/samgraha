@@ -1,6 +1,6 @@
 # Deterministic Audit Schema
 
-Generic, standard-agnostic storage for the audit engine. Seven tables, fixed forever.
+Generic, standard-agnostic storage for the audit engine. Eight tables, fixed forever.
 
 ## Design rules
 
@@ -20,13 +20,15 @@ Generic, standard-agnostic storage for the audit engine. Seven tables, fixed for
 | 05 | `rules` | One row per rule (not per file). Each YAML file's `rules:` list produces multiple rows. `rule_ref` = `path#rule_id` |
 | 06 | `audit_results` | One row per rule evaluation (score + evidence JSON) |
 | 07 | `scores` | Aggregated scores per document per audit run |
+| 08 | `script_cache` | Last execution result per script check per repo fingerprint (§2e cache) |
 
 ## Loading order
 
-Run `00-reset.sql` first for a clean slate, then `01` through `07` in order.
+Run `00-reset.sql` first for a clean slate, then `01` through `08` in order.
 
 ## See also
 
 - `proposal.md` §4a — schema rationale
 - `proposal.md` §5 — scoring formula
 - `proposal.md` §10.3 — per-rule YAML file field shape
+- `proposal.md` §2e — script cache strategy
