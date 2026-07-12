@@ -14,9 +14,17 @@ fallback: human_review  # after max_iterations, flag failing sections for human;
 
 within_tier_ordering:
   - tier: 2
+    from: external-context
+    to: engineering
     rule: external-context must complete before engineering starts
   # All other tiers: full parallel, no ordering constraints
   # Architecture/Engineering soft-alignment is non-blocking (tier-gating: none)
+  #
+  # from/to are the machine-readable domain keys an ingestion loader
+  # resolves directly (via domains.key) to set domain_relationships.
+  # enforce_order = 1 on the matching edge — the loader must not have to
+  # parse "rule" prose to extract the pair. Any future entry added here
+  # needs from/to alongside its prose rule for the same reason.
 
 path_selection:
   # Path A: no existing documentation → generate from scratch

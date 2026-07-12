@@ -1,10 +1,12 @@
--- Scores: one row per document per audit run — the four report scores plus
--- the final rollup. See §5 of proposal.md for the scoring formula:
+-- Scores: one row per document per audit run — the four bucket scores plus
+-- the final rollup. See calculation_rules for the per-standard formula that
+-- produced each value:
 --
---   final_score = (deterministic_whole/100 * 25)
---               + (deterministic_section/100 * 25)
---               + (semantic_whole/100 * 25)
---               + (semantic_section/100 * 25)
+--   final_score = sum(bucket_score / 100 * bucket_weight)
+--
+-- weights come from calculation_inputs, scoped to the standard's
+-- final_score row in calculation_rules — not hardcoded here, so a
+-- different system can weight its buckets differently.
 --
 -- Individual finding detail stays in audit_results; this table carries
 -- only the aggregated scores and pointers.
