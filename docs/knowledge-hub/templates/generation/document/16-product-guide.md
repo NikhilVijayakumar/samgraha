@@ -11,9 +11,9 @@ Generate a complete Product Guide document for a system. The document must satis
 
 | # | Section | semantic_type | Required | Content Requirements |
 |---|---------|--------------|----------|---------------------|
-| 1 | Purpose | `purpose` | | User-facing problem this topic solves |
-| 2 | Title | `title` | ✓ | Concise, descriptive heading under 60 characters |
-| 3 | Content | `body` | ✓ | Step-by-step instructions with How It Works and Examples |
+| 1 | Title | `title` | ✓ | Concise, descriptive heading under 60 characters |
+| 2 | Body | `body` | ✓ | Step-by-step instructions with How It Works and Examples |
+| 3 | Purpose | `purpose` | | User-facing problem this topic solves |
 | 4 | Product Context | `product-context` | | Prerequisites, defaults, version-specific context |
 | 5 | Public Contract | `public-contract` | | CLI/MCP/config inputs, outputs, error conditions |
 | 6 | Related | `related` | | Cross-references with descriptive labels |
@@ -36,36 +36,7 @@ If any section would reference a flag, command, or behavior not present in anoth
 
 ---
 
-### 1. Purpose
-
-**Template:**
-
-```markdown
-## Purpose
-
-[One sentence or short paragraph describing the user-facing problem this topic solves.]
-```
-
-> **Generation note:** When generating for a specific system, fill this template with *that system's* user-facing problem: what the reader wants to accomplish and why this topic helps. The meta-level "This document defines the standard for Product Guide..." language belongs in the standard itself, not in a generated document.
-
-**Correct example:**
-> This topic explains how to configure automatic backups so your data is never lost.
-
-**Incorrect example:**
-> This topic covers the backup feature.
-> *Why wrong: Vague and passive — describes what the topic "covers" rather than the user-facing problem it solves.*
-
-**Writing guidance:**
-- **Tone:** conversational
-- **Voice:** second person
-- **Structure:** paragraphs
-- **Audience:** product owner
-- **Do:** Write from the reader's perspective — "you" language; lead with the benefit or outcome the user gets; keep to one sentence or a short paragraph
-- **Don't:** Use passive voice or vague phrasing like "this topic covers…"; describe internal implementation details or engineering rationale; exceed two sentences
-
----
-
-### 2. Title
+### 1. Title
 
 **Template:**
 
@@ -90,7 +61,7 @@ If any section would reference a flag, command, or behavior not present in anoth
 
 ---
 
-### 3. Content
+### 2. Body
 
 **Template:**
 
@@ -137,6 +108,35 @@ If any section would reference a flag, command, or behavior not present in anoth
 - **Audience:** AI agent
 - **Do:** Start with the user's goal in one sentence before explaining how; provide at least one concrete command or code example with expected output; use headers (How It Works, Examples) to make the content scannable
 - **Don't:** Write long paragraphs without subheadings; reference source code, internal architecture, or implementation details; use passive constructions that obscure who performs the action
+
+---
+
+### 3. Purpose
+
+**Template:**
+
+```markdown
+## Purpose
+
+[One sentence or short paragraph describing the user-facing problem this topic solves.]
+```
+
+> **Generation note:** When generating for a specific system, fill this template with *that system's* user-facing problem: what the reader wants to accomplish and why this topic helps. The meta-level "This document defines the standard for Product Guide..." language belongs in the standard itself, not in a generated document.
+
+**Correct example:**
+> This topic explains how to configure automatic backups so your data is never lost.
+
+**Incorrect example:**
+> This topic covers the backup feature.
+> *Why wrong: Vague and passive — describes what the topic "covers" rather than the user-facing problem it solves.*
+
+**Writing guidance:**
+- **Tone:** conversational
+- **Voice:** second person
+- **Structure:** paragraphs
+- **Audience:** product owner
+- **Do:** Write from the reader's perspective — "you" language; lead with the benefit or outcome the user gets; keep to one sentence or a short paragraph
+- **Don't:** Use passive voice or vague phrasing like "this topic covers…"; describe internal implementation details or engineering rationale; exceed two sentences
 
 ---
 

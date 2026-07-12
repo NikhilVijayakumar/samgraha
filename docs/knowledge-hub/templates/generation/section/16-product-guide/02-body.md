@@ -1,17 +1,17 @@
-# Content — Generation Template
+# Body — Generation Template
 
 > **Domain:** product-guide
-> **Section:** content
+> **Section:** body
 > **Source:** `documentation-standards/16-product-guide-standards.md` §Content
 > **Relationships:** `audit/deterministic/document/16-product-guide-relationships.yaml`
 
-Generate the Content section for a Product Guide document.
+Generate the Body section for a Product Guide document.
 
 ## Relationships
 
 | Relationship | Target | Constraint |
 |---|---|---|
-| (none) | — | Content describes the shipped product — no formal derivation relationships |
+| (none) | — | Body describes the shipped product — no formal derivation relationships |
 
 ## Template
 

@@ -11,14 +11,14 @@ Generate the Constraints section for a Design document.
 
 | Relationship | Target | Constraint |
 |---|---|---|
-| `constrains` | philosophy / guiding_principles | Design constraints limit how guiding philosophy can be applied |
+| `constrains` | philosophy / guiding_principles | Design Constraints bound what the guiding philosophy can prescribe |
 
 ## Template
 
 ```markdown
 ## Constraints
 
-[1 paragraph: how constraints shape design decisions — what makes them binding and why they cannot be overridden]
+[1 paragraph: how constraints relate to design decisions and what makes them binding]
 
 ### [Constraint Category] (e.g. Regulatory, Platform, Organizational)
 
@@ -26,7 +26,7 @@ Generate the Constraints section for a Design document.
 > **enforcement:** [binding / advisory]
 > **scope:** [which features or capabilities this applies to]
 
-[1 paragraph: what this constraint requires and why it is non-negotiable]
+[1 paragraph: what this constraint requires and why it is binding]
 
 [Repeat for each constraint category — minimum 1]
 ```
@@ -35,26 +35,15 @@ Generate the Constraints section for a Design document.
 
 **Correct:**
 > ### Regulatory
-> > **source:** Federal accessibility regulation (Section 508)
+> > **source:** Federal accessibility regulation
 > > **enforcement:** binding
 > > **scope:** All user-facing interfaces
 >
 > The product must comply with federal accessibility requirements. All features must be usable by individuals with disabilities. This constraint is non-negotiable and applies regardless of timeline or budget.
->
-> ### Platform
-> > **source:** Mobile platform Human Interface Guidelines
-> > **enforcement:** advisory
-> > **scope:** All iOS-targeted features
->
-> Apple's Human Interface Guidelines recommend specific touch target sizes and navigation patterns. While not legally binding, violating these guidelines results in App Store rejection risk.
 
 **Incorrect:**
 > We prefer using a specific CSS framework because the team knows it well and it speeds up development.
 > *Why wrong: This is a team preference, not a binding constraint. Constraints must come from regulatory, platform, or organizational mandates and state their binding nature explicitly.*
-
-**Incorrect:**
-> The product should be accessible and follow best practices.
-> *Why wrong: This is vague and unverifiable. Every constraint must have a specific source, enforcement level, and scope.*
 
 ## Writing Guidance
 
@@ -63,7 +52,7 @@ Generate the Constraints section for a Design document.
 - **Structure:** bullet lists
 - **Audience:** architect
 - **Do:** State each constraint with its source, enforcement level, and scope. Clearly distinguish binding constraints from advisory guidance. Explain why each constraint is non-negotiable.
-- **Don't:** List team preferences as constraints. Omit the source or enforcement level. Conflate platform requirements with organizational preferences. Use vague qualifiers for hard limits.
+- **Don't:** List team preferences as constraints. Omit the source or enforcement level. Conflate platform requirements with organizational preferences.
 
 **Required subsections:** one per constraint category (minimum 1)
 **Optional subsections:** none

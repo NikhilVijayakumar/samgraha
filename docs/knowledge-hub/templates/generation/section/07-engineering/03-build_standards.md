@@ -23,7 +23,7 @@ Generate the Build Standards section for an Engineering document.
 
 ### Build System
 
-[1–2 paragraphs: build tool name and configuration, rationale for choosing this build system — connected to architectural constraints and engineering principles]
+[1–2 paragraphs: build tool name and configuration, rationale for choosing this build system]
 
 ### Pipeline Stages
 
@@ -37,20 +37,13 @@ Generate the Build Standards section for an Engineering document.
 
 ### Quality Gates
 
-[Optional: criteria that must pass before proceeding to next stage]
+[Optional: criteria that must pass before proceeding]
 ```
 
 ## Examples
 
 **Correct:**
 > **Build System:** The repository uses a task runner configured via `build.config.toml`. Each pipeline stage runs in an isolated container to ensure reproducibility. Rationale: deterministic builds ensure that any commit produces the same artifact regardless of the build environment.
->
-> ### Pipeline Stages
-> | Stage | Purpose | Inputs | Outputs | Quality Gate |
-> |-------|---------|--------|---------|-------------|
-> | Compile | Produce deterministic artifact | Source code | Binary artifact | Zero compilation errors |
-> | Lint | Enforce style rules | Source code | Lint report | Zero warnings |
-> | Test | Validate correctness | Binary artifact, test suite | Test report | All tests pass |
 
 **Incorrect:**
 > **Build System:** We use Jenkins. Our pipeline is: checkout → build → deploy to staging.

@@ -43,11 +43,6 @@ Generate the UX Principles section for a Design document.
 > When the user clicks the "Submit" button in React, the onClick handler should call the API endpoint and display a Material UI Snackbar component with the success message.
 > *Why wrong: This is technology-specific implementation guidance (React, Material UI, Snackbar) rather than a product-level UX principle. UX principles must describe interaction philosophy, not component choices.*
 
-**Incorrect:**
-> ### Speed
-> The application should be fast.
-> *Why wrong: This is a vague aspiration, not a principle with definition, scope, and cross-feature examples.*
-
 ## Writing Guidance
 
 - **Tone:** prescriptive

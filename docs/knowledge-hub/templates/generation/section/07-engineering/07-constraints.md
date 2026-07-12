@@ -11,8 +11,8 @@ Generate the Constraints section for an Engineering document.
 
 | Relationship | Target | Constraint |
 |---|---|---|
-| `derives_from` | architecture / constraints | Engineering Constraints must derive from architectural constraints |
-| `constrains` | feature-technical / runtime_constraints | Engineering Constraints limit how features can be implemented at runtime |
+| `derives_from` | architecture / constraints | Engineering Constraints must derive from architecture constraints |
+| `constrains` | feature-technical / runtime_constraints | Engineering Constraints bound feature-technical runtime constraints |
 
 ## Template
 
@@ -21,11 +21,9 @@ Generate the Constraints section for an Engineering document.
 
 > [metadata block]
 
-[1–2 paragraphs: overview of non-functional requirements and engineering limitations that bound all implementation decisions, categorized by type]
+[1–2 paragraphs explaining non-functional requirements and engineering limitations, categorized by type (performance, security, compliance), each with source attribution and verifiability]
 
 ### Performance Constraints
-
-[Optional: latency, throughput, memory bounds — with specific thresholds and source attribution]
 
 | Constraint | Threshold | Source | Verifiability |
 |-----------|-----------|--------|---------------|
@@ -33,15 +31,13 @@ Generate the Constraints section for an Engineering document.
 
 ### Security Constraints
 
-[Optional: authentication, encryption, access control requirements — with source attribution]
-
 | Constraint | Requirement | Source | Verifiability |
 |-----------|-------------|--------|---------------|
 | [Constraint name] | [specific requirement] | [where it comes from] | [how to verify] |
 
 ### Compliance Constraints
 
-[Optional: regulatory, organizational policy requirements — with source attribution]
+[Optional: regulatory, organizational policy requirements]
 ```
 
 ## Examples
@@ -51,13 +47,6 @@ Generate the Constraints section for an Engineering document.
 > | Constraint | Threshold | Source | Verifiability |
 > |-----------|-----------|--------|---------------|
 > | API response time | ≤200ms at p95 | Architecture Section 4.3 | Load testing |
-> | Memory per request | ≤512MB | Architecture Section 4.3 | Profiling |
->
-> ### Security Constraints
-> | Constraint | Requirement | Source | Verifiability |
-> |-----------|-------------|--------|---------------|
-> | Transit encryption | TLS 1.2+ | External Context compliance | Certificate inspection |
-> | Authentication | OAuth 2.0 client credentials | External Context contract | Token inspection |
 
 **Incorrect:**
 > The application should be fast and secure. We follow industry best practices.
@@ -69,8 +58,8 @@ Generate the Constraints section for an Engineering document.
 - **Voice:** imperative
 - **Structure:** bullet lists
 - **Audience:** engineer
-- **Do:** Categorize every constraint by type (performance, security, compliance). Cite the source of each constraint. Make every constraint verifiable with specific thresholds.
-- **Don't:** State vague requirements like "the application should be fast." Omit source attribution. List constraints without categorization or verification criteria.
+- **Do:** Categorize every constraint by type (performance, security, compliance); cite the source of each constraint (Architecture section, External Context); make every constraint verifiable with specific thresholds.
+- **Don't:** State vague requirements like "the application should be fast"; omit source attribution for constraints; list constraints without categorization or verification criteria.
 
 **Required subsections:** none
 **Optional subsections:** Performance Constraints, Security Constraints, Compliance Constraints

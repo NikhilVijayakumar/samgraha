@@ -38,6 +38,8 @@ This document defines the standard for [System Name] documentation within the en
 [One paragraph distinguishing it from related standards — what it covers that others do not.]
 ```
 
+> **Generation note:** When generating for a specific system, fill this template with *that system's* philosophy purpose: what Philosophy establishes and how it differs from Vision. The meta-level "This document defines the standard for Philosophy..." language belongs in the standard itself, not in a generated document.
+
 **Correct example:**
 > This document defines the standard for Project Horizon documentation within the engineering documentation ecosystem.
 >

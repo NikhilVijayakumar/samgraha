@@ -1,11 +1,11 @@
-# External Dependency Integration — Generation Template
+# External Dependencies — Generation Template
 
 > **Domain:** feature-technical
 > **Section:** external_dependencies
 > **Source:** `documentation-standards/10-feature-technical-standards.md` §External Dependency Integration
 > **Relationships:** `audit/deterministic/document/10-feature-technical-relationships.yaml`
 
-Generate the External Dependency Integration section for a Feature Technical Design document.
+Generate the External Dependencies section for a Feature Technical Design document.
 
 ## Relationships
 

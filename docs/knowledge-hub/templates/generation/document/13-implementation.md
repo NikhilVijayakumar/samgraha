@@ -74,58 +74,7 @@ This Implementation Plan documents the as-built record for [feature/system name]
 
 ---
 
-### 2. Plan Scenarios
-
-**Template:**
-
-```markdown
-## Plan Scenarios
-
-### Applicable Scenario
-
-> **scenario:** [Full Generation | Per Feature | Enhancement | Refactor | Change Request]
-> **scope:** [entire project | per feature | per module | per section]
-> **inputs:** [list of upstream documents consumed]
-> **outputs:** [what this plan produces]
-
-[2-3 sentences describing when to use this scenario and what it produces.]
-
-### Scope Options
-
-| Scope | When to Use | Required Inputs |
-|-------|-------------|-----------------|
-| [scope option] | [trigger condition] | [upstream docs] |
-```
-
-**Correct example:**
-> **Applicable Scenario**
->
-> > **scenario:** Per Feature
-> > **scope:** Per feature
-> > **inputs:** Feature(04), Feature Design(09), Architecture(05), Security(03)
-> > **outputs:** Implementation plan for the specific feature
->
-> Use Per Feature when adding a new feature to an existing project. The feature has unique implementation requirements and feature-specific deviation tracking is needed. Upstream verification is limited to the feature's scope.
-
-**Incorrect example:**
-> **Applicable Scenario**
->
-> > **scenario:** Per Feature
->
-> We are implementing a feature.
-> *Why wrong: Missing scope, inputs, and outputs; no description of when to use this scenario or what it produces.*
-
-**Writing guidance:**
-- **Tone:** prescriptive
-- **Voice:** imperative
-- **Structure:** bullet lists
-- **Audience:** engineer
-- **Do:** Select the correct scenario for the implementation context; list all upstream documents consumed; state what the plan produces
-- **Don't:** Select a scenario without justification; omit upstream document references; describe the scenario without stating scope and outputs
-
----
-
-### 3. Generation Plan
+### 2. Generation Plan
 
 **Template:**
 
@@ -184,7 +133,7 @@ This Implementation Plan documents the as-built record for [feature/system name]
 
 ---
 
-### 4. Refactor Plan
+### 3. Refactor Plan
 
 **Template:**
 
@@ -227,7 +176,7 @@ This Implementation Plan documents the as-built record for [feature/system name]
 
 ---
 
-### 5. Change Request Plan
+### 4. Change Request Plan
 
 **Template:**
 
@@ -272,7 +221,7 @@ This Implementation Plan documents the as-built record for [feature/system name]
 
 ---
 
-### 6. Enhancement Plan
+### 5. Enhancement Plan
 
 **Template:**
 
@@ -317,7 +266,7 @@ This Implementation Plan documents the as-built record for [feature/system name]
 
 ---
 
-### 7. Security Fix Plan
+### 6. Security Fix Plan
 
 **Template:**
 
@@ -371,7 +320,7 @@ This Implementation Plan documents the as-built record for [feature/system name]
 
 ## Output Contract
 
-Output a single complete markdown document containing all 7 sections above, in the order listed. Each section must:
+Output a single complete markdown document containing all 6 sections above, in the order listed. Each section must:
 
 1. Use the template skeleton as its structural basis
 2. Fill every placeholder with domain-appropriate content (not lorem ipsum)
