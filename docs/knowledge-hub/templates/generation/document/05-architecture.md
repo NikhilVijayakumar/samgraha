@@ -45,29 +45,39 @@ If any section would introduce a component, data path, or communication path not
 **Template:**
 
 ```markdown
-This document defines the standard for [Documentation Type] within the [ecosystem name] documentation ecosystem.
+## Purpose
 
-[Documentation Type] describes [what it describes].
+> **Architectural purpose:** [1-2 sentences: why this architecture exists, what problems it solves, what qualities it optimizes for]
 
-Unlike [related type], [distinctive characteristic].
+> **Scope boundaries:**
+> - **In scope:** [architectural concerns this document covers]
+> - **Out of scope:** [architectural concerns explicitly excluded, with reason]
 
-[Core purpose statement.]
+> **Primary goals:** [ranked list of architectural priorities — e.g. scalability > maintainability > cost]
 ```
 
+> **Generation note:** When generating for a specific system, fill this template with *that system's* architectural purpose: why this architecture exists, what problems it solves, and what qualities it prioritizes. The meta-level "This document defines the standard for Architecture Documentation..." language belongs in the standard itself, not in a generated document.
+
 **Correct example:**
-> This document defines the standard for Architecture Documentation within the engineering documentation ecosystem. Architecture Documentation describes the structural organization of a system — how responsibilities are divided among components and how those components relate. Unlike a single Vision or Feature document, Architecture is a collection of focused documents, each covering one structural concern.
+> **Architectural purpose:** This architecture supports real-time inventory tracking across 50 warehouses with sub-second update latency. The primary problem is maintaining consistency across distributed inventory states during concurrent modifications from warehouse operators and e-commerce orders.
+>
+> **Scope boundaries:**
+> - **In scope:** Inventory state synchronization, conflict resolution, warehouse-side data ownership
+> - **Out of scope:** E-commerce order processing (covered by Feature Design), warehouse physical layout
+>
+> **Primary goals:** 1. Consistency under concurrent access, 2. Sub-second propagation, 3. Offline resilience per warehouse
 
 **Incorrect example:**
 > Architecture Documentation covers the microservices layout, the React component tree, the PostgreSQL schema, and the Kubernetes deployment manifests used by the system.
-> *Why wrong: names specific technologies and implementation artifacts instead of stating the document type's role and boundary.*
+> *Why wrong: names specific technologies and implementation artifacts instead of stating the architectural purpose and scope boundaries.*
 
 **Writing guidance:**
 - **Tone:** structural
 - **Voice:** third person
 - **Structure:** paragraphs
 - **Audience:** architect
-- **Do:** State what Architecture Documentation is and what it is not in the same breath; describe it as a collection rather than a single artifact; keep the boundary with Engineering and Feature Technical Design explicit
-- **Don't:** Name specific components, technologies, or frameworks; describe how any particular system is organized; list features or capabilities
+- **Do:** State the architectural purpose specific to this system; define scope boundaries explicitly (in-scope vs. out-of-scope); rank primary goals to guide trade-off decisions; derive from Vision document's Purpose and Philosophy's guiding principles
+- **Don't:** Use generic mission statements; copy purpose from project charter or README; include goals without architectural impact; leave scope boundaries implicit
 
 ---
 
@@ -218,6 +228,9 @@ Unlike [related type], [distinctive characteristic].
 ### Data Paths
 [For each major data path: entry point, transformations, ownership boundaries, exit point]
 
+### Processing Semantics
+[For each data path: sync vs. async, batch vs. stream, ordering guarantees]
+
 ### Data Ownership
 [Table or list mapping data entities to owning components]
 
@@ -228,6 +241,7 @@ Unlike [related type], [distinctive characteristic].
 **Correct example:**
 > **Inbound Data Path**
 > - **Entry point:** External system submits data changes.
+> - **Processing semantics:** Asynchronous, event-driven. Events are ordered within a single source; cross-source ordering is not guaranteed.
 > - **Transformations:** Schema validation and format normalization.
 > - **Ownership boundary:** Ingestion Service owns raw events until transformation completes.
 > - **Exit point:** Canonical records delivered to Distribution.
@@ -248,8 +262,8 @@ Unlike [related type], [distinctive characteristic].
 - **Voice:** third person
 - **Structure:** tables
 - **Audience:** architect
-- **Do:** Trace every major data path from entry to exit; assign ownership to a specific component at each boundary; include a data flow diagram
-- **Don't:** Describe database schemas or SQL queries; reference ORM methods or serialization code; document data paths that bypass component boundaries
+- **Do:** Trace every major data path from entry to exit; distinguish synchronous vs. asynchronous flows and batch vs. stream processing; assign ownership to a specific component at each boundary; include a data flow diagram
+- **Don't:** Describe database schemas or SQL queries; reference ORM methods or serialization code; document data paths that bypass component boundaries; leave processing semantics implicit
 
 **Required subsections:** Data Paths, Data Flow Diagram
 **Optional subsections:** Data Ownership, Data Transformations
