@@ -1,7 +1,12 @@
 -- Audit results: one row per rule evaluated against one target (a document
 -- or a section). evidence is a JSON blob whose shape depends on the rule's
 -- evidence.type extractor (section_presence, cross_reference, keyword_absence,
--- llm_judgment — see §10.3 of proposal.md).
+-- llm_judgment, script_result — see §10.3 of proposal.md).
+--
+-- script_result evidence comes from script/schema/{domain}/{check-name}.schema.json
+-- and carries the script's own metrics and evidence arrays (§2b). The script's
+-- exit code is NOT stored here — exit 0 means "check ran" (pass/fail/not_applicable
+-- lives in status); exit 1 means "script itself failed to execute" (error status).
 
 CREATE TABLE audit_results (
     id           INTEGER PRIMARY KEY,
