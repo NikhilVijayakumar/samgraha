@@ -90,3 +90,17 @@ rules:
     evidence:
       type: content_deduplication
       scope: within_document
+
+  # --- Script-sourced: ground truth from repo ---
+  - id: qa-doc-014
+    description: "Unit test coverage meets threshold"
+    condition: "unit-test-coverage script reports coverage_percent >= 80"
+    message: "Unit test coverage is below 80% threshold"
+    severity: error
+    weight: 1.5
+    mandatory: true
+    evidence:
+      type: script_result
+      rule_ref: "script/schema/12-qa/unit-test-coverage.schema.json#metrics.coverage_percent"
+      threshold: 80
+      comparison: ">="

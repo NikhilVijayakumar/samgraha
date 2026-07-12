@@ -13,6 +13,19 @@ Verifies Engineering Documentation coheres as one set of repo-wide standards —
 - All Engineering documents in the domain cohere as one system — no orphaned or contradictory standards
 - Terminology is consistent across all Engineering sections — the same tool, gate, or convention isn't named differently in different sections
 
+## Script Evidence Grounding
+
+When available, the following script outputs provide ground-truth context for this audit. The LLM evaluator should use these as factual anchors rather than relying solely on what the document claims.
+
+| Script | Evidence field | How it grounds the audit |
+|--------|---------------|------------------------|
+| `lint-standards` | `metrics.lint_exit_code` | Validates whether the linting standards actually pass. If the doc claims "lint passes" but the script reports a non-zero exit code, that's a grounding conflict. |
+
+When script evidence is available, the evaluator should:
+1. Compare script-reported metrics against document claims
+2. Flag contradictions where script ground-truth differs from doc assertions
+3. Use script `evidence` arrays as concrete examples when scoring criteria about engineering standards compliance
+
 ## Expected Quality
 - Testing Standards' coverage/quality bar is consistent with what Build Standards' CI/CD gates actually enforce
 - Code Standards' style rules don't contradict a Guiding Principle (e.g. "explicit over implicit" contradicted by a rule favoring terse magic)

@@ -67,3 +67,17 @@ rules:
     evidence:
       type: content_deduplication
       scope: within_document
+
+  # --- Script-sourced: ground truth from repo ---
+  - id: pg-doc-012
+    description: "Public contract matches implementation"
+    condition: "public-contract-diff script reports mismatches == 0"
+    message: "Public contract does not match implementation — mismatches found"
+    severity: error
+    weight: 1.5
+    mandatory: true
+    evidence:
+      type: script_result
+      rule_ref: "script/schema/16-product-guide/public-contract-diff.schema.json#metrics.mismatches"
+      threshold: 0
+      comparison: "=="

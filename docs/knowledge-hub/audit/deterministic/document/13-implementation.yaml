@@ -87,3 +87,30 @@ rules:
     evidence:
       type: content_deduplication
       scope: within_document
+
+  # --- Script-sourced: ground truth from repo ---
+  - id: impl-doc-015
+    description: "Folder structure matches expected"
+    condition: "folder-structure script reports mismatch_count == 0"
+    message: "Folder structure does not match expected layout — mismatch_count > 0"
+    severity: error
+    weight: 1.5
+    mandatory: true
+    evidence:
+      type: script_result
+      rule_ref: "script/schema/13-implementation/folder-structure.schema.json#metrics.mismatch_count"
+      threshold: 0
+      comparison: "=="
+
+  - id: impl-doc-017
+    description: "Dependency manifest exists"
+    condition: "dependency-manifest script reports manifest_exists == true"
+    message: "Dependency manifest not found"
+    severity: warning
+    weight: 1.0
+    mandatory: false
+    evidence:
+      type: script_result
+      rule_ref: "script/schema/13-implementation/dependency-manifest.schema.json#metrics.manifest_exists"
+      threshold: true
+      comparison: "=="

@@ -13,6 +13,20 @@ Verifies an Implementation document coheres internally — the Generation Plan a
 - All Implementation documents in the domain cohere as one system — no orphaned or contradictory implementation plans for the same feature
 - Terminology is consistent across all Implementation sections — the same component/mechanism isn't named differently in different plans
 
+## Script Evidence Grounding
+
+When available, the following script outputs provide ground-truth context for this audit. The LLM evaluator should use these as factual anchors rather than relying solely on what the document claims.
+
+| Script | Evidence field | How it grounds the audit |
+|--------|---------------|------------------------|
+| `folder-structure` | `metrics.mismatch_count`, `evidence[]` | Validates whether the repo's folder structure matches the expected layout. If the doc claims "structure is correct" but the script reports mismatches, that's a grounding conflict. The `evidence` array lists the mismatched paths. |
+| `dependency-manifest` | `metrics.manifest_exists` | Validates whether a dependency manifest file exists. If the doc claims dependencies are tracked but the script reports no manifest, flag the contradiction. |
+
+When script evidence is available, the evaluator should:
+1. Compare script-reported metrics against document claims
+2. Flag contradictions where script ground-truth differs from doc assertions
+3. Use script `evidence` arrays as concrete examples when scoring criteria about implementation structure
+
 ## Expected Quality
 - A Security Fix Plan's mitigation is respected by any later Refactor or Enhancement Plan touching the same code
 - Multiple plans for the same feature/implementation area don't describe contradictory end states

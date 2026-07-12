@@ -14,6 +14,20 @@ Verifies Build Documentation coheres as one policy — Security Checks, Versioni
 - All Build documents in the domain cohere as one system — no orphaned or contradictory build policies
 - Terminology consistent across all Build sections — the same gate or artifact type isn't named differently in different sections
 
+## Script Evidence Grounding
+
+When available, the following script outputs provide ground-truth context for this audit. The LLM evaluator should use these as factual anchors rather than relying solely on what the document claims.
+
+| Script | Evidence field | How it grounds the audit |
+|--------|---------------|------------------------|
+| `build-succeeds` | `metrics.build_exit_code` | Validates whether the build actually passes. If the doc claims "build succeeds" but the script reports a non-zero exit code, that's a grounding conflict. |
+| `artifact-exists` | `metrics.artifact_exists` | Validates whether the expected build artifact is produced. If the doc claims an artifact is built but the script reports it doesn't exist, flag the contradiction. |
+
+When script evidence is available, the evaluator should:
+1. Compare script-reported metrics against document claims
+2. Flag contradictions where script ground-truth differs from doc assertions
+3. Use script `evidence` arrays as concrete examples when scoring criteria about build success and artifact delivery
+
 ## Expected Quality
 - A severity threshold stated in Security Checks is respected by the release/versioning process described elsewhere
 - Documentation Quality's list of validated domains matches what's actually gated in CI/CD Validation

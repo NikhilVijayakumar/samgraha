@@ -15,6 +15,19 @@ Verifies a Product Guide topic coheres internally — Title matches Body, Purpos
 - Terminology is consistent across all Product Guide topics — same concept, same name
 - All Product Guide documents cohere as one system — no orphaned or contradictory guides
 
+## Script Evidence Grounding
+
+When available, the following script outputs provide ground-truth context for this audit. The LLM evaluator should use these as factual anchors rather than relying solely on what the document claims.
+
+| Script | Evidence field | How it grounds the audit |
+|--------|---------------|------------------------|
+| `public-contract-diff` | `metrics.mismatches`, `evidence[]` | Validates whether the documented public contract matches the actual implementation. If the doc claims "contract matches code" but the script reports mismatches, that's a grounding conflict. The `evidence` array lists the mismatched inputs/outputs/flags. |
+
+When script evidence is available, the evaluator should:
+1. Compare script-reported metrics against document claims
+2. Flag contradictions where script ground-truth differs from doc assertions
+3. Use script `evidence` arrays as concrete examples when scoring criteria about public contract accuracy
+
 ## Expected Quality
 - A reader could predict the Body's content from the Title alone
 - Purpose's stated problem is the one the rest of the topic actually solves

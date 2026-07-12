@@ -84,3 +84,30 @@ rules:
     evidence:
       type: content_deduplication
       scope: within_document
+
+  # --- Script-sourced: ground truth from repo ---
+  - id: build-doc-012
+    description: "Build succeeds"
+    condition: "build-succeeds script reports build_exit_code == 0"
+    message: "Build failed — build_exit_code is not 0"
+    severity: error
+    weight: 2.0
+    mandatory: true
+    evidence:
+      type: script_result
+      rule_ref: "script/schema/14-build/build-succeeds.schema.json#metrics.build_exit_code"
+      threshold: 0
+      comparison: "=="
+
+  - id: build-doc-013
+    description: "Build artifact exists"
+    condition: "artifact-exists script reports artifact_exists == true"
+    message: "Build artifact not found — artifact_exists is not true"
+    severity: error
+    weight: 1.5
+    mandatory: true
+    evidence:
+      type: script_result
+      rule_ref: "script/schema/14-build/artifact-exists.schema.json#metrics.artifact_exists"
+      threshold: true
+      comparison: "=="

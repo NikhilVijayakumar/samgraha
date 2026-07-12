@@ -89,3 +89,30 @@ rules:
     evidence:
       type: content_deduplication
       scope: within_document
+
+  # --- Script-sourced: ground truth from repo ---
+  - id: sec-doc-015
+    description: "No hardcoded secrets in repository"
+    condition: "secret-scan script reports secrets_found == 0"
+    message: "Secret scan found hardcoded secrets in the repository"
+    severity: error
+    weight: 2.0
+    mandatory: true
+    evidence:
+      type: script_result
+      rule_ref: "script/schema/03-security/secret-scan.schema.json#metrics.secrets_found"
+      threshold: 0
+      comparison: "=="
+
+  - id: sec-doc-016
+    description: "No known vulnerable dependencies"
+    condition: "dependency-vuln-scan script reports vulnerabilities_found == 0"
+    message: "Dependency vulnerability scan found known vulnerabilities"
+    severity: error
+    weight: 1.5
+    mandatory: true
+    evidence:
+      type: script_result
+      rule_ref: "script/schema/03-security/dependency-vuln-scan.schema.json#metrics.vulnerabilities_found"
+      threshold: 0
+      comparison: "=="

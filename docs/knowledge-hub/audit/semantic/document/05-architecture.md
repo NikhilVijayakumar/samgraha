@@ -13,6 +13,19 @@ Verifies Architecture Documentation coheres as one structural model — Componen
 - All Architecture documents in the domain cohere as one system — no orphaned or contradictory documents describing incompatible structures
 - Terminology is consistent across all Architecture sections — a component named in Component Model isn't renamed in Data Flow or Communication Paths
 
+## Script Evidence Grounding
+
+When available, the following script outputs provide ground-truth context for this audit. The LLM evaluator should use these as factual anchors rather than relying solely on what the document claims.
+
+| Script | Evidence field | How it grounds the audit |
+|--------|---------------|------------------------|
+| `module-boundary-diff` | `metrics.boundary_violations`, `evidence[]` | Validates whether the actual module boundaries in the codebase match the declared structure. If the doc claims "boundaries are clean" but the script reports violations, that's a grounding conflict. The `evidence` array lists the violating cross-module imports. |
+
+When script evidence is available, the evaluator should:
+1. Compare script-reported metrics against document claims
+2. Flag contradictions where script ground-truth differs from doc assertions
+3. Use script `evidence` arrays as concrete examples when scoring criteria about architectural boundary integrity
+
 ## Expected Quality
 - Every data ownership claim in Data Flow traces to a component defined in Component Model
 - Every communication path in Communication Paths connects components that Component Model actually defines as adjacent/related

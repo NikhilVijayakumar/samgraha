@@ -91,3 +91,17 @@ rules:
     evidence:
       type: content_deduplication
       scope: within_document
+
+  # --- Script-sourced: ground truth from repo ---
+  - id: arch-doc-014
+    description: "Module boundaries match declared structure"
+    condition: "module-boundary-diff script reports boundary_violations == 0"
+    message: "Module boundary violations detected — boundary_violations > 0"
+    severity: error
+    weight: 1.5
+    mandatory: true
+    evidence:
+      type: script_result
+      rule_ref: "script/schema/05-architecture/module-boundary-diff.schema.json#metrics.boundary_violations"
+      threshold: 0
+      comparison: "=="

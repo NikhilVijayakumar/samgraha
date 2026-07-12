@@ -13,6 +13,21 @@ Verifies Security Documentation coheres as one threat model — Threat Model, Da
 - All Security documents in the domain cohere as one system — no orphaned or contradictory security posture across documents
 - Terminology is consistent across all Security sections — the same asset or threat category isn't named differently in different sections
 
+## Script Evidence Grounding
+
+When available, the following script outputs provide ground-truth context for this audit. The LLM evaluator should use these as factual anchors rather than relying solely on what the document claims.
+
+| Script | Evidence field | How it grounds the audit |
+|--------|---------------|------------------------|
+| `secret-scan` | `metrics.secrets_found`, `evidence[]` | Validates whether the repository actually has hardcoded secrets. If the doc claims "no secrets in code" but the script found 3, that's a grounding conflict. The `evidence` array names the files and secret types. |
+| `dependency-vuln-scan` | `metrics.vulnerabilities_found`, `evidence[]` | Validates whether dependencies have known vulnerabilities. If the doc claims "all dependencies patched" but the script found CVEs, flag the contradiction. |
+| `mitigation-present-at-boundary` | `metrics.mitigations_missing`, `evidence[]` | Cross-domain check: validates whether security mitigations declared in this doc actually appear in the implementation code. If the doc says "inputs are sanitized" but the script found no sanitization at the claimed boundary, that's a grounding gap. |
+
+When script evidence is available, the evaluator should:
+1. Compare script-reported metrics against document claims
+2. Flag contradictions where script ground-truth differs from doc assertions
+3. Use script `evidence` arrays as concrete examples when scoring criteria about security posture
+
 ## Expected Quality
 - Every data classification tier (e.g. "confidential") has corresponding protections named in Security Principles
 - Threat Model's mitigations don't contradict a stated Security Principle
