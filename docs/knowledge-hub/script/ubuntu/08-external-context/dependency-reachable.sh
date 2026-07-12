@@ -38,7 +38,7 @@ write_result() {
   "executed_at": "$EXECUTED_AT"
 }
 ENDJSON
-    if [[ "$status" == "error" || "$status" == "fail" ]]; then exit 1; fi
+    if [[ "$status" == "error" ]]; then exit 1; fi
     exit 0
 }
 

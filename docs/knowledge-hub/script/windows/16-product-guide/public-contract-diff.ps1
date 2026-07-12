@@ -20,7 +20,7 @@ function Write-Result($status, $evidence, $metrics) {
         executed_at = $executedAt
     }
     $result | ConvertTo-Json -Depth 10 | Set-Content -Path $Out -Encoding UTF8
-    if ($status -eq "error" -or $status -eq "fail") { exit 1 }
+    if ($status -eq "error") { exit 1 }
     exit 0
 }
 

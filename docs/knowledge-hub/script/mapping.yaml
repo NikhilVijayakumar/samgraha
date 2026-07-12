@@ -1,6 +1,14 @@
 id: script_mapping_v1
 generated_from: audit/**/*.{yaml,md}   # rule_ref / criterion_ref scan, not hand-maintained
-note: "Initial version. Regenerate by scanning all rule_ref values pointing into script/schema/."
+note: |
+  Placeholder version. The rule_ids listed below (qa-doc-014, sec-doc-009, etc.)
+  are illustrative IDs from the proposal's examples, not real audit rules yet.
+  No audit rule currently has a rule_ref pointing into script/schema/ — that
+  wiring happens in Phase 6 (§8 retrofit), which adds script-sourced rules to
+  audit/deterministic/* and audit/semantic/*. Once Phase 6 is done, regenerate
+  this file by scanning all rule_ref values that resolve into script/schema/**.
+  The structure and check/domain entries below are correct; only the rule_ids
+  are placeholders awaiting real audit rules.
 mappings:
   # Category C: generic cross-document checks (all 16 domains)
   - check: traceability-refs-exist
