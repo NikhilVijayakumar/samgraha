@@ -6,8 +6,8 @@ note: >
   is data, not code — the engine interprets it, same pattern as calculation/.
 
 threshold:
-  score: 70          # Acceptable band minimum (score_bands.yaml)
-  rating: Acceptable  # label for reports
+  score: acceptable_minimum  # resolved at runtime from score_bands — not a hardcoded number
+  rating: Acceptable         # label for reports
 
 max_iterations: 5
 fallback: human_review  # after max_iterations, flag failing sections for human; gate stays hard
@@ -56,7 +56,7 @@ fix_loop:
 
 tier_gate:
   rule: every domain in the tier must reach threshold before the next tier starts
-  threshold: 70  # Acceptable
+  threshold: acceptable_minimum  # resolved at runtime from score_bands
 
 special_cases:
   product-guide:

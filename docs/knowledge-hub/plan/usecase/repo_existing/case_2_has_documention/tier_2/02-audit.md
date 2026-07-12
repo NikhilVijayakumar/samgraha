@@ -16,12 +16,12 @@ Run the real audit files unmodified against each document.
 
 | Domain | Deterministic doc | Semantic doc |
 |---|---|---|
-| security | `audit/deterministic/document/06-security.yaml` | `audit/semantic/document/06-security.md` |
+| security | `audit/deterministic/document/03-security.yaml` | `audit/semantic/document/03-security.md` |
 | feature | `audit/deterministic/document/04-feature.yaml` | `audit/semantic/document/04-feature.md` |
 | architecture | `audit/deterministic/document/05-architecture.yaml` | `audit/semantic/document/05-architecture.md` |
-| design | `audit/deterministic/document/07-design.yaml` | `audit/semantic/document/07-design.md` |
-| engineering | `audit/deterministic/document/08-engineering.yaml` | `audit/semantic/document/08-engineering.md` |
-| external-context | `audit/deterministic/document/15-external-context.yaml` | `audit/semantic/document/15-external-context.md` |
+| design | `audit/deterministic/document/06-design.yaml` | `audit/semantic/document/06-design.md` |
+| engineering | `audit/deterministic/document/07-engineering.yaml` | `audit/semantic/document/07-engineering.md` |
+| external-context | `audit/deterministic/document/08-external-context.yaml` | `audit/semantic/document/08-external-context.md` |
 
 Plus section-level audits for each. Score via `calculation/summary/final_score.yaml` — 4 equal buckets.
 

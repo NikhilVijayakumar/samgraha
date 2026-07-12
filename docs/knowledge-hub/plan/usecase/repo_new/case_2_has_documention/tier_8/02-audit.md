@@ -16,8 +16,8 @@ Run the real audit files unmodified against each document.
 
 | Domain | Deterministic doc | Semantic doc |
 |---|---|---|
-| readme | `audit/deterministic/document/16-readme.yaml` | `audit/semantic/document/16-readme.md` |
-| product-guide | `audit/deterministic/document/17-product-guide.yaml` | `audit/semantic/document/17-product-guide.md` |
+| readme | `audit/deterministic/document/15-readme.yaml` | `audit/semantic/document/15-readme.md` |
+| product-guide | `audit/deterministic/document/16-product-guide.yaml` | `audit/semantic/document/16-product-guide.md` |
 
 Plus section-level audits for each. Score via `calculation/summary/final_score.yaml` — 4 equal buckets.
 

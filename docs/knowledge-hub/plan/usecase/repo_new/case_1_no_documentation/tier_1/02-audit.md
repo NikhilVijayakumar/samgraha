@@ -29,18 +29,18 @@ For each domain, run the real audit files unmodified against the generated docum
 | Audit type | File |
 |---|---|
 | Deterministic document | `audit/deterministic/document/01-vision.yaml` |
-| Deterministic section | `audit/deterministic/section/vision/*.yaml` |
+| Deterministic section | `audit/deterministic/section/01-vision/*.yaml` |
 | Semantic document | `audit/semantic/document/01-vision.md` |
-| Semantic section | `audit/semantic/section/vision/*.md` |
+| Semantic section | `audit/semantic/section/01-vision/*.md` |
 
 ### Philosophy Audit Files
 
 | Audit type | File |
 |---|---|
 | Deterministic document | `audit/deterministic/document/02-philosophy.yaml` |
-| Deterministic section | `audit/deterministic/section/philosophy/*.yaml` |
+| Deterministic section | `audit/deterministic/section/02-philosophy/*.yaml` |
 | Semantic document | `audit/semantic/document/02-philosophy.md` |
-| Semantic section | `audit/semantic/section/philosophy/*.md` |
+| Semantic section | `audit/semantic/section/02-philosophy/*.md` |
 
 ## Output
 

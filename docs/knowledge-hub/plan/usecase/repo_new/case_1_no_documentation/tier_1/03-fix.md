@@ -1,4 +1,4 @@
-# Stage 3 — Fix
+# Stage 3 → Fix
 
 **Use case:** `repo_new/case_1_no_documentation`
 **Tier:** 1
@@ -10,11 +10,11 @@ Reports from stage 2 (`02-audit.md`): per-domain scores and failure details.
 
 ## Procedure
 
-For each domain, check the final score against the gate threshold. If below threshold, decide fix scope, apply the fix, then re-run stage 2. Loop stages 2↔3 until gate clears or fallback triggers.
+For each domain, check the final score against the gate threshold. If below threshold, decide fix scope, apply the fix, then re-run stage 2. Loop stages 2→3 until gate clears or fallback triggers.
 
 ### Threshold
 
-- **Score:** 70 (Acceptable band minimum — `calculation/summary/score_bands.yaml`)
+- **Score:** the Acceptable band minimum — score_bands (resolved at runtime))
 - **Rating:** Acceptable
 
 ### Fix Scope Decision
@@ -29,7 +29,7 @@ Read the stage 2 report. For each failing domain:
 
 - **Whole-document regeneration** otherwise (failures spread across 3+ sections, OR any whole-document criterion failed).
   
-  Apply via `templates/generation/document/{domain}.md` — regenerate the full document, incorporating the findings from the audit report.
+  Apply via `templates/generation/document/{domain}.md` → regenerate the full document, incorporating the findings from the audit report.
 
 ### Fix Loop
 
@@ -37,7 +37,7 @@ Read the stage 2 report. For each failing domain:
 2. Re-run stage 2 (`02-audit.md`) on the fixed document.
 3. Check score against threshold.
 4. If below threshold and iterations < 5: repeat from step 1.
-5. If iterations = 5: **fallback** — flag remaining failures for human review. Domain does not clear gate until human resolves.
+5. If iterations = 5: **fallback** → flag remaining failures for human review. Domain does not clear gate until human resolves.
 
 ### Max Iterations
 
@@ -45,7 +45,7 @@ Read the stage 2 report. For each failing domain:
 
 ### Tier Gate
 
-Once every domain in Tier 1 (vision, philosophy) has a final score ≥ 70 (Acceptable), the tier clears and Tier 2 can begin.
+Once every domain in Tier 1 (vision, philosophy) has a final score ≥ the Acceptable band minimum, the tier clears and Tier 2 can begin.
 
 ## Output
 
@@ -54,6 +54,6 @@ Once every domain in Tier 1 (vision, philosophy) has a final score ≥ 70 (Accep
 
 ## Differs From Other Use Cases
 
-- **vs. `repo_new/case_2_has_documention`:** No difference at Tier 1 — same fix procedure.
-- **vs. `repo_existing/case_1_no_documentation`:** No difference at Tier 1 — same fix procedure.
-- **vs. `repo_existing/case_2_has_documention`:** No difference at Tier 1 — same fix procedure.
+- **vs. `repo_new/case_2_has_documention`:** No difference at Tier 1 → same fix procedure.
+- **vs. `repo_existing/case_1_no_documentation`:** No difference at Tier 1 → same fix procedure.
+- **vs. `repo_existing/case_2_has_documention`:** No difference at Tier 1 → same fix procedure.

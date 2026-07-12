@@ -17,9 +17,9 @@ Run the real audit files unmodified against each document.
 | Audit type | Vision | Philosophy |
 |---|---|---|
 | Deterministic document | `audit/deterministic/document/01-vision.yaml` | `audit/deterministic/document/02-philosophy.yaml` |
-| Deterministic section | `audit/deterministic/section/vision/*.yaml` | `audit/deterministic/section/philosophy/*.yaml` |
+| Deterministic section | `audit/deterministic/section/01-vision/*.yaml` | `audit/deterministic/section/02-philosophy/*.yaml` |
 | Semantic document | `audit/semantic/document/01-vision.md` | `audit/semantic/document/02-philosophy.md` |
-| Semantic section | `audit/semantic/section/vision/*.md` | `audit/semantic/section/philosophy/*.md` |
+| Semantic section | `audit/semantic/section/01-vision/*.md` | `audit/semantic/section/02-philosophy/*.md` |
 
 Score via `calculation/summary/final_score.yaml` — 4 equal buckets.
 

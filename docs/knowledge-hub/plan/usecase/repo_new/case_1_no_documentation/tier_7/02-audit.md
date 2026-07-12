@@ -17,9 +17,9 @@ Run the real audit files unmodified against the generated document.
 | Audit type | File |
 |---|---|
 | Deterministic document | `audit/deterministic/document/14-build.yaml` |
-| Deterministic section | `audit/deterministic/section/build/*.yaml` |
+| Deterministic section | `audit/deterministic/section/14-build/*.yaml` |
 | Semantic document | `audit/semantic/document/14-build.md` |
-| Semantic section | `audit/semantic/section/build/*.md` |
+| Semantic section | `audit/semantic/section/14-build/*.md` |
 
 Score via `calculation/summary/final_score.yaml` — 4 equal buckets (25% each).
 

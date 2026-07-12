@@ -5,7 +5,7 @@ Orchestration layer for tier-by-tier documentation generation, audit, and fix. T
 ## How it works
 
 1. **Two entry paths** — generate from scratch (Path A) or audit existing docs and fix (Path B)
-2. **Tier gate** — domains in a tier run in parallel; no tier advances until every domain in it clears the score threshold (70+, Acceptable)
+2. **Tier gate** — domains in a tier run in parallel; no tier advances until every domain in it clears the score threshold (the Acceptable band minimum, resolved at runtime from `score_bands`)
 3. **Fix loop** — failing sections get regenerated via the `## Audit Fix` slot in generation templates, re-audited, repeated up to 5 times before flagging for human review
 
 ## Files
@@ -21,7 +21,7 @@ Orchestration layer for tier-by-tier documentation generation, audit, and fix. T
 
 ## Scoring
 
-Uses the same `calculation/summary/` formulas and bands as every other layer. Tier gate threshold: **Acceptable (70+)**. No per-bucket sub-gate.
+Uses the same `calculation/summary/` formulas and bands as every other layer. Tier gate threshold: **the Acceptable band minimum** (resolved at runtime from `score_bands`). No per-bucket sub-gate.
 
 ## Iterations
 

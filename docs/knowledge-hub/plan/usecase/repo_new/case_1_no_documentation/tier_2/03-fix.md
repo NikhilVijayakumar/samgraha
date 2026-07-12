@@ -1,4 +1,4 @@
-# Stage 3 — Fix
+# Stage 3 → Fix
 
 **Use case:** `repo_new/case_1_no_documentation`
 **Tier:** 2
@@ -10,11 +10,11 @@ Reports from stage 2 (`02-audit.md`): per-domain scores and failure details.
 
 ## Procedure
 
-For each domain, check the final score against the gate threshold. If below threshold, decide fix scope, apply the fix, then re-run stage 2. Loop stages 2↔3 until gate clears or fallback triggers.
+For each domain, check the final score against the gate threshold. If below threshold, decide fix scope, apply the fix, then re-run stage 2. Loop stages 2→3 until gate clears or fallback triggers.
 
 ### Threshold
 
-- **Score:** 70 (Acceptable band minimum)
+- **Score:** the Acceptable band minimum)
 - **Rating:** Acceptable
 
 ### Fix Scope Decision
@@ -28,7 +28,7 @@ For each domain, check the final score against the gate threshold. If below thre
 2. Re-run stage 2 on the fixed document.
 3. Check score against threshold.
 4. If below threshold and iterations < 5: repeat from step 1.
-5. If iterations = 5: fallback — flag remaining failures for human review.
+5. If iterations = 5: fallback → flag remaining failures for human review.
 
 ### Max Iterations
 
@@ -36,10 +36,10 @@ For each domain, check the final score against the gate threshold. If below thre
 
 ### Tier Gate
 
-Once every domain in Tier 2 (security, feature, architecture, design, engineering, external-context) has a final score ≥ 70, the tier clears and Tier 3 can begin.
+Once every domain in Tier 2 (security, feature, architecture, design, engineering, external-context) has a final score ≥ the Acceptable band minimum, the tier clears and Tier 3 can begin.
 
 ## Differs From Other Use Cases
 
-- **vs. `repo_new/case_2_has_documention`:** No difference — same fix procedure.
-- **vs. `repo_existing/case_1_no_documentation`:** No difference — same fix procedure.
-- **vs. `repo_existing/case_2_has_documention`:** No difference — same fix procedure.
+- **vs. `repo_new/case_2_has_documention`:** No difference → same fix procedure.
+- **vs. `repo_existing/case_1_no_documentation`:** No difference → same fix procedure.
+- **vs. `repo_existing/case_2_has_documention`:** No difference → same fix procedure.
