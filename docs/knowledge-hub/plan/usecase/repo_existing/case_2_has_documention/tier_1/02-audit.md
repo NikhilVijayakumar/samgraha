@@ -10,6 +10,8 @@ Documents produced by stage 1 (`01-generation.md`): migrated Vision and Philosop
 
 ## Procedure
 
+0. **Run applicable scripts:** for domains with scripts (Scripts column below), run each per its manifest's `depends_on` order, reusing a cached result where `script/policy.yaml`'s policy allows, else executing fresh. Capture JSON per check-name.
+
 Run the real audit files unmodified against each document.
 
 ### Per-Domain Audit Files

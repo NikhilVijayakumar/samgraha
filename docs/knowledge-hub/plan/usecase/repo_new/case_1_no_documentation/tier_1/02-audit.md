@@ -16,15 +16,15 @@ For each domain, run the real audit files unmodified against the generated docum
 
 0. **Run applicable scripts:** for domains with scripts (Scripts column below), run each per its manifest's `depends_on` order, reusing a cached result where `script/policy.yaml`'s policy allows, else executing fresh. Capture JSON per check-name.
 
-2. **Deterministic document audit:** Run `audit/deterministic/document/{domain}.yaml` against the document. Produces per-rule pass/fail with evidence.
+1. **Deterministic document audit:** Run `audit/deterministic/document/{domain}.yaml` against the document. Produces per-rule pass/fail with evidence.
 
-3. **Deterministic section audit:** Run `audit/deterministic/section/{domain}/*.yaml` against each section of the document. Produces per-section, per-rule pass/fail with evidence.
+2. **Deterministic section audit:** Run `audit/deterministic/section/{domain}/*.yaml` against each section of the document. Produces per-section, per-rule pass/fail with evidence.
 
-4. **Semantic document audit:** Run `audit/semantic/document/{domain}.md` against the whole document. Produces per-criterion pass/fail with confidence and evidence.
+3. **Semantic document audit:** Run `audit/semantic/document/{domain}.md` against the whole document. Produces per-criterion pass/fail with confidence and evidence.
 
-5. **Semantic section audit:** Run `audit/semantic/section/{domain}/*.md` against each section. Produces per-section, per-criterion pass/fail with confidence and evidence.
+4. **Semantic section audit:** Run `audit/semantic/section/{domain}/*.md` against each section. Produces per-section, per-criterion pass/fail with confidence and evidence.
 
-6. **Score:** Compute final score via `calculation/summary/final_score.yaml` — 4 equal buckets (deterministic_whole 25%, deterministic_section 25%, semantic_whole 25%, semantic_section 25%), weighted sum formula.
+5. **Score:** Compute final score via `calculation/summary/final_score.yaml` — 4 equal buckets (deterministic_whole 25%, deterministic_section 25%, semantic_whole 25%, semantic_section 25%), weighted sum formula.
 
 ### Per-Domain Audit Files
 

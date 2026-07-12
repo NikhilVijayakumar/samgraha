@@ -10,6 +10,8 @@ Documents produced by stage 1 (`01-generation.md`): one document per domain.
 
 ## Procedure
 
+0. **Run applicable scripts:** for domains with scripts (Scripts column below), run each per its manifest's `depends_on` order, reusing a cached result where `script/policy.yaml`'s policy allows, else executing fresh. Capture JSON per check-name.
+
 For each domain, run the real audit files unmodified. Produce a report per domain.
 
 ### Per-Domain Audit Files
