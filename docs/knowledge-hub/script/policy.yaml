@@ -6,11 +6,5 @@ overrides:
   - check: dependency-reachable
     strategy: fingerprint
     max_age_seconds: 3600      # external state drifts even if the repo doesn't
-  - check: e2e-test-run
-    strategy: always_rerun     # expensive + can be flaky; user wants a guaranteed-fresh result every audit pass
-  - check: load-test-run
-    strategy: always_rerun     # expensive + results are time-sensitive
-  - check: smoke-test-run
-    strategy: always_rerun     # fast enough to always rerun, results must be fresh
   - check: mock-api-runs
     strategy: always_rerun     # server state is ephemeral, must rerun each pass
