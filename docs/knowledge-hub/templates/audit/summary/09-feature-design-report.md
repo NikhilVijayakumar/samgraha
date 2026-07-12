@@ -1,7 +1,7 @@
-# Audit Summary — Architecture
+# Audit Summary — Feature Design
 
 **Document:** {{ document_path }}
-**Standard:** `documentation-standards/05-architecture-standards.md`
+**Standard:** `documentation-standards/09-feature-design-standards.md`
 **Audit Date:** {{ created_at }}
 **Revision:** {{ revision_number }}
 
@@ -49,7 +49,7 @@ Every run of this document's audit, oldest first, with this revision last:
 
 Deterministic and semantic judge different things at the document level — deterministic checks structural rule groupings, semantic checks judgment criteria. They aren't the same categories and don't map row-to-row, so they get separate tables rather than being forced side by side.
 
-### Deterministic — Whole (`audit/deterministic/document/05-architecture.yaml`)
+### Deterministic — Whole (`audit/deterministic/document/09-feature-design.yaml`)
 
 | Category | Score | Previous | Trend |
 |---|---:|---:|---|
@@ -58,8 +58,10 @@ Deterministic and semantic judge different things at the document level — dete
 | Technology Independence | {{ categories.technology_independence.score }} / 100 | {{ categories.technology_independence.previous_score | default('—') }} | {{ categories.technology_independence.trend_display }} |
 | Cross-References | {{ categories.cross_references.score }} / 100 | {{ categories.cross_references.previous_score | default('—') }} | {{ categories.cross_references.trend_display }} |
 | Duplicate Content | {{ categories.duplicate_content.score }} / 100 | {{ categories.duplicate_content.previous_score | default('—') }} | {{ categories.duplicate_content.trend_display }} |
+| Tier Enforcement | {{ categories.tier_enforcement.score }} / 100 | {{ categories.tier_enforcement.previous_score | default('—') }} | {{ categories.tier_enforcement.trend_display }} |
+| Validation Marker | {{ categories.validation_marker.score }} / 100 | {{ categories.validation_marker.previous_score | default('—') }} | {{ categories.validation_marker.trend_display }} |
 
-### Semantic — Whole (`audit/semantic/document/05-architecture.md`)
+### Semantic — Whole (`audit/semantic/document/09-feature-design.md`)
 
 | Criterion | Result | Previous | Trend |
 |---|---|---|---|
@@ -73,38 +75,29 @@ Full detail, including per-rule/per-criterion evidence: see the Deterministic �
 
 Same reasoning as above, extended per section: a section's deterministic score and its semantic score aren't guaranteed to check the same things (a section can be structurally complete but semantically weak, or vice versa) — two separate tables, not one merged table with a false row-by-row correspondence.
 
-### Deterministic — Section (`audit/deterministic/section/05-architecture/*.yaml`)
+### Deterministic — Section (`audit/deterministic/section/09-feature-design/*.yaml`)
 
 | # | Section | Required | Score | Previous | Trend |
 |---:|---|:---:|---:|---:|---|
-| 1 | Purpose | optional | {{ sections.purpose.det_score }} / 100 | {{ sections.purpose.det_previous_score | default('—') }} | {{ sections.purpose.det_trend_display }} |
-| 2 | System Overview | **required** | {{ sections.system_overview.det_score }} / 100 | {{ sections.system_overview.det_previous_score | default('—') }} | {{ sections.system_overview.det_trend_display }} |
-| 3 | Component Model | **required** | {{ sections.component_model.det_score }} / 100 | {{ sections.component_model.det_previous_score | default('—') }} | {{ sections.component_model.det_trend_display }} |
-| 4 | Communication Paths | **required** | {{ sections.communication_paths.det_score }} / 100 | {{ sections.communication_paths.det_previous_score | default('—') }} | {{ sections.communication_paths.det_trend_display }} |
-| 5 | Data Flow | **required** | {{ sections.data_flow.det_score }} / 100 | {{ sections.data_flow.det_previous_score | default('—') }} | {{ sections.data_flow.det_trend_display }} |
-| 6 | Security Considerations | **required** | {{ sections.security_considerations.det_score }} / 100 | {{ sections.security_considerations.det_previous_score | default('—') }} | {{ sections.security_considerations.det_trend_display }} |
-| 7 | Rationale | optional | {{ sections.rationale.det_score }} / 100 | {{ sections.rationale.det_previous_score | default('—') }} | {{ sections.rationale.det_trend_display }} |
-| 8 | Constraints | optional | {{ sections.constraints.det_score }} / 100 | {{ sections.constraints.det_previous_score | default('—') }} | {{ sections.constraints.det_trend_display }} |
-| 9 | Traceability | optional | {{ sections.traceability.det_score }} / 100 | {{ sections.traceability.det_previous_score | default('—') }} | {{ sections.traceability.det_trend_display }} |
-| 10 | Operational Readiness | not in standard | {{ sections.operational_readiness.det_score }} / 100 | {{ sections.operational_readiness.det_previous_score | default('—') }} | {{ sections.operational_readiness.det_trend_display }} |
-| 11 | Observability | not in standard | {{ sections.observability.det_score }} / 100 | {{ sections.observability.det_previous_score | default('—') }} | {{ sections.observability.det_trend_display }} |
+| 1 | User Experience | **required** | {{ sections.user_experience.det_score }} / 100 | {{ sections.user_experience.det_previous_score | default('—') }} | {{ sections.user_experience.det_trend_display }} |
+| 2 | Workflow | **required** | {{ sections.workflow.det_score }} / 100 | {{ sections.workflow.det_previous_score | default('—') }} | {{ sections.workflow.det_trend_display }} |
+| 3 | States | **required** | {{ sections.states.det_score }} / 100 | {{ sections.states.det_previous_score | default('—') }} | {{ sections.states.det_trend_display }} |
+| 4 | Purpose | optional | {{ sections.purpose.det_score }} / 100 | {{ sections.purpose.det_previous_score | default('—') }} | {{ sections.purpose.det_trend_display }} |
+| 5 | Non-Goals | optional | {{ sections.non_goals.det_score }} / 100 | {{ sections.non_goals.det_previous_score | default('—') }} | {{ sections.non_goals.det_trend_display }} |
+| 6 | Constraints | optional | {{ sections.constraints.det_score }} / 100 | {{ sections.constraints.det_previous_score | default('—') }} | {{ sections.constraints.det_trend_display }} |
+| 7 | Traceability | optional | {{ sections.traceability.det_score }} / 100 | {{ sections.traceability.det_previous_score | default('—') }} | {{ sections.traceability.det_trend_display }} |
 
-### Semantic — Section (`audit/semantic/section/05-architecture/*.md`)
+### Semantic — Section (`audit/semantic/section/09-feature-design/*.md`)
 
 | # | Section | Required | Score | Previous | Trend |
 |---:|---|:---:|---:|---:|---|
-| 1 | Purpose | optional | {{ sections.purpose.sem_score }} / 100 | {{ sections.purpose.sem_previous_score | default('—') }} | {{ sections.purpose.sem_trend_display }} |
-| 2 | System Overview | **required** | {{ sections.system_overview.sem_score }} / 100 | {{ sections.system_overview.sem_previous_score | default('—') }} | {{ sections.system_overview.sem_trend_display }} |
-| 3 | Component Model | **required** | {{ sections.component_model.sem_score }} / 100 | {{ sections.component_model.sem_previous_score | default('—') }} | {{ sections.component_model.sem_trend_display }} |
-| 4 | Communication Paths | **required** | {{ sections.communication_paths.sem_score }} / 100 | {{ sections.communication_paths.sem_previous_score | default('—') }} | {{ sections.communication_paths.sem_trend_display }} |
-| 5 | Data Flow | **required** | {{ sections.data_flow.sem_score }} / 100 | {{ sections.data_flow.sem_previous_score | default('—') }} | {{ sections.data_flow.sem_trend_display }} |
-| 6 | Security Considerations | **required** | {{ sections.security_considerations.sem_score }} / 100 | {{ sections.security_considerations.sem_previous_score | default('—') }} | {{ sections.security_considerations.sem_trend_display }} |
-| 7 | Rationale | optional | {{ sections.rationale.sem_score }} / 100 | {{ sections.rationale.sem_previous_score | default('—') }} | {{ sections.rationale.sem_trend_display }} |
-| 8 | Constraints | optional | {{ sections.constraints.sem_score }} / 100 | {{ sections.constraints.sem_previous_score | default('—') }} | {{ sections.constraints.sem_trend_display }} |
-| 9 | Traceability | optional | {{ sections.traceability.sem_score }} / 100 | {{ sections.traceability.sem_previous_score | default('—') }} | {{ sections.traceability.sem_trend_display }} |
-| 10 | Operational Readiness | not in standard | {{ sections.operational_readiness.sem_score }} / 100 | {{ sections.operational_readiness.sem_previous_score | default('—') }} | {{ sections.operational_readiness.sem_trend_display }} |
-| 11 | Observability | not in standard | {{ sections.observability.sem_score }} / 100 | {{ sections.observability.sem_previous_score | default('—') }} | {{ sections.observability.sem_trend_display }} |
-| — | Generic (unmatched sections) | n/a | {{ sections.generic.sem_score }} / 100 | {{ sections.generic.sem_previous_score | default('—') }} | {{ sections.generic.sem_trend_display }} |
+| 1 | User Experience | **required** | {{ sections.user_experience.sem_score }} / 100 | {{ sections.user_experience.sem_previous_score | default('—') }} | {{ sections.user_experience.sem_trend_display }} |
+| 2 | Workflow | **required** | {{ sections.workflow.sem_score }} / 100 | {{ sections.workflow.sem_previous_score | default('—') }} | {{ sections.workflow.sem_trend_display }} |
+| 3 | States | **required** | {{ sections.states.sem_score }} / 100 | {{ sections.states.sem_previous_score | default('—') }} | {{ sections.states.sem_trend_display }} |
+| 4 | Purpose | optional | {{ sections.purpose.sem_score }} / 100 | {{ sections.purpose.sem_previous_score | default('—') }} | {{ sections.purpose.sem_trend_display }} |
+| 5 | Non-Goals | optional | {{ sections.non_goals.sem_score }} / 100 | {{ sections.non_goals.sem_previous_score | default('—') }} | {{ sections.non_goals.sem_trend_display }} |
+| 6 | Constraints | optional | {{ sections.constraints.sem_score }} / 100 | {{ sections.constraints.sem_previous_score | default('—') }} | {{ sections.constraints.sem_trend_display }} |
+| 7 | Traceability | optional | {{ sections.traceability.sem_score }} / 100 | {{ sections.traceability.sem_previous_score | default('—') }} | {{ sections.traceability.sem_trend_display }} |
 
 Full detail, including per-rule/per-criterion evidence for every row above: see the Deterministic — Section and Semantic — Section reports linked below.
 
@@ -126,10 +119,10 @@ Full detail, including per-rule/per-criterion evidence for every row above: see 
 
 | Report | File |
 |---|---|
-| Deterministic — Whole | `{{ det_whole_report_path }}` (`audit/deterministic/document/05-architecture.yaml`) |
-| Deterministic — Section | `{{ det_section_report_path }}` (`audit/deterministic/section/05-architecture/*.yaml`) |
-| Semantic — Whole | `{{ sem_whole_report_path }}` (`audit/semantic/document/05-architecture.md`) |
-| Semantic — Section | `{{ sem_section_report_path }}` (`audit/semantic/section/05-architecture/*.md`) |
+| Deterministic — Whole | `{{ det_whole_report_path }}` (`audit/deterministic/document/09-feature-design.yaml`) |
+| Deterministic — Section | `{{ det_section_report_path }}` (`audit/deterministic/section/09-feature-design/*.yaml`) |
+| Semantic — Whole | `{{ sem_whole_report_path }}` (`audit/semantic/document/09-feature-design.md`) |
+| Semantic — Section | `{{ sem_section_report_path }}` (`audit/semantic/section/09-feature-design/*.md`) |
 
 ---
 
@@ -153,7 +146,7 @@ Full score-history and per-run trend detail lives in the Score History table abo
 
 | Field | Value |
 |---|---|
-| Domain | architecture |
+| Domain | feature-design |
 | Standard | documentation-standards |
 | Document | {{ document_path }} |
 | Audit Date | {{ created_at }} |

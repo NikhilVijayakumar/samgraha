@@ -1,8 +1,8 @@
-# Semantic Whole-Document Report — Architecture
+# Semantic Whole-Document Report — Feature Design
 
 **Document:** {{ document_path }}
-**Standard:** `documentation-standards/05-architecture-standards.md`
-**Rubric:** `audit/semantic/document/05-architecture.md`
+**Standard:** `documentation-standards/09-feature-design-standards.md`
+**Rubric:** `audit/semantic/document/09-feature-design.md`
 **Audit Date:** {{ created_at }}
 **Revision:** {{ revision_number }}
 
@@ -42,29 +42,29 @@ C1 and C2 are mandatory — either one failing caps this score at 30 (only C3's 
 
 ## Judgment
 
-Verifies Architecture Documentation coheres as one structural model — Component Model, Data Flow, and Communication Paths must describe the same system without contradicting each other, and the collection as a whole must read as one architecture, not several. Section-level quality (is each section well-written on its own) is a separate concern, owned by the Semantic Section report; this report only catches problems that only exist when sections or documents are read together.
+Verifies a Feature Design document coheres internally — User Experience, Workflow, and States must not contradict each other. Section-level quality is owned by the Semantic Section report; this report only catches problems that only exist when sections or documents are read together.
 
 ## Scoring Criteria — Detail
 
-### C1 — mandatory, 0 or 40: Component Model, Data Flow, and Communication Paths are mutually consistent
+### C1 — mandatory, 0 or 40: User Experience, Workflow, and States are mutually consistent
 
-**What this catches:** a component that Data Flow assigns data ownership to but Component Model never defines; a Communication Path connecting two components with no corresponding relationship in Component Model.
+**What this catches:** a state transition Workflow describes that States doesn't define; a UX description that contradicts the actual workflow steps.
 
 **Previous:** {{ results['C1'].previous_passed_display | default('—') }} → **Current:** {{ results['C1'].passed_display }} ({{ results['C1'].trend_display }})
 **Evidence:** {{ results['C1'].evidence.excerpt | default('—') }}
 {% if not results['C1'].passed %}**Finding:** {{ results['C1'].message }}{% endif %}
 
-### C2 — mandatory, 0 or 30: Terminology (component names) consistent across all sections and documents
+### C2 — mandatory, 0 or 30: Terminology (screens/states/actions) consistent across all sections and documents
 
-**What this catches:** a component renamed partway through the document set with no migration note — the same component referred to by two different names in Component Model vs. Data Flow.
+**What this catches:** the same screen or state named differently across sections, confusing Feature Technical Design's realization of it.
 
 **Previous:** {{ results['C2'].previous_passed_display | default('—') }} → **Current:** {{ results['C2'].passed_display }} ({{ results['C2'].trend_display }})
 **Evidence:** {{ results['C2'].evidence.excerpt | default('—') }}
 {% if not results['C2'].passed %}**Finding:** {{ results['C2'].message }}{% endif %}
 
-### C3 — recommended, 0 or 30: All Architecture documents cohere as one system
+### C3 — recommended, 0 or 30: All Feature Design documents cohere as one system
 
-**What this catches:** two Architecture documents in the collection describing the same component with contradictory responsibilities — a collection-wide check, not a within-one-document check.
+**What this catches:** two Feature Design documents giving contradictory UX treatment to what should be the same underlying flow — a collection-wide check, not a within-one-document check.
 
 **Previous:** {{ results['C3'].previous_passed_display | default('—') }} → **Current:** {{ results['C3'].passed_display }} ({{ results['C3'].trend_display }})
 **Evidence:** {{ results['C3'].evidence.excerpt | default('—') }}
@@ -81,7 +81,7 @@ Verifies Architecture Documentation coheres as one structural model — Componen
 | {{ f.criterion_id }} | {{ f.severity }} | {{ f.evidence.excerpt | default('—') }} | {{ f.message }} | {{ 'Yes — regression' if f.is_new_finding else 'No — carried over' }} |
 {% endfor %}
 {% else %}
-No findings — document reads as one coherent architecture.
+No findings — document reads as one coherent feature design.
 {% endif %}
 
 ---
@@ -90,9 +90,9 @@ No findings — document reads as one coherent architecture.
 
 | Field | Value |
 |---|---|
-| Domain | architecture |
+| Domain | feature-design |
 | Standard | documentation-standards |
-| Rubric File | `audit/semantic/document/05-architecture.md` |
+| Rubric File | `audit/semantic/document/09-feature-design.md` |
 | Audit Date | {{ created_at }} |
 | Revision | {{ revision_number }} |
 | Session | {{ session_id }} |
