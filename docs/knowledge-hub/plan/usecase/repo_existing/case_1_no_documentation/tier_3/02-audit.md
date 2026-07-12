@@ -1,0 +1,30 @@
+# Stage 2 — Audit
+
+**Use case:** `repo_existing/case_1_no_documentation`
+**Tier:** 3
+**Domains:** feature-design, feature-technical
+
+## Input
+
+Documents produced by stage 1 (`01-generation.md`).
+
+## Procedure
+
+Run the real audit files unmodified. Produce a report per domain.
+
+### Per-Domain Audit Files
+
+| Domain | Deterministic doc | Semantic doc |
+|---|---|---|
+| feature-design | `audit/deterministic/document/09-feature-design.yaml` | `audit/semantic/document/09-feature-design.md` |
+| feature-technical | `audit/deterministic/document/10-feature-technical.yaml` | `audit/semantic/document/10-feature-technical.md` |
+
+Plus section-level audits for each. Score via `calculation/summary/final_score.yaml` — 4 equal buckets.
+
+## Output
+
+A report per domain. This stage never fixes anything.
+
+## Differs From Other Use Cases
+
+No difference — same audit files, same procedure.
