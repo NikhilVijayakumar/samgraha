@@ -23,15 +23,18 @@ impl StandardRegistry {
         Self::new()
     }
 
-    /// Open a knowledge-hub SQLite database at `{repo_root}/.samgraha/knowledge.db`
-    /// and project it onto `StandardDefinition` structs via `db_reader`, then
+    /// Open a knowledge-hub SQLite database at `{repo_root}/.samgraha/standards.db`
+    /// — deliberately separate from `registry`'s `.samgraha/knowledge.db` (a
+    /// different schema entirely: per-repo compiled document knowledge, not
+    /// standard/rule definitions) — and project it onto `StandardDefinition`
+    /// structs via `db_reader`, then
     /// layer any repo-supplied `StandardDefinition` JSON/TOML files from
     /// `{repo_root}/.samgraha/standards/` on top.
     ///
     /// If the DB file does not exist, returns an empty registry with only
     /// repo-supplied overrides (if any).
     pub fn from_standards_db_and_overrides(repo_root: &Path) -> Result<Self> {
-        let db_path = repo_root.join(".samgraha").join("knowledge.db");
+        let db_path = repo_root.join(".samgraha").join("standards.db");
         if db_path.exists() {
             let conn = rusqlite::Connection::open(&db_path)
                 .with_context(|| format!("Failed to open knowledge-hub DB at {}", db_path.display()))?;

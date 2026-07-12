@@ -69,12 +69,20 @@ fn audit_registers_default_providers() {
 }
 
 #[test]
-fn test_standard_registry_builtins() {
+fn test_standard_registry_db_backed() {
     use standards::StandardRegistry;
-    let registry = StandardRegistry::with_builtins();
+    let tmp = fixtures::create_test_standards_db();
+    let registry = StandardRegistry::from_standards_db_and_overrides(&tmp).unwrap();
     let domains = registry.domains();
-    assert!(domains.contains(&"architecture"));
-    assert!(domains.contains(&"feature"));
-    assert!(domains.contains(&"engineering"));
-    assert!(domains.len() >= 10);
+    assert!(domains.contains(&"architecture"), "expected architecture domain, got {:?}", domains);
+    assert!(domains.contains(&"feature"), "expected feature domain, got {:?}", domains);
+    assert!(domains.contains(&"vision"), "expected vision domain, got {:?}", domains);
+    assert!(domains.len() >= 3, "expected at least 3 domains, got {}", domains.len());
+
+    // Verify architecture has rules.
+    let arch = registry.get("architecture", "1.0.0").expect("architecture standard not found");
+    assert!(!arch.audit_rules.is_empty(), "architecture should have rules");
+    assert!(!arch.required_sections.is_empty(), "architecture should have sections");
+
+    std::fs::remove_dir_all(&tmp).ok();
 }
