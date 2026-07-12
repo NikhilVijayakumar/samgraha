@@ -41,11 +41,15 @@ This document defines the standard for [System Name] documentation within the en
 > **Generation note:** When generating for a specific system, fill this template with *that system's* philosophy purpose: what Philosophy establishes and how it differs from Vision. The meta-level "This document defines the standard for Philosophy..." language belongs in the standard itself, not in a generated document.
 
 **Correct example:**
-> This document defines the standard for Project Horizon documentation within the engineering documentation ecosystem.
+> **Philosophical purpose:** This document establishes Project Horizon's decision-making philosophy — the principles, values, and trade-offs that guide every downstream choice.
 >
-> Project Horizon Documentation establishes the product's guiding principles, values, and the deliberate trade-offs that shape every downstream decision.
+> **Distinction from Vision:**
+> - **Vision says:** Why Project Horizon exists and what problem it solves for users.
+> - **Philosophy says:** How the team building it chooses to think, prioritize, and decide.
 >
-> Unlike Vision, which explains **why** the product exists, Philosophy explains **how the people building it choose to think and decide**.
+> **Scope boundaries:**
+> - **In scope:** Guiding principles, named values with priority rankings, explicit trade-offs
+> - **Out of scope:** Feature specifications, architectural decisions, implementation choices
 
 **Incorrect example:**
 > This document defines the Philosophy for the React frontend and PostgreSQL backend of Project Horizon.

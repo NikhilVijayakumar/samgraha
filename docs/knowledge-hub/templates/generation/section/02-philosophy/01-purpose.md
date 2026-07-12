@@ -19,21 +19,34 @@ Generate the Purpose section for a Philosophy document.
 ```markdown
 ## Purpose
 
-This document defines the standard for [System Name] documentation within the engineering documentation ecosystem.
+> **Philosophical purpose:** [1-2 sentences: what decision-making philosophy guides this team, what values it establishes]
 
-[One paragraph explaining what this documentation type does and why it exists.]
+> **Distinction from Vision:**
+> - **Vision says:** [why the product exists — one sentence]
+> - **Philosophy says:** [how the team chooses to think and decide — one sentence]
 
-[One paragraph distinguishing it from related standards — what it covers that others do not.]
+> **Scope boundaries:**
+> - **In scope:** [principles, values, trade-offs this document defines]
+> - **Out of scope:** [what this document does not define — features, architecture, engineering decisions]
 ```
+
+> **Generation note:** The standard's Purpose section serves double duty — it defines Philosophy Documentation as a concept (meta-level) AND is used as the template for system-specific documents. When generating for a specific system, fill this template with *that system's* philosophical purpose: what Philosophy establishes and how it differs from Vision. The meta-level "This document defines the standard for Philosophy Documentation..." language belongs in the standard itself, not in a generated document.
 
 ## Examples
 
-**Correct:**
-> This document defines the standard for Project Horizon documentation within the engineering documentation ecosystem.
+**Correct (system-specific):**
+> **Philosophical purpose:** This document establishes Project Horizon's decision-making philosophy — the principles, values, and trade-offs that guide every downstream choice.
 >
-> Project Horizon Documentation establishes the product's guiding principles, values, and the deliberate trade-offs that shape every downstream decision.
+> **Distinction from Vision:**
+> - **Vision says:** Why Project Horizon exists and what problem it solves for users.
+> - **Philosophy says:** How the team building it chooses to think, prioritize, and decide.
 >
-> Unlike Vision, which explains **why** the product exists, Philosophy explains **how the people building it choose to think and decide**.
+> **Scope boundaries:**
+> - **In scope:** Guiding principles, named values with priority rankings, explicit trade-offs
+> - **Out of scope:** Feature specifications, architectural decisions, implementation choices
+
+**Correct (meta-level — only when generating the standard itself):**
+> This document defines the standard for Philosophy Documentation within the engineering documentation ecosystem. Philosophy Documentation establishes the product's guiding principles, values, and the deliberate trade-offs that shape every downstream decision. Unlike Vision, which explains **why** the product exists, Philosophy explains **how the people building it choose to think and decide**.
 
 **Incorrect:**
 > This document defines the Philosophy for the React frontend and PostgreSQL backend of Project Horizon.
@@ -45,8 +58,8 @@ This document defines the standard for [System Name] documentation within the en
 - **Voice:** first person plural
 - **Structure:** paragraphs
 - **Audience:** product owner
-- **Do:** State Philosophy's role before listing contents; distinguish it from Vision using a clear contrast; use language that endures across technology changes
-- **Don't:** Mention specific technologies or frameworks; describe features or architecture; use implementation-level vocabulary
+- **Do:** State the philosophical purpose specific to this system; distinguish from Vision explicitly (Vision=why, Philosophy=how); define scope boundaries (principles/values/trade-offs in scope, features/architecture out of scope); use language that endures across technology changes
+- **Don't:** Use generic mission statements; copy purpose from project charter; mention specific technologies or frameworks; describe features or architecture
 
 **Required subsections:** none
 **Optional subsections:** none
