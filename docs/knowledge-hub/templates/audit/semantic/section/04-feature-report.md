@@ -1,403 +1,302 @@
-# {{ document_title }} — Feature Semantic Section Audit Report
+# Semantic Section Report — Feature
 
-> **Domain:** feature
-> **Scope:** section
-> **Kind:** semantic
-> **Date:** {{ audit_date }}
-> **Auditor:** {{ auditor_name }}
+**Document:** {{ document_path }}
+**Standard:** `documentation-standards/04-feature-standards.md`
+**Rubric Files:** `audit/semantic/section/04-feature/*.md`
+**Auditor:** LLM ({{ model_name }})
+**Audit Date:** {{ created_at }}
+**Revision:** {{ revision_number }}
 
 ---
 
-## Section-Level Score
+## Score
 
-| Metric | Value |
+**Semantic Section Score: {{ score }} / 100**
+{% if previous_score %}({{ '↑ Improved' if score > previous_score else '↓ Regressed' if score < previous_score else '→ Unchanged' }} vs. previous run){% else %}(baseline — first audit of this document){% endif %}
+
+```
+overall = average of the section scores below, for sections actually present in the document
+section_score = sum of passed criterion points in that section, capped at 100
+```
+
+### Score History
+
+| Revision | Date | Score | vs. Previous | vs. Baseline |
+|---:|---|---:|---|---|
+{% for r in revision_history -%}
+| {{ r.revision }} | {{ r.date }} | {{ r.score }} / 100 | {{ r.delta_previous_display }} | {{ r.delta_baseline_display }} |
+{% endfor -%}
+| {{ revision_number }} (current) | {{ created_at }} | {{ score }} / 100 | {{ delta_previous_display }} | {{ delta_baseline_display }} |
+
+{% if not previous_score %}No prior runs — this revision is the baseline every future run is compared against.{% endif %}
+
+### Score by Model
+
+| Model | Runs | Avg Score | Min | Max |
+|---|---:|---:|---:|---|
+{% for m in model_scores -%}
+| {{ m.model_name }} | {{ m.run_count }} | {{ m.avg_score }} / 100 | {{ m.min_score }} / 100 | {{ m.max_score }} / 100 |
+{% endfor %}
+
+### Section Scores
+
+| # | Section | Required | Score | Previous | Trend |
+|---:|---|:---:|---:|---:|---|
+| 1 | Purpose | **required** | {{ sections.purpose.score }} / 100 | {{ sections.purpose.previous_score | default('—') }} | {{ sections.purpose.trend_display }} |
+| 2 | Functional Requirements | **required** | {{ sections.functional_requirements.score }} / 100 | {{ sections.functional_requirements.previous_score | default('—') }} | {{ sections.functional_requirements.trend_display }} |
+| 3 | Acceptance Criteria | **required** | {{ sections.acceptance_criteria.score }} / 100 | {{ sections.acceptance_criteria.previous_score | default('—') }} | {{ sections.acceptance_criteria.trend_display }} |
+| 4 | Business Rules | optional | {{ sections.business_rules.score }} / 100 | {{ sections.business_rules.previous_score | default('—') }} | {{ sections.business_rules.trend_display }} |
+| 5 | Inputs | optional | {{ sections.inputs.score }} / 100 | {{ sections.inputs.previous_score | default('—') }} | {{ sections.inputs.trend_display }} |
+| 6 | Outputs | optional | {{ sections.outputs.score }} / 100 | {{ sections.outputs.previous_score | default('—') }} | {{ sections.outputs.trend_display }} |
+| 7 | Constraints | optional | {{ sections.constraints.score }} / 100 | {{ sections.constraints.previous_score | default('—') }} | {{ sections.constraints.trend_display }} |
+| 8 | Dependencies | optional | {{ sections.dependencies.score }} / 100 | {{ sections.dependencies.previous_score | default('—') }} | {{ sections.dependencies.trend_display }} |
+| 9 | Non-Goals | optional | {{ sections.non_goals.score }} / 100 | {{ sections.non_goals.previous_score | default('—') }} | {{ sections.non_goals.trend_display }} |
+| 10 | Future Extensions | optional | {{ sections.future_extensions.score }} / 100 | {{ sections.future_extensions.previous_score | default('—') }} | {{ sections.future_extensions.trend_display }} |
+| 11 | Traceability | optional | {{ sections.traceability.score }} / 100 | {{ sections.traceability.previous_score | default('—') }} | {{ sections.traceability.trend_display }} |
+| 12 | Observability | not in standard | {{ sections.observability.score }} / 100 | {{ sections.observability.previous_score | default('—') }} | {{ sections.observability.trend_display }} |
+| 13 | Stakeholders | not in standard | {{ sections.stakeholders.score }} / 100 | {{ sections.stakeholders.previous_score | default('—') }} | {{ sections.stakeholders.trend_display }} |
+| 14 | Success Criteria | not in standard | {{ sections.success_criteria.score }} / 100 | {{ sections.success_criteria.previous_score | default('—') }} | {{ sections.success_criteria.trend_display }} |
+| — | Generic (unmatched sections) | n/a | {{ sections.generic.score }} / 100 | {{ sections.generic.previous_score | default('—') }} | {{ sections.generic.trend_display }} |
+
+A section absent from the document (among the optional ones) isn't scored at all here — it's a deterministic presence check, not a semantic quality judgment on nothing.
+
+---
+
+## 1. Purpose — `section/04-feature/01-purpose.md` — **required**
+
+**Why this matters:** Purpose defines the feature's reason for existence and the problem it solves. A well-written purpose ensures everyone agrees on why the feature matters before discussing how to build it.
+
+**Section Score: {{ sections.purpose.score }} / 100** ({{ sections.purpose.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['purpose.C1'].previous_passed_display | default('—') }} | {{ results['purpose.C1'].passed_display }} | {{ results['purpose.C1'].trend_display }} | {{ results['purpose.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['purpose.C2'].previous_passed_display | default('—') }} | {{ results['purpose.C2'].passed_display }} | {{ results['purpose.C2'].trend_display }} | {{ results['purpose.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['purpose.C3'].previous_passed_display | default('—') }} | {{ results['purpose.C3'].passed_display }} | {{ results['purpose.C3'].trend_display }} | {{ results['purpose.C3'].evidence.excerpt | default('—') }} |
+
+C1: problem statement is clear and specific. C2: target users or stakeholders are identified. C3: purpose is concise and implementation-free.
+
+## 2. Functional Requirements — `02-functional_requirements.md` — **required**
+
+**Why this matters:** Functional requirements describe what the system must do. They must be complete, unambiguous, testable, and implementation-independent.
+
+**Section Score: {{ sections.functional_requirements.score }} / 100** ({{ sections.functional_requirements.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 30 | {{ results['functional_requirements.C1'].previous_passed_display | default('—') }} | {{ results['functional_requirements.C1'].passed_display }} | {{ results['functional_requirements.C1'].trend_display }} | {{ results['functional_requirements.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['functional_requirements.C2'].previous_passed_display | default('—') }} | {{ results['functional_requirements.C2'].passed_display }} | {{ results['functional_requirements.C2'].trend_display }} | {{ results['functional_requirements.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 20 | {{ results['functional_requirements.C3'].previous_passed_display | default('—') }} | {{ results['functional_requirements.C3'].passed_display }} | {{ results['functional_requirements.C3'].trend_display }} | {{ results['functional_requirements.C3'].evidence.excerpt | default('—') }} |
+| C4 | recommended | 20 | {{ results['functional_requirements.C4'].previous_passed_display | default('—') }} | {{ results['functional_requirements.C4'].passed_display }} | {{ results['functional_requirements.C4'].trend_display }} | {{ results['functional_requirements.C4'].evidence.excerpt | default('—') }} |
+
+C1: all requirements uniquely identified. C2: each requirement is testable. C3: no implementation language. C4: no duplicate or conflicting requirements.
+
+## 3. Acceptance Criteria — `03-acceptance_criteria.md` — **required**
+
+**Why this matters:** Acceptance criteria define conditions a feature must satisfy for stakeholder sign-off. They must be pass/fail testable, scoped to a single behavior, and written from the user's perspective.
+
+**Section Score: {{ sections.acceptance_criteria.score }} / 100** ({{ sections.acceptance_criteria.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['acceptance_criteria.C1'].previous_passed_display | default('—') }} | {{ results['acceptance_criteria.C1'].passed_display }} | {{ results['acceptance_criteria.C1'].trend_display }} | {{ results['acceptance_criteria.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['acceptance_criteria.C2'].previous_passed_display | default('—') }} | {{ results['acceptance_criteria.C2'].passed_display }} | {{ results['acceptance_criteria.C2'].trend_display }} | {{ results['acceptance_criteria.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['acceptance_criteria.C3'].previous_passed_display | default('—') }} | {{ results['acceptance_criteria.C3'].passed_display }} | {{ results['acceptance_criteria.C3'].trend_display }} | {{ results['acceptance_criteria.C3'].evidence.excerpt | default('—') }} |
+
+C1: every criterion is pass/fail testable. C2: each criterion tests a single behavior. C3: criteria use structured Given/When/Then format.
+
+## 4. Business Rules — `04-business_rules.md`
+
+**Why this matters:** Business rules encode domain logic, policies, calculations, and decision logic the system must enforce. They must be atomic, unambiguous, and expressed declaratively.
+
+**Section Score: {{ sections.business_rules.score }} / 100** ({{ sections.business_rules.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['business_rules.C1'].previous_passed_display | default('—') }} | {{ results['business_rules.C1'].passed_display }} | {{ results['business_rules.C1'].trend_display }} | {{ results['business_rules.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['business_rules.C2'].previous_passed_display | default('—') }} | {{ results['business_rules.C2'].passed_display }} | {{ results['business_rules.C2'].trend_display }} | {{ results['business_rules.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['business_rules.C3'].previous_passed_display | default('—') }} | {{ results['business_rules.C3'].passed_display }} | {{ results['business_rules.C3'].trend_display }} | {{ results['business_rules.C3'].evidence.excerpt | default('—') }} |
+
+C1: each rule is atomic and unambiguous. C2: rules are expressed declaratively. C3: exception paths are documented.
+
+## 5. Inputs — `05-inputs.md`
+
+**Why this matters:** Inputs define the data and triggers the system receives. They must specify source, format, frequency, volume, and validation rules.
+
+**Section Score: {{ sections.inputs.score }} / 100** ({{ sections.inputs.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['inputs.C1'].previous_passed_display | default('—') }} | {{ results['inputs.C1'].passed_display }} | {{ results['inputs.C1'].trend_display }} | {{ results['inputs.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['inputs.C2'].previous_passed_display | default('—') }} | {{ results['inputs.C2'].passed_display }} | {{ results['inputs.C2'].trend_display }} | {{ results['inputs.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['inputs.C3'].previous_passed_display | default('—') }} | {{ results['inputs.C3'].passed_display }} | {{ results['inputs.C3'].trend_display }} | {{ results['inputs.C3'].evidence.excerpt | default('—') }} |
+
+C1: every input has a defined source and format. C2: validation rules are specified. C3: input frequency and volume are quantified.
+
+## 6. Outputs — `06-outputs.md`
+
+**Why this matters:** Outputs define what the system produces or exposes. They must specify format, destination, frequency, and data structure.
+
+**Section Score: {{ sections.outputs.score }} / 100** ({{ sections.outputs.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['outputs.C1'].previous_passed_display | default('—') }} | {{ results['outputs.C1'].passed_display }} | {{ results['outputs.C1'].trend_display }} | {{ results['outputs.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['outputs.C2'].previous_passed_display | default('—') }} | {{ results['outputs.C2'].passed_display }} | {{ results['outputs.C2'].trend_display }} | {{ results['outputs.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['outputs.C3'].previous_passed_display | default('—') }} | {{ results['outputs.C3'].passed_display }} | {{ results['outputs.C3'].trend_display }} | {{ results['outputs.C3'].evidence.excerpt | default('—') }} |
+
+C1: every output has a defined consumer and format. C2: output schema or structure is specified. C3: output frequency and volume are quantified.
+
+## 7. Constraints — `07-constraints.md`
+
+**Why this matters:** Constraints define boundaries the implementation must operate within. They must be specific, justified, and non-negotiable.
+
+**Section Score: {{ sections.constraints.score }} / 100** ({{ sections.constraints.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['constraints.C1'].previous_passed_display | default('—') }} | {{ results['constraints.C1'].passed_display }} | {{ results['constraints.C1'].trend_display }} | {{ results['constraints.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['constraints.C2'].previous_passed_display | default('—') }} | {{ results['constraints.C2'].passed_display }} | {{ results['constraints.C2'].trend_display }} | {{ results['constraints.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['constraints.C3'].previous_passed_display | default('—') }} | {{ results['constraints.C3'].passed_display }} | {{ results['constraints.C3'].trend_display }} | {{ results['constraints.C3'].evidence.excerpt | default('—') }} |
+
+C1: each constraint is specific and measurable. C2: each constraint has a clear justification. C3: no contradictory constraints.
+
+## 8. Dependencies — `08-dependencies.md`
+
+**Why this matters:** Dependencies enumerate external systems, services, libraries, or teams the feature relies on. They must specify dependency type, version, interface contract, and failure impact.
+
+**Section Score: {{ sections.dependencies.score }} / 100** ({{ sections.dependencies.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['dependencies.C1'].previous_passed_display | default('—') }} | {{ results['dependencies.C1'].passed_display }} | {{ results['dependencies.C1'].trend_display }} | {{ results['dependencies.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['dependencies.C2'].previous_passed_display | default('—') }} | {{ results['dependencies.C2'].passed_display }} | {{ results['dependencies.C2'].trend_display }} | {{ results['dependencies.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['dependencies.C3'].previous_passed_display | default('—') }} | {{ results['dependencies.C3'].passed_display }} | {{ results['dependencies.C3'].trend_display }} | {{ results['dependencies.C3'].evidence.excerpt | default('—') }} |
+
+C1: every dependency has a name and version. C2: interface or integration point is documented. C3: failure impact is assessed for each dependency.
+
+## 9. Non-Goals — `09-non_goals.md`
+
+**Why this matters:** Non-goals explicitly state what the feature will NOT address. They prevent scope creep and set stakeholder expectations.
+
+**Section Score: {{ sections.non_goals.score }} / 100** ({{ sections.non_goals.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['non_goals.C1'].previous_passed_display | default('—') }} | {{ results['non_goals.C1'].passed_display }} | {{ results['non_goals.C1'].trend_display }} | {{ results['non_goals.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['non_goals.C2'].previous_passed_display | default('—') }} | {{ results['non_goals.C2'].passed_display }} | {{ results['non_goals.C2'].trend_display }} | {{ results['non_goals.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['non_goals.C3'].previous_passed_display | default('—') }} | {{ results['non_goals.C3'].passed_display }} | {{ results['non_goals.C3'].trend_display }} | {{ results['non_goals.C3'].evidence.excerpt | default('—') }} |
+
+C1: each non-goal is specific and explicitly excluded. C2: exclusion rationale is provided. C3: non-goals are distinct from future extensions.
+
+## 10. Future Extensions — `10-future_extensions.md`
+
+**Why this matters:** Future extensions document planned or possible enhancements beyond the current scope. They must be clearly marked as out-of-scope, prioritized, and linked to trigger conditions.
+
+**Section Score: {{ sections.future_extensions.score }} / 100** ({{ sections.future_extensions.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['future_extensions.C1'].previous_passed_display | default('—') }} | {{ results['future_extensions.C1'].passed_display }} | {{ results['future_extensions.C1'].trend_display }} | {{ results['future_extensions.C1'].evidence.excerpt | default('—') }} |
+| C2 | recommended | 30 | {{ results['future_extensions.C2'].previous_passed_display | default('—') }} | {{ results['future_extensions.C2'].passed_display }} | {{ results['future_extensions.C2'].trend_display }} | {{ results['future_extensions.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['future_extensions.C3'].previous_passed_display | default('—') }} | {{ results['future_extensions.C3'].passed_display }} | {{ results['future_extensions.C3'].trend_display }} | {{ results['future_extensions.C3'].evidence.excerpt | default('—') }} |
+
+C1: extensions are clearly marked as out of scope. C2: each extension has a trigger condition. C3: architectural impact is noted.
+
+## 11. Traceability — `11-traceability.md`
+
+**Why this matters:** Traceability maps requirements back to Vision and forward to Design, Technical, and Implementation. Without it, impact analysis is impossible.
+
+**Section Score: {{ sections.traceability.score }} / 100** ({{ sections.traceability.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['traceability.C1'].previous_passed_display | default('—') }} | {{ results['traceability.C1'].passed_display }} | {{ results['traceability.C1'].trend_display }} | {{ results['traceability.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['traceability.C2'].previous_passed_display | default('—') }} | {{ results['traceability.C2'].passed_display }} | {{ results['traceability.C2'].trend_display }} | {{ results['traceability.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['traceability.C3'].previous_passed_display | default('—') }} | {{ results['traceability.C3'].passed_display }} | {{ results['traceability.C3'].trend_display }} | {{ results['traceability.C3'].evidence.excerpt | default('—') }} |
+
+C1: every requirement has at least one trace link. C2: every test case traces to a requirement. C3: traceability is bidirectional and complete.
+
+## 12. Observability — `12-observability.md` — not in Required Sections table
+
+**Why this matters:** A feature must be observable in production. Operators need to determine current health, diagnose failures, and track business outcomes without modifying code.
+
+**Section Score: {{ sections.observability.score }} / 100** ({{ sections.observability.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['observability.C1'].previous_passed_display | default('—') }} | {{ results['observability.C1'].passed_display }} | {{ results['observability.C1'].trend_display }} | {{ results['observability.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['observability.C2'].previous_passed_display | default('—') }} | {{ results['observability.C2'].passed_display }} | {{ results['observability.C2'].trend_display }} | {{ results['observability.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['observability.C3'].previous_passed_display | default('—') }} | {{ results['observability.C3'].passed_display }} | {{ results['observability.C3'].trend_display }} | {{ results['observability.C3'].evidence.excerpt | default('—') }} |
+
+C1: SLIs (rate, error, latency) enumerated and linked to performance targets. C2: logging strategy defined with structured fields and correlation ID. C3: alert thresholds specified for primary failure modes.
+
+## 13. Stakeholders — `13-stakeholders.md` — not in Required Sections table
+
+**Why this matters:** Stakeholders identify individuals or groups with interest in the feature's outcome. They must specify role, responsibility, and engagement model.
+
+**Section Score: {{ sections.stakeholders.score }} / 100** ({{ sections.stakeholders.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['stakeholders.C1'].previous_passed_display | default('—') }} | {{ results['stakeholders.C1'].passed_display }} | {{ results['stakeholders.C1'].trend_display }} | {{ results['stakeholders.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['stakeholders.C2'].previous_passed_display | default('—') }} | {{ results['stakeholders.C2'].passed_display }} | {{ results['stakeholders.C2'].trend_display }} | {{ results['stakeholders.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['stakeholders.C3'].previous_passed_display | default('—') }} | {{ results['stakeholders.C3'].passed_display }} | {{ results['stakeholders.C3'].trend_display }} | {{ results['stakeholders.C3'].evidence.excerpt | default('—') }} |
+
+C1: every stakeholder has a defined role and responsibility. C2: decision authority is assigned. C3: engagement model or frequency is documented.
+
+## 14. Success Criteria — `14-success_criteria.md` — not in Required Sections table
+
+**Why this matters:** Success criteria define how stakeholders will verify the feature delivers its intended value. They must be measurable, time-bound, and tied to business outcomes.
+
+**Section Score: {{ sections.success_criteria.score }} / 100** ({{ sections.success_criteria.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['success_criteria.C1'].previous_passed_display | default('—') }} | {{ results['success_criteria.C1'].passed_display }} | {{ results['success_criteria.C1'].trend_display }} | {{ results['success_criteria.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['success_criteria.C2'].previous_passed_display | default('—') }} | {{ results['success_criteria.C2'].passed_display }} | {{ results['success_criteria.C2'].trend_display }} | {{ results['success_criteria.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['success_criteria.C3'].previous_passed_display | default('—') }} | {{ results['success_criteria.C3'].passed_display }} | {{ results['success_criteria.C3'].trend_display }} | {{ results['success_criteria.C3'].evidence.excerpt | default('—') }} |
+
+C1: criteria are specific, measurable, and time-bound. C2: criteria are tied to business outcomes. C3: criteria include leading and lagging indicators.
+
+## Generic — `generic.md` (sections with no matching semantic_type)
+
+**Why this matters:** Catches feature-relevant content an author wrote under a heading that doesn't match any of the 14 named section types above — still judged for relevance and non-duplication.
+
+**Section Score: {{ sections.generic.score }} / 100** ({{ sections.generic.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['generic.C1'].previous_passed_display | default('—') }} | {{ results['generic.C1'].passed_display }} | {{ results['generic.C1'].trend_display }} | {{ results['generic.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['generic.C2'].previous_passed_display | default('—') }} | {{ results['generic.C2'].passed_display }} | {{ results['generic.C2'].trend_display }} | {{ results['generic.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['generic.C3'].previous_passed_display | default('—') }} | {{ results['generic.C3'].passed_display }} | {{ results['generic.C3'].trend_display }} | {{ results['generic.C3'].evidence.excerpt | default('—') }} |
+
+C1: content is technically substantive. C2: section purpose is clearly stated. C3: content does not duplicate other sections.
+
+---
+
+## All Findings
+
+{% if findings | length > 0 %}
+| Section | Criterion | Severity | Evidence | Message | New This Run? |
+|---|---|---|---|---|---|
+{% for f in findings -%}
+| {{ f.section_type }} | {{ f.criterion_id }} | {{ f.severity }} | {{ f.evidence.excerpt | default('—') }} | {{ f.message }} | {{ 'Yes — regression' if f.is_new_finding else 'No — carried over' }} |
+{% endfor %}
+{% else %}
+No findings.
+{% endif %}
+
+---
+
+## Metadata
+
+| Field | Value |
 |---|---|
-| **Weight Sum** | {{ section_weight_sum }} |
-| **Weighted Score** | {{ weighted_score }} |
-| **Max Possible** | {{ section_weight_sum }} |
-| **Percentage** | {{ score_percentage }} |
-| **Verdict** | {{ verdict }} |
-
-**Why this matters:** Semantic section audit evaluates the quality of each feature section individually — whether content is substantive, internally consistent, technology-independent, and project-specific rather than generic. Each section contributes to the overall feature specification coherence.
-
----
-
-## Section: purpose
-
-### Criteria
-
-#### C1 — Section exists with substantive content specific to this project
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ purpose_c1_status }}
-- **Confidence:** {{ purpose_c1_confidence }}
-- **Evidence:** {{ purpose_c1_evidence }}
-- **Why this matters:** A Purpose section without project-specific content is a placeholder that provides no actual feature guidance.
-
-#### C2 — Content is internally consistent and does not contradict other sections
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ purpose_c2_status }}
-- **Confidence:** {{ purpose_c2_confidence }}
-- **Evidence:** {{ purpose_c2_evidence }}
-- **Why this matters:** Purpose that contradicts the actual Functional Requirements misleads stakeholders about what the feature delivers.
-
-#### C3 — Content includes concrete examples, evidence, or project-specific detail
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ purpose_c3_status }}
-- **Confidence:** {{ purpose_c3_confidence }}
-- **Evidence:** {{ purpose_c3_evidence }}
-- **Why this matters:** A generic purpose statement ("this feature enables users") provides no value beyond what the filename already conveys.
-
----
-
-## Section: functional_requirements
-
-### Criteria
-
-#### C1 — All requirements uniquely identified
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ freq_c1_status }}
-- **Confidence:** {{ freq_c1_confidence }}
-- **Evidence:** {{ freq_c1_evidence }}
-- **Why this matters:** Requirements without unique identifiers cannot be traced to acceptance criteria, test cases, or downstream design artifacts.
-
-#### C2 — Each requirement is testable
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ freq_c2_status }}
-- **Confidence:** {{ freq_c2_confidence }}
-- **Evidence:** {{ freq_c2_evidence }}
-- **Why this matters:** Untestable requirements ("the system shall be fast") have no pass/fail boundary — they're aspirational, not contractual.
-
-#### C3 — No implementation language
-- **Weight:** recommended
-- **Score if passed:** 20
-- **Status:** {{ freq_c3_status }}
-- **Confidence:** {{ freq_c3_confidence }}
-- **Evidence:** {{ freq_c3_evidence }}
-- **Why this matters:** Requirements that name specific technologies couple the specification to implementation details — when the technology changes, the requirements shouldn't need rewriting.
-
-#### C4 — No duplicate or conflicting requirements
-- **Weight:** recommended
-- **Score if passed:** 20
-- **Status:** {{ freq_c4_status }}
-- **Confidence:** {{ freq_c4_confidence }}
-- **Evidence:** {{ freq_c4_evidence }}
-- **Why this matters:** Duplicate requirements create maintenance risk — one gets updated, the other doesn't, and they silently contradict.
-
----
-
-## Section: acceptance_criteria
-
-### Criteria
-
-#### C1 — Every criterion is pass/fail testable
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ ac_c1_status }}
-- **Confidence:** {{ ac_c1_confidence }}
-- **Evidence:** {{ ac_c1_evidence }}
-- **Why this matters:** Criteria that are too vague to write a test for have no pass/fail — they're opinions, not acceptance conditions.
-
-#### C2 — Each criterion tests a single behavior
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ ac_c2_status }}
-- **Confidence:** {{ ac_c2_confidence }}
-- **Evidence:** {{ ac_c2_evidence }}
-- **Why this matters:** Compound criteria joined by "and" or "or" cannot be independently verified — partial pass is ambiguous.
-
-#### C3 — Criteria use structured Given/When/Then format
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ ac_c3_status }}
-- **Confidence:** {{ ac_c3_confidence }}
-- **Evidence:** {{ ac_c3_evidence }}
-- **Why this matters:** Structured format eliminates interpretation ambiguity — everyone reads the same criterion the same way.
-
----
-
-## Section: business_rules
-
-### Criteria
-
-#### C1 — Each rule is atomic and unambiguous
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ br_c1_status }}
-- **Confidence:** {{ br_c1_confidence }}
-- **Evidence:** {{ br_c1_evidence }}
-- **Why this matters:** Non-atomic rules that combine multiple conditions or actions cannot be individually validated — partial compliance is ambiguous.
-
-#### C2 — Rules are expressed declaratively
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ br_c2_status }}
-- **Confidence:** {{ br_c2_confidence }}
-- **Evidence:** {{ br_c2_evidence }}
-- **Why this matters:** Rules expressed as pseudocode or procedural logic describe implementation, not business intent — they break when the implementation changes.
-
-#### C3 — Exception paths are documented
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ br_c3_status }}
-- **Confidence:** {{ br_c3_confidence }}
-- **Evidence:** {{ br_c3_evidence }}
-- **Why this matters:** Business rules without exception paths handle the happy case but fail silently on edge cases — the most common source of production bugs.
-
----
-
-## Section: inputs
-
-### Criteria
-
-#### C1 — Section exists with substantive content specific to this project
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ inputs_c1_status }}
-- **Confidence:** {{ inputs_c1_confidence }}
-- **Evidence:** {{ inputs_c1_evidence }}
-- **Why this matters:** An Inputs section without project-specific content is a placeholder that provides no actual input specification.
-
-#### C2 — Content is internally consistent and does not contradict other sections
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ inputs_c2_status }}
-- **Confidence:** {{ inputs_c2_confidence }}
-- **Evidence:** {{ inputs_c2_evidence }}
-- **Why this matters:** Inputs that contradict Functional Requirements create confusion about what data the feature actually accepts.
-
-#### C3 — Content includes concrete examples, evidence, or project-specific detail
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ inputs_c3_status }}
-- **Confidence:** {{ inputs_c3_confidence }}
-- **Evidence:** {{ inputs_c3_evidence }}
-- **Why this matters:** Generic input descriptions ("user data") without specific fields, types, or validation rules are unimplementable.
-
----
-
-## Section: outputs
-
-### Criteria
-
-#### C1 — Section exists with substantive content specific to this project
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ outputs_c1_status }}
-- **Confidence:** {{ outputs_c1_confidence }}
-- **Evidence:** {{ outputs_c1_evidence }}
-- **Why this matters:** An Outputs section without project-specific content is a placeholder that provides no actual output specification.
-
-#### C2 — Content is internally consistent and does not contradict other sections
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ outputs_c2_status }}
-- **Confidence:** {{ outputs_c2_confidence }}
-- **Evidence:** {{ outputs_c2_evidence }}
-- **Why this matters:** Outputs that contradict Acceptance Criteria create confusion about what the feature actually produces.
-
-#### C3 — Content includes concrete examples, evidence, or project-specific detail
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ outputs_c3_status }}
-- **Confidence:** {{ outputs_c3_confidence }}
-- **Evidence:** {{ outputs_c3_evidence }}
-- **Why this matters:** Generic output descriptions ("response data") without specific fields, formats, or error states are unimplementable.
-
----
-
-## Section: constraints
-
-### Criteria
-
-#### C1 — Section exists with substantive content specific to this project
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ constraints_c1_status }}
-- **Confidence:** {{ constraints_c1_confidence }}
-- **Evidence:** {{ constraints_c1_evidence }}
-- **Why this matters:** A Constraints section without project-specific content is a placeholder that provides no actual constraint guidance.
-
-#### C2 — Content is internally consistent and does not contradict other sections
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ constraints_c2_status }}
-- **Confidence:** {{ constraints_c2_confidence }}
-- **Evidence:** {{ constraints_c2_evidence }}
-- **Why this matters:** Constraints that contradict Functional Requirements or Business Rules create impossible compliance situations.
-
-#### C3 — Content includes concrete examples, evidence, or project-specific detail
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ constraints_c3_status }}
-- **Confidence:** {{ constraints_c3_confidence }}
-- **Evidence:** {{ constraints_c3_evidence }}
-- **Why this matters:** Generic constraint descriptions ("performance requirements") without specific numbers or boundaries are unenforceable.
-
----
-
-## Section: dependencies
-
-### Criteria
-
-#### C1 — Section exists with substantive content specific to this project
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ dependencies_c1_status }}
-- **Confidence:** {{ dependencies_c1_confidence }}
-- **Evidence:** {{ dependencies_c1_evidence }}
-- **Why this matters:** A Dependencies section without project-specific content is a placeholder that provides no actual dependency information.
-
-#### C2 — Content is internally consistent and does not contradict other sections
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ dependencies_c2_status }}
-- **Confidence:** {{ dependencies_c2_confidence }}
-- **Evidence:** {{ dependencies_c2_evidence }}
-- **Why this matters:** Dependencies that contradict Constraints or other sections create confusion about what the feature actually requires.
-
-#### C3 — Content includes concrete examples, evidence, or project-specific detail
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ dependencies_c3_status }}
-- **Confidence:** {{ dependencies_c3_confidence }}
-- **Evidence:** {{ dependencies_c3_evidence }}
-- **Why this matters:** Generic dependency descriptions ("external services") without specific services, versions, or SLAs are unmanageable.
-
----
-
-## Section: non_goals
-
-### Criteria
-
-#### C1 — Section exists with substantive content specific to this project
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ non_goals_c1_status }}
-- **Confidence:** {{ non_goals_c1_confidence }}
-- **Evidence:** {{ non_goals_c1_evidence }}
-- **Why this matters:** A Non-goals section without project-specific content is a placeholder that provides no actual scope guidance.
-
-#### C2 — Content is internally consistent and does not contradict other sections
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ non_goals_c2_status }}
-- **Confidence:** {{ non_goals_c2_confidence }}
-- **Evidence:** {{ non_goals_c2_evidence }}
-- **Why this matters:** Non-goals that contradict Functional Requirements create confusion about what's in scope and what's explicitly excluded.
-
-#### C3 — Content includes concrete examples, evidence, or project-specific detail
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ non_goals_c3_status }}
-- **Confidence:** {{ non_goals_c3_confidence }}
-- **Evidence:** {{ non_goals_c3_evidence }}
-- **Why this matters:** Generic non-goal descriptions ("out of scope") without specific exclusions provide no actual scope guidance.
-
----
-
-## Section: future_extensions
-
-### Criteria
-
-#### C1 — Section exists with substantive content specific to this project
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ future_c1_status }}
-- **Confidence:** {{ future_c1_confidence }}
-- **Evidence:** {{ future_c1_evidence }}
-- **Why this matters:** A Future Extensions section without project-specific content is a placeholder that provides no actual forward-looking guidance.
-
-#### C2 — Content is internally consistent and does not contradict other sections
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ future_c2_status }}
-- **Confidence:** {{ future_c2_confidence }}
-- **Evidence:** {{ future_c2_evidence }}
-- **Why this matters:** Future extensions that contradict current Functional Requirements create confusion about what's planned vs. what's delivered.
-
-#### C3 — Content includes concrete examples, evidence, or project-specific detail
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ future_c3_status }}
-- **Confidence:** {{ future_c3_confidence }}
-- **Evidence:** {{ future_c3_evidence }}
-- **Why this matters:** Generic future extension descriptions ("we might add this later") provide no actionable guidance for downstream planning.
-
----
-
-## Section: traceability
-
-### Criteria
-
-#### C1 — Section exists with substantive content specific to this project
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ trace_c1_status }}
-- **Confidence:** {{ trace_c1_confidence }}
-- **Evidence:** {{ trace_c1_evidence }}
-- **Why this matters:** A Traceability section without project-specific content is a placeholder that provides no actual traceability.
-
-#### C2 — Content is internally consistent and does not contradict other sections
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ trace_c2_status }}
-- **Confidence:** {{ trace_c2_confidence }}
-- **Evidence:** {{ trace_c2_evidence }}
-- **Why this matters:** Traceability links that contradict upstream Vision or downstream Design create confusion about the feature's actual lineage.
-
-#### C3 — Content includes concrete examples, evidence, or project-specific detail
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ trace_c3_status }}
-- **Confidence:** {{ trace_c3_confidence }}
-- **Evidence:** {{ trace_c3_evidence }}
-- **Why this matters:** Generic traceability descriptions ("traceable to vision") without specific links provide no actual traceability value.
-
----
-
-## Score History
-
-| Date | Auditor | Score | Verdict | Revision |
-|---|---|---|---|---|
-| {{ audit_date }} | {{ auditor_name }} | {{ weighted_score }} | {{ verdict }} | 1 |
-
----
-
-## Trend
-
-{{ trend_indicator }} ({{ trend_description }})
-
----
-
-## Failures
-
-| Criterion | Severity | Section | Evidence | Regression? |
-|---|---|---|---|---|
-{{ failures_table }}
-
----
-
-## Summary
-
-{{ summary_text }}
-
-### Section-Level Breakdown
-
-| Section | Weight | Score | Status |
-|---|---|---|---|
-| purpose | {{ purpose_weight }} | {{ purpose_score }} | {{ purpose_status }} |
-| functional_requirements | {{ freq_weight }} | {{ freq_score }} | {{ freq_status }} |
-| acceptance_criteria | {{ ac_weight }} | {{ ac_score }} | {{ ac_status }} |
-| business_rules | {{ br_weight }} | {{ br_score }} | {{ br_status }} |
-| inputs | {{ inputs_weight }} | {{ inputs_score }} | {{ inputs_status }} |
-| outputs | {{ outputs_weight }} | {{ outputs_score }} | {{ outputs_status }} |
-| constraints | {{ constraints_weight }} | {{ constraints_score }} | {{ constraints_status }} |
-| dependencies | {{ dependencies_weight }} | {{ dependencies_score }} | {{ dependencies_status }} |
-| non_goals | {{ non_goals_weight }} | {{ non_goals_score }} | {{ non_goals_status }} |
-| future_extensions | {{ future_weight }} | {{ future_score }} | {{ future_status }} |
-| traceability | {{ trace_weight }} | {{ trace_score }} | {{ trace_status }} |
+| Domain | feature |
+| Standard | documentation-standards |
+| Section Rubric Files | `audit/semantic/section/04-feature/*.md` |
+| Auditor | LLM ({{ model_name }}) |
+| Audit Date | {{ created_at }} |
+| Revision | {{ revision_number }} |
+| Session | {{ session_id }} |

@@ -1,333 +1,226 @@
-# {{ document_title }} — QA Semantic Section Audit Report
+# Semantic Section Report — QA
 
-> **Domain:** qa
-> **Scope:** section
-> **Kind:** semantic
-> **Date:** {{ audit_date }}
-> **Auditor:** {{ auditor_name }}
+**Document:** {{ document_path }}
+**Standard:** `documentation-standards/12-qa-standards.md`
+**Rubric Files:** `audit/semantic/section/12-qa/*.md`
+**Auditor:** LLM ({{ model_name }})
+**Audit Date:** {{ created_at }}
+**Revision:** {{ revision_number }}
 
 ---
 
-## Section-Level Score
+## Score
 
-| Metric | Value |
+**Semantic Section Score: {{ score }} / 100**
+{% if previous_score %}({{ '↑ Improved' if score > previous_score else '↓ Regressed' if score < previous_score else '→ Unchanged' }} vs. previous run){% else %}(baseline — first audit of this document){% endif %}
+
+```
+overall = average of the section scores below, for sections actually present in the document
+section_score = sum of passed criterion points in that section, capped at 100
+```
+
+### Score History
+
+| Revision | Date | Score | vs. Previous | vs. Baseline |
+|---:|---|---:|---|---|
+{% for r in revision_history -%}
+| {{ r.revision }} | {{ r.date }} | {{ r.score }} / 100 | {{ r.delta_previous_display }} | {{ r.delta_baseline_display }} |
+{% endfor -%}
+| {{ revision_number }} (current) | {{ created_at }} | {{ score }} / 100 | {{ delta_previous_display }} | {{ delta_baseline_display }} |
+
+{% if not previous_score %}No prior runs — this revision is the baseline every future run is compared against.{% endif %}
+
+### Score by Model
+
+| Model | Runs | Avg Score | Min | Max |
+|---|---:|---:|---:|---|
+{% for m in model_scores -%}
+| {{ m.model_name }} | {{ m.run_count }} | {{ m.avg_score }} / 100 | {{ m.min_score }} / 100 | {{ m.max_score }} / 100 |
+{% endfor %}
+
+### Section Scores
+
+| # | Section | Required | Score | Previous | Trend |
+|---:|---|:---:|---:|---:|---|
+| 1 | Test Strategy | **required** | {{ sections.test_strategy.score }} / 100 | {{ sections.test_strategy.previous_score | default('—') }} | {{ sections.test_strategy.trend_display }} |
+| 2 | Unit Testing | **required** | {{ sections.unit_testing.score }} / 100 | {{ sections.unit_testing.previous_score | default('—') }} | {{ sections.unit_testing.trend_display }} |
+| 3 | Integration Testing | **required** | {{ sections.integration_testing.score }} / 100 | {{ sections.integration_testing.previous_score | default('—') }} | {{ sections.integration_testing.trend_display }} |
+| 4 | Security Testing | **required** | {{ sections.security_testing.score }} / 100 | {{ sections.security_testing.previous_score | default('—') }} | {{ sections.security_testing.trend_display }} |
+| 5 | Purpose | optional | {{ sections.purpose.score }} / 100 | {{ sections.purpose.previous_score | default('—') }} | {{ sections.purpose.trend_display }} |
+| 6 | E2E Testing | **required** | {{ sections.e2e_testing.score }} / 100 | {{ sections.e2e_testing.previous_score | default('—') }} | {{ sections.e2e_testing.trend_display }} |
+| 7 | Smoke Testing | **required** | {{ sections.smoke_testing.score }} / 100 | {{ sections.smoke_testing.previous_score | default('—') }} | {{ sections.smoke_testing.trend_display }} |
+| 8 | Load Testing | **required** | {{ sections.load_testing.score }} / 100 | {{ sections.load_testing.previous_score | default('—') }} | {{ sections.load_testing.trend_display }} |
+| 9 | Scalability Testing | **required** | {{ sections.scalability_testing.score }} / 100 | {{ sections.scalability_testing.previous_score | default('—') }} | {{ sections.scalability_testing.trend_display }} |
+| — | Generic (unmatched sections) | n/a | {{ sections.generic.score }} / 100 | {{ sections.generic.previous_score | default('—') }} | {{ sections.generic.trend_display }} |
+
+A section absent from the document (among the optional ones) isn't scored at all here — it's a deterministic presence check, not a semantic quality judgment on nothing.
+
+---
+
+## 1. Test Strategy — `section/12-qa/01-test_strategy.md` — **required**
+
+**Why this matters:** Test Strategy defines the overall testing philosophy and approach that every other test type section derives from. A missing or vague strategy gives the individual test sections no coherence.
+
+**Section Score: {{ sections.test_strategy.score }} / 100** ({{ sections.test_strategy.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['test_strategy.C1'].previous_passed_display | default('—') }} | {{ results['test_strategy.C1'].passed_display }} | {{ results['test_strategy.C1'].trend_display }} | {{ results['test_strategy.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['test_strategy.C2'].previous_passed_display | default('—') }} | {{ results['test_strategy.C2'].passed_display }} | {{ results['test_strategy.C2'].trend_display }} | {{ results['test_strategy.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['test_strategy.C3'].previous_passed_display | default('—') }} | {{ results['test_strategy.C3'].passed_display }} | {{ results['test_strategy.C3'].trend_display }} | {{ results['test_strategy.C3'].evidence.excerpt | default('—') }} |
+
+C1: section exists with substantive content specific to this project. C2: internally consistent, does not contradict other sections. C3: includes concrete examples, evidence, or project-specific detail.
+
+## 2. Unit Testing — `02-unit_testing.md` — **required**
+
+**Why this matters:** Unit Testing is the foundation of the test pyramid. A section that's missing or generic gives developers no guidance on how to structure their tests or what coverage is expected.
+
+**Section Score: {{ sections.unit_testing.score }} / 100** ({{ sections.unit_testing.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['unit_testing.C1'].previous_passed_display | default('—') }} | {{ results['unit_testing.C1'].passed_display }} | {{ results['unit_testing.C1'].trend_display }} | {{ results['unit_testing.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['unit_testing.C2'].previous_passed_display | default('—') }} | {{ results['unit_testing.C2'].passed_display }} | {{ results['unit_testing.C2'].trend_display }} | {{ results['unit_testing.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['unit_testing.C3'].previous_passed_display | default('—') }} | {{ results['unit_testing.C3'].passed_display }} | {{ results['unit_testing.C3'].trend_display }} | {{ results['unit_testing.C3'].evidence.excerpt | default('—') }} |
+
+C1: section exists with substantive content specific to this project. C2: internally consistent, does not contradict other sections. C3: includes concrete examples, evidence, or project-specific detail.
+
+## 3. Integration Testing — `03-integration_testing.md` — **required**
+
+**Why this matters:** Integration Testing verifies component boundaries work as designed. Without it, individual units may pass in isolation while the system fails at every seam.
+
+**Section Score: {{ sections.integration_testing.score }} / 100** ({{ sections.integration_testing.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['integration_testing.C1'].previous_passed_display | default('—') }} | {{ results['integration_testing.C1'].passed_display }} | {{ results['integration_testing.C1'].trend_display }} | {{ results['integration_testing.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['integration_testing.C2'].previous_passed_display | default('—') }} | {{ results['integration_testing.C2'].passed_display }} | {{ results['integration_testing.C2'].trend_display }} | {{ results['integration_testing.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['integration_testing.C3'].previous_passed_display | default('—') }} | {{ results['integration_testing.C3'].passed_display }} | {{ results['integration_testing.C3'].trend_display }} | {{ results['integration_testing.C3'].evidence.excerpt | default('—') }} |
+
+C1: section exists with substantive content specific to this project. C2: internally consistent, does not contradict other sections. C3: includes concrete examples, evidence, or project-specific detail.
+
+## 4. Security Testing — `04-security_testing.md` — **required**
+
+**Why this matters:** Security Testing ensures threats are validated against, not just documented. A missing or shallow section means the Security domain's threat model goes untested.
+
+**Section Score: {{ sections.security_testing.score }} / 100** ({{ sections.security_testing.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['security_testing.C1'].previous_passed_display | default('—') }} | {{ results['security_testing.C1'].passed_display }} | {{ results['security_testing.C1'].trend_display }} | {{ results['security_testing.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['security_testing.C2'].previous_passed_display | default('—') }} | {{ results['security_testing.C2'].passed_display }} | {{ results['security_testing.C2'].trend_display }} | {{ results['security_testing.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['security_testing.C3'].previous_passed_display | default('—') }} | {{ results['security_testing.C3'].passed_display }} | {{ results['security_testing.C3'].trend_display }} | {{ results['security_testing.C3'].evidence.excerpt | default('—') }} |
+
+C1: section exists with substantive content specific to this project. C2: internally consistent, does not contradict other sections. C3: includes concrete examples, evidence, or project-specific detail.
+
+## 5. Purpose — `05-purpose.md` — optional
+
+**Why this matters:** Purpose defines why QA Documentation exists before a reader examines a single test type. A missing Purpose section means readers must infer the document's intent from its content.
+
+**Section Score: {{ sections.purpose.score }} / 100** ({{ sections.purpose.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['purpose.C1'].previous_passed_display | default('—') }} | {{ results['purpose.C1'].passed_display }} | {{ results['purpose.C1'].trend_display }} | {{ results['purpose.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['purpose.C2'].previous_passed_display | default('—') }} | {{ results['purpose.C2'].passed_display }} | {{ results['purpose.C2'].trend_display }} | {{ results['purpose.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['purpose.C3'].previous_passed_display | default('—') }} | {{ results['purpose.C3'].passed_display }} | {{ results['purpose.C3'].trend_display }} | {{ results['purpose.C3'].evidence.excerpt | default('—') }} |
+
+C1: section exists with substantive content specific to this project. C2: internally consistent, does not contradict other sections. C3: includes concrete examples, evidence, or project-specific detail.
+
+## 6. E2E Testing — `06-e2e_testing.md` — **required**
+
+**Why this matters:** E2E Testing verifies critical user journeys work through the full system. It catches integration failures that unit and integration tests, scoped to individual components, can't see.
+
+**Section Score: {{ sections.e2e_testing.score }} / 100** ({{ sections.e2e_testing.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 35 | {{ results['e2e_testing.C1'].previous_passed_display | default('—') }} | {{ results['e2e_testing.C1'].passed_display }} | {{ results['e2e_testing.C1'].trend_display }} | {{ results['e2e_testing.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 35 | {{ results['e2e_testing.C2'].previous_passed_display | default('—') }} | {{ results['e2e_testing.C2'].passed_display }} | {{ results['e2e_testing.C2'].trend_display }} | {{ results['e2e_testing.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['e2e_testing.C3'].previous_passed_display | default('—') }} | {{ results['e2e_testing.C3'].passed_display }} | {{ results['e2e_testing.C3'].trend_display }} | {{ results['e2e_testing.C3'].evidence.excerpt | default('—') }} |
+
+C1: critical user journeys named specifically, not "test the app". C2: expected outcomes and acceptance criteria stated per journey. C3: journeys map to Design(06)'s documented workflows.
+
+## 7. Smoke Testing — `07-smoke_testing.md` — **required**
+
+**Why this matters:** Smoke Testing is a fast, minimal check that the core system is functioning after a deploy — not full verification, just "is it alive and basically working."
+
+**Section Score: {{ sections.smoke_testing.score }} / 100** ({{ sections.smoke_testing.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['smoke_testing.C1'].previous_passed_display | default('—') }} | {{ results['smoke_testing.C1'].passed_display }} | {{ results['smoke_testing.C1'].trend_display }} | {{ results['smoke_testing.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['smoke_testing.C2'].previous_passed_display | default('—') }} | {{ results['smoke_testing.C2'].passed_display }} | {{ results['smoke_testing.C2'].trend_display }} | {{ results['smoke_testing.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['smoke_testing.C3'].previous_passed_display | default('—') }} | {{ results['smoke_testing.C3'].passed_display }} | {{ results['smoke_testing.C3'].trend_display }} | {{ results['smoke_testing.C3'].evidence.excerpt | default('—') }} |
+
+C1: core function scope defined narrowly and explicitly. C2: pass/fail criteria stated explicitly. C3: execution timing and maximum duration threshold specified.
+
+## 8. Load Testing — `08-load_testing.md` — **required**
+
+**Why this matters:** Load Testing verifies the system behaves acceptably under expected and peak traffic. Performance targets are validated against a defined load profile, not assumed from production experience.
+
+**Section Score: {{ sections.load_testing.score }} / 100** ({{ sections.load_testing.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['load_testing.C1'].previous_passed_display | default('—') }} | {{ results['load_testing.C1'].passed_display }} | {{ results['load_testing.C1'].trend_display }} | {{ results['load_testing.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['load_testing.C2'].previous_passed_display | default('—') }} | {{ results['load_testing.C2'].passed_display }} | {{ results['load_testing.C2'].trend_display }} | {{ results['load_testing.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['load_testing.C3'].previous_passed_display | default('—') }} | {{ results['load_testing.C3'].passed_display }} | {{ results['load_testing.C3'].trend_display }} | {{ results['load_testing.C3'].evidence.excerpt | default('—') }} |
+
+C1: load profiles defined with concrete numbers (expected, peak, stress). C2: performance targets stated per profile (latency, throughput). C3: acceptable degradation thresholds specified.
+
+## 9. Scalability Testing — `09-scalability_testing.md` — **required**
+
+**Why this matters:** Scalability Testing characterizes how the system behaves as load grows well beyond current levels — where it breaks and how it degrades. Unlike Load Testing, it explores the growth curve itself.
+
+**Section Score: {{ sections.scalability_testing.score }} / 100** ({{ sections.scalability_testing.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 35 | {{ results['scalability_testing.C1'].previous_passed_display | default('—') }} | {{ results['scalability_testing.C1'].passed_display }} | {{ results['scalability_testing.C1'].trend_display }} | {{ results['scalability_testing.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 35 | {{ results['scalability_testing.C2'].previous_passed_display | default('—') }} | {{ results['scalability_testing.C2'].passed_display }} | {{ results['scalability_testing.C2'].trend_display }} | {{ results['scalability_testing.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['scalability_testing.C3'].previous_passed_display | default('—') }} | {{ results['scalability_testing.C3'].passed_display }} | {{ results['scalability_testing.C3'].trend_display }} | {{ results['scalability_testing.C3'].evidence.excerpt | default('—') }} |
+
+C1: growth scenarios defined as concrete multiples of baseline (2x, 5x, 10x). C2: breaking points identified with specific thresholds. C3: scaling behavior characterized (linear/sub-linear/cliff).
+
+## Generic — `generic.md` (sections with no matching semantic_type)
+
+**Why this matters:** Catches QA-relevant content an author wrote under a heading that doesn't match any of the 9 named section types above — still judged for relevance and non-duplication, not given a free pass for being unclassified.
+
+**Section Score: {{ sections.generic.score }} / 100** ({{ sections.generic.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['generic.C1'].previous_passed_display | default('—') }} | {{ results['generic.C1'].passed_display }} | {{ results['generic.C1'].trend_display }} | {{ results['generic.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['generic.C2'].previous_passed_display | default('—') }} | {{ results['generic.C2'].passed_display }} | {{ results['generic.C2'].trend_display }} | {{ results['generic.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['generic.C3'].previous_passed_display | default('—') }} | {{ results['generic.C3'].passed_display }} | {{ results['generic.C3'].trend_display }} | {{ results['generic.C3'].evidence.excerpt | default('—') }} |
+
+C1: content is QA-relevant, not implementation-specific. C2: claims and assertions are justified by evidence or reasoning. C3: no duplication of content from other QA section types.
+
+---
+
+## All Findings
+
+{% if findings | length > 0 %}
+| Section | Criterion | Severity | Evidence | Message | New This Run? |
+|---|---|---|---|---|---|
+{% for f in findings -%}
+| {{ f.section_type }} | {{ f.criterion_id }} | {{ f.severity }} | {{ f.evidence.excerpt | default('—') }} | {{ f.message }} | {{ 'Yes — regression' if f.is_new_finding else 'No — carried over' }} |
+{% endfor %}
+{% else %}
+No findings.
+{% endif %}
+
+---
+
+## Metadata
+
+| Field | Value |
 |---|---|
-| **Weight Sum** | {{ section_weight_sum }} |
-| **Weighted Score** | {{ weighted_score }} |
-| **Max Possible** | {{ section_weight_sum }} |
-| **Percentage** | {{ score_percentage }} |
-| **Verdict** | {{ verdict }} |
-
-**Why this matters:** Semantic section audit evaluates the quality of each QA section individually — whether content is substantive, internally consistent, and project-specific rather than generic. Each section contributes to the overall test strategy coherence.
-
----
-
-## Section: test_strategy
-
-### Criteria
-
-#### C1 — Section exists with substantive content specific to this project
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ strategy_c1_status }}
-- **Confidence:** {{ strategy_c1_confidence }}
-- **Evidence:** {{ strategy_c1_evidence }}
-- **Why this matters:** A Test Strategy section without project-specific content is a placeholder that provides no actual testing guidance.
-
-#### C2 — Content is internally consistent and does not contradict other sections
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ strategy_c2_status }}
-- **Confidence:** {{ strategy_c2_confidence }}
-- **Evidence:** {{ strategy_c2_evidence }}
-- **Why this matters:** Test Strategy that contradicts the actual test type sections creates confusion about which testing priorities are authoritative.
-
-#### C3 — Content includes concrete examples, evidence, or project-specific detail
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ strategy_c3_status }}
-- **Confidence:** {{ strategy_c3_confidence }}
-- **Evidence:** {{ strategy_c3_evidence }}
-- **Why this matters:** "We test thoroughly" without specifying what "thoroughly" means for this project is unenforceable.
-
----
-
-## Section: unit_testing
-
-### Criteria
-
-#### C1 — Section exists with substantive content specific to this project
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ unit_c1_status }}
-- **Confidence:** {{ unit_c1_confidence }}
-- **Evidence:** {{ unit_c1_evidence }}
-- **Why this matters:** Unit Testing without project-specific scope means developers don't know which components require unit tests or what conventions to follow.
-
-#### C2 — Content is internally consistent and does not contradict other sections
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ unit_c2_status }}
-- **Confidence:** {{ unit_c2_confidence }}
-- **Evidence:** {{ unit_c2_evidence }}
-- **Why this matters:** Unit test conventions that contradict Engineering testing standards create developer confusion about which rules to follow.
-
-#### C3 — Content includes concrete examples, evidence, or project-specific detail
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ unit_c3_status }}
-- **Confidence:** {{ unit_c3_confidence }}
-- **Evidence:** {{ unit_c3_evidence }}
-- **Why this matters:** "Write unit tests" without naming conventions, structure patterns, or coverage targets is operationally empty.
-
----
-
-## Section: integration_testing
-
-### Criteria
-
-#### C1 — Section exists with substantive content specific to this project
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ integration_c1_status }}
-- **Confidence:** {{ integration_c1_confidence }}
-- **Evidence:** {{ integration_c1_evidence }}
-- **Why this matters:** Integration Testing without project-specific interface definitions means developers don't know which component boundaries are tested.
-
-#### C2 — Content is internally consistent and does not contradict other sections
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ integration_c2_status }}
-- **Confidence:** {{ integration_c2_confidence }}
-- **Evidence:** {{ integration_c2_evidence }}
-- **Why this matters:** Integration Testing boundaries that contradict Architecture documentation create testing gaps or phantom interface tests.
-
-#### C3 — Content includes concrete examples, evidence, or project-specific detail
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ integration_c3_status }}
-- **Confidence:** {{ integration_c3_confidence }}
-- **Evidence:** {{ integration_c3_evidence }}
-- **Why this matters:** "Test component interfaces" without naming specific interfaces, protocols, or scenarios is unimplementable.
-
----
-
-## Section: security_testing
-
-### Criteria
-
-#### C1 — Section exists with substantive content specific to this project
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ security_c1_status }}
-- **Confidence:** {{ security_c1_confidence }}
-- **Evidence:** {{ security_c1_evidence }}
-- **Why this matters:** Security Testing without project-specific threat coverage means security tests are generic, not tailored to actual risks.
-
-#### C2 — Content is internally consistent and does not contradict other sections
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ security_c2_status }}
-- **Confidence:** {{ security_c2_confidence }}
-- **Evidence:** {{ security_c2_evidence }}
-- **Why this matters:** Security Testing that contradicts the Security Documentation threat model creates confusion about which threats are actually being tested.
-
-#### C3 — Content includes concrete examples, evidence, or project-specific detail
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ security_c3_status }}
-- **Confidence:** {{ security_c3_confidence }}
-- **Evidence:** {{ security_c3_evidence }}
-- **Why this matters:** "Run security tests" without specifying which methods (SAST, DAST, penetration) and which threats are covered is operationally empty.
-
----
-
-## Section: purpose
-
-### Criteria
-
-#### C1 — Section exists with substantive content specific to this project
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ purpose_c1_status }}
-- **Confidence:** {{ purpose_c1_confidence }}
-- **Evidence:** {{ purpose_c1_evidence }}
-- **Why this matters:** QA documentation without a purpose section leaves readers guessing what this document is for and what it covers.
-
-#### C2 — Content is internally consistent and does not contradict other sections
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ purpose_c2_status }}
-- **Confidence:** {{ purpose_c2_confidence }}
-- **Evidence:** {{ purpose_c2_evidence }}
-- **Why this matters:** Purpose that contradicts the actual scope of the document misleads readers about what is and isn't covered.
-
-#### C3 — Content includes concrete examples, evidence, or project-specific detail
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ purpose_c3_status }}
-- **Confidence:** {{ purpose_c3_confidence }}
-- **Evidence:** {{ purpose_c3_evidence }}
-- **Why this matters:** A generic purpose statement ("this document describes QA") provides no value beyond what the filename already conveys.
-
----
-
-## Section: e2e_testing
-
-### Criteria
-
-#### C1 — Critical user journeys named specifically
-- **Weight:** mandatory
-- **Score if passed:** 35
-- **Status:** {{ e2e_c1_status }}
-- **Confidence:** {{ e2e_c1_confidence }}
-- **Evidence:** {{ e2e_c1_evidence }}
-- **Why this matters:** "We test the main flows" with no journeys actually named means E2E scope is undefined — nobody knows what's being tested.
-
-#### C2 — Expected outcomes and acceptance criteria stated per journey
-- **Weight:** mandatory
-- **Score if passed:** 35
-- **Status:** {{ e2e_c2_status }}
-- **Confidence:** {{ e2e_c2_confidence }}
-- **Evidence:** {{ e2e_c2_evidence }}
-- **Why this matters:** Journeys without expected outcomes or acceptance criteria have no pass/fail — testing is performative, not verifiable.
-
-#### C3 — Journeys map to Design(06)'s documented workflows
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ e2e_c3_status }}
-- **Confidence:** {{ e2e_c3_confidence }}
-- **Evidence:** {{ e2e_c3_evidence }}
-- **Why this matters:** E2E journeys invented independently of Design workflows test assumptions, not documented user expectations.
-
----
-
-## Section: smoke_testing
-
-### Criteria
-
-#### C1 — Core function scope defined narrowly and explicitly
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ smoke_c1_status }}
-- **Confidence:** {{ smoke_c1_confidence }}
-- **Evidence:** {{ smoke_c1_evidence }}
-- **Why this matters:** Smoke test scope that overlaps heavily with the full test suite defeats the "fast check" purpose — it's just a slow regression test with a different name.
-
-#### C2 — Pass/fail criteria stated explicitly
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ smoke_c2_status }}
-- **Confidence:** {{ smoke_c2_confidence }}
-- **Evidence:** {{ smoke_c2_evidence }}
-- **Why this matters:** Ambiguous pass/fail criteria ("looks okay") make smoke tests subjective — different operators reach different conclusions from the same results.
-
-#### C3 — Execution timing and maximum duration threshold specified
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ smoke_c3_status }}
-- **Confidence:** {{ smoke_c3_confidence }}
-- **Evidence:** {{ smoke_c3_evidence }}
-- **Why this matters:** A smoke test without a duration threshold could silently take as long as the full regression suite, defeating its purpose.
-
----
-
-## Section: load_testing
-
-### Criteria
-
-#### C1 — Load profiles defined with concrete numbers
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ load_c1_status }}
-- **Confidence:** {{ load_c1_confidence }}
-- **Evidence:** {{ load_c1_evidence }}
-- **Why this matters:** Load profiles described qualitatively ("normal load", "high load") with no numbers are unverifiable — there's no way to reproduce the test conditions.
-
-#### C2 — Performance targets stated per profile
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ load_c2_status }}
-- **Confidence:** {{ load_c2_confidence }}
-- **Evidence:** {{ load_c2_evidence }}
-- **Why this matters:** Performance targets without a load profile are meaningless — "response time under 200ms" means nothing without knowing under what load.
-
-#### C3 — Acceptable degradation thresholds specified
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ load_c3_status }}
-- **Confidence:** {{ load_c3_confidence }}
-- **Evidence:** {{ load_c3_evidence }}
-- **Why this matters:** No degradation threshold means pass/fail is all-or-nothing — a system that degrades gracefully under peak load has no defined boundary between "acceptable slowdown" and "failure".
-
----
-
-## Section: scalability_testing
-
-### Criteria
-
-#### C1 — Growth scenarios defined as concrete multiples of baseline
-- **Weight:** mandatory
-- **Score if passed:** 35
-- **Status:** {{ scalability_c1_status }}
-- **Confidence:** {{ scalability_c1_confidence }}
-- **Evidence:** {{ scalability_c1_evidence }}
-- **Why this matters:** Scalability discussed only qualitatively ("the system should scale") provides no basis for capacity planning or architectural decisions.
-
-#### C2 — Breaking points identified with specific thresholds
-- **Weight:** mandatory
-- **Score if passed:** 35
-- **Status:** {{ scalability_c2_status }}
-- **Confidence:** {{ scalability_c2_confidence }}
-- **Evidence:** {{ scalability_c2_evidence }}
-- **Why this matters:** Testing that stops before finding the actual breaking point leaves the growth curve unknown — you discover the limit in production, not in testing.
-
-#### C3 — Scaling behavior characterized (linear/sub-linear/cliff)
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ scalability_c3_status }}
-- **Confidence:** {{ scalability_c3_confidence }}
-- **Evidence:** {{ scalability_c3_evidence }}
-- **Why this matters:** Scaling behavior reduced to pass/fail with no characterization of the curve gives no information about where the system bends or how it degrades.
-
----
-
-## Score History
-
-| Date | Auditor | Score | Verdict | Revision |
-|---|---|---|---|---|
-| {{ audit_date }} | {{ auditor_name }} | {{ weighted_score }} | {{ verdict }} | 1 |
-
----
-
-## Trend
-
-{{ trend_indicator }} ({{ trend_description }})
-
----
-
-## Failures
-
-| Criterion | Severity | Section | Evidence | Regression? |
-|---|---|---|---|---|
-{{ failures_table }}
-
----
-
-## Summary
-
-{{ summary_text }}
-
-### Section-Level Breakdown
-
-| Section | Weight | Score | Status |
-|---|---|---|---|
-| test_strategy | {{ strategy_weight }} | {{ strategy_score }} | {{ strategy_status }} |
-| unit_testing | {{ unit_weight }} | {{ unit_score }} | {{ unit_status }} |
-| integration_testing | {{ integration_weight }} | {{ integration_score }} | {{ integration_status }} |
-| security_testing | {{ security_weight }} | {{ security_score }} | {{ security_status }} |
-| purpose | {{ purpose_weight }} | {{ purpose_score }} | {{ purpose_status }} |
-| e2e_testing | {{ e2e_weight }} | {{ e2e_score }} | {{ e2e_status }} |
-| smoke_testing | {{ smoke_weight }} | {{ smoke_score }} | {{ smoke_status }} |
-| load_testing | {{ load_weight }} | {{ load_score }} | {{ load_status }} |
-| scalability_testing | {{ scalability_weight }} | {{ scalability_score }} | {{ scalability_status }} |
+| Domain | qa |
+| Standard | documentation-standards |
+| Section Rubric Files | `audit/semantic/section/12-qa/*.md` |
+| Auditor | LLM ({{ model_name }}) |
+| Audit Date | {{ created_at }} |
+| Revision | {{ revision_number }} |
+| Session | {{ session_id }} |

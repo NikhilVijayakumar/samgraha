@@ -3,6 +3,7 @@
 **Document:** {{ document_path }}
 **Standard:** `documentation-standards/13-implementation-standards.md`
 **Audit Date:** {{ created_at }}
+**Auditor:** LLM ({{ model_name }})
 **Revision:** {{ revision_number }}
 
 ---
@@ -27,6 +28,14 @@ section_score = sum of passed criterion points in that section, capped at 100
 | {{ revision_number }} (current) | {{ created_at }} | {{ score }} / 100 | {{ delta_previous_display }} | {{ delta_baseline_display }} |
 
 {% if not previous_score %}No prior runs — this revision is the baseline every future run is compared against.{% endif %}
+
+### Score by Model
+
+| Model | Runs | Avg Score | Min | Max |
+|---|---:|---:|---:|---|
+{% for m in model_scores -%}
+| {{ m.model_name }} | {{ m.run_count }} | {{ m.avg_score }} / 100 | {{ m.min_score }} / 100 | {{ m.max_score }} / 100 |
+{% endfor %}
 
 ### Section Scores
 

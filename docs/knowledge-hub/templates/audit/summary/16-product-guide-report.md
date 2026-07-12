@@ -1,139 +1,157 @@
-# {{ document_title }} — Product Guide Audit Summary
+# Audit Summary — Product Guide
 
-> **Domain:** product-guide
-> **Date:** {{ audit_date }}
-> **Auditor:** {{ auditor_name }}
-
----
-
-## Overall Score
-
-| Metric | Value |
-|---|---|
-| **Deterministic Document** | {{ det_doc_score }} |
-| **Deterministic Section** | {{ det_sec_score }} |
-| **Semantic Document** | {{ sem_doc_score }} |
-| **Semantic Section** | {{ sem_sec_score }} |
-| **Combined Score** | {{ combined_score }} |
-| **Verdict** | {{ verdict }} |
-
-**Why this matters:** Product Guide is a flat content domain — no derivation relationships, no upstream dependencies to validate. The combined score aggregates structural rules (sections present, populated, one-topic), cross-section coherence (Title-Body alignment, Contract-Body alignment), and per-section quality (substantive, specific, consistent).
+**Document:** {{ document_path }}
+**Standard:** `documentation-standards/16-product-guide-standards.md`
+**Auditor:** System (deterministic engine) + LLM ({{ model_name }})
+**Audit Date:** {{ created_at }}
+**Revision:** {{ revision_number }}
 
 ---
 
-## Deterministic Document Audit
+## Final Score
 
-### Rule Pass Rate
+**{{ final_score }} / 100** — **{{ rating }}**
+{% if previous_score %}({{ '↑ Improved' if final_score > previous_score else '↓ Regressed' if final_score < previous_score else '→ Unchanged' }} vs. previous run){% else %}(baseline — first audit of this document){% endif %}
 
-| Rules Checked | Passed | Failed | Errors | Warnings |
-|---|---|---|---|---|
-| {{ det_doc_rules_checked }} | {{ det_doc_passed }} | {{ det_doc_failed }} | {{ det_doc_errors }} | {{ det_doc_warnings }} |
+```
+final_score = (deterministic_whole/100 × 25)
+            + (deterministic_section/100 × 25)
+            + (semantic_whole/100 × 25)
+            + (semantic_section/100 × 25)
+```
 
-### Failures
+| Report | Score | Previous | Trend | Weight | Contribution |
+|---|---:|---:|---|---|---|
+| Deterministic — Whole | {{ deterministic_whole }} | {{ bucket_trend.det_whole.previous | default('—') }} | {{ bucket_trend.det_whole.trend_display }} | 25% | {{ (deterministic_whole / 100 * 25) | round(1) }} |
+| Deterministic — Section | {{ deterministic_section }} | {{ bucket_trend.det_section.previous | default('—') }} | {{ bucket_trend.det_section.trend_display }} | 25% | {{ (deterministic_section / 100 * 25) | round(1) }} |
+| Semantic — Whole | {{ semantic_whole }} | {{ bucket_trend.sem_whole.previous | default('—') }} | {{ bucket_trend.sem_whole.trend_display }} | 25% | {{ (semantic_whole / 100 * 25) | round(1) }} |
+| Semantic — Section | {{ semantic_section }} | {{ bucket_trend.sem_section.previous | default('—') }} | {{ bucket_trend.sem_section.trend_display }} | 25% | {{ (semantic_section / 100 * 25) | round(1) }} |
 
-| Rule | Severity | Weight | Evidence |
-|---|---|---|---|
-{{ det_doc_failures }}
-
----
-
-## Deterministic Section Audit
-
-### Rule Pass Rate by Section
-
-| Section | Rules | Passed | Failed | Errors | Warnings |
-|---|---|---|---|---|---|
-| title | {{ title_det_rules }} | {{ title_det_passed }} | {{ title_det_failed }} | {{ title_det_errors }} | {{ title_det_warnings }} |
-| body | {{ body_det_rules }} | {{ body_det_passed }} | {{ body_det_failed }} | {{ body_det_errors }} | {{ body_det_warnings }} |
-| purpose | {{ purpose_det_rules }} | {{ purpose_det_passed }} | {{ purpose_det_failed }} | {{ purpose_det_errors }} | {{ purpose_det_warnings }} |
-| product_context | {{ context_det_rules }} | {{ context_det_passed }} | {{ context_det_failed }} | {{ context_det_errors }} | {{ context_det_warnings }} |
-| public_contract | {{ contract_det_rules }} | {{ contract_det_passed }} | {{ contract_det_failed }} | {{ contract_det_errors }} | {{ contract_det_warnings }} |
-| related | {{ related_det_rules }} | {{ related_det_passed }} | {{ related_det_failed }} | {{ related_det_errors }} | {{ related_det_warnings }} |
-
----
-
-## Semantic Document Audit
-
-### Criteria Results
-
-| Criterion | Weight | Score | Status | Confidence |
-|---|---|---|---|---|
-| C1: Title-Body Alignment | mandatory (35) | {{ sem_doc_c1_score }} | {{ sem_doc_c1_status }} | {{ sem_doc_c1_confidence }} |
-| C2: Contract-Body Alignment | mandatory (35) | {{ sem_doc_c2_score }} | {{ sem_doc_c2_status }} | {{ sem_doc_c2_confidence }} |
-| C3: Terminology Consistency | recommended (30) | {{ sem_doc_c3_score }} | {{ sem_doc_c3_status }} | {{ sem_doc_c3_confidence }} |
-
-### Failures
-
-| Criterion | Severity | Evidence |
-|---|---|---|
-{{ sem_doc_failures }}
-
----
-
-## Semantic Section Audit
-
-### Scores by Section
-
-| Section | Score | C1 Status | C2 Status | C3 Status |
-|---|---|---|---|---|
-| title | {{ title_sem_score }} | {{ title_c1_status }} | {{ title_c2_status }} | {{ title_c3_status }} |
-| body | {{ body_sem_score }} | {{ body_c1_status }} | {{ body_c2_status }} | {{ body_c3_status }} |
-| purpose | {{ purpose_sem_score }} | {{ purpose_c1_status }} | {{ purpose_c2_status }} | {{ purpose_c3_status }} |
-| product_context | {{ context_sem_score }} | {{ context_c1_status }} | {{ context_c2_status }} | {{ context_c3_status }} |
-| public_contract | {{ contract_sem_score }} | {{ contract_c1_status }} | {{ contract_c2_status }} | {{ contract_c3_status }} |
-| related | {{ related_sem_score }} | {{ related_c1_status }} | {{ related_c2_status }} | {{ related_c3_status }} |
-
-### Failures
-
-| Section | Criterion | Severity | Evidence |
-|---|---|---|---|
-{{ sem_sec_failures }}
-
----
-
-## Failures Summary
-
-### Regressions from Previous Audit
-
-| Rule | Previous Score | Current Score | Change | Evidence |
-|---|---|---|---|---|
-{{ regressions_table }}
-
-### Persistent Failures
-
-| Rule | First Failed | Consecutive Failures | Evidence |
-|---|---|---|---|
-{{ persistent_failures_table }}
-
----
-
-## Document-Level Breakdown
-
-| Category | Weight | Score | Percentage | Verdict |
-|---|---|---|---|---|
-| Structural Completeness | 3.0 | {{ structural_score }} | {{ structural_pct }} | {{ structural_verdict }} |
-| Content Richness | 1.0 | {{ content_score }} | {{ content_pct }} | {{ content_verdict }} |
-| Modularity | 0.5 | {{ modularity_score }} | {{ modularity_pct }} | {{ modularity_verdict }} |
-
----
-
-## Section-Level Breakdown
-
-| Section Category | Sections | Avg Score | Worst | Verdict |
-|---|---|---|---|---|
-| Content Sections | title, body | {{ content_avg }} | {{ content_worst }} | {{ content_verdict }} |
-| Metadata Sections | purpose, product_context, public_contract, related | {{ metadata_avg }} | {{ metadata_worst }} | {{ metadata_verdict }} |
+Mandatory-criterion severity is absorbed inside each of the four reports' own scoring (see each report's Scoring Criteria table) — this rollup is a plain weighted sum, no additional gating here.
 
 ---
 
 ## Score History
 
-| Date | Auditor | Score | Verdict | Revision |
-|---|---|---|---|---|
-| {{ audit_date }} | {{ auditor_name }} | {{ combined_score }} | {{ verdict }} | 1 |
+Every run of this document's audit, oldest first, with this revision last:
+
+| Revision | Date | Final Score | Rating | vs. Previous | vs. Baseline |
+|---:|---|---:|---|---|---|
+{% for r in revision_history -%}
+| {{ r.revision }} | {{ r.date }} | {{ r.score }} / 100 | {{ r.rating }} | {{ r.delta_previous_display }} | {{ r.delta_baseline_display }} |
+{% endfor -%}
+| {{ revision_number }} (current) | {{ created_at }} | {{ final_score }} / 100 | {{ rating }} | {{ delta_previous_display }} | {{ delta_baseline_display }} |
+
+{% if not previous_score %}No prior runs — this revision is the baseline every future run is compared against.{% else %}Baseline was revision {{ baseline_revision }} ({{ baseline_score }} / 100, {{ baseline_date }}).{% endif %}
 
 ---
 
-## Trend
+## Document-Level Breakdown
 
-{{ trend_indicator }} ({{ trend_description }})
+Deterministic and semantic judge different things at the document level — deterministic checks structural rule groupings, semantic checks judgment criteria. They aren't the same categories and don't map row-to-row, so they get separate tables rather than being forced side by side.
+
+### Deterministic — Whole (`audit/deterministic/document/16-product-guide.yaml`)
+
+| Category | Score | Previous | Trend |
+|---|---:|---:|---|
+| Collection Completeness | {{ categories.collection_completeness.score }} / 100 | {{ categories.collection_completeness.previous_score | default('—') }} | {{ categories.collection_completeness.trend_display }} |
+| Modularity | {{ categories.modularity.score }} / 100 | {{ categories.modularity.previous_score | default('—') }} | {{ categories.modularity.trend_display }} |
+| Content Richness | {{ categories.content_richness.score }} / 100 | {{ categories.content_richness.previous_score | default('—') }} | {{ categories.content_richness.trend_display }} |
+| Duplicate Content | {{ categories.duplicate_content.score }} / 100 | {{ categories.duplicate_content.previous_score | default('—') }} | {{ categories.duplicate_content.trend_display }} |
+
+### Semantic — Whole (`audit/semantic/document/16-product-guide.md`)
+
+| Criterion | Result | Previous | Trend |
+|---|---|---|---|
+| C1 — Title reflects Body content | {{ doc_semantic.c1_display }} | {{ doc_semantic.c1_previous_display | default('—') }} | {{ doc_semantic.c1_trend_display }} |
+| C2 — Public Contract matches Body usage | {{ doc_semantic.c2_display }} | {{ doc_semantic.c2_previous_display | default('—') }} | {{ doc_semantic.c2_trend_display }} |
+| C3 — Terminology consistency across guides | {{ doc_semantic.c3_display }} | {{ doc_semantic.c3_previous_display | default('—') }} | {{ doc_semantic.c3_trend_display }} |
+
+Full detail, including per-rule/per-criterion evidence: see the Deterministic — Whole and Semantic — Whole reports linked below.
+
+## Section-Level Breakdown
+
+Same reasoning as above, extended per section: a section's deterministic score and its semantic score aren't guaranteed to check the same things (a section can be structurally complete but semantically weak, or vice versa) — two separate tables, not one merged table with a false row-by-row correspondence.
+
+### Deterministic — Section (`audit/deterministic/section/16-product-guide/*.yaml`)
+
+| # | Section | Required | Score | Previous | Trend |
+|---:|---|:---:|---:|---:|---|
+| 1 | Title | **required** | {{ sections.title.det_score }} / 100 | {{ sections.title.det_previous_score | default('—') }} | {{ sections.title.det_trend_display }} |
+| 2 | Body | **required** | {{ sections.body.det_score }} / 100 | {{ sections.body.det_previous_score | default('—') }} | {{ sections.body.det_trend_display }} |
+| 3 | Purpose | optional | {{ sections.purpose.det_score }} / 100 | {{ sections.purpose.det_previous_score | default('—') }} | {{ sections.purpose.det_trend_display }} |
+| 4 | Product Context (early) | optional | {{ sections.product_context_early.det_score }} / 100 | {{ sections.product_context_early.det_previous_score | default('—') }} | {{ sections.product_context_early.det_trend_display }} |
+| 5 | Public Contract (early) | optional | {{ sections.public_contract_early.det_score }} / 100 | {{ sections.public_contract_early.det_previous_score | default('—') }} | {{ sections.public_contract_early.det_trend_display }} |
+| 6 | Related | optional | {{ sections.related.det_score }} / 100 | {{ sections.related.det_previous_score | default('—') }} | {{ sections.related.det_trend_display }} |
+| 7 | Product Context | **required** | {{ sections.product_context.det_score }} / 100 | {{ sections.product_context.det_previous_score | default('—') }} | {{ sections.product_context.det_trend_display }} |
+| 8 | Public Contract | **required** | {{ sections.public_contract.det_score }} / 100 | {{ sections.public_contract.det_previous_score | default('—') }} | {{ sections.public_contract.det_trend_display }} |
+
+### Semantic — Section (`audit/semantic/section/16-product-guide/*.md`)
+
+| # | Section | Required | Score | Previous | Trend |
+|---:|---|:---:|---:|---:|---|
+| 1 | Title | **required** | {{ sections.title.sem_score }} / 100 | {{ sections.title.sem_previous_score | default('—') }} | {{ sections.title.sem_trend_display }} |
+| 2 | Body | **required** | {{ sections.body.sem_score }} / 100 | {{ sections.body.sem_previous_score | default('—') }} | {{ sections.body.sem_trend_display }} |
+| 3 | Purpose | optional | {{ sections.purpose.sem_score }} / 100 | {{ sections.purpose.sem_previous_score | default('—') }} | {{ sections.purpose.sem_trend_display }} |
+| 4 | Product Context (early) | optional | {{ sections.product_context_early.sem_score }} / 100 | {{ sections.product_context_early.sem_previous_score | default('—') }} | {{ sections.product_context_early.sem_trend_display }} |
+| 5 | Public Contract (early) | optional | {{ sections.public_contract_early.sem_score }} / 100 | {{ sections.public_contract_early.sem_previous_score | default('—') }} | {{ sections.public_contract_early.sem_trend_display }} |
+| 6 | Related | optional | {{ sections.related.sem_score }} / 100 | {{ sections.related.sem_previous_score | default('—') }} | {{ sections.related.sem_trend_display }} |
+| 7 | Product Context | **required** | {{ sections.product_context.sem_score }} / 100 | {{ sections.product_context.sem_previous_score | default('—') }} | {{ sections.product_context.sem_trend_display }} |
+| 8 | Public Contract | **required** | {{ sections.public_contract.sem_score }} / 100 | {{ sections.public_contract.sem_previous_score | default('—') }} | {{ sections.public_contract.sem_trend_display }} |
+| — | Generic (unmatched sections) | n/a | {{ sections.generic.sem_score }} / 100 | {{ sections.generic.sem_previous_score | default('—') }} | {{ sections.generic.sem_trend_display }} |
+
+Full detail, including per-rule/per-criterion evidence for every row above: see the Deterministic — Section and Semantic — Section reports linked below.
+
+---
+
+## Score Bands
+
+| Range | Rating | Meaning |
+|---|---|---|
+| 95–100 | Excellent | Fully compliant, no reservations |
+| 90–94 | Very Good | Minor gaps, safe to proceed |
+| 80–89 | Good | Solid foundation, a few issues to resolve |
+| 70–79 | Acceptable | Core present but gaps exist |
+| Below 70 | Needs Improvement | Significant gaps, not ready |
+
+---
+
+## Report Links
+
+| Report | File |
+|---|---|
+| Deterministic — Whole | `{{ det_whole_report_path }}` (`audit/deterministic/document/16-product-guide.yaml`) |
+| Deterministic — Section | `{{ det_section_report_path }}` (`audit/deterministic/section/16-product-guide/*.yaml`) |
+| Semantic — Whole | `{{ sem_whole_report_path }}` (`audit/semantic/document/16-product-guide.md`) |
+| Semantic — Section | `{{ sem_section_report_path }}` (`audit/semantic/section/16-product-guide/*.md`) |
+
+---
+
+## Top Findings
+
+{% if top_findings | length > 0 %}
+| Severity | Source | Rule/Criterion | Message | New This Run? |
+|---|---|---|---|---|
+{% for f in top_findings -%}
+| {{ f.severity }} | {{ f.report_type }} | {{ f.rule_id }} | {{ f.message }} | {{ 'Yes — regression' if f.is_new_finding else 'No — carried over' }} |
+{% endfor %}
+{% else %}
+No findings.
+{% endif %}
+
+Full score-history and per-run trend detail lives in the Score History table above, and in each of the 4 linked detail reports (each carries its own Score History and per-row Previous/Trend columns) — this table only surfaces what's new since the last run.
+
+---
+
+## Metadata
+
+| Field | Value |
+|---|---|
+| Domain | product-guide |
+| Standard | documentation-standards |
+| Document | {{ document_path }} |
+| Auditor | System (deterministic engine) + LLM ({{ model_name }}) |
+| Audit Date | {{ created_at }} |
+| Revision | {{ revision_number }} |
+| Session | {{ session_id }} |
+| Reports | 4 detail + 1 summary |

@@ -1,112 +1,108 @@
-# {{ document_title }} — Vision Semantic Document Audit Report
+# Semantic Whole-Document Report — Vision
 
-> **Domain:** vision
-> **Scope:** document
-> **Kind:** semantic
-> **Date:** {{ audit_date }}
-> **Auditor:** {{ auditor_name }}
-
----
-
-## Document-Level Score
-
-| Metric | Value |
-|---|---|
-| **Weight Sum** | 5.0 |
-| **Weighted Score** | {{ weighted_score }} |
-| **Max Possible** | 5.0 |
-| **Percentage** | {{ score_percentage }} |
-| **Verdict** | {{ verdict }} |
-
-**Why this matters:** Semantic document audit verifies that the collection of vision sections coheres as one aspirational statement. Section-level audits check each section individually; this audit catches cross-section contradictions — a Solution that doesn't address the Problem, or a Vision Statement disconnected from the Solution.
+**Document:** {{ document_path }}
+**Standard:** `documentation-standards/02-vision-standards.md`
+**Rubric:** `audit/semantic/document/01-vision.md`
+**Auditor:** LLM ({{ model_name }})
+**Audit Date:** {{ created_at }}
+**Revision:** {{ revision_number }}
 
 ---
 
-## Criterion Results
+## Score
 
-### C1 — Problem, Solution, and Vision Statement align without contradiction
-- **Weight:** mandatory
-- **Score if passed:** 35
-- **Status:** {{ c1_status }}
-- **Confidence:** {{ c1_confidence }}
-- **Evidence:** {{ c1_evidence }}
-- **Why this matters:** If the Solution addresses a different problem than the one Problem describes, or the Vision Statement is an unrelated ambition, the document is internally contradictory.
+**Semantic Whole Score: {{ score }} / 100**
+{% if previous_score %}({{ '↑ Improved' if score > previous_score else '↓ Regressed' if score < previous_score else '→ Unchanged' }} vs. previous run){% else %}(baseline — first audit of this document){% endif %}
 
-### C2 — No technology/implementation references anywhere in the document
-- **Weight:** mandatory
-- **Score if passed:** 35
-- **Status:** {{ c2_status }}
-- **Confidence:** {{ c2_confidence }}
-- **Evidence:** {{ c2_evidence }}
-- **Why this matters:** A technology reference split across two sentences in different sections is still a violation. Vision must remain technology-independent as a whole, not just section by section.
+```
+score = sum of passed criterion scores, capped at 100
+```
 
-### C3 — Terminology consistent and all Vision documents cohere as one system
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ c3_status }}
-- **Confidence:** {{ c3_confidence }}
-- **Evidence:** {{ c3_evidence }}
-- **Why this matters:** When the same value or goal is named differently across sections, readers cannot tell whether the difference is intentional or accidental.
+### Score History
+
+| Revision | Date | Score | vs. Previous | vs. Baseline |
+|---:|---|---:|---|---|
+{% for r in revision_history -%}
+| {{ r.revision }} | {{ r.date }} | {{ r.score }} / 100 | {{ r.delta_previous_display }} | {{ r.delta_baseline_display }} |
+{% endfor -%}
+| {{ revision_number }} (current) | {{ created_at }} | {{ score }} / 100 | {{ delta_previous_display }} | {{ delta_baseline_display }} |
+
+{% if not previous_score %}No prior runs — this revision is the baseline every future run is compared against.{% endif %}
+
+### Score by Model
+
+| Model | Runs | Avg Score | Min | Max |
+|---|---:|---:|---:|---|
+{% for m in model_scores -%}
+| {{ m.model_name }} | {{ m.run_count }} | {{ m.avg_score }} / 100 | {{ m.min_score }} / 100 | {{ m.max_score }} / 100 |
+{% endfor %}
+
+### Scoring Criteria
+
+| Criterion | Weight | Points | Previous | Current | Trend |
+|---|---|---:|---|---|---|
+| C1 — Problem-Solution-VS alignment | mandatory | 35 | {{ results['C1'].previous_passed_display | default('—') }} | {{ results['C1'].passed_display }} | {{ results['C1'].trend_display }} |
+| C2 — Technology independence | mandatory | 35 | {{ results['C2'].previous_passed_display | default('—') }} | {{ results['C2'].passed_display }} | {{ results['C2'].trend_display }} |
+| C3 — Terminology consistency | recommended | 30 | {{ results['C3'].previous_passed_display | default('—') }} | {{ results['C3'].passed_display }} | {{ results['C3'].trend_display }} |
+
+C1 and C2 are mandatory — either one failing caps this score at 30 (only C3's points remain reachable). C3 alone failing still allows 70.
 
 ---
 
-## Red Flags Detected
+## Judgment
 
-{{ red_flags_table }}
+Verifies Vision Documentation coheres as one aspirational statement — Problem, Solution, and Vision Statement must describe the same aspiration without contradicting each other, and the collection as a whole must read as one vision, not several. Section-level quality (is each section well-written on its own) is a separate concern, owned by the Semantic Section report; this report only catches problems that only exist when sections or documents are read together.
+
+## Scoring Criteria — Detail
+
+### C1 — mandatory, 0 or 35: Problem, Solution, and Vision Statement align without contradiction
+
+**What this catches:** a Solution that addresses a different problem than the one Problem describes; a Vision Statement that's an unrelated ambition disconnected from the actual problem-solution pair.
+
+**Previous:** {{ results['C1'].previous_passed_display | default('—') }} → **Current:** {{ results['C1'].passed_display }} ({{ results['C1'].trend_display }})
+**Evidence:** {{ results['C1'].evidence.excerpt | default('—') }}
+{% if not results['C1'].passed %}**Finding:** {{ results['C1'].message }}{% endif %}
+
+### C2 — mandatory, 0 or 35: No technology/implementation references anywhere in the document
+
+**What this catches:** a technology reference split across two sentences in different sections is still a violation. Vision must remain technology-independent as a whole, not just section by section.
+
+**Previous:** {{ results['C2'].previous_passed_display | default('—') }} → **Current:** {{ results['C2'].passed_display }} ({{ results['C2'].trend_display }})
+**Evidence:** {{ results['C2'].evidence.excerpt | default('—') }}
+{% if not results['C2'].passed %}**Finding:** {{ results['C2'].message }}{% endif %}
+
+### C3 — recommended, 0 or 30: Terminology consistent and all Vision documents cohere as one system
+
+**What this catches:** when the same value or goal is named differently across sections, readers cannot tell whether the difference is intentional or accidental.
+
+**Previous:** {{ results['C3'].previous_passed_display | default('—') }} → **Current:** {{ results['C3'].passed_display }} ({{ results['C3'].trend_display }})
+**Evidence:** {{ results['C3'].evidence.excerpt | default('—') }}
+{% if not results['C3'].passed %}**Finding:** {{ results['C3'].message }}{% endif %}
 
 ---
 
-## Edge Cases Evaluated
+## All Findings
 
-{{ edge_cases_table }}
-
----
-
-## Score History
-
-| Date | Auditor | Score | Verdict | Revision |
+{% if findings | length > 0 %}
+| Criterion | Severity | Evidence | Message | New This Run? |
 |---|---|---|---|---|
-| {{ audit_date }} | {{ auditor_name }} | {{ weighted_score }} | {{ verdict }} | 1 |
+{% for f in findings -%}
+| {{ f.criterion_id }} | {{ f.severity }} | {{ f.evidence.excerpt | default('—') }} | {{ f.message }} | {{ 'Yes — regression' if f.is_new_finding else 'No — carried over' }} |
+{% endfor %}
+{% else %}
+No findings — document reads as one coherent vision.
+{% endif %}
 
 ---
 
-## Trend
+## Metadata
 
-{{ trend_indicator }} ({{ trend_description }})
-
----
-
-## Failures
-
-| Criterion | Severity | Evidence | Regression? |
-|---|---|---|---|
-{{ failures_table }}
-
----
-
-## Summary
-
-{{ summary_text }}
-
-### Document-Level Breakdown
-
-| Category | Weight | Score | Status |
-|---|---|---|---|
-| Problem-Solution-VS Alignment | 35 | {{ c1_score }} | {{ c1_status }} |
-| Technology Independence | 35 | {{ c2_score }} | {{ c2_status }} |
-| Terminology Consistency | 30 | {{ c3_score }} | {{ c3_status }} |
-
-### Section-Level Breakdown
-
-| Section | Weight | Score | Status |
-|---|---|---|---|
-| purpose | {{ purpose_section_score }} | {{ purpose_section_weight }} | {{ purpose_section_status }} |
-| vision_statement | {{ vs_section_score }} | {{ vs_section_weight }} | {{ vs_section_status }} |
-| problem | {{ problem_section_score }} | {{ problem_section_weight }} | {{ problem_section_status }} |
-| solution | {{ solution_section_score }} | {{ solution_section_weight }} | {{ solution_section_status }} |
-| target_audience | {{ ta_section_score }} | {{ ta_section_weight }} | {{ ta_section_status }} |
-| pillars | {{ pillars_section_score }} | {{ pillars_section_weight }} | {{ pillars_section_status }} |
-| philosophy | {{ philosophy_section_score }} | {{ philosophy_section_weight }} | {{ philosophy_section_status }} |
-| guiding_principles | {{ gp_section_score }} | {{ gp_section_weight }} | {{ gp_section_status }} |
-| success_criteria | {{ sc_section_score }} | {{ sc_section_weight }} | {{ sc_section_status }} |
-| traceability | {{ trace_section_score }} | {{ trace_section_weight }} | {{ trace_section_status }} |
+| Field | Value |
+|---|---|
+| Domain | vision |
+| Standard | documentation-standards |
+| Rubric File | `audit/semantic/document/01-vision.md` |
+| Auditor | LLM ({{ model_name }}) |
+| Audit Date | {{ created_at }} |
+| Revision | {{ revision_number }} |
+| Session | {{ session_id }} |

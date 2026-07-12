@@ -1,500 +1,362 @@
-# {{ document_title }} — Feature Technical Semantic Section Audit Report
+# Semantic Section Report — Feature Technical
 
-> **Domain:** feature-technical
-> **Scope:** section
-> **Kind:** semantic
-> **Date:** {{ audit_date }}
-> **Auditor:** {{ auditor_name }}
+**Document:** {{ document_path }}
+**Standard:** `documentation-standards/10-feature-technical-standards.md`
+**Rubric Files:** `audit/semantic/section/10-feature-technical/*.md`
+**Auditor:** LLM ({{ model_name }})
+**Audit Date:** {{ created_at }}
+**Revision:** {{ revision_number }}
 
 ---
 
-## Document-Level Score
+## Score
 
-| Metric | Value |
+**Semantic Section Score: {{ score }} / 100**
+{% if previous_score %}({{ '↑ Improved' if score > previous_score else '↓ Regressed' if score < previous_score else '→ Unchanged' }} vs. previous run){% else %}(baseline — first audit of this document){% endif %}
+
+```
+overall = average of the section scores below, for sections actually present in the document
+section_score = sum of passed criterion points in that section, capped at 100
+```
+
+### Score History
+
+| Revision | Date | Score | vs. Previous | vs. Baseline |
+|---:|---|---:|---|---|
+{% for r in revision_history -%}
+| {{ r.revision }} | {{ r.date }} | {{ r.score }} / 100 | {{ r.delta_previous_display }} | {{ r.delta_baseline_display }} |
+{% endfor -%}
+| {{ revision_number }} (current) | {{ created_at }} | {{ score }} / 100 | {{ delta_previous_display }} | {{ delta_baseline_display }} |
+
+{% if not previous_score %}No prior runs — this revision is the baseline every future run is compared against.{% endif %}
+
+### Score by Model
+
+| Model | Runs | Avg Score | Min | Max |
+|---|---:|---:|---:|---|
+{% for m in model_scores -%}
+| {{ m.model_name }} | {{ m.run_count }} | {{ m.avg_score }} / 100 | {{ m.min_score }} / 100 | {{ m.max_score }} / 100 |
+{% endfor %}
+
+### Section Scores
+
+| # | Section | Required | Score | Previous | Trend |
+|---:|---|:---:|---:|---:|---|
+| 1 | Purpose | **required** | {{ sections.purpose.score }} / 100 | {{ sections.purpose.previous_score | default('—') }} | {{ sections.purpose.trend_display }} |
+| 2 | Participating Components | **required** | {{ sections.participating_components.score }} / 100 | {{ sections.participating_components.previous_score | default('—') }} | {{ sections.participating_components.trend_display }} |
+| 3 | Component Interactions | **required** | {{ sections.component_interactions.score }} / 100 | {{ sections.component_interactions.previous_score | default('—') }} | {{ sections.component_interactions.trend_display }} |
+| 4 | Data Ownership | **required** | {{ sections.data_ownership.score }} / 100 | {{ sections.data_ownership.previous_score | default('—') }} | {{ sections.data_ownership.trend_display }} |
+| 5 | Feature Specification | optional | {{ sections.feature_specification.score }} / 100 | {{ sections.feature_specification.previous_score | default('—') }} | {{ sections.feature_specification.trend_display }} |
+| 6 | Component Responsibilities | optional | {{ sections.component_responsibilities.score }} / 100 | {{ sections.component_responsibilities.previous_score | default('—') }} | {{ sections.component_responsibilities.trend_display }} |
+| 7 | Runtime Behavior | optional | {{ sections.runtime_behavior.score }} / 100 | {{ sections.runtime_behavior.previous_score | default('—') }} | {{ sections.runtime_behavior.trend_display }} |
+| 8 | Communication Paths | optional | {{ sections.communication_paths.score }} / 100 | {{ sections.communication_paths.previous_score | default('—') }} | {{ sections.communication_paths.trend_display }} |
+| 9 | Integration Points | optional | {{ sections.integration_points.score }} / 100 | {{ sections.integration_points.previous_score | default('—') }} | {{ sections.integration_points.trend_display }} |
+| 10 | External Dependencies | optional | {{ sections.external_dependencies.score }} / 100 | {{ sections.external_dependencies.previous_score | default('—') }} | {{ sections.external_dependencies.trend_display }} |
+| 11 | Runtime Constraints | optional | {{ sections.runtime_constraints.score }} / 100 | {{ sections.runtime_constraints.previous_score | default('—') }} | {{ sections.runtime_constraints.trend_display }} |
+| 12 | Architectural Constraints | optional | {{ sections.architectural_constraints.score }} / 100 | {{ sections.architectural_constraints.previous_score | default('—') }} | {{ sections.architectural_constraints.trend_display }} |
+| 13 | Security Considerations | optional | {{ sections.security_considerations.score }} / 100 | {{ sections.security_considerations.previous_score | default('—') }} | {{ sections.security_considerations.trend_display }} |
+| 14 | Performance Considerations | optional | {{ sections.performance_considerations.score }} / 100 | {{ sections.performance_considerations.previous_score | default('—') }} | {{ sections.performance_considerations.trend_display }} |
+| 15 | Failure Handling | optional | {{ sections.failure_handling.score }} / 100 | {{ sections.failure_handling.previous_score | default('—') }} | {{ sections.failure_handling.trend_display }} |
+| 16 | Extension Points | optional | {{ sections.extension_points.score }} / 100 | {{ sections.extension_points.previous_score | default('—') }} | {{ sections.extension_points.trend_display }} |
+| 17 | Traceability | optional | {{ sections.traceability.score }} / 100 | {{ sections.traceability.previous_score | default('—') }} | {{ sections.traceability.trend_display }} |
+| — | Generic (unmatched sections) | n/a | {{ sections.generic.score }} / 100 | {{ sections.generic.previous_score | default('—') }} | {{ sections.generic.trend_display }} |
+
+A section absent from the document (among the optional ones) isn't scored at all here — it's a deterministic presence check, not a semantic quality judgment on nothing.
+
+---
+
+## 1. Purpose — `section/10-feature-technical/01-purpose.md` — **required**
+
+**Why this matters:** Purpose defines why Feature Technical Documentation exists. A Purpose section that's missing, vague, or technology-leaking undermines every section that follows it.
+
+**Section Score: {{ sections.purpose.score }} / 100** ({{ sections.purpose.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['purpose.C1'].previous_passed_display | default('—') }} | {{ results['purpose.C1'].passed_display }} | {{ results['purpose.C1'].trend_display }} | {{ results['purpose.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['purpose.C2'].previous_passed_display | default('—') }} | {{ results['purpose.C2'].passed_display }} | {{ results['purpose.C2'].trend_display }} | {{ results['purpose.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['purpose.C3'].previous_passed_display | default('—') }} | {{ results['purpose.C3'].passed_display }} | {{ results['purpose.C3'].trend_display }} | {{ results['purpose.C3'].evidence.excerpt | default('—') }} |
+
+C1: technical problem and motivation clearly stated. C2: engineering value proposition articulated. C3: success criteria for technical impact defined.
+
+## 2. Participating Components — `02-participating_components.md` — **required**
+
+**Why this matters:** Participating Components is the inventory of every module, service, or sub-system involved in the feature. A missing or incomplete list means downstream sections reference components that were never formally introduced.
+
+**Section Score: {{ sections.participating_components.score }} / 100** ({{ sections.participating_components.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 30 | {{ results['participating_components.C1'].previous_passed_display | default('—') }} | {{ results['participating_components.C1'].passed_display }} | {{ results['participating_components.C1'].trend_display }} | {{ results['participating_components.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['participating_components.C2'].previous_passed_display | default('—') }} | {{ results['participating_components.C2'].passed_display }} | {{ results['participating_components.C2'].trend_display }} | {{ results['participating_components.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 20 | {{ results['participating_components.C3'].previous_passed_display | default('—') }} | {{ results['participating_components.C3'].passed_display }} | {{ results['participating_components.C3'].trend_display }} | {{ results['participating_components.C3'].evidence.excerpt | default('—') }} |
+| C4 | recommended | 20 | {{ results['participating_components.C4'].previous_passed_display | default('—') }} | {{ results['participating_components.C4'].passed_display }} | {{ results['participating_components.C4'].trend_display }} | {{ results['participating_components.C4'].evidence.excerpt | default('—') }} |
+
+C1: all participating components enumerated. C2: deployment unit specified per component. C3: each component has a defined feature role. C4: state model documented per component.
+
+## 3. Component Interactions — `03-component_interactions.md` — **required**
+
+**Why this matters:** Component Interactions describes how components communicate and depend on each other. Without it, readers cannot understand the feature's data flow, call patterns, or coupling characteristics.
+
+**Section Score: {{ sections.component_interactions.score }} / 100** ({{ sections.component_interactions.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 30 | {{ results['component_interactions.C1'].previous_passed_display | default('—') }} | {{ results['component_interactions.C1'].passed_display }} | {{ results['component_interactions.C1'].trend_display }} | {{ results['component_interactions.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['component_interactions.C2'].previous_passed_display | default('—') }} | {{ results['component_interactions.C2'].passed_display }} | {{ results['component_interactions.C2'].trend_display }} | {{ results['component_interactions.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 20 | {{ results['component_interactions.C3'].previous_passed_display | default('—') }} | {{ results['component_interactions.C3'].passed_display }} | {{ results['component_interactions.C3'].trend_display }} | {{ results['component_interactions.C3'].evidence.excerpt | default('—') }} |
+| C4 | recommended | 20 | {{ results['component_interactions.C4'].previous_passed_display | default('—') }} | {{ results['component_interactions.C4'].passed_display }} | {{ results['component_interactions.C4'].trend_display }} | {{ results['component_interactions.C4'].evidence.excerpt | default('—') }} |
+
+C1: all component interactions identified. C2: each interaction specifies direction and communication type. C3: no undocumented cyclic dependencies. C4: data contracts or interfaces referenced per interaction.
+
+## 4. Data Ownership — `04-data_ownership.md` — **required**
+
+**Why this matters:** Data Ownership assigns authoritative ownership for each data entity. Without it, multiple components may silently write to the same data, creating consistency bugs.
+
+**Section Score: {{ sections.data_ownership.score }} / 100** ({{ sections.data_ownership.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 30 | {{ results['data_ownership.C1'].previous_passed_display | default('—') }} | {{ results['data_ownership.C1'].passed_display }} | {{ results['data_ownership.C1'].trend_display }} | {{ results['data_ownership.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['data_ownership.C2'].previous_passed_display | default('—') }} | {{ results['data_ownership.C2'].passed_display }} | {{ results['data_ownership.C2'].trend_display }} | {{ results['data_ownership.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 20 | {{ results['data_ownership.C3'].previous_passed_display | default('—') }} | {{ results['data_ownership.C3'].passed_display }} | {{ results['data_ownership.C3'].trend_display }} | {{ results['data_ownership.C3'].evidence.excerpt | default('—') }} |
+| C4 | recommended | 20 | {{ results['data_ownership.C4'].previous_passed_display | default('—') }} | {{ results['data_ownership.C4'].passed_display }} | {{ results['data_ownership.C4'].trend_display }} | {{ results['data_ownership.C4'].evidence.excerpt | default('—') }} |
+
+C1: all data entities have designated owners. C2: write authority is assigned and non-conflicting. C3: data lifecycle documented per entity. C4: data retention and purging policies defined.
+
+## 5. Feature Specification — `05-feature_specification.md` — optional
+
+**Why this matters:** Feature Specification defines the technical boundaries, inputs, outputs, and behavioral contract. Without it, Implementation has no declarative contract to code against.
+
+**Section Score: {{ sections.feature_specification.score }} / 100** ({{ sections.feature_specification.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 30 | {{ results['feature_specification.C1'].previous_passed_display | default('—') }} | {{ results['feature_specification.C1'].passed_display }} | {{ results['feature_specification.C1'].trend_display }} | {{ results['feature_specification.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['feature_specification.C2'].previous_passed_display | default('—') }} | {{ results['feature_specification.C2'].passed_display }} | {{ results['feature_specification.C2'].trend_display }} | {{ results['feature_specification.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 20 | {{ results['feature_specification.C3'].previous_passed_display | default('—') }} | {{ results['feature_specification.C3'].passed_display }} | {{ results['feature_specification.C3'].trend_display }} | {{ results['feature_specification.C3'].evidence.excerpt | default('—') }} |
+| C4 | recommended | 20 | {{ results['feature_specification.C4'].previous_passed_display | default('—') }} | {{ results['feature_specification.C4'].passed_display }} | {{ results['feature_specification.C4'].trend_display }} | {{ results['feature_specification.C4'].evidence.excerpt | default('—') }} |
+
+C1: feature scope with inclusion and exclusion criteria. C2: preconditions and postconditions defined. C3: input and output specifications with types. C4: feature-level invariants documented.
+
+## 6. Component Responsibilities — `06-component_responsibilities.md` — optional
+
+**Why this matters:** Component Responsibilities defines what each participating component owns, preventing overlap and gaps in accountability.
+
+**Section Score: {{ sections.component_responsibilities.score }} / 100** ({{ sections.component_responsibilities.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 30 | {{ results['component_responsibilities.C1'].previous_passed_display | default('—') }} | {{ results['component_responsibilities.C1'].passed_display }} | {{ results['component_responsibilities.C1'].trend_display }} | {{ results['component_responsibilities.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['component_responsibilities.C2'].previous_passed_display | default('—') }} | {{ results['component_responsibilities.C2'].passed_display }} | {{ results['component_responsibilities.C2'].trend_display }} | {{ results['component_responsibilities.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 20 | {{ results['component_responsibilities.C3'].previous_passed_display | default('—') }} | {{ results['component_responsibilities.C3'].passed_display }} | {{ results['component_responsibilities.C3'].trend_display }} | {{ results['component_responsibilities.C3'].evidence.excerpt | default('—') }} |
+| C4 | recommended | 20 | {{ results['component_responsibilities.C4'].previous_passed_display | default('—') }} | {{ results['component_responsibilities.C4'].passed_display }} | {{ results['component_responsibilities.C4'].trend_display }} | {{ results['component_responsibilities.C4'].evidence.excerpt | default('—') }} |
+
+C1: all components have explicit responsibility statements. C2: no overlapping responsibilities across components. C3: each component has a primary single responsibility. C4: gap analysis performed for uncovered capabilities.
+
+## 7. Runtime Behavior — `07-runtime_behavior.md` — optional
+
+**Why this matters:** Runtime Behavior describes the feature's operational execution model — startup, steady-state, state transitions, and shutdown. Without it, Implementation cannot determine the correct lifecycle sequence.
+
+**Section Score: {{ sections.runtime_behavior.score }} / 100** ({{ sections.runtime_behavior.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 30 | {{ results['runtime_behavior.C1'].previous_passed_display | default('—') }} | {{ results['runtime_behavior.C1'].passed_display }} | {{ results['runtime_behavior.C1'].trend_display }} | {{ results['runtime_behavior.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['runtime_behavior.C2'].previous_passed_display | default('—') }} | {{ results['runtime_behavior.C2'].passed_display }} | {{ results['runtime_behavior.C2'].trend_display }} | {{ results['runtime_behavior.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 20 | {{ results['runtime_behavior.C3'].previous_passed_display | default('—') }} | {{ results['runtime_behavior.C3'].passed_display }} | {{ results['runtime_behavior.C3'].trend_display }} | {{ results['runtime_behavior.C3'].evidence.excerpt | default('—') }} |
+| C4 | recommended | 20 | {{ results['runtime_behavior.C4'].previous_passed_display | default('—') }} | {{ results['runtime_behavior.C4'].passed_display }} | {{ results['runtime_behavior.C4'].trend_display }} | {{ results['runtime_behavior.C4'].evidence.excerpt | default('—') }} |
+
+C1: startup and shutdown sequences documented. C2: state transitions with triggers enumerated. C3: concurrency and threading model described. C4: observable side effects listed.
+
+## 8. Communication Paths — `08-communication_paths.md` — optional
+
+**Why this matters:** Communication Paths documents the data flow topology — message routing, delivery guarantees, and backpressure handling. Without it, readers cannot assess whether data arrives reliably.
+
+**Section Score: {{ sections.communication_paths.score }} / 100** ({{ sections.communication_paths.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 30 | {{ results['communication_paths.C1'].previous_passed_display | default('—') }} | {{ results['communication_paths.C1'].passed_display }} | {{ results['communication_paths.C1'].trend_display }} | {{ results['communication_paths.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['communication_paths.C2'].previous_passed_display | default('—') }} | {{ results['communication_paths.C2'].passed_display }} | {{ results['communication_paths.C2'].trend_display }} | {{ results['communication_paths.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 20 | {{ results['communication_paths.C3'].previous_passed_display | default('—') }} | {{ results['communication_paths.C3'].passed_display }} | {{ results['communication_paths.C3'].trend_display }} | {{ results['communication_paths.C3'].evidence.excerpt | default('—') }} |
+| C4 | recommended | 20 | {{ results['communication_paths.C4'].previous_passed_display | default('—') }} | {{ results['communication_paths.C4'].passed_display }} | {{ results['communication_paths.C4'].trend_display }} | {{ results['communication_paths.C4'].evidence.excerpt | default('—') }} |
+
+C1: all communication paths enumerated source-to-sink. C2: delivery guarantees defined per path. C3: backpressure or flow control documented. C4: serialization format specified per path.
+
+## 9. Integration Points — `09-integration_points.md` — optional
+
+**Why this matters:** Integration Points document every boundary where the feature connects to external systems. Without it, implementation teams may miss integration contracts.
+
+**Section Score: {{ sections.integration_points.score }} / 100** ({{ sections.integration_points.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 30 | {{ results['integration_points.C1'].previous_passed_display | default('—') }} | {{ results['integration_points.C1'].passed_display }} | {{ results['integration_points.C1'].trend_display }} | {{ results['integration_points.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['integration_points.C2'].previous_passed_display | default('—') }} | {{ results['integration_points.C2'].passed_display }} | {{ results['integration_points.C2'].trend_display }} | {{ results['integration_points.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 20 | {{ results['integration_points.C3'].previous_passed_display | default('—') }} | {{ results['integration_points.C3'].passed_display }} | {{ results['integration_points.C3'].trend_display }} | {{ results['integration_points.C3'].evidence.excerpt | default('—') }} |
+| C4 | recommended | 20 | {{ results['integration_points.C4'].previous_passed_display | default('—') }} | {{ results['integration_points.C4'].passed_display }} | {{ results['integration_points.C4'].trend_display }} | {{ results['integration_points.C4'].evidence.excerpt | default('—') }} |
+
+C1: all integration points enumerated with external system. C2: interface contract specified per integration point. C3: error contract documented per boundary. C4: SLA parameters defined for each integration point.
+
+## 10. External Dependencies — `10-external_dependencies.md` — optional
+
+**Why this matters:** External Dependencies capture every third-party library, service, or infrastructure the feature relies on. Without it, version conflicts and license issues surface only in production.
+
+**Section Score: {{ sections.external_dependencies.score }} / 100** ({{ sections.external_dependencies.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 30 | {{ results['external_dependencies.C1'].previous_passed_display | default('—') }} | {{ results['external_dependencies.C1'].passed_display }} | {{ results['external_dependencies.C1'].trend_display }} | {{ results['external_dependencies.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['external_dependencies.C2'].previous_passed_display | default('—') }} | {{ results['external_dependencies.C2'].passed_display }} | {{ results['external_dependencies.C2'].trend_display }} | {{ results['external_dependencies.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 20 | {{ results['external_dependencies.C3'].previous_passed_display | default('—') }} | {{ results['external_dependencies.C3'].passed_display }} | {{ results['external_dependencies.C3'].trend_display }} | {{ results['external_dependencies.C3'].evidence.excerpt | default('—') }} |
+| C4 | recommended | 20 | {{ results['external_dependencies.C4'].previous_passed_display | default('—') }} | {{ results['external_dependencies.C4'].passed_display }} | {{ results['external_dependencies.C4'].trend_display }} | {{ results['external_dependencies.C4'].evidence.excerpt | default('—') }} |
+
+C1: all external dependencies enumerated with version. C2: integration method documented for each dependency. C3: license compatibility verified. C4: no dependencies with known unresolved CVEs.
+
+## 11. Runtime Constraints — `11-runtime_constraints.md` — optional
+
+**Why this matters:** Runtime Constraints specify measurable resource limits the feature must operate within. Without numeric thresholds, performance requirements are ambiguous and unverifiable.
+
+**Section Score: {{ sections.runtime_constraints.score }} / 100** ({{ sections.runtime_constraints.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 30 | {{ results['runtime_constraints.C1'].previous_passed_display | default('—') }} | {{ results['runtime_constraints.C1'].passed_display }} | {{ results['runtime_constraints.C1'].trend_display }} | {{ results['runtime_constraints.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['runtime_constraints.C2'].previous_passed_display | default('—') }} | {{ results['runtime_constraints.C2'].passed_display }} | {{ results['runtime_constraints.C2'].trend_display }} | {{ results['runtime_constraints.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 20 | {{ results['runtime_constraints.C3'].previous_passed_display | default('—') }} | {{ results['runtime_constraints.C3'].passed_display }} | {{ results['runtime_constraints.C3'].trend_display }} | {{ results['runtime_constraints.C3'].evidence.excerpt | default('—') }} |
+| C4 | recommended | 20 | {{ results['runtime_constraints.C4'].previous_passed_display | default('—') }} | {{ results['runtime_constraints.C4'].passed_display }} | {{ results['runtime_constraints.C4'].trend_display }} | {{ results['runtime_constraints.C4'].evidence.excerpt | default('—') }} |
+
+C1: all runtime constraints enumerated with numeric thresholds. C2: measurement units specified per constraint. C3: normal vs burst mode constraints distinguished. C4: hard and soft limits clearly differentiated.
+
+## 12. Architectural Constraints — `12-architectural_constraints.md` — optional
+
+**Why this matters:** Architectural Constraints define the non-negotiable design rules the feature must adhere to. Without them, implementation may violate upstream architectural principles.
+
+**Section Score: {{ sections.architectural_constraints.score }} / 100** ({{ sections.architectural_constraints.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 30 | {{ results['architectural_constraints.C1'].previous_passed_display | default('—') }} | {{ results['architectural_constraints.C1'].passed_display }} | {{ results['architectural_constraints.C1'].trend_display }} | {{ results['architectural_constraints.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['architectural_constraints.C2'].previous_passed_display | default('—') }} | {{ results['architectural_constraints.C2'].passed_display }} | {{ results['architectural_constraints.C2'].trend_display }} | {{ results['architectural_constraints.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 20 | {{ results['architectural_constraints.C3'].previous_passed_display | default('—') }} | {{ results['architectural_constraints.C3'].passed_display }} | {{ results['architectural_constraints.C3'].trend_display }} | {{ results['architectural_constraints.C3'].evidence.excerpt | default('—') }} |
+| C4 | recommended | 20 | {{ results['architectural_constraints.C4'].previous_passed_display | default('—') }} | {{ results['architectural_constraints.C4'].passed_display }} | {{ results['architectural_constraints.C4'].trend_display }} | {{ results['architectural_constraints.C4'].evidence.excerpt | default('—') }} |
+
+C1: all architectural constraints enumerated. C2: dependency direction rules specified. C3: layer isolation rules defined. C4: each constraint linked to an ADR or rationale.
+
+## 13. Security Considerations — `13-security_considerations.md` — optional
+
+**Why this matters:** Security Considerations document the threat model, authentication, authorization, and data protection. Without them, security is treated as an afterthought.
+
+**Section Score: {{ sections.security_considerations.score }} / 100** ({{ sections.security_considerations.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 25 | {{ results['security_considerations.C1'].previous_passed_display | default('—') }} | {{ results['security_considerations.C1'].passed_display }} | {{ results['security_considerations.C1'].trend_display }} | {{ results['security_considerations.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 25 | {{ results['security_considerations.C2'].previous_passed_display | default('—') }} | {{ results['security_considerations.C2'].passed_display }} | {{ results['security_considerations.C2'].trend_display }} | {{ results['security_considerations.C2'].evidence.excerpt | default('—') }} |
+| C3 | mandatory | 25 | {{ results['security_considerations.C3'].previous_passed_display | default('—') }} | {{ results['security_considerations.C3'].passed_display }} | {{ results['security_considerations.C3'].trend_display }} | {{ results['security_considerations.C3'].evidence.excerpt | default('—') }} |
+| C4 | recommended | 25 | {{ results['security_considerations.C4'].previous_passed_display | default('—') }} | {{ results['security_considerations.C4'].passed_display }} | {{ results['security_considerations.C4'].trend_display }} | {{ results['security_considerations.C4'].evidence.excerpt | default('—') }} |
+
+C1: threat model documents threats with mitigations (STRIDE/OWASP Top 10 mapping). C2: authentication and authorization model documented. C3: input validation names specific attack vectors (XSS, SQLi, command injection). C4: data protection (transit and at rest) and audit logging defined.
+
+## 14. Performance Considerations — `14-performance_considerations.md` — optional
+
+**Why this matters:** Performance Considerations document latency targets, throughput requirements, and resource utilization. Without them, performance expectations are undocumented and unverifiable.
+
+**Section Score: {{ sections.performance_considerations.score }} / 100** ({{ sections.performance_considerations.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 30 | {{ results['performance_considerations.C1'].previous_passed_display | default('—') }} | {{ results['performance_considerations.C1'].passed_display }} | {{ results['performance_considerations.C1'].trend_display }} | {{ results['performance_considerations.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['performance_considerations.C2'].previous_passed_display | default('—') }} | {{ results['performance_considerations.C2'].passed_display }} | {{ results['performance_considerations.C2'].trend_display }} | {{ results['performance_considerations.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 20 | {{ results['performance_considerations.C3'].previous_passed_display | default('—') }} | {{ results['performance_considerations.C3'].passed_display }} | {{ results['performance_considerations.C3'].trend_display }} | {{ results['performance_considerations.C3'].evidence.excerpt | default('—') }} |
+| C4 | recommended | 20 | {{ results['performance_considerations.C4'].previous_passed_display | default('—') }} | {{ results['performance_considerations.C4'].passed_display }} | {{ results['performance_considerations.C4'].trend_display }} | {{ results['performance_considerations.C4'].evidence.excerpt | default('—') }} |
+
+C1: latency targets with percentile levels specified. C2: throughput and concurrency limits defined. C3: resource utilization profile per transaction. C4: caching strategy with invalidation documented.
+
+## 15. Failure Handling — `15-failure_handling.md` — optional
+
+**Why this matters:** Failure Handling documents how the feature detects, responds to, and recovers from errors. Without it, error handling is inconsistent across components.
+
+**Section Score: {{ sections.failure_handling.score }} / 100** ({{ sections.failure_handling.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 30 | {{ results['failure_handling.C1'].previous_passed_display | default('—') }} | {{ results['failure_handling.C1'].passed_display }} | {{ results['failure_handling.C1'].trend_display }} | {{ results['failure_handling.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['failure_handling.C2'].previous_passed_display | default('—') }} | {{ results['failure_handling.C2'].passed_display }} | {{ results['failure_handling.C2'].trend_display }} | {{ results['failure_handling.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 20 | {{ results['failure_handling.C3'].previous_passed_display | default('—') }} | {{ results['failure_handling.C3'].passed_display }} | {{ results['failure_handling.C3'].trend_display }} | {{ results['failure_handling.C3'].evidence.excerpt | default('—') }} |
+| C4 | recommended | 20 | {{ results['failure_handling.C4'].previous_passed_display | default('—') }} | {{ results['failure_handling.C4'].passed_display }} | {{ results['failure_handling.C4'].trend_display }} | {{ results['failure_handling.C4'].evidence.excerpt | default('—') }} |
+
+C1: all failure modes enumerated with detection mechanism. C2: retry policy defined per failure mode. C3: fallback or degradation behavior documented. C4: data consistency guarantees stated for failure scenarios.
+
+## 16. Extension Points — `16-extension_points.md` — optional
+
+**Why this matters:** Extension Points document where the feature can be customized or extended. Without them, consumers cannot safely extend the feature without risking breakage.
+
+**Section Score: {{ sections.extension_points.score }} / 100** ({{ sections.extension_points.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 30 | {{ results['extension_points.C1'].previous_passed_display | default('—') }} | {{ results['extension_points.C1'].passed_display }} | {{ results['extension_points.C1'].trend_display }} | {{ results['extension_points.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['extension_points.C2'].previous_passed_display | default('—') }} | {{ results['extension_points.C2'].passed_display }} | {{ results['extension_points.C2'].trend_display }} | {{ results['extension_points.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 20 | {{ results['extension_points.C3'].previous_passed_display | default('—') }} | {{ results['extension_points.C3'].passed_display }} | {{ results['extension_points.C3'].trend_display }} | {{ results['extension_points.C3'].evidence.excerpt | default('—') }} |
+| C4 | recommended | 20 | {{ results['extension_points.C4'].previous_passed_display | default('—') }} | {{ results['extension_points.C4'].passed_display }} | {{ results['extension_points.C4'].trend_display }} | {{ results['extension_points.C4'].evidence.excerpt | default('—') }} |
+
+C1: all extension points enumerated with interface signature. C2: extension mechanism and registration described. C3: stability guarantees and deprecation policy documented. C4: default behavior for unextended feature defined.
+
+## 17. Traceability — `17-traceability.md` — optional
+
+**Why this matters:** Traceability documents the links between feature requirements, design decisions, and implementation artifacts. Without it, impact analysis is impossible.
+
+**Section Score: {{ sections.traceability.score }} / 100** ({{ sections.traceability.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 30 | {{ results['traceability.C1'].previous_passed_display | default('—') }} | {{ results['traceability.C1'].passed_display }} | {{ results['traceability.C1'].trend_display }} | {{ results['traceability.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['traceability.C2'].previous_passed_display | default('—') }} | {{ results['traceability.C2'].passed_display }} | {{ results['traceability.C2'].trend_display }} | {{ results['traceability.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 20 | {{ results['traceability.C3'].previous_passed_display | default('—') }} | {{ results['traceability.C3'].passed_display }} | {{ results['traceability.C3'].trend_display }} | {{ results['traceability.C3'].evidence.excerpt | default('—') }} |
+| C4 | recommended | 20 | {{ results['traceability.C4'].previous_passed_display | default('—') }} | {{ results['traceability.C4'].passed_display }} | {{ results['traceability.C4'].trend_display }} | {{ results['traceability.C4'].evidence.excerpt | default('—') }} |
+
+C1: bidirectional trace between requirements and components. C2: all tests mapped to requirements or specifications. C3: design decisions linked to ADR documents. C4: gaps and untraced elements explicitly documented.
+
+## Generic — `generic.md` (sections with no matching semantic_type)
+
+**Why this matters:** Catches feature-technical content an author wrote under a heading that doesn't match any of the 17 named section types above — still judged for relevance and non-duplication, not given a free pass for being unclassified.
+
+**Section Score: {{ sections.generic.score }} / 100** ({{ sections.generic.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['generic.C1'].previous_passed_display | default('—') }} | {{ results['generic.C1'].passed_display }} | {{ results['generic.C1'].trend_display }} | {{ results['generic.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['generic.C2'].previous_passed_display | default('—') }} | {{ results['generic.C2'].passed_display }} | {{ results['generic.C2'].trend_display }} | {{ results['generic.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['generic.C3'].previous_passed_display | default('—') }} | {{ results['generic.C3'].passed_display }} | {{ results['generic.C3'].trend_display }} | {{ results['generic.C3'].evidence.excerpt | default('—') }} |
+
+C1: content is relevant to the feature-technical domain. C2: no duplication with other named sections. C3: all claims are verifiable and specific.
+
+---
+
+## All Findings
+
+{% if findings | length > 0 %}
+| Section | Criterion | Severity | Evidence | Message | New This Run? |
+|---|---|---|---|---|---|
+{% for f in findings -%}
+| {{ f.section_type }} | {{ f.criterion_id }} | {{ f.severity }} | {{ f.evidence.excerpt | default('—') }} | {{ f.message }} | {{ 'Yes — regression' if f.is_new_finding else 'No — carried over' }} |
+{% endfor %}
+{% else %}
+No findings.
+{% endif %}
+
+---
+
+## Metadata
+
+| Field | Value |
 |---|---|
-| **Weight Sum** | 100 |
-| **Weighted Score** | {{ weighted_score }} |
-| **Max Possible** | 100 |
-| **Percentage** | {{ score_percentage }} |
-| **Verdict** | {{ verdict }} |
-
-**Why this matters:** Section-level semantic audit checks that each Feature Technical section delivers real content — not generic boilerplate, not placeholders, not implementation-specific details. Each section must be specific to this feature, technology-independent, and backed by evidence.
-
----
-
-## Required Sections
-
-### purpose
-#### C1 — Technical problem and motivation clearly stated
-- **Weight:** mandatory (40)
-- **Status:** {{ purpose_c1_status }}
-- **Evidence:** {{ purpose_c1_evidence }}
-- **Why this matters:** Purpose without a clear technical problem gives implementers no understanding of what engineering value this feature delivers.
-
-#### C2 — Engineering value proposition articulated
-- **Weight:** mandatory (30)
-- **Status:** {{ purpose_c2_status }}
-- **Evidence:** {{ purpose_c2_evidence }}
-- **Why this matters:** Purpose without an engineering value proposition leaves implementers unable to justify the technical effort.
-
-#### C3 — Success criteria for technical impact defined
-- **Weight:** recommended (30)
-- **Status:** {{ purpose_c3_status }}
-- **Evidence:** {{ purpose_c3_evidence }}
-- **Why this matters:** Purpose without success criteria leaves implementers unable to validate the feature achieved its technical goals.
-
----
-
-### participating_components
-#### C1 — All participating components enumerated
-- **Weight:** mandatory (30)
-- **Status:** {{ components_c1_status }}
-- **Evidence:** {{ components_c1_evidence }}
-- **Why this matters:** Missing components mean the technical design is incomplete — implementers will discover undocumented parts during implementation.
-
-#### C2 — Deployment unit specified per component
-- **Weight:** mandatory (30)
-- **Status:** {{ components_c2_status }}
-- **Evidence:** {{ components_c2_evidence }}
-- **Why this matters:** Components without deployment units leave implementers guessing about packaging and deployment boundaries.
-
-#### C3 — Each component has a defined feature role
-- **Weight:** recommended (20)
-- **Status:** {{ components_c3_status }}
-- **Evidence:** {{ components_c3_evidence }}
-- **Why this matters:** Components without defined roles lead to ambiguous responsibilities during implementation.
-
-#### C4 — State model documented per component
-- **Weight:** recommended (20)
-- **Status:** {{ components_c4_status }}
-- **Evidence:** {{ components_c4_evidence }}
-- **Why this matters:** Components without state models leave implementers unsure of lifecycle behavior (active, passive, standby).
-
----
-
-### component_interactions
-#### C1 — All component interactions identified
-- **Weight:** mandatory (30)
-- **Status:** {{ interactions_c1_status }}
-- **Evidence:** {{ interactions_c1_evidence }}
-- **Why this matters:** Missing interactions mean the technical design is incomplete — implementers will discover undocumented coupling during implementation.
-
-#### C2 — Each interaction specifies direction and communication type
-- **Weight:** mandatory (30)
-- **Status:** {{ interactions_c2_status }}
-- **Evidence:** {{ interactions_c2_evidence }}
-- **Why this matters:** Interactions without direction and type leave implementers guessing about the communication model.
-
-#### C3 — No undocumented cyclic dependencies
-- **Weight:** recommended (20)
-- **Status:** {{ interactions_c3_status }}
-- **Evidence:** {{ interactions_c3_evidence }}
-- **Why this matters:** Undocumented cyclic dependencies create initialization order problems and testing difficulties.
-
-#### C4 — Data contracts or interfaces referenced per interaction
-- **Weight:** recommended (20)
-- **Status:** {{ interactions_c4_status }}
-- **Evidence:** {{ interactions_c4_evidence }}
-- **Why this matters:** Interactions without data contracts leave implementers guessing about the interface between components.
-
----
-
-### data_ownership
-#### C1 — All data entities have designated owners
-- **Weight:** mandatory (30)
-- **Status:** {{ data_c1_status }}
-- **Evidence:** {{ data_c1_evidence }}
-- **Why this matters:** Data entities without owners create ownership ambiguity — multiple components may attempt to manage the same data.
-
-#### C2 — Write authority is assigned and non-conflicting
-- **Weight:** mandatory (30)
-- **Status:** {{ data_c2_status }}
-- **Evidence:** {{ data_c2_evidence }}
-- **Why this matters:** Conflicting write authority leads to data races and inconsistent state.
-
-#### C3 — Data lifecycle documented per entity
-- **Weight:** recommended (20)
-- **Status:** {{ data_c3_status }}
-- **Evidence:** {{ data_c3_evidence }}
-- **Why this matters:** Data without lifecycle documentation leaves implementers guessing about create/read/update/delete patterns.
-
-#### C4 — Data retention and purging policies defined
-- **Weight:** recommended (20)
-- **Status:** {{ data_c4_status }}
-- **Evidence:** {{ data_c4_evidence }}
-- **Why this matters:** Data without retention policies leads to unbounded growth and compliance risks.
-
----
-
-## Optional Sections
-
-### feature_specification
-#### C1 — Feature scope with inclusion and exclusion criteria
-- **Weight:** mandatory (30)
-- **Status:** {{ spec_c1_status }}
-- **Evidence:** {{ spec_c1_evidence }}
-- **Why this matters:** Specification without scope boundaries leaves implementers unsure what the feature does and does not cover.
-
-#### C2 — Preconditions and postconditions defined
-- **Weight:** mandatory (30)
-- **Status:** {{ spec_c2_status }}
-- **Evidence:** {{ spec_c2_evidence }}
-- **Why this matters:** Specification without preconditions and postconditions leaves implementers unable to validate correct behavior.
-
-#### C3 — Input and output specifications with types
-- **Weight:** recommended (20)
-- **Status:** {{ spec_c3_status }}
-- **Evidence:** {{ spec_c3_evidence }}
-- **Why this matters:** Specification without typed inputs and outputs leaves implementers guessing about the interface contract.
-
-#### C4 — Feature-level invariants documented
-- **Weight:** recommended (20)
-- **Status:** {{ spec_c4_status }}
-- **Evidence:** {{ spec_c4_evidence }}
-- **Why this matters:** Specification without invariants leaves implementers unable to validate the feature maintains its guarantees.
-
----
-
-### component_responsibilities
-#### C1 — All components have explicit responsibility statements
-- **Weight:** mandatory (30)
-- **Status:** {{ resp_c1_status }}
-- **Evidence:** {{ resp_c1_evidence }}
-- **Why this matters:** Components without responsibility statements leave implementers guessing about accountability.
-
-#### C2 — No overlapping responsibilities across components
-- **Weight:** mandatory (30)
-- **Status:** {{ resp_c2_status }}
-- **Evidence:** {{ resp_c2_evidence }}
-- **Why this matters:** Overlapping responsibilities lead to duplicated logic and inconsistent behavior.
-
-#### C3 — Each component has a primary single responsibility
-- **Weight:** recommended (20)
-- **Status:** {{ resp_c3_status }}
-- **Evidence:** {{ resp_c3_evidence }}
-- **Why this matters:** Components with compound responsibilities are harder to test, maintain, and replace.
-
-#### C4 — Gap analysis performed for uncovered capabilities
-- **Weight:** recommended (20)
-- **Status:** {{ resp_c4_status }}
-- **Evidence:** {{ resp_c4_evidence }}
-- **Why this matters:** Gaps in capability coverage mean some required behavior has no owner.
-
----
-
-### runtime_behavior
-#### C1 — Startup and shutdown sequences documented
-- **Weight:** mandatory (30)
-- **Status:** {{ runtime_c1_status }}
-- **Evidence:** {{ runtime_c1_evidence }}
-- **Why this matters:** Runtime behavior without startup/shutdown sequences leaves implementers guessing about initialization order and cleanup.
-
-#### C2 — State transitions with triggers enumerated
-- **Weight:** mandatory (30)
-- **Status:** {{ runtime_c2_status }}
-- **Evidence:** {{ runtime_c2_evidence }}
-- **Why this matters:** State transitions without triggers leave implementers unable to determine when the feature changes state.
-
-#### C3 — Concurrency and threading model described
-- **Weight:** recommended (20)
-- **Status:** {{ runtime_c3_status }}
-- **Evidence:** {{ runtime_c3_evidence }}
-- **Why this matters:** Runtime behavior without concurrency documentation leaves implementers guessing about thread safety requirements.
-
-#### C4 — Observable side effects listed
-- **Weight:** recommended (20)
-- **Status:** {{ runtime_c4_status }}
-- **Evidence:** {{ runtime_c4_evidence }}
-- **Why this matters:** Runtime behavior without observable side effects leaves implementers unable to verify the feature is working correctly.
-
----
-
-### communication_paths
-#### C1 — All communication paths enumerated source-to-sink
-- **Weight:** mandatory (30)
-- **Status:** {{ comm_c1_status }}
-- **Evidence:** {{ comm_c1_evidence }}
-- **Why this matters:** Missing paths mean the technical design is incomplete — implementers will discover undocumented data flows during implementation.
-
-#### C2 — Delivery guarantees defined per path
-- **Weight:** mandatory (30)
-- **Status:** {{ comm_c2_status }}
-- **Evidence:** {{ comm_c2_evidence }}
-- **Why this matters:** Paths without delivery guarantees leave implementers guessing about exactly-once, at-least-once, or at-most-once semantics.
-
-#### C3 — Backpressure or flow control documented
-- **Weight:** recommended (20)
-- **Status:** {{ comm_c3_status }}
-- **Evidence:** {{ comm_c3_evidence }}
-- **Why this matters:** Paths without backpressure documentation may lead to resource exhaustion under load.
-
-#### C4 — Serialization format specified per path
-- **Weight:** recommended (20)
-- **Status:** {{ comm_c4_status }}
-- **Evidence:** {{ comm_c4_evidence }}
-- **Why this matters:** Paths without serialization format leave implementers guessing about data encoding.
-
----
-
-### integration_points
-#### C1 — All integration points enumerated with external system
-- **Weight:** mandatory (30)
-- **Status:** {{ integration_c1_status }}
-- **Evidence:** {{ integration_c1_evidence }}
-- **Why this matters:** Missing integration points mean the technical design is incomplete — implementers will discover undocumented external boundaries during implementation.
-
-#### C2 — Interface contract specified per integration point
-- **Weight:** mandatory (30)
-- **Status:** {{ integration_c2_status }}
-- **Evidence:** {{ integration_c2_evidence }}
-- **Why this matters:** Integration points without interface contracts leave implementers guessing about the external boundary.
-
-#### C3 — Error contract documented per boundary
-- **Weight:** recommended (20)
-- **Status:** {{ integration_c3_status }}
-- **Evidence:** {{ integration_c3_evidence }}
-- **Why this matters:** Integration points without error contracts leave implementers unable to handle external failures.
-
-#### C4 — SLA parameters defined for each integration point
-- **Weight:** recommended (20)
-- **Status:** {{ integration_c4_status }}
-- **Evidence:** {{ integration_c4_evidence }}
-- **Why this matters:** Integration points without SLA parameters leave implementers unable to validate performance requirements.
-
----
-
-### external_dependencies
-#### C1 — All external dependencies listed with name and version
-- **Weight:** mandatory (30)
-- **Status:** {{ extdep_c1_status }}
-- **Evidence:** {{ extdep_c1_evidence }}
-- **Why this matters:** Dependencies without names and versions leave implementers unable to set up the build environment.
-
-#### C2 — Purpose documented per dependency
-- **Weight:** mandatory (30)
-- **Status:** {{ extdep_c2_status }}
-- **Evidence:** {{ extdep_c2_evidence }}
-- **Why this matters:** Dependencies without purpose leave implementers unable to evaluate whether a dependency is still needed.
-
-#### C3 — Integration method specified per dependency
-- **Weight:** recommended (20)
-- **Status:** {{ extdep_c3_status }}
-- **Evidence:** {{ extdep_c3_evidence }}
-- **Why this matters:** Dependencies without integration method leave implementers guessing about how to connect.
-
-#### C4 — Licensing and operational constraints documented
-- **Weight:** recommended (20)
-- **Status:** {{ extdep_c4_status }}
-- **Evidence:** {{ extdep_c4_evidence }}
-- **Why this matters:** Dependencies without licensing constraints may create legal or operational risks.
-
----
-
-### runtime_constraints
-#### C1 — All runtime constraints enumerated
-- **Weight:** mandatory (30)
-- **Status:** {{ rtcon_c1_status }}
-- **Evidence:** {{ rtcon_c1_evidence }}
-- **Why this matters:** Missing constraints mean implementers may build a feature that violates unstated requirements.
-
-#### C2 — Measurable thresholds defined per constraint
-- **Weight:** mandatory (30)
-- **Status:** {{ rtcon_c2_status }}
-- **Evidence:** {{ rtcon_c2_evidence }}
-- **Why this matters:** Constraints without measurable thresholds are unverifiable — implementers cannot validate they've met the requirement.
-
-#### C3 — Constraint source referenced
-- **Weight:** recommended (20)
-- **Status:** {{ rtcon_c3_status }}
-- **Evidence:** {{ rtcon_c3_evidence }}
-- **Why this matters:** Constraints without source references have no provenance — implementers cannot verify the constraint is real.
-
-#### C4 — Trade-offs between constraints documented
-- **Weight:** recommended (20)
-- **Status:** {{ rtcon_c4_status }}
-- **Evidence:** {{ rtcon_c4_evidence }}
-- **Why this matters:** Constraints without trade-off documentation leave implementers unable to make informed decisions when constraints conflict.
-
----
-
-### architectural_constraints
-#### C1 — All architectural constraints enumerated
-- **Weight:** mandatory (30)
-- **Status:** {{ archcon_c1_status }}
-- **Evidence:** {{ archcon_c1_evidence }}
-- **Why this matters:** Missing architectural constraints mean implementers may build a feature that violates system-wide architectural rules.
-
-#### C2 — Constraint rationale explained
-- **Weight:** mandatory (30)
-- **Status:** {{ archcon_c2_status }}
-- **Evidence:** {{ archcon_c2_evidence }}
-- **Why this matters:** Constraints without rationale leave implementers unable to evaluate whether a workaround is acceptable.
-
-#### C3 — Architecture domain reference provided
-- **Weight:** recommended (20)
-- **Status:** {{ archcon_c3_status }}
-- **Evidence:** {{ archcon_c3_evidence }}
-- **Why this matters:** Constraints without Architecture references have no provenance — implementers cannot verify the constraint is real.
-
-#### C4 — Impact on feature design documented
-- **Weight:** recommended (20)
-- **Status:** {{ archcon_c4_status }}
-- **Evidence:** {{ archcon_c4_evidence }}
-- **Why this matters:** Constraints without impact documentation leave implementers unable to understand how the constraint shapes the design.
-
----
-
-### security_considerations
-#### C1 — All security considerations enumerated
-- **Weight:** mandatory (30)
-- **Status:** {{ security_c1_status }}
-- **Evidence:** {{ security_c1_evidence }}
-- **Why this matters:** Missing security considerations mean implementers may build a feature with unstated security requirements.
-
-#### C2 — Threat model or risk assessment provided
-- **Weight:** mandatory (30)
-- **Status:** {{ security_c2_status }}
-- **Evidence:** {{ security_c2_evidence }}
-- **Why this matters:** Security considerations without threat model leave implementers unable to prioritize security efforts.
-
-#### C3 — Mitigation strategies documented
-- **Weight:** recommended (20)
-- **Status:** {{ security_c3_status }}
-- **Evidence:** {{ security_c3_evidence }}
-- **Why this matters:** Security considerations without mitigations leave implementers aware of risks but unable to address them.
-
-#### C4 — Compliance requirements referenced
-- **Weight:** recommended (20)
-- **Status:** {{ security_c4_status }}
-- **Evidence:** {{ security_c4_evidence }}
-- **Why this matters:** Security considerations without compliance references may miss regulatory requirements.
-
----
-
-### performance_considerations
-#### C1 — All performance considerations enumerated
-- **Weight:** mandatory (30)
-- **Status:** {{ perf_c1_status }}
-- **Evidence:** {{ perf_c1_evidence }}
-- **Why this matters:** Missing performance considerations mean implementers may build a feature that violates unstated performance requirements.
-
-#### C2 — Measurable performance targets defined
-- **Weight:** mandatory (30)
-- **Status:** {{ perf_c2_status }}
-- **Evidence:** {{ perf_c2_evidence }}
-- **Why this matters:** Performance considerations without measurable targets are unverifiable — implementers cannot validate they've met the requirement.
-
-#### C3 — Optimization strategies documented
-- **Weight:** recommended (20)
-- **Status:** {{ perf_c3_status }}
-- **Evidence:** {{ perf_c3_evidence }}
-- **Why this matters:** Performance considerations without optimization strategies leave implementers guessing about the expected approach.
-
-#### C4 — Performance testing approach referenced
-- **Weight:** recommended (20)
-- **Status:** {{ perf_c4_status }}
-- **Evidence:** {{ perf_c4_evidence }}
-- **Why this matters:** Performance considerations without testing approach leave implementers unable to validate performance claims.
-
----
-
-### failure_handling
-#### C1 — All failure modes enumerated
-- **Weight:** mandatory (30)
-- **Status:** {{ failure_c1_status }}
-- **Evidence:** {{ failure_c1_evidence }}
-- **Why this matters:** Missing failure modes mean implementers may build a feature that doesn't handle known failure scenarios.
-
-#### C2 — Recovery strategies defined per failure mode
-- **Weight:** mandatory (30)
-- **Status:** {{ failure_c2_status }}
-- **Evidence:** {{ failure_c2_evidence }}
-- **Why this matters:** Failure modes without recovery strategies leave implementers aware of risks but unable to address them.
-
-#### C3 — Retry and backoff policies documented
-- **Weight:** recommended (20)
-- **Status:** {{ failure_c3_status }}
-- **Evidence:** {{ failure_c3_evidence }}
-- **Why this matters:** Failure handling without retry policies leaves implementers guessing about transient failure behavior.
-
-#### C4 — Circuit breaker or fallback patterns described
-- **Weight:** recommended (20)
-- **Status:** {{ failure_c4_status }}
-- **Evidence:** {{ failure_c4_evidence }}
-- **Why this matters:** Failure handling without fallback patterns leaves implementers unable to design graceful degradation.
-
----
-
-### extension_points
-#### C1 — All extension points enumerated
-- **Weight:** mandatory (30)
-- **Status:** {{ extension_c1_status }}
-- **Evidence:** {{ extension_c1_evidence }}
-- **Why this matters:** Missing extension points mean implementers may build a feature that cannot be extended without modification.
-
-#### C2 — Extension mechanism defined per point
-- **Weight:** mandatory (30)
-- **Status:** {{ extension_c2_status }}
-- **Evidence:** {{ extension_c2_evidence }}
-- **Why this matters:** Extension points without mechanisms leave implementers guessing about how to extend the feature.
-
-#### C3 — Extension boundaries documented
-- **Weight:** recommended (20)
-- **Status:** {{ extension_c3_status }}
-- **Evidence:** {{ extension_c3_evidence }}
-- **Why this matters:** Extension points without boundaries may lead to extensions that break the feature's guarantees.
-
-#### C4 — Extension testing approach referenced
-- **Weight:** recommended (20)
-- **Status:** {{ extension_c4_status }}
-- **Evidence:** {{ extension_c4_evidence }}
-- **Why this matters:** Extension points without testing approach leave implementers unable to validate extensions work correctly.
-
----
-
-### traceability
-#### C1 — Upstream domain links provided
-- **Weight:** mandatory (30)
-- **Status:** {{ trace_c1_status }}
-- **Evidence:** {{ trace_c1_evidence }}
-- **Why this matters:** Traceability without upstream links leaves readers unable to trace why this technical design exists.
-
-#### C2 — Downstream implementation references provided
-- **Weight:** mandatory (30)
-- **Status:** {{ trace_c2_status }}
-- **Evidence:** {{ trace_c2_evidence }}
-- **Why this matters:** Traceability without downstream links disconnects the spec from the realization pipeline.
-
-#### C3 — Bidirectional traceability verified
-- **Weight:** recommended (20)
-- **Status:** {{ trace_c3_status }}
-- **Evidence:** {{ trace_c3_evidence }}
-- **Why this matters:** One-directional traceability means upstream requirements may be lost or downstream implementations may be orphaned.
-
-#### C4 — Traceability gaps documented
-- **Weight:** recommended (20)
-- **Status:** {{ trace_c4_status }}
-- **Evidence:** {{ trace_c4_evidence }}
-- **Why this matters:** Undocumented traceability gaps leave readers unaware of missing connections.
-
----
-
-## Failures
-
-| Section | Criterion | Severity | Weight | Evidence |
-|---|---|---|---|---|
-{{ failures_table }}
-
----
-
-## Score History
-
-| Date | Auditor | Score | Verdict | Revision |
-|---|---|---|---|---|
-| {{ audit_date }} | {{ auditor_name }} | {{ weighted_score }} | {{ verdict }} | 1 |
-
----
-
-## Trend
-
-{{ trend_indicator }} ({{ trend_description }})
+| Domain | feature-technical |
+| Standard | documentation-standards |
+| Section Rubric Files | `audit/semantic/section/10-feature-technical/*.md` |
+| Auditor | LLM ({{ model_name }}) |
+| Audit Date | {{ created_at }} |
+| Revision | {{ revision_number }} |
+| Session | {{ session_id }} |

@@ -1,302 +1,211 @@
-# {{ document_title }} — Build Semantic Section Audit Report
+# Semantic Section Report — Build
 
-> **Domain:** build
-> **Scope:** section
-> **Kind:** semantic
-> **Date:** {{ audit_date }}
-> **Auditor:** {{ auditor_name }}
+**Document:** {{ document_path }}
+**Standard:** `documentation-standards/14-build-standards.md`
+**Rubric Files:** `audit/semantic/section/14-build/*.md`
+**Auditor:** LLM ({{ model_name }})
+**Audit Date:** {{ created_at }}
+**Revision:** {{ revision_number }}
 
 ---
 
-## Section-Level Score
+## Score
 
-| Metric | Value |
+**Semantic Section Score: {{ score }} / 100**
+{% if previous_score %}({{ '↑ Improved' if score > previous_score else '↓ Regressed' if score < previous_score else '→ Unchanged' }} vs. previous run){% else %}(baseline — first audit of this document){% endif %}
+
+```
+overall = average of the section scores below, for sections actually present in the document
+section_score = sum of passed criterion points in that section, capped at 100
+```
+
+### Score History
+
+| Revision | Date | Score | vs. Previous | vs. Baseline |
+|---:|---|---:|---|---|
+{% for r in revision_history -%}
+| {{ r.revision }} | {{ r.date }} | {{ r.score }} / 100 | {{ r.delta_previous_display }} | {{ r.delta_baseline_display }} |
+{% endfor -%}
+| {{ revision_number }} (current) | {{ created_at }} | {{ score }} / 100 | {{ delta_previous_display }} | {{ delta_baseline_display }} |
+
+{% if not previous_score %}No prior runs — this revision is the baseline every future run is compared against.{% endif %}
+
+### Score by Model
+
+| Model | Runs | Avg Score | Min | Max |
+|---|---:|---:|---:|---|
+{% for m in model_scores -%}
+| {{ m.model_name }} | {{ m.run_count }} | {{ m.avg_score }} / 100 | {{ m.min_score }} / 100 | {{ m.max_score }} / 100 |
+{% endfor %}
+
+### Section Scores
+
+| # | Section | Required | Score | Previous | Trend |
+|---:|---|:---:|---:|---:|---|
+| 1 | Documentation Quality | **required** | {{ sections.documentation_quality.score }} / 100 | {{ sections.documentation_quality.previous_score | default('—') }} | {{ sections.documentation_quality.trend_display }} |
+| 2 | Security Checks | **required** | {{ sections.security_checks.score }} / 100 | {{ sections.security_checks.previous_score | default('—') }} | {{ sections.security_checks.trend_display }} |
+| 3 | Versioning & Naming | **required** | {{ sections.versioning_naming.score }} / 100 | {{ sections.versioning_naming.previous_score | default('—') }} | {{ sections.versioning_naming.trend_display }} |
+| 4 | Purpose | optional | {{ sections.purpose.score }} / 100 | {{ sections.purpose.previous_score | default('—') }} | {{ sections.purpose.trend_display }} |
+| 5 | Size Checks | **required** | {{ sections.size_checks.score }} / 100 | {{ sections.size_checks.previous_score | default('—') }} | {{ sections.size_checks.trend_display }} |
+| 6 | ML Artifact Management | **required** | {{ sections.ml_artifact_management.score }} / 100 | {{ sections.ml_artifact_management.previous_score | default('—') }} | {{ sections.ml_artifact_management.trend_display }} |
+| 7 | CI/CD Validation | **required** | {{ sections.cicd_validation.score }} / 100 | {{ sections.cicd_validation.previous_score | default('—') }} | {{ sections.cicd_validation.trend_display }} |
+| 8 | Obfuscation & Optimization | **required** | {{ sections.obfuscation_optimization.score }} / 100 | {{ sections.obfuscation_optimization.previous_score | default('—') }} | {{ sections.obfuscation_optimization.trend_display }} |
+| — | Generic (unmatched sections) | n/a | {{ sections.generic.score }} / 100 | {{ sections.generic.previous_score | default('—') }} | {{ sections.generic.trend_display }} |
+
+A section absent from the document (among the optional ones) isn't scored at all here — it's a deterministic presence check, not a semantic quality judgment on nothing.
+
+---
+
+## 1. Documentation Quality — `section/14-build/01-documentation_quality.md` — **required**
+
+**Why this matters:** Documentation Quality is the gate that ensures build documentation meets minimum standards before it can be trusted. Without it, downstream consumers have no assurance that the build policy is complete or accurate.
+
+**Section Score: {{ sections.documentation_quality.score }} / 100** ({{ sections.documentation_quality.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['documentation_quality.C1'].previous_passed_display | default('—') }} | {{ results['documentation_quality.C1'].passed_display }} | {{ results['documentation_quality.C1'].trend_display }} | {{ results['documentation_quality.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['documentation_quality.C2'].previous_passed_display | default('—') }} | {{ results['documentation_quality.C2'].passed_display }} | {{ results['documentation_quality.C2'].trend_display }} | {{ results['documentation_quality.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['documentation_quality.C3'].previous_passed_display | default('—') }} | {{ results['documentation_quality.C3'].passed_display }} | {{ results['documentation_quality.C3'].trend_display }} | {{ results['documentation_quality.C3'].evidence.excerpt | default('—') }} |
+
+C1: section exists with substantive content specific to this project. C2: internally consistent, does not contradict other sections. C3: includes concrete examples, evidence, or project-specific detail.
+
+## 2. Security Checks — `section/14-build/02-security_checks.md` — **required**
+
+**Why this matters:** Security Checks is the gate that prevents known vulnerabilities from shipping in a build. Without scan steps and failure criteria, "the build is secure" is an unverifiable claim.
+
+**Section Score: {{ sections.security_checks.score }} / 100** ({{ sections.security_checks.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['security_checks.C1'].previous_passed_display | default('—') }} | {{ results['security_checks.C1'].passed_display }} | {{ results['security_checks.C1'].trend_display }} | {{ results['security_checks.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['security_checks.C2'].previous_passed_display | default('—') }} | {{ results['security_checks.C2'].passed_display }} | {{ results['security_checks.C2'].trend_display }} | {{ results['security_checks.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['security_checks.C3'].previous_passed_display | default('—') }} | {{ results['security_checks.C3'].passed_display }} | {{ results['security_checks.C3'].trend_display }} | {{ results['security_checks.C3'].evidence.excerpt | default('—') }} |
+
+C1: section exists with substantive content specific to this project. C2: internally consistent, does not contradict other sections. C3: includes concrete examples, evidence, or project-specific detail.
+
+## 3. Versioning & Naming — `section/14-build/03-versioning_naming.md` — **required**
+
+**Why this matters:** Versioning & Naming defines how artifacts are identified and differentiated. Without a clear scheme, consumers cannot tell which version they have or which version they need.
+
+**Section Score: {{ sections.versioning_naming.score }} / 100** ({{ sections.versioning_naming.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['versioning_naming.C1'].previous_passed_display | default('—') }} | {{ results['versioning_naming.C1'].passed_display }} | {{ results['versioning_naming.C1'].trend_display }} | {{ results['versioning_naming.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['versioning_naming.C2'].previous_passed_display | default('—') }} | {{ results['versioning_naming.C2'].passed_display }} | {{ results['versioning_naming.C2'].trend_display }} | {{ results['versioning_naming.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['versioning_naming.C3'].previous_passed_display | default('—') }} | {{ results['versioning_naming.C3'].passed_display }} | {{ results['versioning_naming.C3'].trend_display }} | {{ results['versioning_naming.C3'].evidence.excerpt | default('—') }} |
+
+C1: section exists with substantive content specific to this project. C2: internally consistent, does not contradict other sections. C3: includes concrete examples, evidence, or project-specific detail.
+
+## 4. Purpose — `section/14-build/04-purpose.md` — optional
+
+**Why this matters:** Purpose tells a reader why Build Documentation exists before they read a single rule. A missing or vague Purpose section undermines every section that follows it.
+
+**Section Score: {{ sections.purpose.score }} / 100** ({{ sections.purpose.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['purpose.C1'].previous_passed_display | default('—') }} | {{ results['purpose.C1'].passed_display }} | {{ results['purpose.C1'].trend_display }} | {{ results['purpose.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['purpose.C2'].previous_passed_display | default('—') }} | {{ results['purpose.C2'].passed_display }} | {{ results['purpose.C2'].trend_display }} | {{ results['purpose.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['purpose.C3'].previous_passed_display | default('—') }} | {{ results['purpose.C3'].passed_display }} | {{ results['purpose.C3'].trend_display }} | {{ results['purpose.C3'].evidence.excerpt | default('—') }} |
+
+C1: section exists with substantive content specific to this project. C2: internally consistent, does not contradict other sections. C3: includes concrete examples, evidence, or project-specific detail.
+
+## 5. Size Checks — `section/14-build/05-size_checks.md` — **required**
+
+**Why this matters:** Size Checks defines measurable limits on artifact size and what happens when a build crosses them. Without it, bloat is caught by policy, not discovered in production.
+
+**Section Score: {{ sections.size_checks.score }} / 100** ({{ sections.size_checks.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['size_checks.C1'].previous_passed_display | default('—') }} | {{ results['size_checks.C1'].passed_display }} | {{ results['size_checks.C1'].trend_display }} | {{ results['size_checks.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['size_checks.C2'].previous_passed_display | default('—') }} | {{ results['size_checks.C2'].passed_display }} | {{ results['size_checks.C2'].trend_display }} | {{ results['size_checks.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['size_checks.C3'].previous_passed_display | default('—') }} | {{ results['size_checks.C3'].passed_display }} | {{ results['size_checks.C3'].trend_display }} | {{ results['size_checks.C3'].evidence.excerpt | default('—') }} |
+
+C1: measurable size limit defined per artifact type. C2: measurement method specified. C3: enforcement action stated for a breach.
+
+## 6. ML Artifact Management — `section/14-build/06-ml_artifact_management.md` — **required**
+
+**Why this matters:** ML Artifact Management defines how models and training data are versioned, tracked, and reproduced. Without it, a model in production cannot be traced back to the exact data and code that produced it.
+
+**Section Score: {{ sections.ml_artifact_management.score }} / 100** ({{ sections.ml_artifact_management.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['ml_artifact_management.C1'].previous_passed_display | default('—') }} | {{ results['ml_artifact_management.C1'].passed_display }} | {{ results['ml_artifact_management.C1'].trend_display }} | {{ results['ml_artifact_management.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['ml_artifact_management.C2'].previous_passed_display | default('—') }} | {{ results['ml_artifact_management.C2'].passed_display }} | {{ results['ml_artifact_management.C2'].trend_display }} | {{ results['ml_artifact_management.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['ml_artifact_management.C3'].previous_passed_display | default('—') }} | {{ results['ml_artifact_management.C3'].passed_display }} | {{ results['ml_artifact_management.C3'].trend_display }} | {{ results['ml_artifact_management.C3'].evidence.excerpt | default('—') }} |
+
+C1: versioning scheme defined for models and data. C2: experiment tracking approach specified. C3: reproducibility requirements stated and falsifiable.
+
+## 7. CI/CD Validation — `section/14-build/07-cicd_validation.md` — **required**
+
+**Why this matters:** CI/CD Validation defines the gate sequence a build must pass and what happens when a gate fails. Without it, "the pipeline is green" has no precise, checkable meaning.
+
+**Section Score: {{ sections.cicd_validation.score }} / 100** ({{ sections.cicd_validation.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['cicd_validation.C1'].previous_passed_display | default('—') }} | {{ results['cicd_validation.C1'].passed_display }} | {{ results['cicd_validation.C1'].trend_display }} | {{ results['cicd_validation.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['cicd_validation.C2'].previous_passed_display | default('—') }} | {{ results['cicd_validation.C2'].passed_display }} | {{ results['cicd_validation.C2'].trend_display }} | {{ results['cicd_validation.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['cicd_validation.C3'].previous_passed_display | default('—') }} | {{ results['cicd_validation.C3'].passed_display }} | {{ results['cicd_validation.C3'].trend_display }} | {{ results['cicd_validation.C3'].evidence.excerpt | default('—') }} |
+
+C1: gate sequence defined in execution order. C2: failure handling policy stated. C3: deployment blockers explicitly named per gate.
+
+## 8. Obfuscation & Optimization — `section/14-build/08-obfuscation_optimization.md` — **required**
+
+**Why this matters:** Obfuscation & Optimization defines which build-time transformations apply, under what configuration, and their cost to debuggability. Without it, a production stack trace problem is a mystery.
+
+**Section Score: {{ sections.obfuscation_optimization.score }} / 100** ({{ sections.obfuscation_optimization.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['obfuscation_optimization.C1'].previous_passed_display | default('—') }} | {{ results['obfuscation_optimization.C1'].passed_display }} | {{ results['obfuscation_optimization.C1'].trend_display }} | {{ results['obfuscation_optimization.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['obfuscation_optimization.C2'].previous_passed_display | default('—') }} | {{ results['obfuscation_optimization.C2'].passed_display }} | {{ results['obfuscation_optimization.C2'].trend_display }} | {{ results['obfuscation_optimization.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['obfuscation_optimization.C3'].previous_passed_display | default('—') }} | {{ results['obfuscation_optimization.C3'].passed_display }} | {{ results['obfuscation_optimization.C3'].trend_display }} | {{ results['obfuscation_optimization.C3'].evidence.excerpt | default('—') }} |
+
+C1: transformations specified per build type. C2: configuration/tooling referenced. C3: debuggability impact addressed.
+
+## Generic — `generic.md` (sections with no matching semantic_type)
+
+**Why this matters:** Catches build-relevant content an author wrote under a heading that doesn't match any of the 8 named section types above — still judged for relevance and non-duplication, not given a free pass for being unclassified.
+
+**Section Score: {{ sections.generic.score }} / 100** ({{ sections.generic.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['generic.C1'].previous_passed_display | default('—') }} | {{ results['generic.C1'].passed_display }} | {{ results['generic.C1'].trend_display }} | {{ results['generic.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['generic.C2'].previous_passed_display | default('—') }} | {{ results['generic.C2'].passed_display }} | {{ results['generic.C2'].trend_display }} | {{ results['generic.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['generic.C3'].previous_passed_display | default('—') }} | {{ results['generic.C3'].passed_display }} | {{ results['generic.C3'].trend_display }} | {{ results['generic.C3'].evidence.excerpt | default('—') }} |
+
+C1: content is build-relevant, not implementation-specific. C2: claims and assertions are justified by evidence or reasoning. C3: no duplication of content from other build section types.
+
+---
+
+## All Findings
+
+{% if findings | length > 0 %}
+| Section | Criterion | Severity | Evidence | Message | New This Run? |
+|---|---|---|---|---|---|
+{% for f in findings -%}
+| {{ f.section_type }} | {{ f.criterion_id }} | {{ f.severity }} | {{ f.evidence.excerpt | default('—') }} | {{ f.message }} | {{ 'Yes — regression' if f.is_new_finding else 'No — carried over' }} |
+{% endfor %}
+{% else %}
+No findings.
+{% endif %}
+
+---
+
+## Metadata
+
+| Field | Value |
 |---|---|
-| **Weight Sum** | {{ section_weight_sum }} |
-| **Weighted Score** | {{ weighted_score }} |
-| **Max Possible** | {{ section_weight_sum }} |
-| **Percentage** | {{ score_percentage }} |
-| **Verdict** | {{ verdict }} |
-
-**Why this matters:** Semantic section audit evaluates the quality of each build section individually — whether content is substantive, internally consistent, and project-specific rather than generic. Each section contributes to the overall build policy coherence.
-
----
-
-## Section: documentation_quality
-
-### Criteria
-
-#### C1 — Section exists with substantive content specific to this project
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ doc_quality_c1_status }}
-- **Confidence:** {{ doc_quality_c1_confidence }}
-- **Evidence:** {{ doc_quality_c1_evidence }}
-- **Why this matters:** A Documentation Quality section without project-specific content is a placeholder that provides no actual quality guidance.
-
-#### C2 — Content is internally consistent and does not contradict other sections
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ doc_quality_c2_status }}
-- **Confidence:** {{ doc_quality_c2_confidence }}
-- **Evidence:** {{ doc_quality_c2_evidence }}
-- **Why this matters:** Internally contradictory documentation quality rules create impossible compliance situations — auditors cannot satisfy both rules simultaneously.
-
-#### C3 — Content includes concrete examples, evidence, or project-specific detail
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ doc_quality_c3_status }}
-- **Confidence:** {{ doc_quality_c3_confidence }}
-- **Evidence:** {{ doc_quality_c3_evidence }}
-- **Why this matters:** Generic quality standards ("be thorough") are unenforceable. Concrete examples give auditors a reference point for what "good" looks like.
-
----
-
-## Section: security_checks
-
-### Criteria
-
-#### C1 — Section exists with substantive content specific to this project
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ sec_c1_status }}
-- **Confidence:** {{ sec_c1_confidence }}
-- **Evidence:** {{ sec_c1_evidence }}
-- **Why this matters:** Security Checks without project-specific scan definitions means builds proceed without knowing what threats are being checked.
-
-#### C2 — Content is internally consistent and does not contradict other sections
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ sec_c2_status }}
-- **Confidence:** {{ sec_c2_confidence }}
-- **Evidence:** {{ sec_c2_evidence }}
-- **Why this matters:** Security Checks that contradict Versioning or other sections create enforcement gaps where threats slip through.
-
-#### C3 — Content includes concrete examples, evidence, or project-specific detail
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ sec_c3_status }}
-- **Confidence:** {{ sec_c3_confidence }}
-- **Evidence:** {{ sec_c3_evidence }}
-- **Why this matters:** "Run security scans" without specifying which scans, what thresholds, or what failure means is operationally empty.
-
----
-
-## Section: versioning_naming
-
-### Criteria
-
-#### C1 — Section exists with substantive content specific to this project
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ version_c1_status }}
-- **Confidence:** {{ version_c1_confidence }}
-- **Evidence:** {{ version_c1_evidence }}
-- **Why this matters:** Versioning without a defined scheme means releases have no traceable identity.
-
-#### C2 — Content is internally consistent and does not contradict other sections
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ version_c2_status }}
-- **Confidence:** {{ version_c2_confidence }}
-- **Evidence:** {{ version_c2_evidence }}
-- **Why this matters:** Versioning that contradicts Engineering build standards creates confusion about which version scheme is authoritative.
-
-#### C3 — Content includes concrete examples, evidence, or project-specific detail
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ version_c3_status }}
-- **Confidence:** {{ version_c3_confidence }}
-- **Evidence:** {{ version_c3_evidence }}
-- **Why this matters:** "Use semantic versioning" without showing the actual format or naming convention for this project is unimplementable.
-
----
-
-## Section: purpose
-
-### Criteria
-
-#### C1 — Section exists with substantive content specific to this project
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ purpose_c1_status }}
-- **Confidence:** {{ purpose_c1_confidence }}
-- **Evidence:** {{ purpose_c1_evidence }}
-- **Why this matters:** Build documentation without a purpose section leaves readers guessing what this document is for and what it covers.
-
-#### C2 — Content is internally consistent and does not contradict other sections
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ purpose_c2_status }}
-- **Confidence:** {{ purpose_c2_confidence }}
-- **Evidence:** {{ purpose_c2_evidence }}
-- **Why this matters:** Purpose that contradicts the actual scope of the document misleads readers about what is and isn't covered.
-
-#### C3 — Content includes concrete examples, evidence, or project-specific detail
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ purpose_c3_status }}
-- **Confidence:** {{ purpose_c3_confidence }}
-- **Evidence:** {{ purpose_c3_evidence }}
-- **Why this matters:** A generic purpose statement ("this document describes the build") provides no value beyond what the filename already conveys.
-
----
-
-## Section: size_checks
-
-### Criteria
-
-#### C1 — Measurable size limit defined per artifact type
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ size_c1_status }}
-- **Confidence:** {{ size_c1_confidence }}
-- **Evidence:** {{ size_c1_evidence }}
-- **Why this matters:** "Keep the bundle small" with no numeric threshold is aspirational, not enforceable. Limits must be measurable per artifact type.
-
-#### C2 — Measurement method specified
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ size_c2_status }}
-- **Confidence:** {{ size_c2_confidence }}
-- **Evidence:** {{ size_c2_evidence }}
-- **Why this matters:** Size limits without a measurement method (gzip vs uncompressed, per-chunk vs total) are ambiguous — different measurement approaches yield different pass/fail outcomes.
-
-#### C3 — Enforcement action stated for a breach
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ size_c3_status }}
-- **Confidence:** {{ size_c3_confidence }}
-- **Evidence:** {{ size_c3_evidence }}
-- **Why this matters:** A size breach with no defined consequence (warn, block, require approval) is a policy with teeth removed.
-
----
-
-## Section: ml_artifact_management
-
-### Criteria
-
-#### C1 — Section exists with substantive content specific to this project
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ ml_c1_status }}
-- **Confidence:** {{ ml_c1_confidence }}
-- **Evidence:** {{ ml_c1_evidence }}
-- **Why this matters:** ML artifact management without project-specific content means model packaging and distribution are undocumented.
-
-#### C2 — Content is internally consistent and does not contradict other sections
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ ml_c2_status }}
-- **Confidence:** {{ ml_c2_confidence }}
-- **Evidence:** {{ ml_c2_evidence }}
-- **Why this matters:** ML artifact rules that contradict Size Checks or Versioning create unresolvable conflicts during build.
-
-#### C3 — Content includes concrete examples, evidence, or project-specific detail
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ ml_c3_status }}
-- **Confidence:** {{ ml_c3_confidence }}
-- **Evidence:** {{ ml_c3_evidence }}
-- **Why this matters:** Generic ML artifact guidance without project-specific formats, paths, or naming conventions is operationally empty.
-
----
-
-## Section: cicd_validation
-
-### Criteria
-
-#### C1 — Section exists with substantive content specific to this project
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ cicd_c1_status }}
-- **Confidence:** {{ cicd_c1_confidence }}
-- **Evidence:** {{ cicd_c1_evidence }}
-- **Why this matters:** CI/CD Validation without specific pipeline definitions means builds proceed without knowing what validation gates exist.
-
-#### C2 — Content is internally consistent and does not contradict other sections
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ cicd_c2_status }}
-- **Confidence:** {{ cicd_c2_confidence }}
-- **Evidence:** {{ cicd_c2_evidence }}
-- **Why this matters:** CI/CD gates that contradict Security Checks or Documentation Quality create enforcement gaps.
-
-#### C3 — Content includes concrete examples, evidence, or project-specific detail
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ cicd_c3_status }}
-- **Confidence:** {{ cicd_c3_confidence }}
-- **Evidence:** {{ cicd_c3_evidence }}
-- **Why this matters:** "Run CI/CD validation" without specifying which pipelines, what triggers, or what failure means is unimplementable.
-
----
-
-## Section: obfuscation_optimization
-
-### Criteria
-
-#### C1 — Transformations specified per build type
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ obf_c1_status }}
-- **Confidence:** {{ obf_c1_confidence }}
-- **Evidence:** {{ obf_c1_evidence }}
-- **Why this matters:** Obfuscation without per-build-type distinction means the same transformations run in dev and prod, breaking debuggability without justification.
-
-#### C2 — Configuration/tooling referenced
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ obf_c2_status }}
-- **Confidence:** {{ obf_c2_confidence }}
-- **Evidence:** {{ obf_c2_evidence }}
-- **Why this matters:** "We optimize the build" without naming the tool or configuration is unverifiable — there's nothing to check against.
-
-#### C3 — Debuggability impact addressed
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ obf_c3_status }}
-- **Confidence:** {{ obf_c3_confidence }}
-- **Evidence:** {{ obf_c3_evidence }}
-- **Why this matters:** Production obfuscation without addressing how to debug production issues (source maps, symbol retention) creates an operational blind spot.
-
----
-
-## Score History
-
-| Date | Auditor | Score | Verdict | Revision |
-|---|---|---|---|---|
-| {{ audit_date }} | {{ auditor_name }} | {{ weighted_score }} | {{ verdict }} | 1 |
-
----
-
-## Trend
-
-{{ trend_indicator }} ({{ trend_description }})
-
----
-
-## Failures
-
-| Criterion | Severity | Section | Evidence | Regression? |
-|---|---|---|---|---|
-{{ failures_table }}
-
----
-
-## Summary
-
-{{ summary_text }}
-
-### Section-Level Breakdown
-
-| Section | Weight | Score | Status |
-|---|---|---|---|
-| documentation_quality | {{ doc_quality_weight }} | {{ doc_quality_score }} | {{ doc_quality_status }} |
-| security_checks | {{ sec_weight }} | {{ sec_score }} | {{ sec_status }} |
-| versioning_naming | {{ version_weight }} | {{ version_score }} | {{ version_status }} |
-| purpose | {{ purpose_weight }} | {{ purpose_score }} | {{ purpose_status }} |
-| size_checks | {{ size_weight }} | {{ size_score }} | {{ size_status }} |
-| ml_artifact_management | {{ ml_weight }} | {{ ml_score }} | {{ ml_status }} |
-| cicd_validation | {{ cicd_weight }} | {{ cicd_score }} | {{ cicd_status }} |
-| obfuscation_optimization | {{ obf_weight }} | {{ obf_score }} | {{ obf_status }} |
+| Domain | build |
+| Standard | documentation-standards |
+| Section Rubric Files | `audit/semantic/section/14-build/*.md` |
+| Auditor | LLM ({{ model_name }}) |
+| Audit Date | {{ created_at }} |
+| Revision | {{ revision_number }} |
+| Session | {{ session_id }} |

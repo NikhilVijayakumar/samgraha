@@ -1,111 +1,108 @@
-# {{ document_title }} — QA Semantic Document Audit Report
+# Semantic Whole-Document Report — QA
 
-> **Domain:** qa
-> **Scope:** document
-> **Kind:** semantic
-> **Date:** {{ audit_date }}
-> **Auditor:** {{ auditor_name }}
-
----
-
-## Document-Level Score
-
-| Metric | Value |
-|---|---|
-| **Weight Sum** | 5.0 |
-| **Weighted Score** | {{ weighted_score }} |
-| **Max Possible** | 5.0 |
-| **Percentage** | {{ score_percentage }} |
-| **Verdict** | {{ verdict }} |
-
-**Why this matters:** Semantic document audit verifies that the collection of QA sections coheres as one test strategy. Section-level audits check each test type individually; this audit catches cross-section contradictions — a test strategy that claims security is highest priority but has a thin security testing section.
+**Document:** {{ document_path }}
+**Standard:** `documentation-standards/12-qa-standards.md`
+**Rubric:** `audit/semantic/document/12-qa.md`
+**Auditor:** LLM ({{ model_name }})
+**Audit Date:** {{ created_at }}
+**Revision:** {{ revision_number }}
 
 ---
 
-## Criterion Results
+## Score
 
-### C1 — Test Strategy's priorities are reflected in the depth of each test type section
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ c1_status }}
-- **Confidence:** {{ c1_confidence }}
-- **Evidence:** {{ c1_evidence }}
-- **Why this matters:** If Test Strategy marks Security Testing as highest priority but the Security Testing section is one sentence, the strategy is aspirational, not operational.
+**Semantic Whole Score: {{ score }} / 100**
+{% if previous_score %}({{ '↑ Improved' if score > previous_score else '↓ Regressed' if score < previous_score else '→ Unchanged' }} vs. previous run){% else %}(baseline — first audit of this document){% endif %}
 
-### C2 — Integration Testing boundaries consistent with Architecture(05)
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ c2_status }}
-- **Confidence:** {{ c2_confidence }}
-- **Evidence:** {{ c2_evidence }}
-- **Why this matters:** Integration Testing that tests boundaries Architecture doesn't define is testing phantom interfaces. Integration Testing that ignores Architecture-defined boundaries leaves real interfaces untested.
+```
+score = sum of passed criterion scores, capped at 100
+```
 
-### C3 — E2E journeys traceable to Design(06) workflows
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ c3_status }}
-- **Confidence:** {{ c3_confidence }}
-- **Evidence:** {{ c3_evidence }}
-- **Why this matters:** E2E journeys invented independently of Design workflows have no upstream source of truth — they test assumptions, not documented user expectations.
+### Score History
+
+| Revision | Date | Score | vs. Previous | vs. Baseline |
+|---:|---|---:|---|---|
+{% for r in revision_history -%}
+| {{ r.revision }} | {{ r.date }} | {{ r.score }} / 100 | {{ r.delta_previous_display }} | {{ r.delta_baseline_display }} |
+{% endfor -%}
+| {{ revision_number }} (current) | {{ created_at }} | {{ score }} / 100 | {{ delta_previous_display }} | {{ delta_baseline_display }} |
+
+{% if not previous_score %}No prior runs — this revision is the baseline every future run is compared against.{% endif %}
+
+### Score by Model
+
+| Model | Runs | Avg Score | Min | Max |
+|---|---:|---:|---:|---|
+{% for m in model_scores -%}
+| {{ m.model_name }} | {{ m.run_count }} | {{ m.avg_score }} / 100 | {{ m.min_score }} / 100 | {{ m.max_score }} / 100 |
+{% endfor %}
+
+### Scoring Criteria
+
+| Criterion | Weight | Points | Previous | Current | Trend |
+|---|---|---:|---|---|---|
+| C1 — Test Strategy priorities reflected in section depth | mandatory | 40 | {{ results['C1'].previous_passed_display | default('—') }} | {{ results['C1'].passed_display }} | {{ results['C1'].trend_display }} |
+| C2 — Integration Testing boundaries consistent with Architecture(05) | mandatory | 30 | {{ results['C2'].previous_passed_display | default('—') }} | {{ results['C2'].passed_display }} | {{ results['C2'].trend_display }} |
+| C3 — E2E journeys traceable to Design(06) workflows | recommended | 30 | {{ results['C3'].previous_passed_display | default('—') }} | {{ results['C3'].passed_display }} | {{ results['C3'].trend_display }} |
+
+C1 and C2 are mandatory — either one failing caps this score at 30 (only C3's points remain reachable). C3 alone failing still allows 70.
 
 ---
 
-## Red Flags Detected
+## Judgment
 
-{{ red_flags_table }}
+Verifies a QA document's test types cohere as one strategy — Test Strategy's priority mapping is actually reflected in Unit/Integration/E2E/Load/Scalability/Security Testing, not a plan that the rest of the document ignores. Section-level quality per test type is owned by the Semantic Section report; this report only catches problems that only exist when sections are read together.
+
+## Scoring Criteria — Detail
+
+### C1 — mandatory, 0 or 40: Test Strategy's priorities are reflected in the depth of each test type section
+
+**What this catches:** Test Strategy marks Security Testing as highest priority, but the Security Testing section is one sentence. Or: a test type Test Strategy marks as deprioritized has more detail than one marked critical.
+
+**Previous:** {{ results['C1'].previous_passed_display | default('—') }} → **Current:** {{ results['C1'].passed_display }} ({{ results['C1'].trend_display }})
+**Evidence:** {{ results['C1'].evidence.excerpt | default('—') }}
+{% if not results['C1'].passed %}**Finding:** {{ results['C1'].message }}{% endif %}
+
+### C2 — mandatory, 0 or 30: Integration Testing boundaries consistent with Architecture(05)
+
+**What this catches:** Integration Testing tests boundaries that don't exist in Architecture, or ignores boundaries Architecture defines. No tested boundary that Architecture doesn't define, no defined boundary left untested.
+
+**Previous:** {{ results['C2'].previous_passed_display | default('—') }} → **Current:** {{ results['C2'].passed_display }} ({{ results['C2'].trend_display }})
+**Evidence:** {{ results['C2'].evidence.excerpt | default('—') }}
+{% if not results['C2'].passed %}**Finding:** {{ results['C2'].message }}{% endif %}
+
+### C3 — recommended, 0 or 30: E2E journeys traceable to Design(06) workflows
+
+**What this catches:** E2E Testing invents user journeys with no corresponding Design workflow. Journeys that exist in Design but are absent from E2E testing.
+
+**Previous:** {{ results['C3'].previous_passed_display | default('—') }} → **Current:** {{ results['C3'].passed_display }} ({{ results['C3'].trend_display }})
+**Evidence:** {{ results['C3'].evidence.excerpt | default('—') }}
+{% if not results['C3'].passed %}**Finding:** {{ results['C3'].message }}{% endif %}
 
 ---
 
-## Edge Cases Evaluated
+## All Findings
 
-{{ edge_cases_table }}
-
----
-
-## Score History
-
-| Date | Auditor | Score | Verdict | Revision |
+{% if findings | length > 0 %}
+| Criterion | Severity | Evidence | Message | New This Run? |
 |---|---|---|---|---|
-| {{ audit_date }} | {{ auditor_name }} | {{ weighted_score }} | {{ verdict }} | 1 |
+{% for f in findings -%}
+| {{ f.criterion_id }} | {{ f.severity }} | {{ f.evidence.excerpt | default('—') }} | {{ f.message }} | {{ 'Yes — regression' if f.is_new_finding else 'No — carried over' }} |
+{% endfor %}
+{% else %}
+No findings — document reads as one coherent test strategy.
+{% endif %}
 
 ---
 
-## Trend
+## Metadata
 
-{{ trend_indicator }} ({{ trend_description }})
-
----
-
-## Failures
-
-| Criterion | Severity | Evidence | Regression? |
-|---|---|---|---|
-{{ failures_table }}
-
----
-
-## Summary
-
-{{ summary_text }}
-
-### Document-Level Breakdown
-
-| Category | Weight | Score | Status |
-|---|---|---|---|
-| Strategy-Depth Alignment | 40 | {{ c1_score }} | {{ c1_status }} |
-| Architecture Consistency | 30 | {{ c2_score }} | {{ c2_status }} |
-| Design Traceability | 30 | {{ c3_score }} | {{ c3_status }} |
-
-### Section-Level Breakdown
-
-| Section | Weight | Score | Status |
-|---|---|---|---|
-| test_strategy | {{ strategy_section_score }} | {{ strategy_section_weight }} | {{ strategy_section_status }} |
-| unit_testing | {{ unit_section_score }} | {{ unit_section_weight }} | {{ unit_section_status }} |
-| integration_testing | {{ integration_section_score }} | {{ integration_section_weight }} | {{ integration_section_status }} |
-| security_testing | {{ security_section_score }} | {{ security_section_weight }} | {{ security_section_status }} |
-| purpose | {{ purpose_section_score }} | {{ purpose_section_weight }} | {{ purpose_section_status }} |
-| e2e_testing | {{ e2e_section_score }} | {{ e2e_section_weight }} | {{ e2e_section_status }} |
-| smoke_testing | {{ smoke_section_score }} | {{ smoke_section_weight }} | {{ smoke_section_status }} |
-| load_testing | {{ load_section_score }} | {{ load_section_weight }} | {{ load_section_status }} |
-| scalability_testing | {{ scalability_section_score }} | {{ scalability_section_weight }} | {{ scalability_section_status }} |
+| Field | Value |
+|---|---|
+| Domain | qa |
+| Standard | documentation-standards |
+| Rubric File | `audit/semantic/document/12-qa.md` |
+| Auditor | LLM ({{ model_name }}) |
+| Audit Date | {{ created_at }} |
+| Revision | {{ revision_number }} |
+| Session | {{ session_id }} |

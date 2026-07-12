@@ -1,323 +1,175 @@
-# {{ document_title }} — Build Section Audit Report
+# Deterministic Section Report — Build
 
-> **Domain:** build
-> **Scope:** section
-> **Standard:** documentation-standards
-> **Date:** {{ audit_date }}
-> **Auditor:** {{ auditor_name }}
+**Document:** {{ document_path }}
+**Standard:** `documentation-standards/14-build-standards.md`
+**Rule Files:** `audit/deterministic/section/14-build/*.yaml`
+**Auditor:** System (deterministic engine)
+**Audit Date:** {{ created_at }}
+**Revision:** {{ revision_number }}
 
 ---
 
-## Section-Level Score
+## Score
 
-| Metric | Value |
+**Deterministic Section Score: {{ score }} / 100**
+{% if previous_score %}({{ '↑ Improved' if score > previous_score else '↓ Regressed' if score < previous_score else '→ Unchanged' }} vs. previous run){% else %}(baseline — first audit of this document){% endif %}
+
+```
+overall = average of the 8 section scores below
+section_score = 100 × (Σ weight of passed rules in that section) / (Σ weight of all rules in that section)
+```
+
+### Score History
+
+| Revision | Date | Score | vs. Previous | vs. Baseline |
+|---:|---|---:|---|---|
+{% for r in revision_history -%}
+| {{ r.revision }} | {{ r.date }} | {{ r.score }} / 100 | {{ r.delta_previous_display }} | {{ r.delta_baseline_display }} |
+{% endfor -%}
+| {{ revision_number }} (current) | {{ created_at }} | {{ score }} / 100 | {{ delta_previous_display }} | {{ delta_baseline_display }} |
+
+{% if not previous_score %}No prior runs — this revision is the baseline every future run is compared against.{% endif %}
+
+### Section Scores
+
+| # | Section | Required | Weight | Score | Previous | Trend |
+|---:|---|:---:|---:|---:|---:|---|
+| 1 | Documentation Quality | **required** | 3.5 | {{ sections.documentation_quality.score }} / 100 | {{ sections.documentation_quality.previous_score | default('—') }} | {{ sections.documentation_quality.trend_display }} |
+| 2 | Security Checks | **required** | 3.5 | {{ sections.security_checks.score }} / 100 | {{ sections.security_checks.previous_score | default('—') }} | {{ sections.security_checks.trend_display }} |
+| 3 | Versioning & Naming | **required** | 3.5 | {{ sections.versioning_naming.score }} / 100 | {{ sections.versioning_naming.previous_score | default('—') }} | {{ sections.versioning_naming.trend_display }} |
+| 4 | Purpose | optional | 1.5 | {{ sections.purpose.score }} / 100 | {{ sections.purpose.previous_score | default('—') }} | {{ sections.purpose.trend_display }} |
+| 5 | Size Checks | **required** | 3.0 | {{ sections.size_checks.score }} / 100 | {{ sections.size_checks.previous_score | default('—') }} | {{ sections.size_checks.trend_display }} |
+| 6 | ML Artifact Management | **required** | 3.0 | {{ sections.ml_artifact_management.score }} / 100 | {{ sections.ml_artifact_management.previous_score | default('—') }} | {{ sections.ml_artifact_management.trend_display }} |
+| 7 | CI/CD Validation | **required** | 3.0 | {{ sections.cicd_validation.score }} / 100 | {{ sections.cicd_validation.previous_score | default('—') }} | {{ sections.cicd_validation.trend_display }} |
+| 8 | Obfuscation & Optimization | **required** | 3.0 | {{ sections.obfuscation_optimization.score }} / 100 | {{ sections.obfuscation_optimization.previous_score | default('—') }} | {{ sections.obfuscation_optimization.trend_display }} |
+
+The 7 required sections carry 22.5 of the document's 24.0 total rule weight — a document can only pass if those seven are both present and internally sound; the remaining one is recommended-quality signal, not gating.
+
+---
+
+## 1. Documentation Quality — weight 3.5 — **required**
+
+**Why this matters:** Documentation Quality is the gate that ensures build documentation meets minimum standards before it can be trusted. Without it, downstream consumers have no assurance that the build policy is complete or accurate.
+
+**Section Score: {{ sections.documentation_quality.score }} / 100** ({{ sections.documentation_quality.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| build-sec-doc-quality-001 | Documentation Quality section exists | error (mandatory) | 1.5 | {{ results['build-sec-doc-quality-001'].previous_status \| default('—') }} | {{ results['build-sec-doc-quality-001'].status }} | {{ results['build-sec-doc-quality-001'].trend_display }} | {{ results['build-sec-doc-quality-001'].evidence \| default('—') }} |
+| build-sec-doc-quality-002 | Defines documentation quality standards or requirements | error (mandatory) | 1.0 | {{ results['build-sec-doc-quality-002'].previous_status \| default('—') }} | {{ results['build-sec-doc-quality-002'].status }} | {{ results['build-sec-doc-quality-002'].trend_display }} | {{ results['build-sec-doc-quality-002'].evidence \| default('—') }} |
+| build-sec-doc-quality-003 | Defines quality checks or validation steps | warning (recommended) | 0.5 | {{ results['build-sec-doc-quality-003'].previous_status \| default('—') }} | {{ results['build-sec-doc-quality-003'].status }} | {{ results['build-sec-doc-quality-003'].trend_display }} | {{ results['build-sec-doc-quality-003'].evidence \| default('—') }} |
+| build-sec-doc-quality-004 | References Implementation Documentation generation plan | warning (recommended) | 0.5 | {{ results['build-sec-doc-quality-004'].previous_status \| default('—') }} | {{ results['build-sec-doc-quality-004'].status }} | {{ results['build-sec-doc-quality-004'].trend_display }} | {{ results['build-sec-doc-quality-004'].evidence \| default('—') }} |
+
+## 2. Security Checks — weight 3.5 — **required**
+
+**Why this matters:** Security Checks is the gate that prevents known vulnerabilities from shipping in a build. Without scan steps and failure criteria, "the build is secure" is an unverifiable claim.
+
+**Section Score: {{ sections.security_checks.score }} / 100** ({{ sections.security_checks.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| build-sec-security-001 | Security Checks section exists | error (mandatory) | 1.5 | {{ results['build-sec-security-001'].previous_status \| default('—') }} | {{ results['build-sec-security-001'].status }} | {{ results['build-sec-security-001'].trend_display }} | {{ results['build-sec-security-001'].evidence \| default('—') }} |
+| build-sec-security-002 | Defines security scan or audit steps to run during build | error (mandatory) | 1.0 | {{ results['build-sec-security-002'].previous_status \| default('—') }} | {{ results['build-sec-security-002'].status }} | {{ results['build-sec-security-002'].trend_display }} | {{ results['build-sec-security-002'].evidence \| default('—') }} |
+| build-sec-security-003 | Defines failure criteria for security gates | warning (recommended) | 0.5 | {{ results['build-sec-security-003'].previous_status \| default('—') }} | {{ results['build-sec-security-003'].status }} | {{ results['build-sec-security-003'].trend_display }} | {{ results['build-sec-security-003'].evidence \| default('—') }} |
+| build-sec-security-004 | References Security Documentation mitigation strategies | warning (recommended) | 0.5 | {{ results['build-sec-security-004'].previous_status \| default('—') }} | {{ results['build-sec-security-004'].status }} | {{ results['build-sec-security-004'].trend_display }} | {{ results['build-sec-security-004'].evidence \| default('—') }} |
+
+## 3. Versioning & Naming — weight 3.5 — **required**
+
+**Why this matters:** Versioning & Naming defines how artifacts are identified and differentiated. Without a clear scheme, consumers cannot tell which version they have or which version they need — the basis for reproducibility.
+
+**Section Score: {{ sections.versioning_naming.score }} / 100** ({{ sections.versioning_naming.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| build-sec-version-001 | Versioning & Naming section exists | error (mandatory) | 1.5 | {{ results['build-sec-version-001'].previous_status \| default('—') }} | {{ results['build-sec-version-001'].status }} | {{ results['build-sec-version-001'].trend_display }} | {{ results['build-sec-version-001'].evidence \| default('—') }} |
+| build-sec-version-002 | Defines versioning scheme (semver, calver, etc.) | error (mandatory) | 1.0 | {{ results['build-sec-version-002'].previous_status \| default('—') }} | {{ results['build-sec-version-002'].status }} | {{ results['build-sec-version-002'].trend_display }} | {{ results['build-sec-version-002'].evidence \| default('—') }} |
+| build-sec-version-003 | Defines naming conventions for artifacts or releases | warning (recommended) | 0.5 | {{ results['build-sec-version-003'].previous_status \| default('—') }} | {{ results['build-sec-version-003'].status }} | {{ results['build-sec-version-003'].trend_display }} | {{ results['build-sec-version-003'].evidence \| default('—') }} |
+| build-sec-version-004 | References Engineering Documentation build standards | warning (recommended) | 0.5 | {{ results['build-sec-version-004'].previous_status \| default('—') }} | {{ results['build-sec-version-004'].status }} | {{ results['build-sec-version-004'].trend_display }} | {{ results['build-sec-version-004'].evidence \| default('—') }} |
+
+## 4. Purpose — weight 1.5 — optional
+
+**Why this matters:** Purpose is what tells a reader why Build Documentation exists before they read a single rule. A Purpose section that's missing, vague, or incomplete undermines every section that follows it.
+
+**Section Score: {{ sections.purpose.score }} / 100** ({{ sections.purpose.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| build-sec-purpose-001 | Purpose section exists | warning (recommended) | 0.5 | {{ results['build-sec-purpose-001'].previous_status \| default('—') }} | {{ results['build-sec-purpose-001'].status }} | {{ results['build-sec-purpose-001'].trend_display }} | {{ results['build-sec-purpose-001'].evidence \| default('—') }} |
+| build-sec-purpose-002 | States build intent | warning (recommended) | 0.5 | {{ results['build-sec-purpose-002'].previous_status \| default('—') }} | {{ results['build-sec-purpose-002'].status }} | {{ results['build-sec-purpose-002'].trend_display }} | {{ results['build-sec-purpose-002'].evidence \| default('—') }} |
+| build-sec-purpose-003 | Defines scope boundaries | warning (recommended) | 0.5 | {{ results['build-sec-purpose-003'].previous_status \| default('—') }} | {{ results['build-sec-purpose-003'].status }} | {{ results['build-sec-purpose-003'].trend_display }} | {{ results['build-sec-purpose-003'].evidence \| default('—') }} |
+
+## 5. Size Checks — weight 3.0 — **required**
+
+**Why this matters:** Size Checks defines measurable limits on artifact size — bundle, binary, image, package — and what happens when a build crosses them. Without it, bloat is caught by policy, not discovered in production.
+
+**Section Score: {{ sections.size_checks.score }} / 100** ({{ sections.size_checks.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| build-sec-size_checks-001 | Size Checks section exists | error (mandatory) | 1.5 | {{ results['build-sec-size_checks-001'].previous_status \| default('—') }} | {{ results['build-sec-size_checks-001'].status }} | {{ results['build-sec-size_checks-001'].trend_display }} | {{ results['build-sec-size_checks-001'].evidence \| default('—') }} |
+| build-sec-size_checks-002 | Has substantive content (≥ 100 chars of project-specific detail) | error (mandatory) | 1.0 | {{ results['build-sec-size_checks-002'].previous_status \| default('—') }} | {{ results['build-sec-size_checks-002'].status }} | {{ results['build-sec-size_checks-002'].trend_display }} | {{ results['build-sec-size_checks-002'].evidence \| default('—') }} |
+| build-sec-size_checks-003 | Contains project-specific details, not generic boilerplate | warning (recommended) | 0.5 | {{ results['build-sec-size_checks-003'].previous_status \| default('—') }} | {{ results['build-sec-size_checks-003'].status }} | {{ results['build-sec-size_checks-003'].trend_display }} | {{ results['build-sec-size_checks-003'].evidence \| default('—') }} |
+
+## 6. ML Artifact Management — weight 3.0 — **required**
+
+**Why this matters:** ML Artifact Management defines how models and training data are versioned, tracked, and reproduced. Without it, a model in production cannot be traced back to the exact data and code that produced it.
+
+**Section Score: {{ sections.ml_artifact_management.score }} / 100** ({{ sections.ml_artifact_management.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| build-sec-ml_artifact_management-001 | ML Artifact Management section exists | error (mandatory) | 1.5 | {{ results['build-sec-ml_artifact_management-001'].previous_status \| default('—') }} | {{ results['build-sec-ml_artifact_management-001'].status }} | {{ results['build-sec-ml_artifact_management-001'].trend_display }} | {{ results['build-sec-ml_artifact_management-001'].evidence \| default('—') }} |
+| build-sec-ml_artifact_management-002 | Has substantive content (≥ 100 chars of project-specific detail) | error (mandatory) | 1.0 | {{ results['build-sec-ml_artifact_management-002'].previous_status \| default('—') }} | {{ results['build-sec-ml_artifact_management-002'].status }} | {{ results['build-sec-ml_artifact_management-002'].trend_display }} | {{ results['build-sec-ml_artifact_management-002'].evidence \| default('—') }} |
+| build-sec-ml_artifact_management-003 | Contains project-specific details, not generic boilerplate | warning (recommended) | 0.5 | {{ results['build-sec-ml_artifact_management-003'].previous_status \| default('—') }} | {{ results['build-sec-ml_artifact_management-003'].status }} | {{ results['build-sec-ml_artifact_management-003'].trend_display }} | {{ results['build-sec-ml_artifact_management-003'].evidence \| default('—') }} |
+
+## 7. CI/CD Validation — weight 3.0 — **required**
+
+**Why this matters:** CI/CD Validation defines the gate sequence a build must pass and what happens when a gate fails. Without it, "the pipeline is green" has no precise, checkable meaning.
+
+**Section Score: {{ sections.cicd_validation.score }} / 100** ({{ sections.cicd_validation.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| build-sec-cicd_validation-001 | CI/CD Validation section exists | error (mandatory) | 1.5 | {{ results['build-sec-cicd_validation-001'].previous_status \| default('—') }} | {{ results['build-sec-cicd_validation-001'].status }} | {{ results['build-sec-cicd_validation-001'].trend_display }} | {{ results['build-sec-cicd_validation-001'].evidence \| default('—') }} |
+| build-sec-cicd_validation-002 | Has substantive content (≥ 100 chars of project-specific detail) | error (mandatory) | 1.0 | {{ results['build-sec-cicd_validation-002'].previous_status \| default('—') }} | {{ results['build-sec-cicd_validation-002'].status }} | {{ results['build-sec-cicd_validation-002'].trend_display }} | {{ results['build-sec-cicd_validation-002'].evidence \| default('—') }} |
+| build-sec-cicd_validation-003 | Contains project-specific details, not generic boilerplate | warning (recommended) | 0.5 | {{ results['build-sec-cicd_validation-003'].previous_status \| default('—') }} | {{ results['build-sec-cicd_validation-003'].status }} | {{ results['build-sec-cicd_validation-003'].trend_display }} | {{ results['build-sec-cicd_validation-003'].evidence \| default('—') }} |
+
+## 8. Obfuscation & Optimization — weight 3.0 — **required**
+
+**Why this matters:** Obfuscation & Optimization defines which build-time transformations apply, under what configuration, and their cost to debuggability. Without it, a production stack trace problem is a mystery.
+
+**Section Score: {{ sections.obfuscation_optimization.score }} / 100** ({{ sections.obfuscation_optimization.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| build-sec-obfuscation_optimization-001 | Obfuscation & Optimization section exists | error (mandatory) | 1.5 | {{ results['build-sec-obfuscation_optimization-001'].previous_status \| default('—') }} | {{ results['build-sec-obfuscation_optimization-001'].status }} | {{ results['build-sec-obfuscation_optimization-001'].trend_display }} | {{ results['build-sec-obfuscation_optimization-001'].evidence \| default('—') }} |
+| build-sec-obfuscation_optimization-002 | Has substantive content (≥ 100 chars of project-specific detail) | error (mandatory) | 1.0 | {{ results['build-sec-obfuscation_optimization-002'].previous_status \| default('—') }} | {{ results['build-sec-obfuscation_optimization-002'].status }} | {{ results['build-sec-obfuscation_optimization-002'].trend_display }} | {{ results['build-sec-obfuscation_optimization-002'].evidence \| default('—') }} |
+| build-sec-obfuscation_optimization-003 | Contains project-specific details, not generic boilerplate | warning (recommended) | 0.5 | {{ results['build-sec-obfuscation_optimization-003'].previous_status \| default('—') }} | {{ results['build-sec-obfuscation_optimization-003'].status }} | {{ results['build-sec-obfuscation_optimization-003'].trend_display }} | {{ results['build-sec-obfuscation_optimization-003'].evidence \| default('—') }} |
+
+---
+
+## Failures Requiring Attention
+
+{% if failed_rules | length > 0 %}
+| Section | Rule | Message | Evidence | New This Run? |
+|---|---|---|---|---|
+{% for r in failed_rules -%}
+| {{ r.section_type }} | {{ r.id }} | {{ r.message }} | {{ r.evidence | default('—') }} | {{ 'Yes — regression' if r.is_new_failure else 'No — carried over' }} |
+{% endfor %}
+{% else %}
+No failures across all 8 sections.
+{% endif %}
+
+---
+
+## Metadata
+
+| Field | Value |
 |---|---|
-| **Weight Sum** | {{ section_weight_sum }} |
-| **Weighted Score** | {{ weighted_score }} |
-| **Max Possible** | {{ section_weight_sum }} |
-| **Percentage** | {{ score_percentage }} |
-| **Verdict** | {{ verdict }} |
-
-**Why this matters:** Build sections define specific packaging, validation, and distribution rules. Section-level audits verify each concern is internally consistent and substantiated — the building blocks of a coherent build policy.
-
----
-
-## Section: documentation_quality
-
-### Rules
-
-#### build-sec-doc-quality-001 — Documentation quality section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'documentation_quality'
-- **Status:** {{ doc_quality_001_status }}
-- **Evidence:** {{ doc_quality_001_evidence }}
-
-#### build-sec-doc-quality-002 — Documentation quality defines standards
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section specifies documentation quality standards or requirements
-- **Status:** {{ doc_quality_002_status }}
-- **Evidence:** {{ doc_quality_002_evidence }}
-
-#### build-sec-doc-quality-003 — Documentation quality defines checks
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section specifies quality checks or validation steps
-- **Status:** {{ doc_quality_003_status }}
-- **Evidence:** {{ doc_quality_003_evidence }}
-
-#### build-sec-doc-quality-004 — Documentation quality references implementation
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section references Implementation Documentation generation plan
-- **Status:** {{ doc_quality_004_status }}
-- **Evidence:** {{ doc_quality_004_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| build-doc-quality-derives-implementation | derives_from | implementation:generation_plan | incoming | {{ rel_doc_quality_impl }} |
-
----
-
-## Section: security_checks
-
-### Rules
-
-#### build-sec-security-001 — Security checks section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'security_checks'
-- **Status:** {{ sec_001_status }}
-- **Evidence:** {{ sec_001_evidence }}
-
-#### build-sec-security-002 — Security checks define scan steps
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section specifies security scan or audit steps to run during build
-- **Status:** {{ sec_002_status }}
-- **Evidence:** {{ sec_002_evidence }}
-
-#### build-sec-security-003 — Security checks define failure criteria
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section specifies what conditions cause build failure
-- **Status:** {{ sec_003_status }}
-- **Evidence:** {{ sec_003_evidence }}
-
-#### build-sec-security-004 — Security checks reference security standard
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section references Security Documentation mitigation strategies
-- **Status:** {{ sec_004_status }}
-- **Evidence:** {{ sec_004_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| build-security-checks-derives-security | derives_from | security:mitigation_strategies | incoming | {{ rel_sec_security }} |
-
----
-
-## Section: versioning_naming
-
-### Rules
-
-#### build-sec-version-001 — Versioning naming section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'versioning_naming'
-- **Status:** {{ version_001_status }}
-- **Evidence:** {{ version_001_evidence }}
-
-#### build-sec-version-002 — Versioning naming defines scheme
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section specifies versioning scheme (semver, calver, etc.)
-- **Status:** {{ version_002_status }}
-- **Evidence:** {{ version_002_evidence }}
-
-#### build-sec-version-003 — Versioning naming defines conventions
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section specifies naming conventions for artifacts or releases
-- **Status:** {{ version_003_status }}
-- **Evidence:** {{ version_003_evidence }}
-
-#### build-sec-version-004 — Versioning naming references engineering
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section references Engineering Documentation build standards
-- **Status:** {{ version_004_status }}
-- **Evidence:** {{ version_004_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| build-versioning-derives-engineering | derives_from | engineering:build_standards | incoming | {{ rel_version_engineering }} |
-
----
-
-## Section: purpose
-
-### Rules
-
-#### build-sec-purpose-001 — Purpose section exists
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** document has a section with semantic_type = 'purpose'
-- **Status:** {{ purpose_001_status }}
-- **Evidence:** {{ purpose_001_evidence }}
-
-#### build-sec-purpose-002 — Purpose states build intent
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section contains a statement of why Build Documentation exists
-- **Status:** {{ purpose_002_status }}
-- **Evidence:** {{ purpose_002_evidence }}
-
-#### build-sec-purpose-003 — Purpose defines scope boundaries
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section defines what Build Documentation is and is not
-- **Status:** {{ purpose_003_status }}
-- **Evidence:** {{ purpose_003_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| build-purpose-derives-vision | derives_from | vision:purpose | incoming | {{ rel_purpose_vision }} |
-
----
-
-## Section: size_checks
-
-### Rules
-
-#### build-sec-size_checks-001 — Size Checks section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'size_checks'
-- **Status:** {{ size_001_status }}
-- **Evidence:** {{ size_001_evidence }}
-
-#### build-sec-size_checks-002 — Size Checks has substantive content
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section contains at least one paragraph of project-specific content
-- **Status:** {{ size_002_status }}
-- **Evidence:** {{ size_002_evidence }}
-
-#### build-sec-size_checks-003 — Size Checks is specific to this project
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section contains project-specific details, not generic boilerplate
-- **Status:** {{ size_003_status }}
-- **Evidence:** {{ size_003_evidence }}
-
----
-
-## Section: ml_artifact_management
-
-### Rules
-
-#### build-sec-ml_artifact_management-001 — Ml Artifact Management section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'ml_artifact_management'
-- **Status:** {{ ml_001_status }}
-- **Evidence:** {{ ml_001_evidence }}
-
-#### build-sec-ml_artifact_management-002 — Ml Artifact Management has substantive content
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section contains at least one paragraph of project-specific content
-- **Status:** {{ ml_002_status }}
-- **Evidence:** {{ ml_002_evidence }}
-
-#### build-sec-ml_artifact_management-003 — Ml Artifact Management is specific to this project
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section contains project-specific details, not generic boilerplate
-- **Status:** {{ ml_003_status }}
-- **Evidence:** {{ ml_003_evidence }}
-
----
-
-## Section: cicd_validation
-
-### Rules
-
-#### build-sec-cicd_validation-001 — Cicd Validation section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'cicd_validation'
-- **Status:** {{ cicd_001_status }}
-- **Evidence:** {{ cicd_001_evidence }}
-
-#### build-sec-cicd_validation-002 — Cicd Validation has substantive content
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section contains at least one paragraph of project-specific content
-- **Status:** {{ cicd_002_status }}
-- **Evidence:** {{ cicd_002_evidence }}
-
-#### build-sec-cicd_validation-003 — Cicd Validation is specific to this project
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section contains project-specific details, not generic boilerplate
-- **Status:** {{ cicd_003_status }}
-- **Evidence:** {{ cicd_003_evidence }}
-
----
-
-## Section: obfuscation_optimization
-
-### Rules
-
-#### build-sec-obfuscation_optimization-001 — Obfuscation Optimization section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'obfuscation_optimization'
-- **Status:** {{ obf_001_status }}
-- **Evidence:** {{ obf_001_evidence }}
-
-#### build-sec-obfuscation_optimization-002 — Obfuscation Optimization has substantive content
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section contains at least one paragraph of project-specific content
-- **Status:** {{ obf_002_status }}
-- **Evidence:** {{ obf_002_evidence }}
-
-#### build-sec-obfuscation_optimization-003 — Obfuscation Optimization is specific to this project
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section contains project-specific details, not generic boilerplate
-- **Status:** {{ obf_003_status }}
-- **Evidence:** {{ obf_003_evidence }}
-
----
-
-## Score History
-
-| Date | Auditor | Score | Verdict | Revision |
-|---|---|---|---|---|
-| {{ audit_date }} | {{ auditor_name }} | {{ weighted_score }} | {{ verdict }} | 1 |
-
----
-
-## Trend
-
-{{ trend_indicator }} ({{ trend_description }})
-
----
-
-## Failures
-
-| Rule | Severity | Section | Evidence | Regression? |
-|---|---|---|---|---|
-{{ failures_table }}
-
----
-
-## Summary
-
-{{ summary_text }}
-
-### Section-Level Breakdown
-
-| Section | Weight | Score | Status |
-|---|---|---|---|
-| documentation_quality | {{ doc_quality_weight }} | {{ doc_quality_score }} | {{ doc_quality_status }} |
-| security_checks | {{ sec_weight }} | {{ sec_score }} | {{ sec_status }} |
-| versioning_naming | {{ version_weight }} | {{ version_score }} | {{ version_status }} |
-| purpose | {{ purpose_weight }} | {{ purpose_score }} | {{ purpose_status }} |
-| size_checks | {{ size_weight }} | {{ size_score }} | {{ size_status }} |
-| ml_artifact_management | {{ ml_weight }} | {{ ml_score }} | {{ ml_status }} |
-| cicd_validation | {{ cicd_weight }} | {{ cicd_score }} | {{ cicd_status }} |
-| obfuscation_optimization | {{ obf_weight }} | {{ obf_score }} | {{ obf_status }} |
+| Domain | build |
+| Standard | documentation-standards |
+| Section Rule Files | `audit/deterministic/section/14-build/*.yaml` |
+| Auditor | System (deterministic engine) |
+| Audit Date | {{ created_at }} |
+| Revision | {{ revision_number }} |
+| Session | {{ session_id }} |

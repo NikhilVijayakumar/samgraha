@@ -1,364 +1,189 @@
-# {{ document_title }} — QA Section Audit Report
+# Deterministic Section Report — QA
 
-> **Domain:** qa
-> **Scope:** section
-> **Standard:** documentation-standards
-> **Date:** {{ audit_date }}
-> **Auditor:** {{ auditor_name }}
+**Document:** {{ document_path }}
+**Standard:** `documentation-standards/12-qa-standards.md`
+**Rule Files:** `audit/deterministic/section/12-qa/*.yaml`
+**Auditor:** System (deterministic engine)
+**Audit Date:** {{ created_at }}
+**Revision:** {{ revision_number }}
 
 ---
 
-## Section-Level Score
+## Score
 
-| Metric | Value |
+**Deterministic Section Score: {{ score }} / 100**
+{% if previous_score %}({{ '↑ Improved' if score > previous_score else '↓ Regressed' if score < previous_score else '→ Unchanged' }} vs. previous run){% else %}(baseline — first audit of this document){% endif %}
+
+```
+overall = average of the 9 section scores below
+section_score = 100 × (Σ weight of passed rules in that section) / (Σ weight of all rules in that section)
+```
+
+### Score History
+
+| Revision | Date | Score | vs. Previous | vs. Baseline |
+|---:|---|---:|---|---|
+{% for r in revision_history -%}
+| {{ r.revision }} | {{ r.date }} | {{ r.score }} / 100 | {{ r.delta_previous_display }} | {{ r.delta_baseline_display }} |
+{% endfor -%}
+| {{ revision_number }} (current) | {{ created_at }} | {{ score }} / 100 | {{ delta_previous_display }} | {{ delta_baseline_display }} |
+
+{% if not previous_score %}No prior runs — this revision is the baseline every future run is compared against.{% endif %}
+
+### Section Scores
+
+| # | Section | Required | Weight | Score | Previous | Trend |
+|---:|---|:---:|---:|---:|---:|---|
+| 1 | Test Strategy | **required** | 3.5 | {{ sections.test_strategy.score }} / 100 | {{ sections.test_strategy.previous_score | default('—') }} | {{ sections.test_strategy.trend_display }} |
+| 2 | Unit Testing | **required** | 3.5 | {{ sections.unit_testing.score }} / 100 | {{ sections.unit_testing.previous_score | default('—') }} | {{ sections.unit_testing.trend_display }} |
+| 3 | Integration Testing | **required** | 3.5 | {{ sections.integration_testing.score }} / 100 | {{ sections.integration_testing.previous_score | default('—') }} | {{ sections.integration_testing.trend_display }} |
+| 4 | Security Testing | **required** | 3.5 | {{ sections.security_testing.score }} / 100 | {{ sections.security_testing.previous_score | default('—') }} | {{ sections.security_testing.trend_display }} |
+| 5 | Purpose | optional | 1.5 | {{ sections.purpose.score }} / 100 | {{ sections.purpose.previous_score | default('—') }} | {{ sections.purpose.trend_display }} |
+| 6 | E2E Testing | **required** | 3.0 | {{ sections.e2e_testing.score }} / 100 | {{ sections.e2e_testing.previous_score | default('—') }} | {{ sections.e2e_testing.trend_display }} |
+| 7 | Smoke Testing | **required** | 3.0 | {{ sections.smoke_testing.score }} / 100 | {{ sections.smoke_testing.previous_score | default('—') }} | {{ sections.smoke_testing.trend_display }} |
+| 8 | Load Testing | **required** | 3.0 | {{ sections.load_testing.score }} / 100 | {{ sections.load_testing.previous_score | default('—') }} | {{ sections.load_testing.trend_display }} |
+| 9 | Scalability Testing | **required** | 3.0 | {{ sections.scalability_testing.score }} / 100 | {{ sections.scalability_testing.previous_score | default('—') }} | {{ sections.scalability_testing.trend_display }} |
+
+The 8 required sections carry 26.0 of the document's 27.5 total rule weight — a document can only pass if those eight are both present and internally sound; Purpose is recommended-quality signal, not gating.
+
+---
+
+## 1. Test Strategy — weight 3.5 — **required**
+
+**Why this matters:** Test Strategy defines the overall testing philosophy and approach that every other test type section derives from. A missing or vague strategy gives the individual test sections no coherence — they become a list of activities without a unifying rationale.
+
+**Section Score: {{ sections.test_strategy.score }} / 100** ({{ sections.test_strategy.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| qa-sec-strategy-001 | Test Strategy section exists | error (mandatory) | 1.5 | {{ results['qa-sec-strategy-001'].previous_status \| default('—') }} | {{ results['qa-sec-strategy-001'].status }} | {{ results['qa-sec-strategy-001'].trend_display }} | {{ results['qa-sec-strategy-001'].evidence \| default('—') }} |
+| qa-sec-strategy-002 | Defines overall testing approach and philosophy | error (mandatory) | 1.0 | {{ results['qa-sec-strategy-002'].previous_status \| default('—') }} | {{ results['qa-sec-strategy-002'].status }} | {{ results['qa-sec-strategy-002'].trend_display }} | {{ results['qa-sec-strategy-002'].evidence \| default('—') }} |
+| qa-sec-strategy-003 | Defines coverage goals or metrics | warning (recommended) | 0.5 | {{ results['qa-sec-strategy-003'].previous_status \| default('—') }} | {{ results['qa-sec-strategy-003'].status }} | {{ results['qa-sec-strategy-003'].trend_display }} | {{ results['qa-sec-strategy-003'].evidence \| default('—') }} |
+| qa-sec-strategy-004 | References Architecture Documentation for test scope | warning (recommended) | 0.5 | {{ results['qa-sec-strategy-004'].previous_status \| default('—') }} | {{ results['qa-sec-strategy-004'].status }} | {{ results['qa-sec-strategy-004'].trend_display }} | {{ results['qa-sec-strategy-004'].evidence \| default('—') }} |
+
+## 2. Unit Testing — weight 3.5 — **required**
+
+**Why this matters:** Unit Testing is the foundation of the test pyramid. A section that's missing or generic gives developers no guidance on how to structure their tests or what coverage is expected.
+
+**Section Score: {{ sections.unit_testing.score }} / 100** ({{ sections.unit_testing.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| qa-sec-unit-001 | Unit Testing section exists | error (mandatory) | 1.5 | {{ results['qa-sec-unit-001'].previous_status \| default('—') }} | {{ results['qa-sec-unit-001'].status }} | {{ results['qa-sec-unit-001'].trend_display }} | {{ results['qa-sec-unit-001'].evidence \| default('—') }} |
+| qa-sec-unit-002 | Defines what components or modules are covered | error (mandatory) | 1.0 | {{ results['qa-sec-unit-002'].previous_status \| default('—') }} | {{ results['qa-sec-unit-002'].status }} | {{ results['qa-sec-unit-002'].trend_display }} | {{ results['qa-sec-unit-002'].evidence \| default('—') }} |
+| qa-sec-unit-003 | Defines naming conventions or test structure | warning (recommended) | 0.5 | {{ results['qa-sec-unit-003'].previous_status \| default('—') }} | {{ results['qa-sec-unit-003'].status }} | {{ results['qa-sec-unit-003'].trend_display }} | {{ results['qa-sec-unit-003'].evidence \| default('—') }} |
+| qa-sec-unit-004 | References Engineering Documentation testing standards | warning (recommended) | 0.5 | {{ results['qa-sec-unit-004'].previous_status \| default('—') }} | {{ results['qa-sec-unit-004'].status }} | {{ results['qa-sec-unit-004'].trend_display }} | {{ results['qa-sec-unit-004'].evidence \| default('—') }} |
+
+## 3. Integration Testing — weight 3.5 — **required**
+
+**Why this matters:** Integration Testing verifies that component boundaries work as designed. Without it, individual units may pass in isolation while the system fails at every seam.
+
+**Section Score: {{ sections.integration_testing.score }} / 100** ({{ sections.integration_testing.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| qa-sec-integration-001 | Integration Testing section exists | error (mandatory) | 1.5 | {{ results['qa-sec-integration-001'].previous_status \| default('—') }} | {{ results['qa-sec-integration-001'].status }} | {{ results['qa-sec-integration-001'].trend_display }} | {{ results['qa-sec-integration-001'].evidence \| default('—') }} |
+| qa-sec-integration-002 | Defines which component interfaces are tested | error (mandatory) | 1.0 | {{ results['qa-sec-integration-002'].previous_status \| default('—') }} | {{ results['qa-sec-integration-002'].status }} | {{ results['qa-sec-integration-002'].trend_display }} | {{ results['qa-sec-integration-002'].evidence \| default('—') }} |
+| qa-sec-integration-003 | Contains at least one integration test scenario | warning (recommended) | 0.5 | {{ results['qa-sec-integration-003'].previous_status \| default('—') }} | {{ results['qa-sec-integration-003'].status }} | {{ results['qa-sec-integration-003'].trend_display }} | {{ results['qa-sec-integration-003'].evidence \| default('—') }} |
+| qa-sec-integration-004 | References Architecture Documentation for communication paths | warning (recommended) | 0.5 | {{ results['qa-sec-integration-004'].previous_status \| default('—') }} | {{ results['qa-sec-integration-004'].status }} | {{ results['qa-sec-integration-004'].trend_display }} | {{ results['qa-sec-integration-004'].evidence \| default('—') }} |
+
+## 4. Security Testing — weight 3.5 — **required**
+
+**Why this matters:** Security Testing ensures threats are validated against, not just documented. A missing or shallow section means the Security domain's threat model goes untested.
+
+**Section Score: {{ sections.security_testing.score }} / 100** ({{ sections.security_testing.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| qa-sec-security-001 | Security Testing section exists | error (mandatory) | 1.5 | {{ results['qa-sec-security-001'].previous_status \| default('—') }} | {{ results['qa-sec-security-001'].status }} | {{ results['qa-sec-security-001'].trend_display }} | {{ results['qa-sec-security-001'].evidence \| default('—') }} |
+| qa-sec-security-002 | Defines which threats or attack vectors are tested | error (mandatory) | 1.0 | {{ results['qa-sec-security-002'].previous_status \| default('—') }} | {{ results['qa-sec-security-002'].status }} | {{ results['qa-sec-security-002'].trend_display }} | {{ results['qa-sec-security-002'].evidence \| default('—') }} |
+| qa-sec-security-003 | Defines test methods (SAST, DAST, penetration, etc.) | warning (recommended) | 0.5 | {{ results['qa-sec-security-003'].previous_status \| default('—') }} | {{ results['qa-sec-security-003'].status }} | {{ results['qa-sec-security-003'].trend_display }} | {{ results['qa-sec-security-003'].evidence \| default('—') }} |
+| qa-sec-security-004 | References Security Documentation threat model | warning (recommended) | 0.5 | {{ results['qa-sec-security-004'].previous_status \| default('—') }} | {{ results['qa-sec-security-004'].status }} | {{ results['qa-sec-security-004'].trend_display }} | {{ results['qa-sec-security-004'].evidence \| default('—') }} |
+
+## 5. Purpose — weight 1.5 — optional
+
+**Why this matters:** Purpose defines why QA Documentation exists before a reader examines a single test type. A missing Purpose section means readers must infer the document's intent from its content.
+
+**Section Score: {{ sections.purpose.score }} / 100** ({{ sections.purpose.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| qa-sec-purpose-001 | Purpose section exists | warning (recommended) | 0.5 | {{ results['qa-sec-purpose-001'].previous_status \| default('—') }} | {{ results['qa-sec-purpose-001'].status }} | {{ results['qa-sec-purpose-001'].trend_display }} | {{ results['qa-sec-purpose-001'].evidence \| default('—') }} |
+| qa-sec-purpose-002 | States QA intent | warning (recommended) | 0.5 | {{ results['qa-sec-purpose-002'].previous_status \| default('—') }} | {{ results['qa-sec-purpose-002'].status }} | {{ results['qa-sec-purpose-002'].trend_display }} | {{ results['qa-sec-purpose-002'].evidence \| default('—') }} |
+| qa-sec-purpose-003 | Defines scope boundaries | warning (recommended) | 0.5 | {{ results['qa-sec-purpose-003'].previous_status \| default('—') }} | {{ results['qa-sec-purpose-003'].status }} | {{ results['qa-sec-purpose-003'].trend_display }} | {{ results['qa-sec-purpose-003'].evidence \| default('—') }} |
+
+## 6. E2E Testing — weight 3.0 — **required**
+
+**Why this matters:** E2E Testing verifies critical user journeys through the full system. Without it, integration seams that unit and integration tests can't see go unvalidated.
+
+**Section Score: {{ sections.e2e_testing.score }} / 100** ({{ sections.e2e_testing.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| qa-sec-e2e_testing-001 | E2E Testing section exists | error (mandatory) | 1.5 | {{ results['qa-sec-e2e_testing-001'].previous_status \| default('—') }} | {{ results['qa-sec-e2e_testing-001'].status }} | {{ results['qa-sec-e2e_testing-001'].trend_display }} | {{ results['qa-sec-e2e_testing-001'].evidence \| default('—') }} |
+| qa-sec-e2e_testing-002 | Has substantive content (not empty or placeholder) | error (mandatory) | 1.0 | {{ results['qa-sec-e2e_testing-002'].previous_status \| default('—') }} | {{ results['qa-sec-e2e_testing-002'].status }} | {{ results['qa-sec-e2e_testing-002'].trend_display }} | {{ results['qa-sec-e2e_testing-002'].evidence \| default('—') }} |
+| qa-sec-e2e_testing-003 | Content is project-specific, not generic boilerplate | warning (recommended) | 0.5 | {{ results['qa-sec-e2e_testing-003'].previous_status \| default('—') }} | {{ results['qa-sec-e2e_testing-003'].status }} | {{ results['qa-sec-e2e_testing-003'].trend_display }} | {{ results['qa-sec-e2e_testing-003'].evidence \| default('—') }} |
+
+## 7. Smoke Testing — weight 3.0 — **required**
+
+**Why this matters:** Smoke Testing is the fast post-deploy check that catches catastrophic failures. Without it, broken deploys can reach production traffic before any automated check runs.
+
+**Section Score: {{ sections.smoke_testing.score }} / 100** ({{ sections.smoke_testing.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| qa-sec-smoke_testing-001 | Smoke Testing section exists | error (mandatory) | 1.5 | {{ results['qa-sec-smoke_testing-001'].previous_status \| default('—') }} | {{ results['qa-sec-smoke_testing-001'].status }} | {{ results['qa-sec-smoke_testing-001'].trend_display }} | {{ results['qa-sec-smoke_testing-001'].evidence \| default('—') }} |
+| qa-sec-smoke_testing-002 | Has substantive content (not empty or placeholder) | error (mandatory) | 1.0 | {{ results['qa-sec-smoke_testing-002'].previous_status \| default('—') }} | {{ results['qa-sec-smoke_testing-002'].status }} | {{ results['qa-sec-smoke_testing-002'].trend_display }} | {{ results['qa-sec-smoke_testing-002'].evidence \| default('—') }} |
+| qa-sec-smoke_testing-003 | Content is project-specific, not generic boilerplate | warning (recommended) | 0.5 | {{ results['qa-sec-smoke_testing-003'].previous_status \| default('—') }} | {{ results['qa-sec-smoke_testing-003'].status }} | {{ results['qa-sec-smoke_testing-003'].trend_display }} | {{ results['qa-sec-smoke_testing-003'].evidence \| default('—') }} |
+
+## 8. Load Testing — weight 3.0 — **required**
+
+**Why this matters:** Load Testing validates performance targets against defined traffic profiles. Without it, performance is assumed from production experience rather than tested against known thresholds.
+
+**Section Score: {{ sections.load_testing.score }} / 100** ({{ sections.load_testing.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| qa-sec-load_testing-001 | Load Testing section exists | error (mandatory) | 1.5 | {{ results['qa-sec-load_testing-001'].previous_status \| default('—') }} | {{ results['qa-sec-load_testing-001'].status }} | {{ results['qa-sec-load_testing-001'].trend_display }} | {{ results['qa-sec-load_testing-001'].evidence \| default('—') }} |
+| qa-sec-load_testing-002 | Has substantive content (not empty or placeholder) | error (mandatory) | 1.0 | {{ results['qa-sec-load_testing-002'].previous_status \| default('—') }} | {{ results['qa-sec-load_testing-002'].status }} | {{ results['qa-sec-load_testing-002'].trend_display }} | {{ results['qa-sec-load_testing-002'].evidence \| default('—') }} |
+| qa-sec-load_testing-003 | Content is project-specific, not generic boilerplate | warning (recommended) | 0.5 | {{ results['qa-sec-load_testing-003'].previous_status \| default('—') }} | {{ results['qa-sec-load_testing-003'].status }} | {{ results['qa-sec-load_testing-003'].trend_display }} | {{ results['qa-sec-load_testing-003'].evidence \| default('—') }} |
+
+## 9. Scalability Testing — weight 3.0 — **required**
+
+**Why this matters:** Scalability Testing characterizes how the system behaves as load grows beyond current levels — where it breaks and how it degrades. Without it, capacity planning is based on hope rather than data.
+
+**Section Score: {{ sections.scalability_testing.score }} / 100** ({{ sections.scalability_testing.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| qa-sec-scalability_testing-001 | Scalability Testing section exists | error (mandatory) | 1.5 | {{ results['qa-sec-scalability_testing-001'].previous_status \| default('—') }} | {{ results['qa-sec-scalability_testing-001'].status }} | {{ results['qa-sec-scalability_testing-001'].trend_display }} | {{ results['qa-sec-scalability_testing-001'].evidence \| default('—') }} |
+| qa-sec-scalability_testing-002 | Has substantive content (not empty or placeholder) | error (mandatory) | 1.0 | {{ results['qa-sec-scalability_testing-002'].previous_status \| default('—') }} | {{ results['qa-sec-scalability_testing-002'].status }} | {{ results['qa-sec-scalability_testing-002'].trend_display }} | {{ results['qa-sec-scalability_testing-002'].evidence \| default('—') }} |
+| qa-sec-scalability_testing-003 | Content is project-specific, not generic boilerplate | warning (recommended) | 0.5 | {{ results['qa-sec-scalability_testing-003'].previous_status \| default('—') }} | {{ results['qa-sec-scalability_testing-003'].status }} | {{ results['qa-sec-scalability_testing-003'].trend_display }} | {{ results['qa-sec-scalability_testing-003'].evidence \| default('—') }} |
+
+---
+
+## Failures Requiring Attention
+
+{% if failed_rules | length > 0 %}
+| Section | Rule | Message | Evidence | New This Run? |
+|---|---|---|---|---|
+{% for r in failed_rules -%}
+| {{ r.section_type }} | {{ r.id }} | {{ r.message }} | {{ r.evidence | default('—') }} | {{ 'Yes — regression' if r.is_new_failure else 'No — carried over' }} |
+{% endfor %}
+{% else %}
+No failures across all 9 sections.
+{% endif %}
+
+---
+
+## Metadata
+
+| Field | Value |
 |---|---|
-| **Weight Sum** | {{ section_weight_sum }} |
-| **Weighted Score** | {{ weighted_score }} |
-| **Max Possible** | {{ section_weight_sum }} |
-| **Percentage** | {{ score_percentage }} |
-| **Verdict** | {{ verdict }} |
-
-**Why this matters:** QA sections define specific testing rules for each testing level. Section-level audits verify each concern is internally consistent and substantiated — the building blocks of a coherent test strategy.
-
----
-
-## Section: test_strategy
-
-### Rules
-
-#### qa-sec-strategy-001 — Test strategy section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'test_strategy'
-- **Status:** {{ strategy_001_status }}
-- **Evidence:** {{ strategy_001_evidence }}
-
-#### qa-sec-strategy-002 — Test strategy defines approach
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section contains a statement of the overall testing approach and philosophy
-- **Status:** {{ strategy_002_status }}
-- **Evidence:** {{ strategy_002_evidence }}
-
-#### qa-sec-strategy-003 — Test strategy defines coverage goals
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section specifies target coverage metrics or thresholds
-- **Status:** {{ strategy_003_status }}
-- **Evidence:** {{ strategy_003_evidence }}
-
-#### qa-sec-strategy-004 — Test strategy references architecture
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section references Architecture Documentation for test scope
-- **Status:** {{ strategy_004_status }}
-- **Evidence:** {{ strategy_004_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| qa-strategy-derives-architecture | derives_from | architecture:system_overview | incoming | {{ rel_strategy_arch }} |
-
----
-
-## Section: unit_testing
-
-### Rules
-
-#### qa-sec-unit-001 — Unit testing section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'unit_testing'
-- **Status:** {{ unit_001_status }}
-- **Evidence:** {{ unit_001_evidence }}
-
-#### qa-sec-unit-002 — Unit testing defines scope
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section specifies what components or modules are covered by unit tests
-- **Status:** {{ unit_002_status }}
-- **Evidence:** {{ unit_002_evidence }}
-
-#### qa-sec-unit-003 — Unit testing defines conventions
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section specifies naming conventions, structure, or patterns for unit tests
-- **Status:** {{ unit_003_status }}
-- **Evidence:** {{ unit_003_evidence }}
-
-#### qa-sec-unit-004 — Unit testing references engineering standards
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section references Engineering Documentation testing standards
-- **Status:** {{ unit_004_status }}
-- **Evidence:** {{ unit_004_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| qa-unit-derives-engineering | derives_from | engineering:testing_standards | incoming | {{ rel_unit_engineering }} |
-
----
-
-## Section: integration_testing
-
-### Rules
-
-#### qa-sec-integration-001 — Integration testing section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'integration_testing'
-- **Status:** {{ integration_001_status }}
-- **Evidence:** {{ integration_001_evidence }}
-
-#### qa-sec-integration-002 — Integration testing defines interfaces
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section specifies which component interfaces are tested
-- **Status:** {{ integration_002_status }}
-- **Evidence:** {{ integration_002_evidence }}
-
-#### qa-sec-integration-003 — Integration testing defines scenarios
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section contains at least one integration test scenario or use case
-- **Status:** {{ integration_003_status }}
-- **Evidence:** {{ integration_003_evidence }}
-
-#### qa-sec-integration-004 — Integration testing references architecture
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section references Architecture Documentation communication paths or data flow
-- **Status:** {{ integration_004_status }}
-- **Evidence:** {{ integration_004_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| qa-integration-derives-architecture | derives_from | architecture:communication_paths | incoming | {{ rel_integration_arch }} |
-
----
-
-## Section: security_testing
-
-### Rules
-
-#### qa-sec-security-001 — Security testing section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'security_testing'
-- **Status:** {{ security_001_status }}
-- **Evidence:** {{ security_001_evidence }}
-
-#### qa-sec-security-002 — Security testing defines threat coverage
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section specifies which security threats or attack vectors are tested
-- **Status:** {{ security_002_status }}
-- **Evidence:** {{ security_002_evidence }}
-
-#### qa-sec-security-003 — Security testing defines test methods
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section specifies testing methods (SAST, DAST, penetration, etc.)
-- **Status:** {{ security_003_status }}
-- **Evidence:** {{ security_003_evidence }}
-
-#### qa-sec-security-004 — Security testing references security standard
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section references Security Documentation threat model
-- **Status:** {{ security_004_status }}
-- **Evidence:** {{ security_004_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| qa-security-derives-security | derives_from | security:threat_model | incoming | {{ rel_security_security }} |
-
----
-
-## Section: purpose
-
-### Rules
-
-#### qa-sec-purpose-001 — Purpose section exists
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** document has a section with semantic_type = 'purpose'
-- **Status:** {{ purpose_001_status }}
-- **Evidence:** {{ purpose_001_evidence }}
-
-#### qa-sec-purpose-002 — Purpose states QA intent
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section contains a statement of why QA Documentation exists
-- **Status:** {{ purpose_002_status }}
-- **Evidence:** {{ purpose_002_evidence }}
-
-#### qa-sec-purpose-003 — Purpose defines scope boundaries
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section defines what QA Documentation is and is not
-- **Status:** {{ purpose_003_status }}
-- **Evidence:** {{ purpose_003_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| qa-purpose-derives-vision | derives_from | vision:purpose | incoming | {{ rel_purpose_vision }} |
-
----
-
-## Section: e2e_testing
-
-### Rules
-
-#### qa-sec-e2e_testing-001 — E2E Testing section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'e2e_testing'
-- **Status:** {{ e2e_001_status }}
-- **Evidence:** {{ e2e_001_evidence }}
-
-#### qa-sec-e2e_testing-002 — E2E Testing has substantive content
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section contains at least one paragraph of project-specific content
-- **Status:** {{ e2e_002_status }}
-- **Evidence:** {{ e2e_002_evidence }}
-
-#### qa-sec-e2e_testing-003 — E2E Testing is specific to this project
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section contains project-specific details, not generic boilerplate
-- **Status:** {{ e2e_003_status }}
-- **Evidence:** {{ e2e_003_evidence }}
-
----
-
-## Section: smoke_testing
-
-### Rules
-
-#### qa-sec-smoke_testing-001 — Smoke Testing section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'smoke_testing'
-- **Status:** {{ smoke_001_status }}
-- **Evidence:** {{ smoke_001_evidence }}
-
-#### qa-sec-smoke_testing-002 — Smoke Testing has substantive content
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section contains at least one paragraph of project-specific content
-- **Status:** {{ smoke_002_status }}
-- **Evidence:** {{ smoke_002_evidence }}
-
-#### qa-sec-smoke_testing-003 — Smoke Testing is specific to this project
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section contains project-specific details, not generic boilerplate
-- **Status:** {{ smoke_003_status }}
-- **Evidence:** {{ smoke_003_evidence }}
-
----
-
-## Section: load_testing
-
-### Rules
-
-#### qa-sec-load_testing-001 — Load Testing section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'load_testing'
-- **Status:** {{ load_001_status }}
-- **Evidence:** {{ load_001_evidence }}
-
-#### qa-sec-load_testing-002 — Load Testing has substantive content
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section contains at least one paragraph of project-specific content
-- **Status:** {{ load_002_status }}
-- **Evidence:** {{ load_002_evidence }}
-
-#### qa-sec-load_testing-003 — Load Testing is specific to this project
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section contains project-specific details, not generic boilerplate
-- **Status:** {{ load_003_status }}
-- **Evidence:** {{ load_003_evidence }}
-
----
-
-## Section: scalability_testing
-
-### Rules
-
-#### qa-sec-scalability_testing-001 — Scalability Testing section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'scalability_testing'
-- **Status:** {{ scalability_001_status }}
-- **Evidence:** {{ scalability_001_evidence }}
-
-#### qa-sec-scalability_testing-002 — Scalability Testing has substantive content
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section contains at least one paragraph of project-specific content
-- **Status:** {{ scalability_002_status }}
-- **Evidence:** {{ scalability_002_evidence }}
-
-#### qa-sec-scalability_testing-003 — Scalability Testing is specific to this project
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section contains project-specific details, not generic boilerplate
-- **Status:** {{ scalability_003_status }}
-- **Evidence:** {{ scalability_003_evidence }}
-
----
-
-## Score History
-
-| Date | Auditor | Score | Verdict | Revision |
-|---|---|---|---|---|
-| {{ audit_date }} | {{ auditor_name }} | {{ weighted_score }} | {{ verdict }} | 1 |
-
----
-
-## Trend
-
-{{ trend_indicator }} ({{ trend_description }})
-
----
-
-## Failures
-
-| Rule | Severity | Section | Evidence | Regression? |
-|---|---|---|---|---|
-{{ failures_table }}
-
----
-
-## Summary
-
-{{ summary_text }}
-
-### Section-Level Breakdown
-
-| Section | Weight | Score | Status |
-|---|---|---|---|
-| test_strategy | {{ strategy_weight }} | {{ strategy_score }} | {{ strategy_status }} |
-| unit_testing | {{ unit_weight }} | {{ unit_score }} | {{ unit_status }} |
-| integration_testing | {{ integration_weight }} | {{ integration_score }} | {{ integration_status }} |
-| security_testing | {{ security_weight }} | {{ security_score }} | {{ security_status }} |
-| purpose | {{ purpose_weight }} | {{ purpose_score }} | {{ purpose_status }} |
-| e2e_testing | {{ e2e_weight }} | {{ e2e_score }} | {{ e2e_status }} |
-| smoke_testing | {{ smoke_weight }} | {{ smoke_score }} | {{ smoke_status }} |
-| load_testing | {{ load_weight }} | {{ load_score }} | {{ load_status }} |
-| scalability_testing | {{ scalability_weight }} | {{ scalability_score }} | {{ scalability_status }} |
+| Domain | qa |
+| Standard | documentation-standards |
+| Section Rule Files | `audit/deterministic/section/12-qa/*.yaml` |
+| Auditor | System (deterministic engine) |
+| Audit Date | {{ created_at }} |
+| Revision | {{ revision_number }} |
+| Session | {{ session_id }} |

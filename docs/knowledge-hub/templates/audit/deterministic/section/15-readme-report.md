@@ -1,545 +1,263 @@
-# {{ document_title }} — README Section Audit Report
+# Deterministic Section Report — README
 
-> **Domain:** readme
-> **Scope:** section
-> **Standard:** documentation-standards
-> **Date:** {{ audit_date }}
-> **Auditor:** {{ auditor_name }}
+**Document:** {{ document_path }}
+**Standard:** `documentation-standards/15-readme-standards.md`
+**Rule Files:** `audit/deterministic/section/15-readme/*.yaml`
+**Auditor:** System (deterministic engine)
+**Audit Date:** {{ created_at }}
+**Revision:** {{ revision_number }}
 
 ---
 
-## Section-Level Score
+## Score
 
-| Metric | Value |
+**Deterministic Section Score: {{ score }} / 100**
+{% if previous_score %}({{ '↑ Improved' if score > previous_score else '↓ Regressed' if score < previous_score else '→ Unchanged' }} vs. previous run){% else %}(baseline — first audit of this document){% endif %}
+
+```
+overall = average of the 15 section scores below
+section_score = 100 × (Σ weight of passed rules in that section) / (Σ weight of all rules in that section)
+```
+
+### Score History
+
+| Revision | Date | Score | vs. Previous | vs. Baseline |
+|---:|---|---:|---|---|
+{% for r in revision_history -%}
+| {{ r.revision }} | {{ r.date }} | {{ r.score }} / 100 | {{ r.delta_previous_display }} | {{ r.delta_baseline_display }} |
+{% endfor -%}
+| {{ revision_number }} (current) | {{ created_at }} | {{ score }} / 100 | {{ delta_previous_display }} | {{ delta_baseline_display }} |
+
+{% if not previous_score %}No prior runs — this revision is the baseline every future run is compared against.{% endif %}
+
+### Section Scores
+
+| # | Section | Required | Weight | Score | Previous | Trend |
+|---:|---|:---:|---:|---:|---:|---|
+| 1 | Project Name | **required** | 3.0 | {{ sections.project_name.score }} / 100 | {{ sections.project_name.previous_score | default('—') }} | {{ sections.project_name.trend_display }} |
+| 2 | Short Description | **required** | 3.0 | {{ sections.short_description.score }} / 100 | {{ sections.short_description.previous_score | default('—') }} | {{ sections.short_description.trend_display }} |
+| 3 | Overview | **required** | 3.0 | {{ sections.overview.score }} / 100 | {{ sections.overview.previous_score | default('—') }} | {{ sections.overview.trend_display }} |
+| 4 | Purpose | **required** | 3.0 | {{ sections.purpose.score }} / 100 | {{ sections.purpose.previous_score | default('—') }} | {{ sections.purpose.trend_display }} |
+| 5 | Key Capabilities | **required** | 3.0 | {{ sections.key_capabilities.score }} / 100 | {{ sections.key_capabilities.previous_score | default('—') }} | {{ sections.key_capabilities.trend_display }} |
+| 6 | Repository Structure | **required** | 3.0 | {{ sections.repository_structure.score }} / 100 | {{ sections.repository_structure.previous_score | default('—') }} | {{ sections.repository_structure.trend_display }} |
+| 7 | Documentation Structure | **required** | 3.0 | {{ sections.documentation_structure.score }} / 100 | {{ sections.documentation_structure.previous_score | default('—') }} | {{ sections.documentation_structure.trend_display }} |
+| 8 | Getting Started | **required** | 3.0 | {{ sections.getting_started.score }} / 100 | {{ sections.getting_started.previous_score | default('—') }} | {{ sections.getting_started.trend_display }} |
+| 9 | Installation | **required** | 3.0 | {{ sections.installation.score }} / 100 | {{ sections.installation.previous_score | default('—') }} | {{ sections.installation.trend_display }} |
+| 10 | Build | **required** | 3.0 | {{ sections.build.score }} / 100 | {{ sections.build.previous_score | default('—') }} | {{ sections.build.trend_display }} |
+| 11 | Usage | **required** | 3.0 | {{ sections.usage.score }} / 100 | {{ sections.usage.previous_score | default('—') }} | {{ sections.usage.trend_display }} |
+| 12 | Development | **required** | 3.0 | {{ sections.development.score }} / 100 | {{ sections.development.previous_score | default('—') }} | {{ sections.development.trend_display }} |
+| 13 | Contributing | **required** | 3.0 | {{ sections.contributing.score }} / 100 | {{ sections.contributing.previous_score | default('—') }} | {{ sections.contributing.trend_display }} |
+| 14 | Configuration | optional | 3.0 | {{ sections.configuration.score }} / 100 | {{ sections.configuration.previous_score | default('—') }} | {{ sections.configuration.trend_display }} |
+| 15 | License | optional | 3.0 | {{ sections.license.score }} / 100 | {{ sections.license.previous_score | default('—') }} | {{ sections.license.trend_display }} |
+
+The 13 required sections carry 39.0 of the document's 45.0 total rule weight — a document can only pass if those thirteen are both present and internally sound; the remaining two are recommended-quality signal, not gating.
+
+---
+
+## 1. Project Name — weight 3.0 — **required**
+
+**Why this matters:** Project Name is the canonical identifier — every reference to the project in docs, packages, and repos must resolve to one unambiguous name. A missing or incorrect project name means readers can't reliably find or refer to the project.
+
+**Section Score: {{ sections.project_name.score }} / 100** ({{ sections.project_name.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| readme-sec-name-001 | Project name section exists | error (mandatory) | 1.5 | {{ results['readme-sec-name-001'].previous_status \| default('—') }} | {{ results['readme-sec-name-001'].status }} | {{ results['readme-sec-name-001'].trend_display }} | {{ results['readme-sec-name-001'].evidence \| default('—') }} |
+| readme-sec-name-002 | Project name is present and non-empty | error (mandatory) | 1.0 | {{ results['readme-sec-name-002'].previous_status \| default('—') }} | {{ results['readme-sec-name-002'].status }} | {{ results['readme-sec-name-002'].trend_display }} | {{ results['readme-sec-name-002'].evidence \| default('—') }} |
+| readme-sec-name-003 | Project name matches repository name | warning (recommended) | 0.5 | {{ results['readme-sec-name-003'].previous_status \| default('—') }} | {{ results['readme-sec-name-003'].status }} | {{ results['readme-sec-name-003'].trend_display }} | {{ results['readme-sec-name-003'].evidence \| default('—') }} |
+
+## 2. Short Description — weight 3.0 — **required**
+
+**Why this matters:** Short Description is the one/two-sentence answer to "what is this and who is it for" — the first thing a reader evaluates before deciding to read further. A missing or bloated description loses readers before they reach the substance.
+
+**Section Score: {{ sections.short_description.score }} / 100** ({{ sections.short_description.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| readme-sec-short-001 | Short description section exists | error (mandatory) | 1.5 | {{ results['readme-sec-short-001'].previous_status \| default('—') }} | {{ results['readme-sec-short-001'].status }} | {{ results['readme-sec-short-001'].trend_display }} | {{ results['readme-sec-short-001'].evidence \| default('—') }} |
+| readme-sec-short-002 | Short description is concise (one to two sentences) | error (mandatory) | 1.0 | {{ results['readme-sec-short-002'].previous_status \| default('—') }} | {{ results['readme-sec-short-002'].status }} | {{ results['readme-sec-short-002'].trend_display }} | {{ results['readme-sec-short-002'].evidence \| default('—') }} |
+| readme-sec-short-003 | Short description states purpose | warning (recommended) | 0.5 | {{ results['readme-sec-short-003'].previous_status \| default('—') }} | {{ results['readme-sec-short-003'].status }} | {{ results['readme-sec-short-003'].trend_display }} | {{ results['readme-sec-short-003'].evidence \| default('—') }} |
+
+## 3. Overview — weight 3.0 — **required**
+
+**Why this matters:** Overview explains the problem the project solves and the approach taken, at a level a new reader can absorb before touching code. It bridges Short Description and the detailed docs — narrative, not technical.
+
+**Section Score: {{ sections.overview.score }} / 100** ({{ sections.overview.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| readme-sec-overview-001 | Overview section exists | error (mandatory) | 1.5 | {{ results['readme-sec-overview-001'].previous_status \| default('—') }} | {{ results['readme-sec-overview-001'].status }} | {{ results['readme-sec-overview-001'].trend_display }} | {{ results['readme-sec-overview-001'].evidence \| default('—') }} |
+| readme-sec-overview-002 | Overview provides context | error (mandatory) | 1.0 | {{ results['readme-sec-overview-002'].previous_status \| default('—') }} | {{ results['readme-sec-overview-002'].status }} | {{ results['readme-sec-overview-002'].trend_display }} | {{ results['readme-sec-overview-002'].evidence \| default('—') }} |
+| readme-sec-overview-003 | Overview references Architecture Documentation | warning (recommended) | 0.5 | {{ results['readme-sec-overview-003'].previous_status \| default('—') }} | {{ results['readme-sec-overview-003'].status }} | {{ results['readme-sec-overview-003'].trend_display }} | {{ results['readme-sec-overview-003'].evidence \| default('—') }} |
+
+## 4. Purpose — weight 3.0 — **required**
+
+**Why this matters:** Purpose defines what the README is and is not — the boundary between README and the rest of the documentation ecosystem. Without it, readers don't know when to stop reading the README and go elsewhere.
+
+**Section Score: {{ sections.purpose.score }} / 100** ({{ sections.purpose.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| readme-sec-purpose-001 | Purpose section exists | error (mandatory) | 1.5 | {{ results['readme-sec-purpose-001'].previous_status \| default('—') }} | {{ results['readme-sec-purpose-001'].status }} | {{ results['readme-sec-purpose-001'].trend_display }} | {{ results['readme-sec-purpose-001'].evidence \| default('—') }} |
+| readme-sec-purpose-002 | Purpose states project intent | error (mandatory) | 1.0 | {{ results['readme-sec-purpose-002'].previous_status \| default('—') }} | {{ results['readme-sec-purpose-002'].status }} | {{ results['readme-sec-purpose-002'].trend_display }} | {{ results['readme-sec-purpose-002'].evidence \| default('—') }} |
+| readme-sec-purpose-003 | Purpose defines scope boundaries | warning (recommended) | 0.5 | {{ results['readme-sec-purpose-003'].previous_status \| default('—') }} | {{ results['readme-sec-purpose-003'].status }} | {{ results['readme-sec-purpose-003'].trend_display }} | {{ results['readme-sec-purpose-003'].evidence \| default('—') }} |
+
+## 5. Key Capabilities — weight 3.0 — **required**
+
+**Why this matters:** Key Capabilities is a scannable list of what the project can do, letting a reader assess fit in seconds. Without it, readers must read the entire document to determine if the project meets their needs.
+
+**Section Score: {{ sections.key_capabilities.score }} / 100** ({{ sections.key_capabilities.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| readme-sec-capabilities-001 | Key capabilities section exists | error (mandatory) | 1.5 | {{ results['readme-sec-capabilities-001'].previous_status \| default('—') }} | {{ results['readme-sec-capabilities-001'].status }} | {{ results['readme-sec-capabilities-001'].trend_display }} | {{ results['readme-sec-capabilities-001'].evidence \| default('—') }} |
+| readme-sec-capabilities-002 | Key capabilities lists features | error (mandatory) | 1.0 | {{ results['readme-sec-capabilities-002'].previous_status \| default('—') }} | {{ results['readme-sec-capabilities-002'].status }} | {{ results['readme-sec-capabilities-002'].trend_display }} | {{ results['readme-sec-capabilities-002'].evidence \| default('—') }} |
+| readme-sec-capabilities-003 | Key capabilities references Feature Documentation | warning (recommended) | 0.5 | {{ results['readme-sec-capabilities-003'].previous_status \| default('—') }} | {{ results['readme-sec-capabilities-003'].status }} | {{ results['readme-sec-capabilities-003'].trend_display }} | {{ results['readme-sec-capabilities-003'].evidence \| default('—') }} |
+
+## 6. Repository Structure — weight 3.0 — **required**
+
+**Why this matters:** Repository Structure orients a new contributor to the directory layout at a glance. Without it, newcomers must explore the filesystem blindly to understand where things live.
+
+**Section Score: {{ sections.repository_structure.score }} / 100** ({{ sections.repository_structure.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| readme-sec-repo-001 | Repository structure section exists | error (mandatory) | 1.5 | {{ results['readme-sec-repo-001'].previous_status \| default('—') }} | {{ results['readme-sec-repo-001'].status }} | {{ results['readme-sec-repo-001'].trend_display }} | {{ results['readme-sec-repo-001'].evidence \| default('—') }} |
+| readme-sec-repo-002 | Repository structure describes layout | error (mandatory) | 1.0 | {{ results['readme-sec-repo-002'].previous_status \| default('—') }} | {{ results['readme-sec-repo-002'].status }} | {{ results['readme-sec-repo-002'].trend_display }} | {{ results['readme-sec-repo-002'].evidence \| default('—') }} |
+| readme-sec-repo-003 | Repository structure lists key directories | warning (recommended) | 0.5 | {{ results['readme-sec-repo-003'].previous_status \| default('—') }} | {{ results['readme-sec-repo-003'].status }} | {{ results['readme-sec-repo-003'].trend_display }} | {{ results['readme-sec-repo-003'].evidence \| default('—') }} |
+
+## 7. Documentation Structure — weight 3.0 — **required**
+
+**Why this matters:** Documentation Structure tells a reader where the rest of the documentation lives and in what order to read it. Without it, the README is an island — readers can't find the deeper docs.
+
+**Section Score: {{ sections.documentation_structure.score }} / 100** ({{ sections.documentation_structure.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| readme-sec-doc-struct-001 | Documentation structure section exists | error (mandatory) | 1.5 | {{ results['readme-sec-doc-struct-001'].previous_status \| default('—') }} | {{ results['readme-sec-doc-struct-001'].status }} | {{ results['readme-sec-doc-struct-001'].trend_display }} | {{ results['readme-sec-doc-struct-001'].evidence \| default('—') }} |
+| readme-sec-doc-struct-002 | Documentation structure describes docs layout | error (mandatory) | 1.0 | {{ results['readme-sec-doc-struct-002'].previous_status \| default('—') }} | {{ results['readme-sec-doc-struct-002'].status }} | {{ results['readme-sec-doc-struct-002'].trend_display }} | {{ results['readme-sec-doc-struct-002'].evidence \| default('—') }} |
+| readme-sec-doc-struct-003 | Documentation structure references knowledge hub | warning (recommended) | 0.5 | {{ results['readme-sec-doc-struct-003'].previous_status \| default('—') }} | {{ results['readme-sec-doc-struct-003'].status }} | {{ results['readme-sec-doc-struct-003'].trend_display }} | {{ results['readme-sec-doc-struct-003'].evidence \| default('—') }} |
+
+## 8. Getting Started — weight 3.0 — **required**
+
+**Why this matters:** Getting Started guides a user from zero to running the project. Without it, a new user must piece together instructions from Installation, Build, and Usage to figure out the actual first step.
+
+**Section Score: {{ sections.getting_started.score }} / 100** ({{ sections.getting_started.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| readme-sec-start-001 | Getting started section exists | error (mandatory) | 1.5 | {{ results['readme-sec-start-001'].previous_status \| default('—') }} | {{ results['readme-sec-start-001'].status }} | {{ results['readme-sec-start-001'].trend_display }} | {{ results['readme-sec-start-001'].evidence \| default('—') }} |
+| readme-sec-start-002 | Getting started provides quick start instructions | error (mandatory) | 1.0 | {{ results['readme-sec-start-002'].previous_status \| default('—') }} | {{ results['readme-sec-start-002'].status }} | {{ results['readme-sec-start-002'].trend_display }} | {{ results['readme-sec-start-002'].evidence \| default('—') }} |
+| readme-sec-start-003 | Getting started has prerequisites | warning (recommended) | 0.5 | {{ results['readme-sec-start-003'].previous_status \| default('—') }} | {{ results['readme-sec-start-003'].status }} | {{ results['readme-sec-start-003'].trend_display }} | {{ results['readme-sec-start-003'].evidence \| default('—') }} |
+
+## 9. Installation — weight 3.0 — **required**
+
+**Why this matters:** Installation gets the project onto a machine — prerequisites and exact commands. Without explicit install steps, users hit silent failures or waste time figuring out dependencies.
+
+**Section Score: {{ sections.installation.score }} / 100** ({{ sections.installation.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| readme-sec-install-001 | Installation section exists | error (mandatory) | 1.5 | {{ results['readme-sec-install-001'].previous_status \| default('—') }} | {{ results['readme-sec-install-001'].status }} | {{ results['readme-sec-install-001'].trend_display }} | {{ results['readme-sec-install-001'].evidence \| default('—') }} |
+| readme-sec-install-002 | Installation provides steps | error (mandatory) | 1.0 | {{ results['readme-sec-install-002'].previous_status \| default('—') }} | {{ results['readme-sec-install-002'].status }} | {{ results['readme-sec-install-002'].trend_display }} | {{ results['readme-sec-install-002'].evidence \| default('—') }} |
+| readme-sec-install-003 | Installation lists dependencies | warning (recommended) | 0.5 | {{ results['readme-sec-install-003'].previous_status \| default('—') }} | {{ results['readme-sec-install-003'].status }} | {{ results['readme-sec-install-003'].trend_display }} | {{ results['readme-sec-install-003'].evidence \| default('—') }} |
+
+## 10. Build — weight 3.0 — **required**
+
+**Why this matters:** Build documents how to produce a build artifact from source. Without it, contributors don't know how to compile or package the project, and may produce inconsistent artifacts.
+
+**Section Score: {{ sections.build.score }} / 100** ({{ sections.build.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| readme-sec-build-001 | Build section exists | error (mandatory) | 1.5 | {{ results['readme-sec-build-001'].previous_status \| default('—') }} | {{ results['readme-sec-build-001'].status }} | {{ results['readme-sec-build-001'].trend_display }} | {{ results['readme-sec-build-001'].evidence \| default('—') }} |
+| readme-sec-build-002 | Build provides instructions | error (mandatory) | 1.0 | {{ results['readme-sec-build-002'].previous_status \| default('—') }} | {{ results['readme-sec-build-002'].status }} | {{ results['readme-sec-build-002'].trend_display }} | {{ results['readme-sec-build-002'].evidence \| default('—') }} |
+| readme-sec-build-003 | Build references Build Documentation | warning (recommended) | 0.5 | {{ results['readme-sec-build-003'].previous_status \| default('—') }} | {{ results['readme-sec-build-003'].status }} | {{ results['readme-sec-build-003'].trend_display }} | {{ results['readme-sec-build-003'].evidence \| default('—') }} |
+
+## 11. Usage — weight 3.0 — **required**
+
+**Why this matters:** Usage demonstrates the project's primary functions with real, runnable examples. Without concrete examples, readers can't verify the project does what they need, and they have no starting point for their own use.
+
+**Section Score: {{ sections.usage.score }} / 100** ({{ sections.usage.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| readme-sec-usage-001 | Usage section exists | error (mandatory) | 1.5 | {{ results['readme-sec-usage-001'].previous_status \| default('—') }} | {{ results['readme-sec-usage-001'].status }} | {{ results['readme-sec-usage-001'].trend_display }} | {{ results['readme-sec-usage-001'].evidence \| default('—') }} |
+| readme-sec-usage-002 | Usage provides examples | error (mandatory) | 1.0 | {{ results['readme-sec-usage-002'].previous_status \| default('—') }} | {{ results['readme-sec-usage-002'].status }} | {{ results['readme-sec-usage-002'].trend_display }} | {{ results['readme-sec-usage-002'].evidence \| default('—') }} |
+| readme-sec-usage-003 | Usage references Feature Documentation | warning (recommended) | 0.5 | {{ results['readme-sec-usage-003'].previous_status \| default('—') }} | {{ results['readme-sec-usage-003'].status }} | {{ results['readme-sec-usage-003'].trend_display }} | {{ results['readme-sec-usage-003'].evidence \| default('—') }} |
+
+## 12. Development — weight 3.0 — **required**
+
+**Why this matters:** Development gets a contributor from clone to running the test suite and understanding the workflow. Without it, contributors guess at setup steps and may submit code that doesn't match project conventions.
+
+**Section Score: {{ sections.development.score }} / 100** ({{ sections.development.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| readme-sec-dev-001 | Development section exists | error (mandatory) | 1.5 | {{ results['readme-sec-dev-001'].previous_status \| default('—') }} | {{ results['readme-sec-dev-001'].status }} | {{ results['readme-sec-dev-001'].trend_display }} | {{ results['readme-sec-dev-001'].evidence \| default('—') }} |
+| readme-sec-dev-002 | Development provides guidelines | error (mandatory) | 1.0 | {{ results['readme-sec-dev-002'].previous_status \| default('—') }} | {{ results['readme-sec-dev-002'].status }} | {{ results['readme-sec-dev-002'].trend_display }} | {{ results['readme-sec-dev-002'].evidence \| default('—') }} |
+| readme-sec-dev-003 | Development references Engineering Documentation | warning (recommended) | 0.5 | {{ results['readme-sec-dev-003'].previous_status \| default('—') }} | {{ results['readme-sec-dev-003'].status }} | {{ results['readme-sec-dev-003'].trend_display }} | {{ results['readme-sec-dev-003'].evidence \| default('—') }} |
+
+## 13. Contributing — weight 3.0 — **required**
+
+**Why this matters:** Contributing tells an external contributor how to submit a change that gets accepted. Without it, contributors don't know the process, review expectations, or quality bar, and first-time contributors have to guess or ask.
+
+**Section Score: {{ sections.contributing.score }} / 100** ({{ sections.contributing.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| readme-sec-contrib-001 | Contributing section exists | error (mandatory) | 1.5 | {{ results['readme-sec-contrib-001'].previous_status \| default('—') }} | {{ results['readme-sec-contrib-001'].status }} | {{ results['readme-sec-contrib-001'].trend_display }} | {{ results['readme-sec-contrib-001'].evidence \| default('—') }} |
+| readme-sec-contrib-002 | Contributing provides process | error (mandatory) | 1.0 | {{ results['readme-sec-contrib-002'].previous_status \| default('—') }} | {{ results['readme-sec-contrib-002'].status }} | {{ results['readme-sec-contrib-002'].trend_display }} | {{ results['readme-sec-contrib-002'].evidence \| default('—') }} |
+| readme-sec-contrib-003 | Contributing defines PR process | warning (recommended) | 0.5 | {{ results['readme-sec-contrib-003'].previous_status \| default('—') }} | {{ results['readme-sec-contrib-003'].status }} | {{ results['readme-sec-contrib-003'].trend_display }} | {{ results['readme-sec-contrib-003'].evidence \| default('—') }} |
+
+## 14. Configuration — weight 3.0 — optional
+
+**Why this matters:** Configuration documents the environment variables and config files that control runtime behavior. Without it, users must read source code to discover what's configurable.
+
+**Section Score: {{ sections.configuration.score }} / 100** ({{ sections.configuration.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| readme-sec-configuration-001 | Configuration section exists | error (mandatory) | 1.5 | {{ results['readme-sec-configuration-001'].previous_status \| default('—') }} | {{ results['readme-sec-configuration-001'].status }} | {{ results['readme-sec-configuration-001'].trend_display }} | {{ results['readme-sec-configuration-001'].evidence \| default('—') }} |
+| readme-sec-configuration-002 | Configuration has substantive content | error (mandatory) | 1.0 | {{ results['readme-sec-configuration-002'].previous_status \| default('—') }} | {{ results['readme-sec-configuration-002'].status }} | {{ results['readme-sec-configuration-002'].trend_display }} | {{ results['readme-sec-configuration-002'].evidence \| default('—') }} |
+| readme-sec-configuration-003 | Configuration is specific to this project | warning (recommended) | 0.5 | {{ results['readme-sec-configuration-003'].previous_status \| default('—') }} | {{ results['readme-sec-configuration-003'].status }} | {{ results['readme-sec-configuration-003'].trend_display }} | {{ results['readme-sec-configuration-003'].evidence \| default('—') }} |
+
+## 15. License — weight 3.0 — optional
+
+**Why this matters:** License states the exact license name with a link to the full text. Without it, the legal terms of use are ambiguous, which may block adoption in commercial or regulated environments.
+
+**Section Score: {{ sections.license.score }} / 100** ({{ sections.license.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| readme-sec-license-001 | License section exists | error (mandatory) | 1.5 | {{ results['readme-sec-license-001'].previous_status \| default('—') }} | {{ results['readme-sec-license-001'].status }} | {{ results['readme-sec-license-001'].trend_display }} | {{ results['readme-sec-license-001'].evidence \| default('—') }} |
+| readme-sec-license-002 | License has substantive content | error (mandatory) | 1.0 | {{ results['readme-sec-license-002'].previous_status \| default('—') }} | {{ results['readme-sec-license-002'].status }} | {{ results['readme-sec-license-002'].trend_display }} | {{ results['readme-sec-license-002'].evidence \| default('—') }} |
+| readme-sec-license-003 | License is specific to this project | warning (recommended) | 0.5 | {{ results['readme-sec-license-003'].previous_status \| default('—') }} | {{ results['readme-sec-license-003'].status }} | {{ results['readme-sec-license-003'].trend_display }} | {{ results['readme-sec-license-003'].evidence \| default('—') }} |
+
+---
+
+## Failures Requiring Attention
+
+{% if failed_rules | length > 0 %}
+| Section | Rule | Message | Evidence | New This Run? |
+|---|---|---|---|---|
+{% for r in failed_rules -%}
+| {{ r.section_type }} | {{ r.id }} | {{ r.message }} | {{ r.evidence | default('—') }} | {{ 'Yes — regression' if r.is_new_failure else 'No — carried over' }} |
+{% endfor %}
+{% else %}
+No failures across all 15 sections.
+{% endif %}
+
+---
+
+## Metadata
+
+| Field | Value |
 |---|---|
-| **Weight Sum** | {{ section_weight_sum }} |
-| **Weighted Score** | {{ weighted_score }} |
-| **Max Possible** | {{ section_weight_sum }} |
-| **Percentage** | {{ score_percentage }} |
-| **Verdict** | {{ verdict }} |
-
-**Why this matters:** README sections define specific onboarding components. Section-level audits verify each concern is internally consistent and substantiated — the building blocks of a coherent entry point.
-
----
-
-## Section: project_name
-
-### Rules
-
-#### readme-sec-name-001 — Project name section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'project_name'
-- **Status:** {{ name_001_status }}
-- **Evidence:** {{ name_001_evidence }}
-
-#### readme-sec-name-002 — Project name is present
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section contains a non-empty project name
-- **Status:** {{ name_002_status }}
-- **Evidence:** {{ name_002_evidence }}
-
-#### readme-sec-name-003 — Project name matches repository
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** project name matches the repository or package name
-- **Status:** {{ name_003_status }}
-- **Evidence:** {{ name_003_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| readme-name-derives-build | derives_from | build:versioning_naming | incoming | {{ rel_name_build }} |
-
----
-
-## Section: short_description
-
-### Rules
-
-#### readme-sec-short-desc-001 — Short description section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'short_description'
-- **Status:** {{ short_desc_001_status }}
-- **Evidence:** {{ short_desc_001_evidence }}
-
-#### readme-sec-short-desc-002 — Short description is concise
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section is no longer than 100 words
-- **Status:** {{ short_desc_002_status }}
-- **Evidence:** {{ short_desc_002_evidence }}
-
-#### readme-sec-short-desc-003 — Short description references vision
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section aligns with Vision Statement
-- **Status:** {{ short_desc_003_status }}
-- **Evidence:** {{ short_desc_003_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| readme-short-desc-derives-vision | derives_from | vision:vision_statement | incoming | {{ rel_short_desc_vision }} |
-
----
-
-## Section: overview
-
-### Rules
-
-#### readme-sec-overview-001 — Overview section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'overview'
-- **Status:** {{ overview_001_status }}
-- **Evidence:** {{ overview_001_evidence }}
-
-#### readme-sec-overview-002 — Overview describes system at high level
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section describes the system's architecture or purpose at a high level
-- **Status:** {{ overview_002_status }}
-- **Evidence:** {{ overview_002_evidence }}
-
-#### readme-sec-overview-003 — Overview references architecture
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section references Architecture Documentation
-- **Status:** {{ overview_003_status }}
-- **Evidence:** {{ overview_003_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| readme-overview-derives-architecture | derives_from | architecture:system_overview | incoming | {{ rel_overview_architecture }} |
-
----
-
-## Section: purpose
-
-### Rules
-
-#### readme-sec-purpose-001 — Purpose section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'purpose'
-- **Status:** {{ purpose_001_status }}
-- **Evidence:** {{ purpose_001_evidence }}
-
-#### readme-sec-purpose-002 — Purpose states project intent
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section contains a statement of why this project exists
-- **Status:** {{ purpose_002_status }}
-- **Evidence:** {{ purpose_002_evidence }}
-
-#### readme-sec-purpose-003 — Purpose references vision
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section references Vision Documentation
-- **Status:** {{ purpose_003_status }}
-- **Evidence:** {{ purpose_003_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| readme-purpose-derives-vision | derives_from | vision:purpose | incoming | {{ rel_purpose_vision }} |
-
----
-
-## Section: key_capabilities
-
-### Rules
-
-#### readme-sec-caps-001 — Key capabilities section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'key_capabilities'
-- **Status:** {{ caps_001_status }}
-- **Evidence:** {{ caps_001_evidence }}
-
-#### readme-sec-caps-002 — Key capabilities lists features
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section lists at least three key capabilities
-- **Status:** {{ caps_002_status }}
-- **Evidence:** {{ caps_002_evidence }}
-
-#### readme-sec-caps-003 — Key capabilities references feature docs
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section references Feature Documentation
-- **Status:** {{ caps_003_status }}
-- **Evidence:** {{ caps_003_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| readme-capabilities-derives-feature | derives_from | feature:purpose | incoming | {{ rel_caps_feature }} |
-
----
-
-## Section: repository_structure
-
-### Rules
-
-#### readme-sec-repo-001 — Repository structure section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'repository_structure'
-- **Status:** {{ repo_001_status }}
-- **Evidence:** {{ repo_001_evidence }}
-
-#### readme-sec-repo-002 — Repository structure describes layout
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section describes the directory or file layout
-- **Status:** {{ repo_002_status }}
-- **Evidence:** {{ repo_002_evidence }}
-
-#### readme-sec-repo-003 — Repository structure references engineering
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section references Engineering Documentation
-- **Status:** {{ repo_003_status }}
-- **Evidence:** {{ repo_003_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| readme-repo-struct-derives-engineering | derives_from | engineering:project_layout | incoming | {{ rel_repo_engineering }} |
-
----
-
-## Section: documentation_structure
-
-### Rules
-
-#### readme-sec-doc-struct-001 — Documentation structure section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'documentation_structure'
-- **Status:** {{ doc_struct_001_status }}
-- **Evidence:** {{ doc_struct_001_evidence }}
-
-#### readme-sec-doc-struct-002 — Documentation structure describes doc layout
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section describes where documentation lives and how it's organized
-- **Status:** {{ doc_struct_002_status }}
-- **Evidence:** {{ doc_struct_002_evidence }}
-
-#### readme-sec-doc-struct-003 — Documentation structure references architecture
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section references Architecture Documentation
-- **Status:** {{ doc_struct_003_status }}
-- **Evidence:** {{ doc_struct_003_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| readme-doc-struct-derives-architecture | derives_from | architecture:system_overview | incoming | {{ rel_doc_struct_architecture }} |
-
----
-
-## Section: getting_started
-
-### Rules
-
-#### readme-sec-gs-001 — Getting started section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'getting_started'
-- **Status:** {{ gs_001_status }}
-- **Evidence:** {{ gs_001_evidence }}
-
-#### readme-sec-gs-002 — Getting started provides quick start
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section provides a minimal path to first use
-- **Status:** {{ gs_002_status }}
-- **Evidence:** {{ gs_002_evidence }}
-
-#### readme-sec-gs-003 — Getting started references build
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section references Build Documentation
-- **Status:** {{ gs_003_status }}
-- **Evidence:** {{ gs_003_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| readme-getting-started-derives-build | derives_from | build:documentation_quality | incoming | {{ rel_gs_build }} |
-
----
-
-## Section: installation
-
-### Rules
-
-#### readme-sec-install-001 — Installation section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'installation'
-- **Status:** {{ install_001_status }}
-- **Evidence:** {{ install_001_evidence }}
-
-#### readme-sec-install-002 — Installation provides steps
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section provides step-by-step installation instructions
-- **Status:** {{ install_002_status }}
-- **Evidence:** {{ install_002_evidence }}
-
-#### readme-sec-install-003 — Installation references build
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section references Build Documentation
-- **Status:** {{ install_003_status }}
-- **Evidence:** {{ install_003_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| readme-install-derives-build | derives_from | build:versioning_naming | incoming | {{ rel_install_build }} |
-
----
-
-## Section: build
-
-### Rules
-
-#### readme-sec-build-001 — Build section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'build'
-- **Status:** {{ build_001_status }}
-- **Evidence:** {{ build_001_evidence }}
-
-#### readme-sec-build-002 — Build provides instructions
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section provides build instructions
-- **Status:** {{ build_002_status }}
-- **Evidence:** {{ build_002_evidence }}
-
-#### readme-sec-build-003 — Build references build docs
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section references Build Documentation
-- **Status:** {{ build_003_status }}
-- **Evidence:** {{ build_003_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| readme-build-derives-build | derives_from | build:documentation_quality | incoming | {{ rel_build_build }} |
-
----
-
-## Section: usage
-
-### Rules
-
-#### readme-sec-usage-001 — Usage section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'usage'
-- **Status:** {{ usage_001_status }}
-- **Evidence:** {{ usage_001_evidence }}
-
-#### readme-sec-usage-002 — Usage provides examples
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section contains at least one usage example or code snippet
-- **Status:** {{ usage_002_status }}
-- **Evidence:** {{ usage_002_evidence }}
-
-#### readme-sec-usage-003 — Usage references feature docs
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section references Feature Documentation for detailed usage
-- **Status:** {{ usage_003_status }}
-- **Evidence:** {{ usage_003_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| readme-usage-derives-feature | derives_from | feature:purpose | incoming | {{ rel_usage_feature }} |
-
----
-
-## Section: development
-
-### Rules
-
-#### readme-sec-dev-001 — Development section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'development'
-- **Status:** {{ dev_001_status }}
-- **Evidence:** {{ dev_001_evidence }}
-
-#### readme-sec-dev-002 — Development provides setup instructions
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section provides local development setup instructions
-- **Status:** {{ dev_002_status }}
-- **Evidence:** {{ dev_002_evidence }}
-
-#### readme-sec-dev-003 — Development references engineering
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section references Engineering Documentation
-- **Status:** {{ dev_003_status }}
-- **Evidence:** {{ dev_003_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| readme-dev-derives-engineering | derives_from | engineering:code_standards | incoming | {{ rel_dev_engineering }} |
-
----
-
-## Section: contributing
-
-### Rules
-
-#### readme-sec-contrib-001 — Contributing section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'contributing'
-- **Status:** {{ contrib_001_status }}
-- **Evidence:** {{ contrib_001_evidence }}
-
-#### readme-sec-contrib-002 — Contributing provides guidelines
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section provides contribution guidelines
-- **Status:** {{ contrib_002_status }}
-- **Evidence:** {{ contrib_002_evidence }}
-
-#### readme-sec-contrib-003 — Contributing references engineering
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section references Engineering Documentation
-- **Status:** {{ contrib_003_status }}
-- **Evidence:** {{ contrib_003_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| readme-contrib-derives-engineering | derives_from | engineering:code_standards | incoming | {{ rel_contrib_engineering }} |
-
----
-
-## Section: configuration
-
-### Rules
-
-#### readme-sec-config-001 — Configuration section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'configuration'
-- **Status:** {{ config_001_status }}
-- **Evidence:** {{ config_001_evidence }}
-
-#### readme-sec-config-002 — Configuration has substantive content
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section contains at least one paragraph of project-specific content
-- **Status:** {{ config_002_status }}
-- **Evidence:** {{ config_002_evidence }}
-
-#### readme-sec-config-003 — Configuration is specific to this project
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section contains project-specific details, not generic boilerplate
-- **Status:** {{ config_003_status }}
-- **Evidence:** {{ config_003_evidence }}
-
----
-
-## Section: license
-
-### Rules
-
-#### readme-sec-license-001 — License section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'license'
-- **Status:** {{ license_001_status }}
-- **Evidence:** {{ license_001_evidence }}
-
-#### readme-sec-license-002 — License specifies license type
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section specifies the project's license
-- **Status:** {{ license_002_status }}
-- **Evidence:** {{ license_002_evidence }}
-
----
-
-## Score History
-
-| Date | Auditor | Score | Verdict | Revision |
-|---|---|---|---|---|
-| {{ audit_date }} | {{ auditor_name }} | {{ weighted_score }} | {{ verdict }} | 1 |
-
----
-
-## Trend
-
-{{ trend_indicator }} ({{ trend_description }})
-
----
-
-## Failures
-
-| Rule | Severity | Section | Evidence | Regression? |
-|---|---|---|---|---|
-{{ failures_table }}
-
----
-
-## Summary
-
-{{ summary_text }}
-
-### Section-Level Breakdown
-
-| Section | Weight | Score | Status |
-|---|---|---|---|
-| project_name | {{ name_weight }} | {{ name_score }} | {{ name_status }} |
-| short_description | {{ short_desc_weight }} | {{ short_desc_score }} | {{ short_desc_status }} |
-| overview | {{ overview_weight }} | {{ overview_score }} | {{ overview_status }} |
-| purpose | {{ purpose_weight }} | {{ purpose_score }} | {{ purpose_status }} |
-| key_capabilities | {{ caps_weight }} | {{ caps_score }} | {{ caps_status }} |
-| repository_structure | {{ repo_weight }} | {{ repo_score }} | {{ repo_status }} |
-| documentation_structure | {{ doc_struct_weight }} | {{ doc_struct_score }} | {{ doc_struct_status }} |
-| getting_started | {{ gs_weight }} | {{ gs_score }} | {{ gs_status }} |
-| installation | {{ install_weight }} | {{ install_score }} | {{ install_status }} |
-| build | {{ build_weight }} | {{ build_score }} | {{ build_status }} |
-| usage | {{ usage_weight }} | {{ usage_score }} | {{ usage_status }} |
-| development | {{ dev_weight }} | {{ dev_score }} | {{ dev_status }} |
-| contributing | {{ contrib_weight }} | {{ contrib_score }} | {{ contrib_status }} |
-| configuration | {{ config_weight }} | {{ config_score }} | {{ config_status }} |
-| license | {{ license_weight }} | {{ license_score }} | {{ license_status }} |
+| Domain | readme |
+| Standard | documentation-standards |
+| Section Rule Files | `audit/deterministic/section/15-readme/*.yaml` |
+| Auditor | System (deterministic engine) |
+| Audit Date | {{ created_at }} |
+| Revision | {{ revision_number }} |
+| Session | {{ session_id }} |

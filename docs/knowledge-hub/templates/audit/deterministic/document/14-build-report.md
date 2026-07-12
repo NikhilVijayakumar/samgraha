@@ -1,161 +1,124 @@
-# {{ document_title }} — Build Document Audit Report
+# Deterministic Whole-Document Report — Build
 
-> **Domain:** build
-> **Scope:** document
-> **Standard:** documentation-standards
-> **Date:** {{ audit_date }}
-> **Auditor:** {{ auditor_name }}
+**Document:** {{ document_path }}
+**Standard:** `documentation-standards/14-build-standards.md`
+**Rule File:** `audit/deterministic/document/14-build.yaml`
+**Auditor:** System (deterministic engine)
+**Audit Date:** {{ created_at }}
+**Revision:** {{ revision_number }}
 
 ---
 
-## Document-Level Score
+## Score
 
-| Metric | Value |
+**Deterministic Whole Score: {{ score }} / 100**
+{% if previous_score %}({{ '↑ Improved' if score > previous_score else '↓ Regressed' if score < previous_score else '→ Unchanged' }} vs. previous run){% else %}(baseline — first audit of this document){% endif %}
+
+```
+score = 100 × (Σ weight of passed rules) / (Σ weight of all rules)
+      = 100 × {{ passed_weight }} / 5.0
+```
+
+Total possible weight across all 6 document-level rules is fixed at **5.0** (build-doc-001 1.5, 002 1.0, 003 0.5, 004 1.0, 005 0.5, 006 0.5 — see `audit/deterministic/document/14-build.yaml`). Mandatory rules (001, 002, 004 — combined weight 3.5 of 5.0) carry most of the score; a single mandatory failure is heavier than any one recommended failure, by design.
+
+### Score History
+
+| Revision | Date | Score | vs. Previous | vs. Baseline |
+|---:|---|---:|---|---|
+{% for r in revision_history -%}
+| {{ r.revision }} | {{ r.date }} | {{ r.score }} / 100 | {{ r.delta_previous_display }} | {{ r.delta_baseline_display }} |
+{% endfor -%}
+| {{ revision_number }} (current) | {{ created_at }} | {{ score }} / 100 | {{ delta_previous_display }} | {{ delta_baseline_display }} |
+
+{% if not previous_score %}No prior runs — this revision is the baseline every future run is compared against.{% endif %}
+
+### Category Scores
+
+| Category | Score | Previous | Trend | Rules |
+|---|---:|---:|---|---|
+| Collection Completeness | {{ categories.collection_completeness.score }} / 100 | {{ categories.collection_completeness.previous_score | default('—') }} | {{ categories.collection_completeness.trend_display }} | build-doc-001, 002 |
+| Modularity | {{ categories.modularity.score }} / 100 | {{ categories.modularity.previous_score | default('—') }} | {{ categories.modularity.trend_display }} | build-doc-003 |
+| Derivation Completeness | {{ categories.derivation_completeness.score }} / 100 | {{ categories.derivation_completeness.previous_score | default('—') }} | {{ categories.derivation_completeness.trend_display }} | build-doc-004 |
+| Cross-References | {{ categories.cross_references.score }} / 100 | {{ categories.cross_references.previous_score | default('—') }} | {{ categories.cross_references.trend_display }} | build-doc-005 |
+| Duplicate Content | {{ categories.duplicate_content.score }} / 100 | {{ categories.duplicate_content.previous_score | default('—') }} | {{ categories.duplicate_content.trend_display }} | build-doc-006 |
+
+---
+
+## 1. Collection Completeness — weight 2.5 of 5.0
+
+**Why this matters:** Build Documentation is meant to read as one coherent packaging/distribution policy. A document missing a required section, or one with a required section that's present but empty, gives downstream Readme Documentation nothing to derive against for that concern — the gap propagates instead of being caught here.
+
+**Category Score: {{ categories.collection_completeness.score }} / 100** ({{ categories.collection_completeness.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| build-doc-001 | Required sections present (Documentation Quality, Security Checks, Versioning & Naming) | error (mandatory) | 1.5 | {{ results['build-doc-001'].previous_status \| default('—') }} | {{ results['build-doc-001'].status }} | {{ results['build-doc-001'].trend_display }} | {{ results['build-doc-001'].evidence \| default('—') }} |
+| build-doc-002 | No empty required sections — a heading alone doesn't satisfy the requirement | error (mandatory) | 1.0 | {{ results['build-doc-002'].previous_status \| default('—') }} | {{ results['build-doc-002'].status }} | {{ results['build-doc-002'].trend_display }} | {{ results['build-doc-002'].evidence \| default('—') }} |
+
+## 2. Modularity — weight 0.5 of 5.0
+
+**Why this matters:** Build Documentation is meant to be a focused document — one build concern per file. A document that mixes unrelated build configurations (e.g. two unrelated packaging strategies in the same file) is harder to keep consistent as either evolves, and harder for a reader to know which document is authoritative for what.
+
+**Category Score: {{ categories.modularity.score }} / 100** ({{ categories.modularity.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| build-doc-003 | Document has a single primary focus — does not mix unrelated build concerns | warning (recommended) | 0.5 | {{ results['build-doc-003'].previous_status \| default('—') }} | {{ results['build-doc-003'].status }} | {{ results['build-doc-003'].trend_display }} | {{ results['build-doc-003'].evidence \| default('—') }} |
+
+## 3. Derivation Completeness — weight 1.0 of 5.0
+
+**Why this matters:** Build is derived from Implementation Documentation — a Build document with no upstream reference reads as if it were authored in isolation from what the code actually does. Without the derivation link, there's no way to verify Build's packaging claims match what was actually implemented.
+
+**Category Score: {{ categories.derivation_completeness.score }} / 100** ({{ categories.derivation_completeness.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| build-doc-004 | Document references upstream Implementation Documentation | error (mandatory) | 1.0 | {{ results['build-doc-004'].previous_status \| default('—') }} | {{ results['build-doc-004'].status }} | {{ results['build-doc-004'].trend_display }} | {{ results['build-doc-004'].evidence \| default('—') }} |
+
+## 4. Cross-References — weight 0.5 of 5.0
+
+**Why this matters:** Build Documentation without downstream references is an orphan — it specifies packaging but has no traceable handoff to Readme Documentation that documents usage. Without cross-references, readers can't tell if downstream docs reflect the current build policy.
+
+**Category Score: {{ categories.cross_references.score }} / 100** ({{ categories.cross_references.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| build-doc-005 | References downstream Readme Documentation where applicable | warning (recommended) | 0.5 | {{ results['build-doc-005'].previous_status \| default('—') }} | {{ results['build-doc-005'].status }} | {{ results['build-doc-005'].trend_display }} | {{ results['build-doc-005'].evidence \| default('—') }} |
+
+## 5. Duplicate Content — weight 0.5 of 5.0
+
+**Why this matters:** Every build concept should be defined exactly once. Duplication is how two sections quietly drift apart over time — one gets updated, the copy doesn't, and now the document contradicts itself.
+
+**Category Score: {{ categories.duplicate_content.score }} / 100** ({{ categories.duplicate_content.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| build-doc-006 | No section repeats information already stated in another section | warning (recommended) | 0.5 | {{ results['build-doc-006'].previous_status \| default('—') }} | {{ results['build-doc-006'].status }} | {{ results['build-doc-006'].trend_display }} | {{ results['build-doc-006'].evidence \| default('—') }} |
+
+---
+
+## Failures Requiring Attention
+
+{% if failed_rules | length > 0 %}
+| Rule | Category | Message | Evidence | New This Run? |
+|---|---|---|---|---|
+{% for r in failed_rules -%}
+| {{ r.id }} | {{ r.category }} | {{ r.message }} | {{ r.evidence | default('—') }} | {{ 'Yes — regression' if r.is_new_failure else 'No — carried over' }} |
+{% endfor %}
+{% else %}
+No failures — all 6 document-level rules pass.
+{% endif %}
+
+---
+
+## Metadata
+
+| Field | Value |
 |---|---|
-| **Weight Sum** | 5.0 |
-| **Weighted Score** | {{ weighted_score }} |
-| **Max Possible** | 5.0 |
-| **Percentage** | {{ score_percentage }} |
-| **Verdict** | {{ verdict }} |
-
-**Why this matters:** Build documentation specifies packaging, distribution, and CI/CD validation. If security checks, versioning, and documentation quality contradict each other, builds ship with unvetted assumptions. Document-level checks catch cross-section drift that section-level audits miss.
-
----
-
-## Rule Results
-
-### build-doc-001 — Required sections present
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document contains all required sections per documentation-standards Build requirements
-- **Status:** {{ rule_001_status }}
-- **Evidence:** {{ rule_001_evidence }}
-- **Why this matters:** Missing sections leave build policy incomplete — packaging without security validation, or versioning without size checks.
-
-### build-doc-002 — No empty required sections
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** every required section has non-empty content (not just a heading)
-- **Status:** {{ rule_002_status }}
-- **Evidence:** {{ rule_002_evidence }}
-- **Why this matters:** Empty sections create the illusion of coverage. A heading with no content is worse than no heading at all.
-
-### build-doc-003 — Document covers one build concern
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** document has a single primary focus — does not mix unrelated build configurations
-- **Status:** {{ rule_003_status }}
-- **Evidence:** {{ rule_003_evidence }}
-- **Why this matters:** Bundling unrelated build configs into one document makes it impossible to audit any single concern in isolation.
-
-### build-doc-004 — Document derives from Implementation
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** document references upstream Implementation Documentation
-- **Status:** {{ rule_004_status }}
-- **Evidence:** {{ rule_004_evidence }}
-- **Why this matters:** Build documentation without an implementation anchor has no source of truth for what is being built or packaged.
-
-### build-doc-005 — Required cross-references present
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** document references downstream Readme Documentation where applicable
-- **Status:** {{ rule_005_status }}
-- **Evidence:** {{ rule_005_evidence }}
-- **Why this matters:** Build docs feed into Readme — if the chain breaks, installers and user-facing docs diverge from what was actually packaged.
-
-### build-doc-006 — No duplicate content within document
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** no section repeats the same information as another section
-- **Status:** {{ rule_006_status }}
-- **Evidence:** {{ rule_006_evidence }}
-- **Why this matters:** Duplicate content creates maintenance risk — one copy gets updated, the other doesn't, and they silently contradict.
-
----
-
-## Cross-Section Relationships
-
-### build-section-consistency (section_consistency)
-- **Owner:** document
-- **Description:** Sections within build docs are mutually consistent — security checks align with versioning, documentation quality aligns with both
-- **Status:** {{ relationship_consistency_status }}
-- **Evidence:** {{ relationship_consistency_evidence }}
-
-### build-collection-coherence (collection_coherence)
-- **Owner:** document
-- **Description:** All build documents in the domain cohere as one system — no orphaned or contradictory build configurations
-- **Status:** {{ relationship_coherence_status }}
-- **Evidence:** {{ relationship_coherence_evidence }}
-
-### build-terminology-drift (terminology_drift)
-- **Owner:** document
-- **Description:** Terminology is consistent across all build sections — same concept, same name
-- **Status:** {{ relationship_terminology_status }}
-- **Evidence:** {{ relationship_terminology_evidence }}
-
----
-
-## Section-Level Rule Summary
-
-| Section | Rules Checked | Errors | Warnings | Pass Rate |
-|---|---|---|---|---|
-| documentation_quality | {{ doc_quality_rules }} | {{ doc_quality_errors }} | {{ doc_quality_warnings }} | {{ doc_quality_pass }} |
-| security_checks | {{ sec_rules }} | {{ sec_errors }} | {{ sec_warnings }} | {{ sec_pass }} |
-| versioning_naming | {{ version_rules }} | {{ version_errors }} | {{ version_warnings }} | {{ version_pass }} |
-| purpose | {{ purpose_rules }} | {{ purpose_errors }} | {{ purpose_warnings }} | {{ purpose_pass }} |
-| size_checks | {{ size_rules }} | {{ size_errors }} | {{ size_warnings }} | {{ size_pass }} |
-| ml_artifact_management | {{ ml_rules }} | {{ ml_errors }} | {{ ml_warnings }} | {{ ml_pass }} |
-| cicd_validation | {{ cicd_rules }} | {{ cicd_errors }} | {{ cicd_warnings }} | {{ cicd_pass }} |
-| obfuscation_optimization | {{ obf_rules }} | {{ obf_errors }} | {{ obf_warnings }} | {{ obf_pass }} |
-
----
-
-## Score History
-
-| Date | Auditor | Score | Verdict | Revision |
-|---|---|---|---|---|
-| {{ audit_date }} | {{ auditor_name }} | {{ weighted_score }} | {{ verdict }} | 1 |
-
----
-
-## Trend
-
-{{ trend_indicator }} ({{ trend_description }})
-
----
-
-## Failures
-
-| Rule | Severity | Section | Evidence | Regression? |
-|---|---|---|---|---|
-{{ failures_table }}
-
----
-
-## Summary
-
-{{ summary_text }}
-
-### Document-Level Breakdown
-
-| Category | Weight | Score | Status |
-|---|---|---|---|
-| Section Completeness | 2.5 | {{ section_completeness_score }} | {{ section_completeness_status }} |
-| Modularity | 0.5 | {{ modularity_score }} | {{ modularity_status }} |
-| Derivation | 1.0 | {{ derivation_score }} | {{ derivation_status }} |
-| Cross-References | 0.5 | {{ crossref_score }} | {{ crossref_status }} |
-| Deduplication | 0.5 | {{ dedup_score }} | {{ dedup_status }} |
-
-### Section-Level Breakdown
-
-| Section | Weight | Score | Status |
-|---|---|---|---|
-| documentation_quality | 3.5 | {{ doc_quality_section_score }} | {{ doc_quality_section_status }} |
-| security_checks | 3.5 | {{ sec_section_score }} | {{ sec_section_status }} |
-| versioning_naming | 3.5 | {{ version_section_score }} | {{ version_section_status }} |
-| purpose | 1.5 | {{ purpose_section_score }} | {{ purpose_section_status }} |
-| size_checks | 3.0 | {{ size_section_score }} | {{ size_section_status }} |
-| ml_artifact_management | 3.0 | {{ ml_section_score }} | {{ ml_section_status }} |
-| cicd_validation | 3.0 | {{ cicd_section_score }} | {{ cicd_section_status }} |
-| obfuscation_optimization | 3.0 | {{ obf_section_score }} | {{ obf_section_status }} |
+| Domain | build |
+| Standard | documentation-standards |
+| Rule File | `audit/deterministic/document/14-build.yaml` |
+| Auditor | System (deterministic engine) |
+| Audit Date | {{ created_at }} |
+| Revision | {{ revision_number }} |
+| Session | {{ session_id }} |

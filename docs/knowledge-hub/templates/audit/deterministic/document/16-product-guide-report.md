@@ -1,116 +1,113 @@
-# {{ document_title }} — Product Guide Document Audit Report
+# Deterministic Whole-Document Report — Product Guide
 
-> **Domain:** product-guide
-> **Scope:** document
-> **Standard:** documentation-standards
-> **Date:** {{ audit_date }}
-> **Auditor:** {{ auditor_name }}
-
----
-
-## Document-Level Score
-
-| Metric | Value |
-|---|---|
-| **Weight Sum** | 4.5 |
-| **Weighted Score** | {{ weighted_score }} |
-| **Max Possible** | 4.5 |
-| **Percentage** | {{ score_percentage }} |
-| **Verdict** | {{ verdict }} |
-
-**Why this matters:** Product Guide documentation is a flat content domain — no derivation relationships. Document-level checks ensure the guide covers one topic, all required sections are present and populated, and body content is substantive rather than placeholder.
+**Document:** {{ document_path }}
+**Standard:** `documentation-standards/16-product-guide-standards.md`
+**Rule File:** `audit/deterministic/document/16-product-guide.yaml`
+**Auditor:** System (deterministic engine)
+**Audit Date:** {{ created_at }}
+**Revision:** {{ revision_number }}
 
 ---
 
-## Rule Results
+## Score
 
-### pg-doc-001 — Required sections present
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document contains all required sections per documentation-standards Product Guide requirements
-- **Status:** {{ rule_001_status }}
-- **Evidence:** {{ rule_001_evidence }}
-- **Why this matters:** Product Guide without required sections (title, body) gives readers no structural anchor — the document cannot be identified or consumed.
+**Deterministic Whole Score: {{ score }} / 100**
+{% if previous_score %}({{ '↑ Improved' if score > previous_score else '↓ Regressed' if score < previous_score else '→ Unchanged' }} vs. previous run){% else %}(baseline — first audit of this document){% endif %}
 
-### pg-doc-002 — No empty required sections
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** every required section has non-empty content (not just a heading)
-- **Status:** {{ rule_002_status }}
-- **Evidence:** {{ rule_002_evidence }}
-- **Why this matters:** Empty sections create false completeness — a heading promises content that never arrives, wasting reader time.
+```
+score = 100 × (Σ weight of passed rules) / (Σ weight of all rules)
+      = 100 × {{ passed_weight }} / 4.5
+```
 
-### pg-doc-003 — Document covers one product topic
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** document has a single primary focus — does not mix unrelated product guides
-- **Status:** {{ rule_003_status }}
-- **Evidence:** {{ rule_003_evidence }}
-- **Why this matters:** Bundling unrelated product guides into one document makes maintenance impossible — each guide drifts independently, and readers cannot find the specific topic they need.
+Total possible weight across all 5 document-level rules is fixed at **4.5** (pg-doc-001 1.5, 002 1.0, 003 0.5, 004 1.0, 005 0.5 — see `audit/deterministic/document/16-product-guide.yaml`). Mandatory rules (001, 002, 004 — combined weight 3.5 of 4.5) carry most of the score; a single mandatory failure is a heavier hit than any one recommended failure, by design.
 
-### pg-doc-004 — Body section is substantive
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** body section contains substantive content (not just links or references)
-- **Status:** {{ rule_004_status }}
-- **Evidence:** {{ rule_004_evidence }}
-- **Why this matters:** A Product Guide with an empty or link-only body gives readers no actual guidance — they arrive for answers and find signposts.
+### Score History
 
-### pg-doc-005 — No duplicate content within document
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** no section repeats the same information as another section
-- **Status:** {{ rule_005_status }}
-- **Evidence:** {{ rule_005_evidence }}
-- **Why this matters:** Duplicate content creates maintenance drift — one copy gets updated while the other silently goes stale, producing contradictions within the same document.
+| Revision | Date | Score | vs. Previous | vs. Baseline |
+|---:|---|---:|---|---|
+{% for r in revision_history -%}
+| {{ r.revision }} | {{ r.date }} | {{ r.score }} / 100 | {{ r.delta_previous_display }} | {{ r.delta_baseline_display }} |
+{% endfor -%}
+| {{ revision_number }} (current) | {{ created_at }} | {{ score }} / 100 | {{ delta_previous_display }} | {{ delta_baseline_display }} |
+
+{% if not previous_score %}No prior runs — this revision is the baseline every future run is compared against.{% endif %}
+
+### Category Scores
+
+| Category | Score | Previous | Trend | Rules |
+|---|---:|---:|---|---|
+| Collection Completeness | {{ categories.collection_completeness.score }} / 100 | {{ categories.collection_completeness.previous_score | default('—') }} | {{ categories.collection_completeness.trend_display }} | pg-doc-001, 002 |
+| Modularity | {{ categories.modularity.score }} / 100 | {{ categories.modularity.previous_score | default('—') }} | {{ categories.modularity.trend_display }} | pg-doc-003 |
+| Content Richness | {{ categories.content_richness.score }} / 100 | {{ categories.content_richness.previous_score | default('—') }} | {{ categories.content_richness.trend_display }} | pg-doc-004 |
+| Duplicate Content | {{ categories.duplicate_content.score }} / 100 | {{ categories.duplicate_content.previous_score | default('—') }} | {{ categories.duplicate_content.trend_display }} | pg-doc-005 |
 
 ---
 
-## Cross-Section Relationships
+## 1. Collection Completeness — weight 2.5 of 4.5
 
-### pg-section-consistency (section_consistency)
-- **Owner:** document
-- **Description:** Sections within product guide docs are mutually consistent — title matches body content, purpose aligns with context
+**Why this matters:** Product Guide is meant to be read as one coherent how-to document. A document missing a required section, or one with a required section that's present but empty, gives readers nothing actionable for that concern — the gap propagates downstream instead of being caught here.
 
-### pg-collection-coherence (collection_coherence)
-- **Owner:** document
-- **Description:** All product guide documents in the domain cohere as one system — no orphaned or contradictory guides
+**Category Score: {{ categories.collection_completeness.score }} / 100** ({{ categories.collection_completeness.trend_display }})
 
-### pg-terminology-drift (terminology_drift)
-- **Owner:** document
-- **Description:** Terminology is consistent across all product guide sections — same concept, same name
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| pg-doc-001 | Required sections present (title, body) | error (mandatory) | 1.5 | {{ results['pg-doc-001'].previous_status \| default('—') }} | {{ results['pg-doc-001'].status }} | {{ results['pg-doc-001'].trend_display }} | {{ results['pg-doc-001'].evidence \| default('—') }} |
+| pg-doc-002 | No empty required sections — a heading alone doesn't satisfy the requirement | error (mandatory) | 1.0 | {{ results['pg-doc-002'].previous_status \| default('—') }} | {{ results['pg-doc-002'].status }} | {{ results['pg-doc-002'].trend_display }} | {{ results['pg-doc-002'].evidence \| default('—') }} |
+
+## 2. Modularity — weight 0.5 of 4.5
+
+**Why this matters:** Product Guide is meant to be a focused document — one product topic per file. A document that mixes unrelated product guides is harder to keep consistent as either topic evolves, and harder for a reader to know which document is authoritative for what.
+
+**Category Score: {{ categories.modularity.score }} / 100** ({{ categories.modularity.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| pg-doc-003 | Document has a single primary focus — does not mix unrelated product guides | warning (recommended) | 0.5 | {{ results['pg-doc-003'].previous_status \| default('—') }} | {{ results['pg-doc-003'].status }} | {{ results['pg-doc-003'].trend_display }} | {{ results['pg-doc-003'].evidence \| default('—') }} |
+
+## 3. Content Richness — weight 1.0 of 4.5
+
+**Why this matters:** A Product Guide body that's just links or references without substantive explanation gives readers no actual guidance. The body must contain actionable content — steps, instructions, or explanations — to fulfill the guide's purpose.
+
+**Category Score: {{ categories.content_richness.score }} / 100** ({{ categories.content_richness.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| pg-doc-004 | Body section contains substantive content (minimum 50 words, not just links or references) | error (mandatory) | 1.0 | {{ results['pg-doc-004'].previous_status \| default('—') }} | {{ results['pg-doc-004'].status }} | {{ results['pg-doc-004'].trend_display }} | {{ results['pg-doc-004'].evidence \| default('—') }} |
+
+## 4. Duplicate Content — weight 0.5 of 4.5
+
+**Why this matters:** Every Product Guide concept should be defined exactly once. Duplication is how two sections quietly drift apart over time — one gets updated, the copy doesn't, and now the document contradicts itself.
+
+**Category Score: {{ categories.duplicate_content.score }} / 100** ({{ categories.duplicate_content.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| pg-doc-005 | No section repeats information already stated in another section | warning (recommended) | 0.5 | {{ results['pg-doc-005'].previous_status \| default('—') }} | {{ results['pg-doc-005'].status }} | {{ results['pg-doc-005'].trend_display }} | {{ results['pg-doc-005'].evidence \| default('—') }} |
 
 ---
 
-## Section-Level Results
+## Failures Requiring Attention
 
-| Section | Rules | Passed | Failed | Errors | Warnings |
-|---|---|---|---|---|---|
-| title | {{ title_rules }} | {{ title_passed }} | {{ title_failed }} | {{ title_errors }} | {{ title_warnings }} |
-| body | {{ body_rules }} | {{ body_passed }} | {{ body_failed }} | {{ body_errors }} | {{ body_warnings }} |
-| purpose | {{ purpose_rules }} | {{ purpose_passed }} | {{ purpose_failed }} | {{ purpose_errors }} | {{ purpose_warnings }} |
-| product_context | {{ context_rules }} | {{ context_passed }} | {{ context_failed }} | {{ context_errors }} | {{ context_warnings }} |
-| public_contract | {{ contract_rules }} | {{ contract_passed }} | {{ contract_failed }} | {{ contract_errors }} | {{ contract_warnings }} |
-| related | {{ related_rules }} | {{ related_passed }} | {{ related_failed }} | {{ related_errors }} | {{ related_warnings }} |
-
----
-
-## Failures
-
-| Rule | Severity | Weight | Evidence |
-|---|---|---|---|
-{{ failures_table }}
-
----
-
-## Score History
-
-| Date | Auditor | Score | Verdict | Revision |
+{% if failed_rules | length > 0 %}
+| Rule | Category | Message | Evidence | New This Run? |
 |---|---|---|---|---|
-| {{ audit_date }} | {{ auditor_name }} | {{ weighted_score }} | {{ verdict }} | 1 |
+{% for r in failed_rules -%}
+| {{ r.id }} | {{ r.category }} | {{ r.message }} | {{ r.evidence | default('—') }} | {{ 'Yes — regression' if r.is_new_failure else 'No — carried over' }} |
+{% endfor %}
+{% else %}
+No failures — all 5 document-level rules pass.
+{% endif %}
 
 ---
 
-## Trend
+## Metadata
 
-{{ trend_indicator }} ({{ trend_description }})
+| Field | Value |
+|---|---|
+| Domain | product-guide |
+| Standard | documentation-standards |
+| Rule File | `audit/deterministic/document/16-product-guide.yaml` |
+| Auditor | System (deterministic engine) |
+| Audit Date | {{ created_at }} |
+| Revision | {{ revision_number }} |
+| Session | {{ session_id }} |

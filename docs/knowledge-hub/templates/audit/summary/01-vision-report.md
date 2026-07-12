@@ -1,144 +1,163 @@
-# {{ document_title }} — Vision Audit Summary
+# Audit Summary — Vision
 
-> **Domain:** vision
-> **Date:** {{ audit_date }}
-> **Auditor:** {{ auditor_name }}
-
----
-
-## Overall Score
-
-| Metric | Value |
-|---|---|
-| **Deterministic Document** | {{ det_doc_score }} |
-| **Deterministic Section** | {{ det_sec_score }} |
-| **Semantic Document** | {{ sem_doc_score }} |
-| **Semantic Section** | {{ sem_sec_score }} |
-| **Combined Score** | {{ combined_score }} |
-| **Verdict** | {{ verdict }} |
-
-**Why this matters:** The combined score aggregates deterministic rules (mechanical checks), section-level mechanical checks, semantic document coherence, and semantic section quality. No single audit level tells the full story — a document can pass mechanical rules while failing semantic coherence.
+**Document:** {{ document_path }}
+**Standard:** `documentation-standards/02-vision-standards.md`
+**Auditor:** System (deterministic engine) + LLM ({{ model_name }})
+**Audit Date:** {{ created_at }}
+**Revision:** {{ revision_number }}
 
 ---
 
-## Deterministic Document Audit
+## Final Score
 
-### Rule Pass Rate
+**{{ final_score }} / 100** — **{{ rating }}**
+{% if previous_score %}({{ '↑ Improved' if final_score > previous_score else '↓ Regressed' if final_score < previous_score else '→ Unchanged' }} vs. previous run){% else %}(baseline — first audit of this document){% endif %}
 
-| Rules Checked | Passed | Failed | Errors | Warnings |
-|---|---|---|---|---|
-| {{ det_doc_rules_checked }} | {{ det_doc_passed }} | {{ det_doc_failed }} | {{ det_doc_errors }} | {{ det_doc_warnings }} |
+```
+final_score = (deterministic_whole/100 × 25)
+            + (deterministic_section/100 × 25)
+            + (semantic_whole/100 × 25)
+            + (semantic_section/100 × 25)
+```
 
-### Failures
+| Report | Score | Previous | Trend | Weight | Contribution |
+|---|---:|---:|---|---|---|
+| Deterministic — Whole | {{ deterministic_whole }} | {{ bucket_trend.det_whole.previous | default('—') }} | {{ bucket_trend.det_whole.trend_display }} | 25% | {{ (deterministic_whole / 100 * 25) | round(1) }} |
+| Deterministic — Section | {{ deterministic_section }} | {{ bucket_trend.det_section.previous | default('—') }} | {{ bucket_trend.det_section.trend_display }} | 25% | {{ (deterministic_section / 100 * 25) | round(1) }} |
+| Semantic — Whole | {{ semantic_whole }} | {{ bucket_trend.sem_whole.previous | default('—') }} | {{ bucket_trend.sem_whole.trend_display }} | 25% | {{ (semantic_whole / 100 * 25) | round(1) }} |
+| Semantic — Section | {{ semantic_section }} | {{ bucket_trend.sem_section.previous | default('—') }} | {{ bucket_trend.sem_section.trend_display }} | 25% | {{ (semantic_section / 100 * 25) | round(1) }} |
 
-| Rule | Severity | Weight | Evidence |
-|---|---|---|---|
-{{ det_doc_failures }}
-
----
-
-## Deterministic Section Audit
-
-### Rule Pass Rate by Section
-
-| Section | Rules | Passed | Failed | Errors | Warnings |
-|---|---|---|---|---|---|
-| purpose | {{ purpose_det_rules }} | {{ purpose_det_passed }} | {{ purpose_det_failed }} | {{ purpose_det_errors }} | {{ purpose_det_warnings }} |
-| vision_statement | {{ vs_det_rules }} | {{ vs_det_passed }} | {{ vs_det_failed }} | {{ vs_det_errors }} | {{ vs_det_warnings }} |
-| problem | {{ problem_det_rules }} | {{ problem_det_passed }} | {{ problem_det_failed }} | {{ problem_det_errors }} | {{ problem_det_warnings }} |
-| solution | {{ solution_det_rules }} | {{ solution_det_passed }} | {{ solution_det_failed }} | {{ solution_det_errors }} | {{ solution_det_warnings }} |
-| target_audience | {{ ta_det_rules }} | {{ ta_det_passed }} | {{ ta_det_failed }} | {{ ta_det_errors }} | {{ ta_det_warnings }} |
-| pillars | {{ pillars_det_rules }} | {{ pillars_det_passed }} | {{ pillars_det_failed }} | {{ pillars_det_errors }} | {{ pillars_det_warnings }} |
-| philosophy | {{ philosophy_det_rules }} | {{ philosophy_det_passed }} | {{ philosophy_det_failed }} | {{ philosophy_det_errors }} | {{ philosophy_det_warnings }} |
-| guiding_principles | {{ gp_det_rules }} | {{ gp_det_passed }} | {{ gp_det_failed }} | {{ gp_det_errors }} | {{ gp_det_warnings }} |
-| success_criteria | {{ sc_det_rules }} | {{ sc_det_passed }} | {{ sc_det_failed }} | {{ sc_det_errors }} | {{ sc_det_warnings }} |
-| traceability | {{ trace_det_rules }} | {{ trace_det_passed }} | {{ trace_det_failed }} | {{ trace_det_errors }} | {{ trace_det_warnings }} |
-
----
-
-## Semantic Document Audit
-
-### Criteria Results
-
-| Criterion | Weight | Score | Status | Confidence |
-|---|---|---|---|---|
-| C1: Problem-Solution-VS Alignment | mandatory (35) | {{ sem_doc_c1_score }} | {{ sem_doc_c1_status }} | {{ sem_doc_c1_confidence }} |
-| C2: Technology Independence | mandatory (35) | {{ sem_doc_c2_score }} | {{ sem_doc_c2_status }} | {{ sem_doc_c2_confidence }} |
-| C3: Terminology Consistency | recommended (30) | {{ sem_doc_c3_score }} | {{ sem_doc_c3_status }} | {{ sem_doc_c3_confidence }} |
-
-### Failures
-
-| Criterion | Severity | Evidence |
-|---|---|---|
-{{ sem_doc_failures }}
-
----
-
-## Semantic Section Audit
-
-### Criteria Results by Section
-
-| Section | C1 | C2 | C3 | Score | Status |
-|---|---|---|---|---|---|
-| purpose | {{ purpose_c1 }} | {{ purpose_c2 }} | {{ purpose_c3 }} | {{ purpose_sem_score }} | {{ purpose_sem_status }} |
-| vision_statement | {{ vs_c1 }} | {{ vs_c2 }} | {{ vs_c3 }} | {{ vs_sem_score }} | {{ vs_sem_status }} |
-| problem | {{ problem_c1 }} | {{ problem_c2 }} | {{ problem_c3 }} | {{ problem_sem_score }} | {{ problem_sem_status }} |
-| solution | {{ solution_c1 }} | {{ solution_c2 }} | {{ solution_c3 }} | {{ solution_sem_score }} | {{ solution_sem_status }} |
-| target_audience | {{ ta_c1 }} | {{ ta_c2 }} | {{ ta_c3 }} | {{ ta_sem_score }} | {{ ta_sem_status }} |
-| pillars | {{ pillars_c1 }} | {{ pillars_c2 }} | {{ pillars_c3 }} | {{ pillars_sem_score }} | {{ pillars_sem_status }} |
-| philosophy | {{ philosophy_c1 }} | {{ philosophy_c2 }} | {{ philosophy_c3 }} | {{ philosophy_sem_score }} | {{ philosophy_sem_status }} |
-| guiding_principles | {{ gp_c1 }} | {{ gp_c2 }} | {{ gp_c3 }} | {{ gp_sem_score }} | {{ gp_sem_status }} |
-| success_criteria | {{ sc_c1 }} | {{ sc_c2 }} | {{ sc_c3 }} | {{ sc_sem_score }} | {{ sc_sem_status }} |
-| traceability | {{ trace_c1 }} | {{ trace_c2 }} | {{ trace_c3 }} | {{ trace_sem_score }} | {{ trace_sem_status }} |
+Mandatory-criterion severity is absorbed inside each of the four reports' own scoring (see each report's Scoring Criteria table) — this rollup is a plain weighted sum, no additional gating here.
 
 ---
 
 ## Score History
 
-| Date | Auditor | Combined Score | Verdict | Revision |
-|---|---|---|---|---|
-| {{ audit_date }} | {{ auditor_name }} | {{ combined_score }} | {{ verdict }} | 1 |
+Every run of this document's audit, oldest first, with this revision last:
+
+| Revision | Date | Final Score | Rating | vs. Previous | vs. Baseline |
+|---:|---|---:|---|---|---|
+{% for r in revision_history -%}
+| {{ r.revision }} | {{ r.date }} | {{ r.score }} / 100 | {{ r.rating }} | {{ r.delta_previous_display }} | {{ r.delta_baseline_display }} |
+{% endfor -%}
+| {{ revision_number }} (current) | {{ created_at }} | {{ final_score }} / 100 | {{ rating }} | {{ delta_previous_display }} | {{ delta_baseline_display }} |
+
+{% if not previous_score %}No prior runs — this revision is the baseline every future run is compared against.{% else %}Baseline was revision {{ baseline_revision }} ({{ baseline_score }} / 100, {{ baseline_date }}).{% endif %}
 
 ---
 
-## Trend
+## Document-Level Breakdown
 
-{{ trend_indicator }} ({{ trend_description }})
+Deterministic and semantic judge different things at the document level — deterministic checks structural rule groupings, semantic checks judgment criteria. They aren't the same categories and don't map row-to-row, so they get separate tables rather than being forced side by side.
 
----
+### Deterministic — Whole (`audit/deterministic/document/01-vision.yaml`)
 
-## Failures Summary
+| Category | Score | Previous | Trend |
+|---|---:|---:|---|
+| Collection Completeness | {{ categories.collection_completeness.score }} / 100 | {{ categories.collection_completeness.previous_score | default('—') }} | {{ categories.collection_completeness.trend_display }} |
+| Modularity | {{ categories.modularity.score }} / 100 | {{ categories.modularity.previous_score | default('—') }} | {{ categories.modularity.trend_display }} |
+| Technology Independence | {{ categories.technology_independence.score }} / 100 | {{ categories.technology_independence.previous_score | default('—') }} | {{ categories.technology_independence.trend_display }} |
+| Tier 1 Positioning | {{ categories.tier_1_positioning.score }} / 100 | {{ categories.tier_1_positioning.previous_score | default('—') }} | {{ categories.tier_1_positioning.trend_display }} |
+| Cross-References | {{ categories.cross_references.score }} / 100 | {{ categories.cross_references.previous_score | default('—') }} | {{ categories.cross_references.trend_display }} |
+| Duplicate Content | {{ categories.duplicate_content.score }} / 100 | {{ categories.duplicate_content.previous_score | default('—') }} | {{ categories.duplicate_content.trend_display }} |
 
-| Category | Rule/Criterion | Severity | Section | Evidence | Regression? |
-|---|---|---|---|---|---|
-{{ all_failures }}
+### Semantic — Whole (`audit/semantic/document/01-vision.md`)
 
----
-
-## Summary
-
-{{ summary_text }}
-
-### Document-Level Breakdown
-
-| Category | Weight | Score | Status |
+| Criterion | Result | Previous | Trend |
 |---|---|---|---|
-| Deterministic Document | {{ det_doc_weight }} | {{ det_doc_score }} | {{ det_doc_status }} |
-| Deterministic Section | {{ det_sec_weight }} | {{ det_sec_score }} | {{ det_sec_status }} |
-| Semantic Document | {{ sem_doc_weight }} | {{ sem_doc_score }} | {{ sem_doc_status }} |
-| Semantic Section | {{ sem_sec_weight }} | {{ sem_sec_score }} | {{ sem_sec_status }} |
+| C1 — Problem-Solution-VS alignment | {{ doc_semantic.c1_display }} | {{ doc_semantic.c1_previous_display | default('—') }} | {{ doc_semantic.c1_trend_display }} |
+| C2 — Technology independence | {{ doc_semantic.c2_display }} | {{ doc_semantic.c2_previous_display | default('—') }} | {{ doc_semantic.c2_trend_display }} |
+| C3 — Terminology consistency | {{ doc_semantic.c3_display }} | {{ doc_semantic.c3_previous_display | default('—') }} | {{ doc_semantic.c3_trend_display }} |
 
-### Section-Level Breakdown
+Full detail, including per-rule/per-criterion evidence: see the Deterministic — Whole and Semantic — Whole reports linked below.
 
-| Section | Deterministic | Semantic | Combined | Status |
+## Section-Level Breakdown
+
+Same reasoning as above, extended per section: a section's deterministic score and its semantic score aren't guaranteed to check the same things (a section can be structurally complete but semantically weak, or vice versa) — two separate tables, not one merged table with a false row-by-row correspondence.
+
+### Deterministic — Section (`audit/deterministic/section/01-vision/*.yaml`)
+
+| # | Section | Required | Score | Previous | Trend |
+|---:|---|:---:|---:|---:|---|
+| 1 | Purpose | **required** | {{ sections.purpose.det_score }} / 100 | {{ sections.purpose.det_previous_score | default('—') }} | {{ sections.purpose.det_trend_display }} |
+| 2 | Vision Statement | **required** | {{ sections.vision_statement.det_score }} / 100 | {{ sections.vision_statement.det_previous_score | default('—') }} | {{ sections.vision_statement.det_trend_display }} |
+| 3 | Problem | **required** | {{ sections.problem.det_score }} / 100 | {{ sections.problem.det_previous_score | default('—') }} | {{ sections.problem.det_trend_display }} |
+| 4 | Solution | **required** | {{ sections.solution.det_score }} / 100 | {{ sections.solution.det_previous_score | default('—') }} | {{ sections.solution.det_trend_display }} |
+| 5 | Target Audience | **required** | {{ sections.target_audience.det_score }} / 100 | {{ sections.target_audience.det_previous_score | default('—') }} | {{ sections.target_audience.det_trend_display }} |
+| 6 | Pillars | optional | {{ sections.pillars.det_score }} / 100 | {{ sections.pillars.det_previous_score | default('—') }} | {{ sections.pillars.det_trend_display }} |
+| 7 | Philosophy | optional | {{ sections.philosophy.det_score }} / 100 | {{ sections.philosophy.det_previous_score | default('—') }} | {{ sections.philosophy.det_trend_display }} |
+| 8 | Guiding Principles | optional | {{ sections.guiding_principles.det_score }} / 100 | {{ sections.guiding_principles.det_previous_score | default('—') }} | {{ sections.guiding_principles.det_trend_display }} |
+| 9 | Success Criteria | optional | {{ sections.success_criteria.det_score }} / 100 | {{ sections.success_criteria.det_previous_score | default('—') }} | {{ sections.success_criteria.det_trend_display }} |
+| 10 | Traceability | optional | {{ sections.traceability.det_score }} / 100 | {{ sections.traceability.det_previous_score | default('—') }} | {{ sections.traceability.det_trend_display }} |
+
+### Semantic — Section (`audit/semantic/section/01-vision/*.md`)
+
+| # | Section | Required | Score | Previous | Trend |
+|---:|---|:---:|---:|---:|---|
+| 1 | Purpose | **required** | {{ sections.purpose.sem_score }} / 100 | {{ sections.purpose.sem_previous_score | default('—') }} | {{ sections.purpose.sem_trend_display }} |
+| 2 | Vision Statement | **required** | {{ sections.vision_statement.sem_score }} / 100 | {{ sections.vision_statement.sem_previous_score | default('—') }} | {{ sections.vision_statement.sem_trend_display }} |
+| 3 | Problem | **required** | {{ sections.problem.sem_score }} / 100 | {{ sections.problem.sem_previous_score | default('—') }} | {{ sections.problem.sem_trend_display }} |
+| 4 | Solution | **required** | {{ sections.solution.sem_score }} / 100 | {{ sections.solution.sem_previous_score | default('—') }} | {{ sections.solution.sem_trend_display }} |
+| 5 | Target Audience | **required** | {{ sections.target_audience.sem_score }} / 100 | {{ sections.target_audience.sem_previous_score | default('—') }} | {{ sections.target_audience.sem_trend_display }} |
+| 6 | Pillars | optional | {{ sections.pillars.sem_score }} / 100 | {{ sections.pillars.sem_previous_score | default('—') }} | {{ sections.pillars.sem_trend_display }} |
+| 7 | Philosophy | optional | {{ sections.philosophy.sem_score }} / 100 | {{ sections.philosophy.sem_previous_score | default('—') }} | {{ sections.philosophy.sem_trend_display }} |
+| 8 | Guiding Principles | optional | {{ sections.guiding_principles.sem_score }} / 100 | {{ sections.guiding_principles.sem_previous_score | default('—') }} | {{ sections.guiding_principles.sem_trend_display }} |
+| 9 | Success Criteria | optional | {{ sections.success_criteria.sem_score }} / 100 | {{ sections.success_criteria.sem_previous_score | default('—') }} | {{ sections.success_criteria.sem_trend_display }} |
+| 10 | Traceability | optional | {{ sections.traceability.sem_score }} / 100 | {{ sections.traceability.sem_previous_score | default('—') }} | {{ sections.traceability.sem_trend_display }} |
+| — | Generic (unmatched sections) | n/a | {{ sections.generic.sem_score }} / 100 | {{ sections.generic.sem_previous_score | default('—') }} | {{ sections.generic.sem_trend_display }} |
+
+Full detail, including per-rule/per-criterion evidence for every row above: see the Deterministic — Section and Semantic — Section reports linked below.
+
+---
+
+## Score Bands
+
+| Range | Rating | Meaning |
+|---|---|---|
+| 95–100 | Excellent | Fully compliant, no reservations |
+| 90–94 | Very Good | Minor gaps, safe to proceed |
+| 80–89 | Good | Solid foundation, a few issues to resolve |
+| 70–79 | Acceptable | Core present but gaps exist |
+| Below 70 | Needs Improvement | Significant gaps, not ready |
+
+---
+
+## Report Links
+
+| Report | File |
+|---|---|
+| Deterministic — Whole | `{{ det_whole_report_path }}` (`audit/deterministic/document/01-vision.yaml`) |
+| Deterministic — Section | `{{ det_section_report_path }}` (`audit/deterministic/section/01-vision/*.yaml`) |
+| Semantic — Whole | `{{ sem_whole_report_path }}` (`audit/semantic/document/01-vision.md`) |
+| Semantic — Section | `{{ sem_section_report_path }}` (`audit/semantic/section/01-vision/*.md`) |
+
+---
+
+## Top Findings
+
+{% if top_findings | length > 0 %}
+| Severity | Source | Rule/Criterion | Message | New This Run? |
 |---|---|---|---|---|
-| purpose | {{ purpose_det_score }} | {{ purpose_sem_score }} | {{ purpose_combined }} | {{ purpose_overall_status }} |
-| vision_statement | {{ vs_det_score }} | {{ vs_sem_score }} | {{ vs_combined }} | {{ vs_overall_status }} |
-| problem | {{ problem_det_score }} | {{ problem_sem_score }} | {{ problem_combined }} | {{ problem_overall_status }} |
-| solution | {{ solution_det_score }} | {{ solution_sem_score }} | {{ solution_combined }} | {{ solution_overall_status }} |
-| target_audience | {{ ta_det_score }} | {{ ta_sem_score }} | {{ ta_combined }} | {{ ta_overall_status }} |
-| pillars | {{ pillars_det_score }} | {{ pillars_sem_score }} | {{ pillars_combined }} | {{ pillars_overall_status }} |
-| philosophy | {{ philosophy_det_score }} | {{ philosophy_sem_score }} | {{ philosophy_combined }} | {{ philosophy_overall_status }} |
-| guiding_principles | {{ gp_det_score }} | {{ gp_sem_score }} | {{ gp_combined }} | {{ gp_overall_status }} |
-| success_criteria | {{ sc_det_score }} | {{ sc_sem_score }} | {{ sc_combined }} | {{ sc_overall_status }} |
-| traceability | {{ trace_det_score }} | {{ trace_sem_score }} | {{ trace_combined }} | {{ trace_overall_status }} |
+{% for f in top_findings -%}
+| {{ f.severity }} | {{ f.report_type }} | {{ f.rule_id }} | {{ f.message }} | {{ 'Yes — regression' if f.is_new_finding else 'No — carried over' }} |
+{% endfor %}
+{% else %}
+No findings.
+{% endif %}
+
+Full score-history and per-run trend detail lives in the Score History table above, and in each of the 4 linked detail reports (each carries its own Score History and per-row Previous/Trend columns) — this table only surfaces what's new since the last run.
+
+---
+
+## Metadata
+
+| Field | Value |
+|---|---|
+| Domain | vision |
+| Standard | documentation-standards |
+| Document | {{ document_path }} |
+| Auditor | System (deterministic engine) + LLM ({{ model_name }}) |
+| Audit Date | {{ created_at }} |
+| Revision | {{ revision_number }} |
+| Session | {{ session_id }} |
+| Reports | 4 detail + 1 summary |

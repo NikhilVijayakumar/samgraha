@@ -1,166 +1,178 @@
-# {{ document_title }} — Feature Technical Audit Summary
+# Audit Summary — Feature Technical
 
-> **Domain:** feature-technical
-> **Date:** {{ audit_date }}
-> **Auditor:** {{ auditor_name }}
-
----
-
-## Overall Score
-
-| Metric | Value |
-|---|---|
-| **Deterministic Document** | {{ det_doc_score }} |
-| **Deterministic Section** | {{ det_sec_score }} |
-| **Semantic Document** | {{ sem_doc_score }} |
-| **Semantic Section** | {{ sem_sec_score }} |
-| **Combined Score** | {{ combined_score }} |
-| **Verdict** | {{ verdict }} |
-
-**Why this matters:** Feature Technical Documentation is the technology-independent realization of a feature — Tier 3, between Feature Design and Prototype. The combined score aggregates structural rules (sections present, populated, technology-free), cross-section coherence (component-data-runtime consistency), tier enforcement (no lower-tier derivation), and per-section quality (substantive, technology-independent, specific).
+**Document:** {{ document_path }}
+**Standard:** `documentation-standards/10-feature-technical-standards.md`
+**Auditor:** System (deterministic engine) + LLM ({{ model_name }})
+**Audit Date:** {{ created_at }}
+**Revision:** {{ revision_number }}
 
 ---
 
-## Deterministic Document Audit
+## Final Score
 
-### Rule Pass Rate
+**{{ final_score }} / 100** — **{{ rating }}**
+{% if previous_score %}({{ '↑ Improved' if final_score > previous_score else '↓ Regressed' if final_score < previous_score else '→ Unchanged' }} vs. previous run){% else %}(baseline — first audit of this document){% endif %}
 
-| Rules Checked | Passed | Failed | Errors | Warnings |
-|---|---|---|---|---|
-| {{ det_doc_rules_checked }} | {{ det_doc_passed }} | {{ det_doc_failed }} | {{ det_doc_errors }} | {{ det_doc_warnings }} |
+```
+final_score = (deterministic_whole/100 × 25)
+            + (deterministic_section/100 × 25)
+            + (semantic_whole/100 × 25)
+            + (semantic_section/100 × 25)
+```
 
-### Failures
+| Report | Score | Previous | Trend | Weight | Contribution |
+|---|---:|---:|---|---|---|
+| Deterministic — Whole | {{ deterministic_whole }} | {{ bucket_trend.det_whole.previous | default('—') }} | {{ bucket_trend.det_whole.trend_display }} | 25% | {{ (deterministic_whole / 100 * 25) | round(1) }} |
+| Deterministic — Section | {{ deterministic_section }} | {{ bucket_trend.det_section.previous | default('—') }} | {{ bucket_trend.det_section.trend_display }} | 25% | {{ (deterministic_section / 100 * 25) | round(1) }} |
+| Semantic — Whole | {{ semantic_whole }} | {{ bucket_trend.sem_whole.previous | default('—') }} | {{ bucket_trend.sem_whole.trend_display }} | 25% | {{ (semantic_whole / 100 * 25) | round(1) }} |
+| Semantic — Section | {{ semantic_section }} | {{ bucket_trend.sem_section.previous | default('—') }} | {{ bucket_trend.sem_section.trend_display }} | 25% | {{ (semantic_section / 100 * 25) | round(1) }} |
 
-| Rule | Severity | Weight | Evidence |
-|---|---|---|---|
-{{ det_doc_failures }}
-
----
-
-## Deterministic Section Audit
-
-### Rule Pass Rate by Section
-
-| Section | Rules | Passed | Failed | Errors | Warnings |
-|---|---|---|---|---|---|
-| purpose | {{ purpose_det_rules }} | {{ purpose_det_passed }} | {{ purpose_det_failed }} | {{ purpose_det_errors }} | {{ purpose_det_warnings }} |
-| participating_components | {{ components_det_rules }} | {{ components_det_passed }} | {{ components_det_failed }} | {{ components_det_errors }} | {{ components_det_warnings }} |
-| component_interactions | {{ interactions_det_rules }} | {{ interactions_det_passed }} | {{ interactions_det_failed }} | {{ interactions_det_errors }} | {{ interactions_det_warnings }} |
-| data_ownership | {{ data_det_rules }} | {{ data_det_passed }} | {{ data_det_failed }} | {{ data_det_errors }} | {{ data_det_warnings }} |
-| feature_specification | {{ spec_det_rules }} | {{ spec_det_passed }} | {{ spec_det_failed }} | {{ spec_det_errors }} | {{ spec_det_warnings }} |
-| component_responsibilities | {{ resp_det_rules }} | {{ resp_det_passed }} | {{ resp_det_failed }} | {{ resp_det_errors }} | {{ resp_det_warnings }} |
-| runtime_behavior | {{ runtime_det_rules }} | {{ runtime_det_passed }} | {{ runtime_det_failed }} | {{ runtime_det_errors }} | {{ runtime_det_warnings }} |
-| communication_paths | {{ comm_det_rules }} | {{ comm_det_passed }} | {{ comm_det_failed }} | {{ comm_det_errors }} | {{ comm_det_warnings }} |
-| integration_points | {{ integration_det_rules }} | {{ integration_det_passed }} | {{ integration_det_failed }} | {{ integration_det_errors }} | {{ integration_det_warnings }} |
-| external_dependencies | {{ extdep_det_rules }} | {{ extdep_det_passed }} | {{ extdep_det_failed }} | {{ extdep_det_errors }} | {{ extdep_det_warnings }} |
-| runtime_constraints | {{ rtcon_det_rules }} | {{ rtcon_det_passed }} | {{ rtcon_det_failed }} | {{ rtcon_det_errors }} | {{ rtcon_det_warnings }} |
-| architectural_constraints | {{ archcon_det_rules }} | {{ archcon_det_passed }} | {{ archcon_det_failed }} | {{ archcon_det_errors }} | {{ archcon_det_warnings }} |
-| security_considerations | {{ security_det_rules }} | {{ security_det_passed }} | {{ security_det_failed }} | {{ security_det_errors }} | {{ security_det_warnings }} |
-| performance_considerations | {{ perf_det_rules }} | {{ perf_det_passed }} | {{ perf_det_failed }} | {{ perf_det_errors }} | {{ perf_det_warnings }} |
-| failure_handling | {{ failure_det_rules }} | {{ failure_det_passed }} | {{ failure_det_failed }} | {{ failure_det_errors }} | {{ failure_det_warnings }} |
-| extension_points | {{ extension_det_rules }} | {{ extension_det_passed }} | {{ extension_det_failed }} | {{ extension_det_errors }} | {{ extension_det_warnings }} |
-| traceability | {{ trace_det_rules }} | {{ trace_det_passed }} | {{ trace_det_failed }} | {{ trace_det_errors }} | {{ trace_det_warnings }} |
-
----
-
-## Semantic Document Audit
-
-### Criteria Results
-
-| Criterion | Weight | Score | Status | Confidence |
-|---|---|---|---|---|
-| C1: Cross-Section Consistency | mandatory (40) | {{ sem_doc_c1_score }} | {{ sem_doc_c1_status }} | {{ sem_doc_c1_confidence }} |
-| C2: Terminology Consistency | mandatory (30) | {{ sem_doc_c2_score }} | {{ sem_doc_c2_status }} | {{ sem_doc_c2_confidence }} |
-| C3: Collection Coherence | recommended (30) | {{ sem_doc_c3_score }} | {{ sem_doc_c3_status }} | {{ sem_doc_c3_confidence }} |
-
-### Failures
-
-| Criterion | Severity | Evidence |
-|---|---|---|
-{{ sem_doc_failures }}
-
----
-
-## Semantic Section Audit
-
-### Scores by Section
-
-| Section | Score | C1 | C2 | C3 | C4 |
-|---|---|---|---|---|---|
-| purpose | {{ purpose_sem_score }} | {{ purpose_c1_status }} | {{ purpose_c2_status }} | {{ purpose_c3_status }} | — |
-| participating_components | {{ components_sem_score }} | {{ components_c1_status }} | {{ components_c2_status }} | {{ components_c3_status }} | {{ components_c4_status }} |
-| component_interactions | {{ interactions_sem_score }} | {{ interactions_c1_status }} | {{ interactions_c2_status }} | {{ interactions_c3_status }} | {{ interactions_c4_status }} |
-| data_ownership | {{ data_sem_score }} | {{ data_c1_status }} | {{ data_c2_status }} | {{ data_c3_status }} | {{ data_c4_status }} |
-| feature_specification | {{ spec_sem_score }} | {{ spec_c1_status }} | {{ spec_c2_status }} | {{ spec_c3_status }} | {{ spec_c4_status }} |
-| component_responsibilities | {{ resp_sem_score }} | {{ resp_c1_status }} | {{ resp_c2_status }} | {{ resp_c3_status }} | {{ resp_c4_status }} |
-| runtime_behavior | {{ runtime_sem_score }} | {{ runtime_c1_status }} | {{ runtime_c2_status }} | {{ runtime_c3_status }} | {{ runtime_c4_status }} |
-| communication_paths | {{ comm_sem_score }} | {{ comm_c1_status }} | {{ comm_c2_status }} | {{ comm_c3_status }} | {{ comm_c4_status }} |
-| integration_points | {{ integration_sem_score }} | {{ integration_c1_status }} | {{ integration_c2_status }} | {{ integration_c3_status }} | {{ integration_c4_status }} |
-| external_dependencies | {{ extdep_sem_score }} | {{ extdep_c1_status }} | {{ extdep_c2_status }} | {{ extdep_c3_status }} | {{ extdep_c4_status }} |
-| runtime_constraints | {{ rtcon_sem_score }} | {{ rtcon_c1_status }} | {{ rtcon_c2_status }} | {{ rtcon_c3_status }} | {{ rtcon_c4_status }} |
-| architectural_constraints | {{ archcon_sem_score }} | {{ archcon_c1_status }} | {{ archcon_c2_status }} | {{ archcon_c3_status }} | {{ archcon_c4_status }} |
-| security_considerations | {{ security_sem_score }} | {{ security_c1_status }} | {{ security_c2_status }} | {{ security_c3_status }} | {{ security_c4_status }} |
-| performance_considerations | {{ perf_sem_score }} | {{ perf_c1_status }} | {{ perf_c2_status }} | {{ perf_c3_status }} | {{ perf_c4_status }} |
-| failure_handling | {{ failure_sem_score }} | {{ failure_c1_status }} | {{ failure_c2_status }} | {{ failure_c3_status }} | {{ failure_c4_status }} |
-| extension_points | {{ extension_sem_score }} | {{ extension_c1_status }} | {{ extension_c2_status }} | {{ extension_c3_status }} | {{ extension_c4_status }} |
-| traceability | {{ trace_sem_score }} | {{ trace_c1_status }} | {{ trace_c2_status }} | {{ trace_c3_status }} | {{ trace_c4_status }} |
-
-### Failures
-
-| Section | Criterion | Severity | Evidence |
-|---|---|---|---|
-{{ sem_sec_failures }}
-
----
-
-## Failures Summary
-
-### Regressions from Previous Audit
-
-| Rule | Previous Score | Current Score | Change | Evidence |
-|---|---|---|---|---|
-{{ regressions_table }}
-
-### Persistent Failures
-
-| Rule | First Failed | Consecutive Failures | Evidence |
-|---|---|---|---|
-{{ persistent_failures_table }}
-
----
-
-## Document-Level Breakdown
-
-| Category | Weight | Score | Percentage | Verdict |
-|---|---|---|---|---|
-| Structural Completeness | 4.0 | {{ structural_score }} | {{ structural_pct }} | {{ structural_verdict }} |
-| Technology Independence | 1.0 | {{ tech_score }} | {{ tech_pct }} | {{ tech_verdict }} |
-| Tier Enforcement | 1.0 | {{ tier_score }} | {{ tier_pct }} | {{ tier_verdict }} |
-| Modularity | 0.5 | {{ modularity_score }} | {{ modularity_pct }} | {{ modularity_verdict }} |
-
----
-
-## Section-Level Breakdown
-
-| Section Category | Sections | Avg Score | Worst | Verdict |
-|---|---|---|---|---|
-| Required Sections | purpose, participating_components, component_interactions, data_ownership | {{ required_avg }} | {{ required_worst }} | {{ required_verdict }} |
-| Technical Detail | feature_specification, component_responsibilities, runtime_behavior, communication_paths | {{ detail_avg }} | {{ detail_worst }} | {{ detail_verdict }} |
-| Integration & Dependencies | integration_points, external_dependencies | {{ integration_avg }} | {{ integration_worst }} | {{ integration_verdict }} |
-| Constraints & Quality | runtime_constraints, architectural_constraints, security_considerations, performance_considerations | {{ constraints_avg }} | {{ constraints_worst }} | {{ constraints_verdict }} |
-| Resilience & Extension | failure_handling, extension_points | {{ resilience_avg }} | {{ resilience_worst }} | {{ resilience_verdict }} |
-| Traceability | traceability | {{ trace_avg }} | {{ trace_worst }} | {{ trace_verdict }} |
+Mandatory-criterion severity is absorbed inside each of the four reports' own scoring (see each report's Scoring Criteria table) — this rollup is a plain weighted sum, no additional gating here.
 
 ---
 
 ## Score History
 
-| Date | Auditor | Score | Verdict | Revision |
-|---|---|---|---|---|
-| {{ audit_date }} | {{ auditor_name }} | {{ combined_score }} | {{ verdict }} | 1 |
+Every run of this document's audit, oldest first, with this revision last:
+
+| Revision | Date | Final Score | Rating | vs. Previous | vs. Baseline |
+|---:|---|---:|---|---|---|
+{% for r in revision_history -%}
+| {{ r.revision }} | {{ r.date }} | {{ r.score }} / 100 | {{ r.rating }} | {{ r.delta_previous_display }} | {{ r.delta_baseline_display }} |
+{% endfor -%}
+| {{ revision_number }} (current) | {{ created_at }} | {{ final_score }} / 100 | {{ rating }} | {{ delta_previous_display }} | {{ delta_baseline_display }} |
+
+{% if not previous_score %}No prior runs — this revision is the baseline every future run is compared against.{% else %}Baseline was revision {{ baseline_revision }} ({{ baseline_score }} / 100, {{ baseline_date }}).{% endif %}
 
 ---
 
-## Trend
+## Document-Level Breakdown
 
-{{ trend_indicator }} ({{ trend_description }})
+Deterministic and semantic judge different things at the document level — deterministic checks structural rule groupings, semantic checks judgment criteria. They aren't the same categories and don't map row-to-row, so they get separate tables rather than being forced side by side.
+
+### Deterministic — Whole (`audit/deterministic/document/10-feature-technical.yaml`)
+
+| Category | Score | Previous | Trend |
+|---|---:|---:|---|
+| Collection Completeness | {{ categories.collection_completeness.score }} / 100 | {{ categories.collection_completeness.previous_score | default('—') }} | {{ categories.collection_completeness.trend_display }} |
+| Modularity | {{ categories.modularity.score }} / 100 | {{ categories.modularity.previous_score | default('—') }} | {{ categories.modularity.trend_display }} |
+| Technology Independence | {{ categories.technology_independence.score }} / 100 | {{ categories.technology_independence.previous_score | default('—') }} | {{ categories.technology_independence.trend_display }} |
+| Cross-References | {{ categories.cross_references.score }} / 100 | {{ categories.cross_references.previous_score | default('—') }} | {{ categories.cross_references.trend_display }} |
+| Duplicate Content | {{ categories.duplicate_content.score }} / 100 | {{ categories.duplicate_content.previous_score | default('—') }} | {{ categories.duplicate_content.trend_display }} |
+| Tier 3 Positioning | {{ categories.tier_3_positioning.score }} / 100 | {{ categories.tier_3_positioning.previous_score | default('—') }} | {{ categories.tier_3_positioning.trend_display }} |
+| Validation & Derivation Markers | {{ categories.validation_derivation_markers.score }} / 100 | {{ categories.validation_derivation_markers.previous_score | default('—') }} | {{ categories.validation_derivation_markers.trend_display }} |
+
+### Semantic — Whole (`audit/semantic/document/10-feature-technical.md`)
+
+| Criterion | Result | Previous | Trend |
+|---|---|---|---|
+| C1 — Cross-section consistency | {{ doc_semantic.c1_display }} | {{ doc_semantic.c1_previous_display | default('—') }} | {{ doc_semantic.c1_trend_display }} |
+| C2 — Terminology consistency | {{ doc_semantic.c2_display }} | {{ doc_semantic.c2_previous_display | default('—') }} | {{ doc_semantic.c2_trend_display }} |
+| C3 — Cross-document coherence | {{ doc_semantic.c3_display }} | {{ doc_semantic.c3_previous_display | default('—') }} | {{ doc_semantic.c3_trend_display }} |
+
+Full detail, including per-rule/per-criterion evidence: see the Deterministic — Whole and Semantic — Whole reports linked below.
+
+## Section-Level Breakdown
+
+Same reasoning as above, extended per section: a section's deterministic score and its semantic score aren't guaranteed to check the same things (a section can be structurally complete but semantically weak, or vice versa) — two separate tables, not one merged table with a false row-by-row correspondence.
+
+### Deterministic — Section (`audit/deterministic/section/10-feature-technical/*.yaml`)
+
+| # | Section | Required | Score | Previous | Trend |
+|---:|---|:---:|---:|---:|---|
+| 1 | Purpose | **required** | {{ sections.purpose.det_score }} / 100 | {{ sections.purpose.det_previous_score | default('—') }} | {{ sections.purpose.det_trend_display }} |
+| 2 | Participating Components | **required** | {{ sections.participating_components.det_score }} / 100 | {{ sections.participating_components.det_previous_score | default('—') }} | {{ sections.participating_components.det_trend_display }} |
+| 3 | Component Interactions | **required** | {{ sections.component_interactions.det_score }} / 100 | {{ sections.component_interactions.det_previous_score | default('—') }} | {{ sections.component_interactions.det_trend_display }} |
+| 4 | Data Ownership | **required** | {{ sections.data_ownership.det_score }} / 100 | {{ sections.data_ownership.det_previous_score | default('—') }} | {{ sections.data_ownership.det_trend_display }} |
+| 5 | Feature Specification | optional | {{ sections.feature_specification.det_score }} / 100 | {{ sections.feature_specification.det_previous_score | default('—') }} | {{ sections.feature_specification.det_trend_display }} |
+| 6 | Component Responsibilities | optional | {{ sections.component_responsibilities.det_score }} / 100 | {{ sections.component_responsibilities.det_previous_score | default('—') }} | {{ sections.component_responsibilities.det_trend_display }} |
+| 7 | Runtime Behavior | optional | {{ sections.runtime_behavior.det_score }} / 100 | {{ sections.runtime_behavior.det_previous_score | default('—') }} | {{ sections.runtime_behavior.det_trend_display }} |
+| 8 | Communication Paths | optional | {{ sections.communication_paths.det_score }} / 100 | {{ sections.communication_paths.det_previous_score | default('—') }} | {{ sections.communication_paths.det_trend_display }} |
+| 9 | Integration Points | optional | {{ sections.integration_points.det_score }} / 100 | {{ sections.integration_points.det_previous_score | default('—') }} | {{ sections.integration_points.det_trend_display }} |
+| 10 | External Dependencies | optional | {{ sections.external_dependencies.det_score }} / 100 | {{ sections.external_dependencies.det_previous_score | default('—') }} | {{ sections.external_dependencies.det_trend_display }} |
+| 11 | Runtime Constraints | optional | {{ sections.runtime_constraints.det_score }} / 100 | {{ sections.runtime_constraints.det_previous_score | default('—') }} | {{ sections.runtime_constraints.det_trend_display }} |
+| 12 | Architectural Constraints | optional | {{ sections.architectural_constraints.det_score }} / 100 | {{ sections.architectural_constraints.det_previous_score | default('—') }} | {{ sections.architectural_constraints.det_trend_display }} |
+| 13 | Security Considerations | optional | {{ sections.security_considerations.det_score }} / 100 | {{ sections.security_considerations.det_previous_score | default('—') }} | {{ sections.security_considerations.det_trend_display }} |
+| 14 | Performance Considerations | optional | {{ sections.performance_considerations.det_score }} / 100 | {{ sections.performance_considerations.det_previous_score | default('—') }} | {{ sections.performance_considerations.det_trend_display }} |
+| 15 | Failure Handling | optional | {{ sections.failure_handling.det_score }} / 100 | {{ sections.failure_handling.det_previous_score | default('—') }} | {{ sections.failure_handling.det_trend_display }} |
+| 16 | Extension Points | optional | {{ sections.extension_points.det_score }} / 100 | {{ sections.extension_points.det_previous_score | default('—') }} | {{ sections.extension_points.det_trend_display }} |
+| 17 | Traceability | optional | {{ sections.traceability.det_score }} / 100 | {{ sections.traceability.det_previous_score | default('—') }} | {{ sections.traceability.det_trend_display }} |
+
+### Semantic — Section (`audit/semantic/section/10-feature-technical/*.md`)
+
+| # | Section | Required | Score | Previous | Trend |
+|---:|---|:---:|---:|---:|---|
+| 1 | Purpose | **required** | {{ sections.purpose.sem_score }} / 100 | {{ sections.purpose.sem_previous_score | default('—') }} | {{ sections.purpose.sem_trend_display }} |
+| 2 | Participating Components | **required** | {{ sections.participating_components.sem_score }} / 100 | {{ sections.participating_components.sem_previous_score | default('—') }} | {{ sections.participating_components.sem_trend_display }} |
+| 3 | Component Interactions | **required** | {{ sections.component_interactions.sem_score }} / 100 | {{ sections.component_interactions.sem_previous_score | default('—') }} | {{ sections.component_interactions.sem_trend_display }} |
+| 4 | Data Ownership | **required** | {{ sections.data_ownership.sem_score }} / 100 | {{ sections.data_ownership.sem_previous_score | default('—') }} | {{ sections.data_ownership.sem_trend_display }} |
+| 5 | Feature Specification | optional | {{ sections.feature_specification.sem_score }} / 100 | {{ sections.feature_specification.sem_previous_score | default('—') }} | {{ sections.feature_specification.sem_trend_display }} |
+| 6 | Component Responsibilities | optional | {{ sections.component_responsibilities.sem_score }} / 100 | {{ sections.component_responsibilities.sem_previous_score | default('—') }} | {{ sections.component_responsibilities.sem_trend_display }} |
+| 7 | Runtime Behavior | optional | {{ sections.runtime_behavior.sem_score }} / 100 | {{ sections.runtime_behavior.sem_previous_score | default('—') }} | {{ sections.runtime_behavior.sem_trend_display }} |
+| 8 | Communication Paths | optional | {{ sections.communication_paths.sem_score }} / 100 | {{ sections.communication_paths.sem_previous_score | default('—') }} | {{ sections.communication_paths.sem_trend_display }} |
+| 9 | Integration Points | optional | {{ sections.integration_points.sem_score }} / 100 | {{ sections.integration_points.sem_previous_score | default('—') }} | {{ sections.integration_points.sem_trend_display }} |
+| 10 | External Dependencies | optional | {{ sections.external_dependencies.sem_score }} / 100 | {{ sections.external_dependencies.sem_previous_score | default('—') }} | {{ sections.external_dependencies.sem_trend_display }} |
+| 11 | Runtime Constraints | optional | {{ sections.runtime_constraints.sem_score }} / 100 | {{ sections.runtime_constraints.sem_previous_score | default('—') }} | {{ sections.runtime_constraints.sem_trend_display }} |
+| 12 | Architectural Constraints | optional | {{ sections.architectural_constraints.sem_score }} / 100 | {{ sections.architectural_constraints.sem_previous_score | default('—') }} | {{ sections.architectural_constraints.sem_trend_display }} |
+| 13 | Security Considerations | optional | {{ sections.security_considerations.sem_score }} / 100 | {{ sections.security_considerations.sem_previous_score | default('—') }} | {{ sections.security_considerations.sem_trend_display }} |
+| 14 | Performance Considerations | optional | {{ sections.performance_considerations.sem_score }} / 100 | {{ sections.performance_considerations.sem_previous_score | default('—') }} | {{ sections.performance_considerations.sem_trend_display }} |
+| 15 | Failure Handling | optional | {{ sections.failure_handling.sem_score }} / 100 | {{ sections.failure_handling.sem_previous_score | default('—') }} | {{ sections.failure_handling.sem_trend_display }} |
+| 16 | Extension Points | optional | {{ sections.extension_points.sem_score }} / 100 | {{ sections.extension_points.sem_previous_score | default('—') }} | {{ sections.extension_points.sem_trend_display }} |
+| 17 | Traceability | optional | {{ sections.traceability.sem_score }} / 100 | {{ sections.traceability.sem_previous_score | default('—') }} | {{ sections.traceability.sem_trend_display }} |
+| — | Generic (unmatched sections) | n/a | {{ sections.generic.sem_score }} / 100 | {{ sections.generic.sem_previous_score | default('—') }} | {{ sections.generic.sem_trend_display }} |
+
+Full detail, including per-rule/per-criterion evidence for every row above: see the Deterministic — Section and Semantic — Section reports linked below.
+
+---
+
+## Score Bands
+
+| Range | Rating | Meaning |
+|---|---|---|
+| 95–100 | Excellent | Fully compliant, no reservations |
+| 90–94 | Very Good | Minor gaps, safe to proceed |
+| 80–89 | Good | Solid foundation, a few issues to resolve |
+| 70–79 | Acceptable | Core present but gaps exist |
+| Below 70 | Needs Improvement | Significant gaps, not ready |
+
+---
+
+## Report Links
+
+| Report | File |
+|---|---|
+| Deterministic — Whole | `{{ det_whole_report_path }}` (`audit/deterministic/document/10-feature-technical.yaml`) |
+| Deterministic — Section | `{{ det_section_report_path }}` (`audit/deterministic/section/10-feature-technical/*.yaml`) |
+| Semantic — Whole | `{{ sem_whole_report_path }}` (`audit/semantic/document/10-feature-technical.md`) |
+| Semantic — Section | `{{ sem_section_report_path }}` (`audit/semantic/section/10-feature-technical/*.md`) |
+
+---
+
+## Top Findings
+
+{% if top_findings | length > 0 %}
+| Severity | Source | Rule/Criterion | Message | New This Run? |
+|---|---|---|---|---|
+{% for f in top_findings -%}
+| {{ f.severity }} | {{ f.report_type }} | {{ f.rule_id }} | {{ f.message }} | {{ 'Yes — regression' if f.is_new_finding else 'No — carried over' }} |
+{% endfor %}
+{% else %}
+No findings.
+{% endif %}
+
+Full score-history and per-run trend detail lives in the Score History table above, and in each of the 4 linked detail reports (each carries its own Score History and per-row Previous/Trend columns) — this table only surfaces what's new since the last run.
+
+---
+
+## Metadata
+
+| Field | Value |
+|---|---|
+| Domain | feature-technical |
+| Standard | documentation-standards |
+| Document | {{ document_path }} |
+| Auditor | System (deterministic engine) + LLM ({{ model_name }}) |
+| Audit Date | {{ created_at }} |
+| Revision | {{ revision_number }} |
+| Session | {{ session_id }} |
+| Reports | 4 detail + 1 summary |

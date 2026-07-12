@@ -1,483 +1,293 @@
-# {{ document_title }} — Feature Technical Deterministic Section Audit Report
+# Deterministic Section Report — Feature Technical
 
-> **Domain:** feature-technical
-> **Scope:** section
-> **Standard:** documentation-standards
-> **Date:** {{ audit_date }}
-> **Auditor:** {{ auditor_name }}
+**Document:** {{ document_path }}
+**Standard:** `documentation-standards/10-feature-technical-standards.md`
+**Rule Files:** `audit/deterministic/section/10-feature-technical/*.yaml`
+**Auditor:** System (deterministic engine)
+**Audit Date:** {{ created_at }}
+**Revision:** {{ revision_number }}
 
 ---
 
-## Document-Level Score
+## Score
 
-| Metric | Value |
+**Deterministic Section Score: {{ score }} / 100**
+{% if previous_score %}({{ '↑ Improved' if score > previous_score else '↓ Regressed' if score < previous_score else '→ Unchanged' }} vs. previous run){% else %}(baseline — first audit of this document){% endif %}
+
+```
+overall = average of the 17 section scores below
+section_score = 100 × (Σ weight of passed rules in that section) / (Σ weight of all rules in that section)
+```
+
+### Score History
+
+| Revision | Date | Score | vs. Previous | vs. Baseline |
+|---:|---|---:|---|---|
+{% for r in revision_history -%}
+| {{ r.revision }} | {{ r.date }} | {{ r.score }} / 100 | {{ r.delta_previous_display }} | {{ r.delta_baseline_display }} |
+{% endfor -%}
+| {{ revision_number }} (current) | {{ created_at }} | {{ score }} / 100 | {{ delta_previous_display }} | {{ delta_baseline_display }} |
+
+{% if not previous_score %}No prior runs — this revision is the baseline every future run is compared against.{% endif %}
+
+### Section Scores
+
+| # | Section | Required | Weight | Score | Previous | Trend |
+|---:|---|:---:|---:|---:|---:|---|
+| 1 | Purpose | **required** | 4.0 | {{ sections.purpose.score }} / 100 | {{ sections.purpose.previous_score | default('—') }} | {{ sections.purpose.trend_display }} |
+| 2 | Participating Components | **required** | 4.0 | {{ sections.participating_components.score }} / 100 | {{ sections.participating_components.previous_score | default('—') }} | {{ sections.participating_components.trend_display }} |
+| 3 | Component Interactions | **required** | 4.0 | {{ sections.component_interactions.score }} / 100 | {{ sections.component_interactions.previous_score | default('—') }} | {{ sections.component_interactions.trend_display }} |
+| 4 | Data Ownership | **required** | 4.0 | {{ sections.data_ownership.score }} / 100 | {{ sections.data_ownership.previous_score | default('—') }} | {{ sections.data_ownership.trend_display }} |
+| 5 | Feature Specification | optional | 1.8 | {{ sections.feature_specification.score }} / 100 | {{ sections.feature_specification.previous_score | default('—') }} | {{ sections.feature_specification.trend_display }} |
+| 6 | Component Responsibilities | optional | 1.8 | {{ sections.component_responsibilities.score }} / 100 | {{ sections.component_responsibilities.previous_score | default('—') }} | {{ sections.component_responsibilities.trend_display }} |
+| 7 | Runtime Behavior | optional | 1.8 | {{ sections.runtime_behavior.score }} / 100 | {{ sections.runtime_behavior.previous_score | default('—') }} | {{ sections.runtime_behavior.trend_display }} |
+| 8 | Communication Paths | optional | 1.8 | {{ sections.communication_paths.score }} / 100 | {{ sections.communication_paths.previous_score | default('—') }} | {{ sections.communication_paths.trend_display }} |
+| 9 | Integration Points | optional | 1.8 | {{ sections.integration_points.score }} / 100 | {{ sections.integration_points.previous_score | default('—') }} | {{ sections.integration_points.trend_display }} |
+| 10 | External Dependencies | optional | 1.3 | {{ sections.external_dependencies.score }} / 100 | {{ sections.external_dependencies.previous_score | default('—') }} | {{ sections.external_dependencies.trend_display }} |
+| 11 | Runtime Constraints | optional | 1.3 | {{ sections.runtime_constraints.score }} / 100 | {{ sections.runtime_constraints.previous_score | default('—') }} | {{ sections.runtime_constraints.trend_display }} |
+| 12 | Architectural Constraints | optional | 1.3 | {{ sections.architectural_constraints.score }} / 100 | {{ sections.architectural_constraints.previous_score | default('—') }} | {{ sections.architectural_constraints.trend_display }} |
+| 13 | Security Considerations | optional | 1.8 | {{ sections.security_considerations.score }} / 100 | {{ sections.security_considerations.previous_score | default('—') }} | {{ sections.security_considerations.trend_display }} |
+| 14 | Performance Considerations | optional | 1.3 | {{ sections.performance_considerations.score }} / 100 | {{ sections.performance_considerations.previous_score | default('—') }} | {{ sections.performance_considerations.trend_display }} |
+| 15 | Failure Handling | optional | 1.8 | {{ sections.failure_handling.score }} / 100 | {{ sections.failure_handling.previous_score | default('—') }} | {{ sections.failure_handling.trend_display }} |
+| 16 | Extension Points | optional | 1.8 | {{ sections.extension_points.score }} / 100 | {{ sections.extension_points.previous_score | default('—') }} | {{ sections.extension_points.trend_display }} |
+| 17 | Traceability | optional | 1.3 | {{ sections.traceability.score }} / 100 | {{ sections.traceability.previous_score | default('—') }} | {{ sections.traceability.trend_display }} |
+
+The 4 required sections carry 16.0 of the document's 37.9 total rule weight — a document can only pass if those four are both present and internally sound; the remaining thirteen are recommended-quality signal, not gating.
+
+---
+
+## 1. Purpose — weight 4.0 — **required**
+
+**Why this matters:** Purpose defines why Feature Technical Documentation exists before a reader sees a single component or interaction. A Purpose section that's missing, vague, or technology-leaking undermines every section that follows it.
+
+**Section Score: {{ sections.purpose.score }} / 100** ({{ sections.purpose.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| ft-sec-purpose-001 | Purpose section exists | error (mandatory) | 1.5 | {{ results['ft-sec-purpose-001'].previous_status \| default('—') }} | {{ results['ft-sec-purpose-001'].status }} | {{ results['ft-sec-purpose-001'].trend_display }} | {{ results['ft-sec-purpose-001'].evidence \| default('—') }} |
+| ft-sec-purpose-002 | States feature technical intent | error (mandatory) | 1.0 | {{ results['ft-sec-purpose-002'].previous_status \| default('—') }} | {{ results['ft-sec-purpose-002'].status }} | {{ results['ft-sec-purpose-002'].trend_display }} | {{ results['ft-sec-purpose-002'].evidence \| default('—') }} |
+| ft-sec-purpose-003 | Technology-independent | error (mandatory) | 1.0 | {{ results['ft-sec-purpose-003'].previous_status \| default('—') }} | {{ results['ft-sec-purpose-003'].status }} | {{ results['ft-sec-purpose-003'].trend_display }} | {{ results['ft-sec-purpose-003'].evidence \| default('—') }} |
+| ft-sec-purpose-004 | Scope boundaries defined | warning (recommended) | 0.5 | {{ results['ft-sec-purpose-004'].previous_status \| default('—') }} | {{ results['ft-sec-purpose-004'].status }} | {{ results['ft-sec-purpose-004'].trend_display }} | {{ results['ft-sec-purpose-004'].evidence \| default('—') }} |
+
+## 2. Participating Components — weight 4.0 — **required**
+
+**Why this matters:** Participating Components is the inventory of every module, service, or sub-system involved in the feature. A missing or incomplete list means downstream sections (Component Interactions, Data Ownership, Runtime Behavior) reference components that were never formally introduced.
+
+**Section Score: {{ sections.participating_components.score }} / 100** ({{ sections.participating_components.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| ft-sec-components-001 | Participating Components section exists | error (mandatory) | 1.5 | {{ results['ft-sec-components-001'].previous_status \| default('—') }} | {{ results['ft-sec-components-001'].status }} | {{ results['ft-sec-components-001'].trend_display }} | {{ results['ft-sec-components-001'].evidence \| default('—') }} |
+| ft-sec-components-002 | Lists components participating in the feature | error (mandatory) | 1.0 | {{ results['ft-sec-components-002'].previous_status \| default('—') }} | {{ results['ft-sec-components-002'].status }} | {{ results['ft-sec-components-002'].trend_display }} | {{ results['ft-sec-components-002'].evidence \| default('—') }} |
+| ft-sec-components-003 | Technology-independent | error (mandatory) | 1.0 | {{ results['ft-sec-components-003'].previous_status \| default('—') }} | {{ results['ft-sec-components-003'].status }} | {{ results['ft-sec-components-003'].trend_display }} | {{ results['ft-sec-components-003'].evidence \| default('—') }} |
+| ft-sec-components-004 | Defines component boundaries | warning (recommended) | 0.5 | {{ results['ft-sec-components-004'].previous_status \| default('—') }} | {{ results['ft-sec-components-004'].status }} | {{ results['ft-sec-components-004'].trend_display }} | {{ results['ft-sec-components-004'].evidence \| default('—') }} |
+
+## 3. Component Interactions — weight 4.0 — **required**
+
+**Why this matters:** Component Interactions describes how components communicate and depend on each other. Without it, readers cannot understand the feature's data flow, call patterns, or coupling characteristics — all of which are essential for Implementation.
+
+**Section Score: {{ sections.component_interactions.score }} / 100** ({{ sections.component_interactions.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| ft-sec-interactions-001 | Component Interactions section exists | error (mandatory) | 1.5 | {{ results['ft-sec-interactions-001'].previous_status \| default('—') }} | {{ results['ft-sec-interactions-001'].status }} | {{ results['ft-sec-interactions-001'].trend_display }} | {{ results['ft-sec-interactions-001'].evidence \| default('—') }} |
+| ft-sec-interactions-002 | Describes how components communicate and interact | error (mandatory) | 1.0 | {{ results['ft-sec-interactions-002'].previous_status \| default('—') }} | {{ results['ft-sec-interactions-002'].status }} | {{ results['ft-sec-interactions-002'].trend_display }} | {{ results['ft-sec-interactions-002'].evidence \| default('—') }} |
+| ft-sec-interactions-003 | Technology-independent (no protocols, frameworks, or implementation specifics) | error (mandatory) | 1.0 | {{ results['ft-sec-interactions-003'].previous_status \| default('—') }} | {{ results['ft-sec-interactions-003'].status }} | {{ results['ft-sec-interactions-003'].trend_display }} | {{ results['ft-sec-interactions-003'].evidence \| default('—') }} |
+| ft-sec-interactions-004 | Defines interaction patterns (sync, async, event-driven) | warning (recommended) | 0.5 | {{ results['ft-sec-interactions-004'].previous_status \| default('—') }} | {{ results['ft-sec-interactions-004'].status }} | {{ results['ft-sec-interactions-004'].trend_display }} | {{ results['ft-sec-interactions-004'].evidence \| default('—') }} |
+
+## 4. Data Ownership — weight 4.0 — **required**
+
+**Why this matters:** Data Ownership assigns authoritative ownership for each data entity to a specific component. Without it, multiple components may silently write to the same data, creating consistency bugs that surface only at runtime.
+
+**Section Score: {{ sections.data_ownership.score }} / 100** ({{ sections.data_ownership.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| ft-sec-data-001 | Data Ownership section exists | error (mandatory) | 1.5 | {{ results['ft-sec-data-001'].previous_status \| default('—') }} | {{ results['ft-sec-data-001'].status }} | {{ results['ft-sec-data-001'].trend_display }} | {{ results['ft-sec-data-001'].evidence \| default('—') }} |
+| ft-sec-data-002 | Defines which components own or are responsible for which data | error (mandatory) | 1.0 | {{ results['ft-sec-data-002'].previous_status \| default('—') }} | {{ results['ft-sec-data-002'].status }} | {{ results['ft-sec-data-002'].trend_display }} | {{ results['ft-sec-data-002'].evidence \| default('—') }} |
+| ft-sec-data-003 | Technology-independent (no database schemas, storage technologies, or implementation specifics) | error (mandatory) | 1.0 | {{ results['ft-sec-data-003'].previous_status \| default('—') }} | {{ results['ft-sec-data-003'].status }} | {{ results['ft-sec-data-003'].trend_display }} | {{ results['ft-sec-data-003'].evidence \| default('—') }} |
+| ft-sec-data-004 | Defines data lifecycle (create, read, update, delete) | warning (recommended) | 0.5 | {{ results['ft-sec-data-004'].previous_status \| default('—') }} | {{ results['ft-sec-data-004'].status }} | {{ results['ft-sec-data-004'].trend_display }} | {{ results['ft-sec-data-004'].evidence \| default('—') }} |
+
+## 5. Feature Specification — weight 1.8 — optional
+
+**Why this matters:** Feature Specification defines the technical boundaries, inputs, outputs, and behavioral contract of the feature. Without it, Implementation has no declarative contract to code against.
+
+**Section Score: {{ sections.feature_specification.score }} / 100** ({{ sections.feature_specification.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| ft-sec-spec-001 | Feature Specification section exists | suggestion (optional) | 0.3 | {{ results['ft-sec-spec-001'].previous_status \| default('—') }} | {{ results['ft-sec-spec-001'].status }} | {{ results['ft-sec-spec-001'].trend_display }} | {{ results['ft-sec-spec-001'].evidence \| default('—') }} |
+| ft-sec-spec-002 | Defines technical behavior of the feature | warning (recommended) | 0.5 | {{ results['ft-sec-spec-002'].previous_status \| default('—') }} | {{ results['ft-sec-spec-002'].status }} | {{ results['ft-sec-spec-002'].trend_display }} | {{ results['ft-sec-spec-002'].evidence \| default('—') }} |
+| ft-sec-spec-003 | Technology-independent | error (non-mandatory) | 1.0 | {{ results['ft-sec-spec-003'].previous_status \| default('—') }} | {{ results['ft-sec-spec-003'].status }} | {{ results['ft-sec-spec-003'].trend_display }} | {{ results['ft-sec-spec-003'].evidence \| default('—') }} |
+
+## 6. Component Responsibilities — weight 1.8 — optional
+
+**Why this matters:** Component Responsibilities defines what each participating component owns within the feature, preventing overlap and gaps in accountability.
+
+**Section Score: {{ sections.component_responsibilities.score }} / 100** ({{ sections.component_responsibilities.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| ft-sec-resp-001 | Component Responsibilities section exists | suggestion (optional) | 0.3 | {{ results['ft-sec-resp-001'].previous_status \| default('—') }} | {{ results['ft-sec-resp-001'].status }} | {{ results['ft-sec-resp-001'].trend_display }} | {{ results['ft-sec-resp-001'].evidence \| default('—') }} |
+| ft-sec-resp-002 | Defines responsibilities for each participating component | warning (recommended) | 0.5 | {{ results['ft-sec-resp-002'].previous_status \| default('—') }} | {{ results['ft-sec-resp-002'].status }} | {{ results['ft-sec-resp-002'].trend_display }} | {{ results['ft-sec-resp-002'].evidence \| default('—') }} |
+| ft-sec-resp-003 | Aligns with Architecture component model | error (non-mandatory) | 1.0 | {{ results['ft-sec-resp-003'].previous_status \| default('—') }} | {{ results['ft-sec-resp-003'].status }} | {{ results['ft-sec-resp-003'].trend_display }} | {{ results['ft-sec-resp-003'].evidence \| default('—') }} |
+
+## 7. Runtime Behavior — weight 1.8 — optional
+
+**Why this matters:** Runtime Behavior describes the feature's operational execution model — startup, steady-state, state transitions, and shutdown. Without it, Implementation cannot determine the correct lifecycle sequence.
+
+**Section Score: {{ sections.runtime_behavior.score }} / 100** ({{ sections.runtime_behavior.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| ft-sec-runtime-001 | Runtime Behavior section exists | suggestion (optional) | 0.3 | {{ results['ft-sec-runtime-001'].previous_status \| default('—') }} | {{ results['ft-sec-runtime-001'].status }} | {{ results['ft-sec-runtime-001'].trend_display }} | {{ results['ft-sec-runtime-001'].evidence \| default('—') }} |
+| ft-sec-runtime-002 | Describes runtime behavior | warning (recommended) | 0.5 | {{ results['ft-sec-runtime-002'].previous_status \| default('—') }} | {{ results['ft-sec-runtime-002'].status }} | {{ results['ft-sec-runtime-002'].trend_display }} | {{ results['ft-sec-runtime-002'].evidence \| default('—') }} |
+| ft-sec-runtime-003 | Technology-independent | error (non-mandatory) | 1.0 | {{ results['ft-sec-runtime-003'].previous_status \| default('—') }} | {{ results['ft-sec-runtime-003'].status }} | {{ results['ft-sec-runtime-003'].trend_display }} | {{ results['ft-sec-runtime-003'].evidence \| default('—') }} |
+
+## 8. Communication Paths — weight 1.8 — optional
+
+**Why this matters:** Communication Paths documents the data flow topology across the feature — message routing, delivery guarantees, and backpressure handling. Without it, readers cannot assess whether data arrives reliably and in order.
+
+**Section Score: {{ sections.communication_paths.score }} / 100** ({{ sections.communication_paths.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| ft-sec-comm-001 | Communication Paths section exists | suggestion (optional) | 0.3 | {{ results['ft-sec-comm-001'].previous_status \| default('—') }} | {{ results['ft-sec-comm-001'].status }} | {{ results['ft-sec-comm-001'].trend_display }} | {{ results['ft-sec-comm-001'].evidence \| default('—') }} |
+| ft-sec-comm-002 | Defines communication paths between components | warning (recommended) | 0.5 | {{ results['ft-sec-comm-002'].previous_status \| default('—') }} | {{ results['ft-sec-comm-002'].status }} | {{ results['ft-sec-comm-002'].trend_display }} | {{ results['ft-sec-comm-002'].evidence \| default('—') }} |
+| ft-sec-comm-003 | Technology-independent (no protocols, message brokers, or implementation specifics) | error (non-mandatory) | 1.0 | {{ results['ft-sec-comm-003'].previous_status \| default('—') }} | {{ results['ft-sec-comm-003'].status }} | {{ results['ft-sec-comm-003'].trend_display }} | {{ results['ft-sec-comm-003'].evidence \| default('—') }} |
+
+## 9. Integration Points — weight 1.8 — optional
+
+**Why this matters:** Integration Points document every boundary where the feature connects to external systems. Without it, implementation teams may miss integration contracts and fail at system boundaries.
+
+**Section Score: {{ sections.integration_points.score }} / 100** ({{ sections.integration_points.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| ft-sec-integration-001 | Integration Points section exists | suggestion (optional) | 0.3 | {{ results['ft-sec-integration-001'].previous_status \| default('—') }} | {{ results['ft-sec-integration-001'].status }} | {{ results['ft-sec-integration-001'].trend_display }} | {{ results['ft-sec-integration-001'].evidence \| default('—') }} |
+| ft-sec-integration-002 | Defines integration points with external systems | warning (recommended) | 0.5 | {{ results['ft-sec-integration-002'].previous_status \| default('—') }} | {{ results['ft-sec-integration-002'].status }} | {{ results['ft-sec-integration-002'].trend_display }} | {{ results['ft-sec-integration-002'].evidence \| default('—') }} |
+| ft-sec-integration-003 | Technology-independent (no specific APIs, external systems, or implementation specifics) | error (non-mandatory) | 1.0 | {{ results['ft-sec-integration-003'].previous_status \| default('—') }} | {{ results['ft-sec-integration-003'].status }} | {{ results['ft-sec-integration-003'].trend_display }} | {{ results['ft-sec-integration-003'].evidence \| default('—') }} |
+
+## 10. External Dependencies — weight 1.3 — optional
+
+**Why this matters:** External Dependencies capture every third-party library, service, or infrastructure the feature relies on. Without it, version conflicts and license issues surface only in production.
+
+**Section Score: {{ sections.external_dependencies.score }} / 100** ({{ sections.external_dependencies.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| ft-sec-extdep-001 | External Dependencies section exists | suggestion (optional) | 0.3 | {{ results['ft-sec-extdep-001'].previous_status \| default('—') }} | {{ results['ft-sec-extdep-001'].status }} | {{ results['ft-sec-extdep-001'].trend_display }} | {{ results['ft-sec-extdep-001'].evidence \| default('—') }} |
+| ft-sec-extdep-002 | Lists external dependencies | warning (recommended) | 0.5 | {{ results['ft-sec-extdep-002'].previous_status \| default('—') }} | {{ results['ft-sec-extdep-002'].status }} | {{ results['ft-sec-extdep-002'].trend_display }} | {{ results['ft-sec-extdep-002'].evidence \| default('—') }} |
+| ft-sec-extdep-003 | Defines dependency nature (required, optional, version constraints) | warning (recommended) | 0.5 | {{ results['ft-sec-extdep-003'].previous_status \| default('—') }} | {{ results['ft-sec-extdep-003'].status }} | {{ results['ft-sec-extdep-003'].trend_display }} | {{ results['ft-sec-extdep-003'].evidence \| default('—') }} |
+
+## 11. Runtime Constraints — weight 1.3 — optional
+
+**Why this matters:** Runtime Constraints specify measurable resource limits the feature must operate within. Without numeric thresholds, performance requirements are ambiguous and unverifiable.
+
+**Section Score: {{ sections.runtime_constraints.score }} / 100** ({{ sections.runtime_constraints.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| ft-sec-rtcon-001 | Runtime Constraints section exists | suggestion (optional) | 0.3 | {{ results['ft-sec-rtcon-001'].previous_status \| default('—') }} | {{ results['ft-sec-rtcon-001'].status }} | {{ results['ft-sec-rtcon-001'].trend_display }} | {{ results['ft-sec-rtcon-001'].evidence \| default('—') }} |
+| ft-sec-rtcon-002 | Defines runtime constraints (latency, throughput, memory, availability) | warning (recommended) | 0.5 | {{ results['ft-sec-rtcon-002'].previous_status \| default('—') }} | {{ results['ft-sec-rtcon-002'].status }} | {{ results['ft-sec-rtcon-002'].trend_display }} | {{ results['ft-sec-rtcon-002'].evidence \| default('—') }} |
+| ft-sec-rtcon-003 | Has measurable thresholds | warning (recommended) | 0.5 | {{ results['ft-sec-rtcon-003'].previous_status \| default('—') }} | {{ results['ft-sec-rtcon-003'].status }} | {{ results['ft-sec-rtcon-003'].trend_display }} | {{ results['ft-sec-rtcon-003'].evidence \| default('—') }} |
+
+## 12. Architectural Constraints — weight 1.3 — optional
+
+**Why this matters:** Architectural Constraints define the non-negotiable design rules the feature must adhere to. Without them, implementation may violate architectural principles that were decided upstream.
+
+**Section Score: {{ sections.architectural_constraints.score }} / 100** ({{ sections.architectural_constraints.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| ft-sec-archcon-001 | Architectural Constraints section exists | suggestion (optional) | 0.3 | {{ results['ft-sec-archcon-001'].previous_status \| default('—') }} | {{ results['ft-sec-archcon-001'].status }} | {{ results['ft-sec-archcon-001'].trend_display }} | {{ results['ft-sec-archcon-001'].evidence \| default('—') }} |
+| ft-sec-archcon-002 | Defines architectural constraints | warning (recommended) | 0.5 | {{ results['ft-sec-archcon-002'].previous_status \| default('—') }} | {{ results['ft-sec-archcon-002'].status }} | {{ results['ft-sec-archcon-002'].trend_display }} | {{ results['ft-sec-archcon-002'].evidence \| default('—') }} |
+| ft-sec-archcon-003 | References Architecture domain as source of constraints | warning (recommended) | 0.5 | {{ results['ft-sec-archcon-003'].previous_status \| default('—') }} | {{ results['ft-sec-archcon-003'].status }} | {{ results['ft-sec-archcon-003'].trend_display }} | {{ results['ft-sec-archcon-003'].evidence \| default('—') }} |
+
+## 13. Security Considerations — weight 1.8 — optional
+
+**Why this matters:** Security Considerations document the threat model, authentication, authorization, and data protection requirements. Without them, security is treated as an afterthought rather than a design constraint.
+
+**Section Score: {{ sections.security_considerations.score }} / 100** ({{ sections.security_considerations.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| ft-sec-security-001 | Security Considerations section exists | suggestion (optional) | 0.3 | {{ results['ft-sec-security-001'].previous_status \| default('—') }} | {{ results['ft-sec-security-001'].status }} | {{ results['ft-sec-security-001'].trend_display }} | {{ results['ft-sec-security-001'].evidence \| default('—') }} |
+| ft-sec-security-002 | Defines security aspects (authentication, authorization, encryption, data protection) | warning (recommended) | 0.5 | {{ results['ft-sec-security-002'].previous_status \| default('—') }} | {{ results['ft-sec-security-002'].status }} | {{ results['ft-sec-security-002'].trend_display }} | {{ results['ft-sec-security-002'].evidence \| default('—') }} |
+| ft-sec-security-003 | Technology-independent (no specific security libraries or frameworks) | error (non-mandatory) | 1.0 | {{ results['ft-sec-security-003'].previous_status \| default('—') }} | {{ results['ft-sec-security-003'].status }} | {{ results['ft-sec-security-003'].trend_display }} | {{ results['ft-sec-security-003'].evidence \| default('—') }} |
+
+## 14. Performance Considerations — weight 1.3 — optional
+
+**Why this matters:** Performance Considerations document latency targets, throughput requirements, and resource utilization profiles. Without them, performance expectations are undocumented and unverifiable.
+
+**Section Score: {{ sections.performance_considerations.score }} / 100** ({{ sections.performance_considerations.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| ft-sec-perf-001 | Performance Considerations section exists | suggestion (optional) | 0.3 | {{ results['ft-sec-perf-001'].previous_status \| default('—') }} | {{ results['ft-sec-perf-001'].status }} | {{ results['ft-sec-perf-001'].trend_display }} | {{ results['ft-sec-perf-001'].evidence \| default('—') }} |
+| ft-sec-perf-002 | Defines performance aspects (latency, throughput, optimization) | warning (recommended) | 0.5 | {{ results['ft-sec-perf-002'].previous_status \| default('—') }} | {{ results['ft-sec-perf-002'].status }} | {{ results['ft-sec-perf-002'].trend_display }} | {{ results['ft-sec-perf-002'].evidence \| default('—') }} |
+| ft-sec-perf-003 | Has measurable performance targets | warning (recommended) | 0.5 | {{ results['ft-sec-perf-003'].previous_status \| default('—') }} | {{ results['ft-sec-perf-003'].status }} | {{ results['ft-sec-perf-003'].trend_display }} | {{ results['ft-sec-perf-003'].evidence \| default('—') }} |
+
+## 15. Failure Handling — weight 1.8 — optional
+
+**Why this matters:** Failure Handling documents how the feature detects, responds to, and recovers from errors. Without it, error handling is left to individual developer judgment, leading to inconsistent recovery behavior.
+
+**Section Score: {{ sections.failure_handling.score }} / 100** ({{ sections.failure_handling.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| ft-sec-failure-001 | Failure Handling section exists | suggestion (optional) | 0.3 | {{ results['ft-sec-failure-001'].previous_status \| default('—') }} | {{ results['ft-sec-failure-001'].status }} | {{ results['ft-sec-failure-001'].trend_display }} | {{ results['ft-sec-failure-001'].evidence \| default('—') }} |
+| ft-sec-failure-002 | Defines failure modes (error handling, retry, fallback, recovery) | warning (recommended) | 0.5 | {{ results['ft-sec-failure-002'].previous_status \| default('—') }} | {{ results['ft-sec-failure-002'].status }} | {{ results['ft-sec-failure-002'].trend_display }} | {{ results['ft-sec-failure-002'].evidence \| default('—') }} |
+| ft-sec-failure-003 | Technology-independent (no specific error-handling libraries or frameworks) | error (non-mandatory) | 1.0 | {{ results['ft-sec-failure-003'].previous_status \| default('—') }} | {{ results['ft-sec-failure-003'].status }} | {{ results['ft-sec-failure-003'].trend_display }} | {{ results['ft-sec-failure-003'].evidence \| default('—') }} |
+
+## 16. Extension Points — weight 1.8 — optional
+
+**Why this matters:** Extension Points document where the feature can be customized or extended by other features. Without them, consumers cannot safely extend the feature without risking breakage.
+
+**Section Score: {{ sections.extension_points.score }} / 100** ({{ sections.extension_points.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| ft-sec-extension-001 | Extension Points section exists | suggestion (optional) | 0.3 | {{ results['ft-sec-extension-001'].previous_status \| default('—') }} | {{ results['ft-sec-extension-001'].status }} | {{ results['ft-sec-extension-001'].trend_display }} | {{ results['ft-sec-extension-001'].evidence \| default('—') }} |
+| ft-sec-extension-002 | Defines extension mechanisms (plugin, hook, override) | warning (recommended) | 0.5 | {{ results['ft-sec-extension-002'].previous_status \| default('—') }} | {{ results['ft-sec-extension-002'].status }} | {{ results['ft-sec-extension-002'].trend_display }} | {{ results['ft-sec-extension-002'].evidence \| default('—') }} |
+| ft-sec-extension-003 | Technology-independent (no specific extension frameworks or plugin systems) | error (non-mandatory) | 1.0 | {{ results['ft-sec-extension-003'].previous_status \| default('—') }} | {{ results['ft-sec-extension-003'].status }} | {{ results['ft-sec-extension-003'].trend_display }} | {{ results['ft-sec-extension-003'].evidence \| default('—') }} |
+
+## 17. Traceability — weight 1.3 — optional
+
+**Why this matters:** Traceability documents the links between feature requirements, design decisions, and implementation artifacts. Without it, impact analysis is impossible and untraced elements silently accumulate.
+
+**Section Score: {{ sections.traceability.score }} / 100** ({{ sections.traceability.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| ft-sec-trace-001 | Traceability section exists | suggestion (optional) | 0.3 | {{ results['ft-sec-trace-001'].previous_status \| default('—') }} | {{ results['ft-sec-trace-001'].status }} | {{ results['ft-sec-trace-001'].trend_display }} | {{ results['ft-sec-trace-001'].evidence \| default('—') }} |
+| ft-sec-trace-002 | Links to upstream domains (Feature, Engineering, Architecture) | warning (recommended) | 0.5 | {{ results['ft-sec-trace-002'].previous_status \| default('—') }} | {{ results['ft-sec-trace-002'].status }} | {{ results['ft-sec-trace-002'].trend_display }} | {{ results['ft-sec-trace-002'].evidence \| default('—') }} |
+| ft-sec-trace-003 | Links to downstream implementation | warning (recommended) | 0.5 | {{ results['ft-sec-trace-003'].previous_status \| default('—') }} | {{ results['ft-sec-trace-003'].status }} | {{ results['ft-sec-trace-003'].trend_display }} | {{ results['ft-sec-trace-003'].evidence \| default('—') }} |
+
+---
+
+## Failures Requiring Attention
+
+{% if failed_rules | length > 0 %}
+| Section | Rule | Message | Evidence | New This Run? |
+|---|---|---|---|---|
+{% for r in failed_rules -%}
+| {{ r.section_type }} | {{ r.id }} | {{ r.message }} | {{ r.evidence | default('—') }} | {{ 'Yes — regression' if r.is_new_failure else 'No — carried over' }} |
+{% endfor %}
+{% else %}
+No failures across all 17 sections.
+{% endif %}
+
+---
+
+## Metadata
+
+| Field | Value |
 |---|---|
-| **Weight Sum** | 6.5 |
-| **Weighted Score** | {{ weighted_score }} |
-| **Max Possible** | 6.5 |
-| **Percentage** | {{ score_percentage }} |
-| **Verdict** | {{ verdict }} |
-
-**Why this matters:** Section-level deterministic audit checks that each Feature Technical section exists, has substantive content, and — critically — stays technology-independent. A section that names specific frameworks, libraries, or protocols has leaked into Implementation territory.
-
----
-
-## Required Sections
-
-### purpose
-#### ft-sec-purpose-001 — Purpose section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Status:** {{ purpose_001_status }}
-- **Evidence:** {{ purpose_001_evidence }}
-- **Why this matters:** Feature Technical without a Purpose has no rationale — implementers cannot understand why this technical design exists.
-
-#### ft-sec-purpose-002 — Purpose states feature technical intent
-- **Severity:** error
-- **Weight:** 1.0
-- **Status:** {{ purpose_002_status }}
-- **Evidence:** {{ purpose_002_evidence }}
-- **Why this matters:** A Purpose that doesn't state technical intent leaves implementers guessing about the engineering problem being solved.
-
-#### ft-sec-purpose-003 — Purpose is technology-independent
-- **Severity:** error
-- **Weight:** 1.0
-- **Status:** {{ purpose_003_status }}
-- **Evidence:** {{ purpose_003_evidence }}
-- **Why this matters:** Purpose that names specific technologies has leaked — it's no longer a technology-independent specification.
-
-#### ft-sec-purpose-004 — Purpose scope boundaries defined
-- **Severity:** warning
-- **Weight:** 0.5
-- **Status:** {{ purpose_004_status }}
-- **Evidence:** {{ purpose_004_evidence }}
-- **Why this matters:** Purpose without scope boundaries leaves implementers unsure where this feature ends and the next begins.
-
----
-
-### participating_components
-#### ft-sec-components-001 — Participating Components section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Status:** {{ components_001_status }}
-- **Evidence:** {{ components_001_evidence }}
-- **Why this matters:** Feature Technical without a component inventory gives implementers no understanding of what parts of the system are involved.
-
-#### ft-sec-components-002 — Participating Components lists components
-- **Severity:** error
-- **Weight:** 1.0
-- **Status:** {{ components_002_status }}
-- **Evidence:** {{ components_002_evidence }}
-- **Why this matters:** A section that exists but doesn't list components is a heading with no substance.
-
-#### ft-sec-components-003 — Participating Components is technology-independent
-- **Severity:** error
-- **Weight:** 1.0
-- **Status:** {{ components_003_status }}
-- **Evidence:** {{ components_003_evidence }}
-- **Why this matters:** Component names that reference implementation technologies (e.g., "KafkaConsumer") have leaked into Implementation territory.
-
-#### ft-sec-components-004 — Participating Components defines component boundaries
-- **Severity:** warning
-- **Weight:** 0.5
-- **Status:** {{ components_004_status }}
-- **Evidence:** {{ components_004_evidence }}
-- **Why this matters:** Components without defined boundaries lead to responsibility overlap and unclear ownership.
-
----
-
-### component_interactions
-#### ft-sec-interactions-001 — Component Interactions section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Status:** {{ interactions_001_status }}
-- **Evidence:** {{ interactions_001_evidence }}
-- **Why this matters:** Feature Technical without interaction documentation leaves implementers guessing how components communicate.
-
-#### ft-sec-interactions-002 — Component Interactions describes interactions
-- **Severity:** error
-- **Weight:** 1.0
-- **Status:** {{ interactions_002_status }}
-- **Evidence:** {{ interactions_002_evidence }}
-- **Why this matters:** A section that exists but doesn't describe interactions is a heading with no substance.
-
-#### ft-sec-interactions-003 — Component Interactions is technology-independent
-- **Severity:** error
-- **Weight:** 1.0
-- **Status:** {{ interactions_003_status }}
-- **Evidence:** {{ interactions_003_evidence }}
-- **Why this matters:** Interaction descriptions that name specific protocols (gRPC, REST, Kafka) have leaked into Implementation territory.
-
-#### ft-sec-interactions-004 — Component Interactions defines interaction patterns
-- **Severity:** warning
-- **Weight:** 0.5
-- **Status:** {{ interactions_004_status }}
-- **Evidence:** {{ interactions_004_evidence }}
-- **Why this matters:** Interactions without defined patterns (sync, async, event-driven) leave implementers unsure of the communication model.
-
----
-
-### data_ownership
-#### ft-sec-data-001 — Data Ownership section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Status:** {{ data_001_status }}
-- **Evidence:** {{ data_001_evidence }}
-- **Why this matters:** Feature Technical without data ownership leaves implementers unsure which component is the authoritative source for each data entity.
-
-#### ft-sec-data-002 — Data Ownership defines data ownership
-- **Severity:** error
-- **Weight:** 1.0
-- **Status:** {{ data_002_status }}
-- **Evidence:** {{ data_002_evidence }}
-- **Why this matters:** A section that exists but doesn't define ownership is a heading with no substance.
-
-#### ft-sec-data-003 — Data Ownership is technology-independent
-- **Severity:** error
-- **Weight:** 1.0
-- **Status:** {{ data_003_status }}
-- **Evidence:** {{ data_003_evidence }}
-- **Why this matters:** Data ownership that names specific databases or storage technologies has leaked into Implementation territory.
-
-#### ft-sec-data-004 — Data Ownership defines data lifecycle
-- **Severity:** warning
-- **Weight:** 0.5
-- **Status:** {{ data_004_status }}
-- **Evidence:** {{ data_004_evidence }}
-- **Why this matters:** Data ownership without lifecycle documentation leaves implementers unsure how data flows through create/read/update/delete cycles.
-
----
-
-## Optional Sections
-
-### feature_specification
-#### ft-sec-spec-001 — Feature Specification section exists
-- **Severity:** info
-- **Weight:** 0.3
-- **Status:** {{ spec_001_status }}
-- **Evidence:** {{ spec_001_evidence }}
-- **Why this matters:** Optional — but when present, it defines the behavioral contract of the feature at its boundary.
-
-#### ft-sec-spec-002 — Feature Specification defines technical behavior
-- **Severity:** warning
-- **Weight:** 0.5
-- **Status:** {{ spec_002_status }}
-- **Evidence:** {{ spec_002_evidence }}
-- **Why this matters:** Specification without technical behavior gives implementers no contract to validate against.
-
-#### ft-sec-spec-003 — Feature Specification is technology-independent
-- **Severity:** error
-- **Weight:** 1.0
-- **Status:** {{ spec_003_status }}
-- **Evidence:** {{ spec_003_evidence }}
-- **Why this matters:** Specification that names specific technologies has leaked into Implementation territory.
-
----
-
-### component_responsibilities
-#### ft-sec-resp-001 — Component Responsibilities section exists
-- **Severity:** info
-- **Weight:** 0.3
-- **Status:** {{ resp_001_status }}
-- **Evidence:** {{ resp_001_evidence }}
-- **Why this matters:** Optional — but when present, it defines what each component owns within the feature.
-
-#### ft-sec-resp-002 — Component Responsibilities defines responsibilities
-- **Severity:** warning
-- **Weight:** 0.5
-- **Status:** {{ resp_002_status }}
-- **Evidence:** {{ resp_002_evidence }}
-- **Why this matters:** Responsibilities without definitions leave implementers guessing what each component is accountable for.
-
-#### ft-sec-resp-003 — Component Responsibilities aligns with Architecture
-- **Severity:** error
-- **Weight:** 1.0
-- **Status:** {{ resp_003_status }}
-- **Evidence:** {{ resp_003_evidence }}
-- **Why this matters:** Responsibilities that contradict the Architecture component model create conflicting guidance for implementers.
-
----
-
-### runtime_behavior
-#### ft-sec-runtime-001 — Runtime Behavior section exists
-- **Severity:** info
-- **Weight:** 0.3
-- **Status:** {{ runtime_001_status }}
-- **Evidence:** {{ runtime_001_evidence }}
-- **Why this matters:** Optional — but when present, it describes how the feature behaves at runtime.
-
-#### ft-sec-runtime-002 — Runtime Behavior describes runtime behavior
-- **Severity:** warning
-- **Weight:** 0.5
-- **Status:** {{ runtime_002_status }}
-- **Evidence:** {{ runtime_002_evidence }}
-- **Why this matters:** Runtime behavior without descriptions leaves implementers guessing about startup, steady-state, and shutdown sequences.
-
-#### ft-sec-runtime-003 — Runtime Behavior is technology-independent
-- **Severity:** error
-- **Weight:** 1.0
-- **Status:** {{ runtime_003_status }}
-- **Evidence:** {{ runtime_003_evidence }}
-- **Why this matters:** Runtime behavior that names specific VMs, runtimes, or frameworks has leaked into Implementation territory.
-
----
-
-### communication_paths
-#### ft-sec-comm-001 — Communication Paths section exists
-- **Severity:** info
-- **Weight:** 0.3
-- **Status:** {{ comm_001_status }}
-- **Evidence:** {{ comm_001_evidence }}
-- **Why this matters:** Optional — but when present, it defines the data flow topology across the feature.
-
-#### ft-sec-comm-002 — Communication Paths defines paths
-- **Severity:** warning
-- **Weight:** 0.5
-- **Status:** {{ comm_002_status }}
-- **Evidence:** {{ comm_002_evidence }}
-- **Why this matters:** Communication paths without definitions leave implementers unsure how data travels from source to sink.
-
-#### ft-sec-comm-003 — Communication Paths is technology-independent
-- **Severity:** error
-- **Weight:** 1.0
-- **Status:** {{ comm_003_status }}
-- **Evidence:** {{ comm_003_evidence }}
-- **Why this matters:** Communication paths that name specific protocols or message brokers have leaked into Implementation territory.
-
----
-
-### integration_points
-#### ft-sec-integration-001 — Integration Points section exists
-- **Severity:** info
-- **Weight:** 0.3
-- **Status:** {{ integration_001_status }}
-- **Evidence:** {{ integration_001_evidence }}
-- **Why this matters:** Optional — but when present, it documents every boundary where the feature connects to external systems.
-
-#### ft-sec-integration-002 — Integration Points defines integration points
-- **Severity:** warning
-- **Weight:** 0.5
-- **Status:** {{ integration_002_status }}
-- **Evidence:** {{ integration_002_evidence }}
-- **Why this matters:** Integration points without definitions leave implementers guessing about external boundaries.
-
-#### ft-sec-integration-003 — Integration Points is technology-independent
-- **Severity:** error
-- **Weight:** 1.0
-- **Status:** {{ integration_003_status }}
-- **Evidence:** {{ integration_003_evidence }}
-- **Why this matters:** Integration points that name specific external systems or APIs have leaked into Implementation territory.
-
----
-
-### external_dependencies
-#### ft-sec-extdep-001 — External Dependencies section exists
-- **Severity:** info
-- **Weight:** 0.3
-- **Status:** {{ extdep_001_status }}
-- **Evidence:** {{ extdep_001_evidence }}
-- **Why this matters:** Optional — but when present, it documents all third-party libraries, services, and infrastructure the feature relies on.
-
-#### ft-sec-extdep-002 — External Dependencies lists dependencies
-- **Severity:** warning
-- **Weight:** 0.5
-- **Status:** {{ extdep_002_status }}
-- **Evidence:** {{ extdep_002_evidence }}
-- **Why this matters:** Dependencies without a list leave implementers guessing about external requirements.
-
-#### ft-sec-extdep-003 — External Dependencies defines dependency nature
-- **Severity:** warning
-- **Weight:** 0.5
-- **Status:** {{ extdep_003_status }}
-- **Evidence:** {{ extdep_003_evidence }}
-- **Why this matters:** Dependencies without nature (required, optional, version constraints) leave implementers unsure of their criticality.
-
----
-
-### runtime_constraints
-#### ft-sec-rtcon-001 — Runtime Constraints section exists
-- **Severity:** info
-- **Weight:** 0.3
-- **Status:** {{ rtcon_001_status }}
-- **Evidence:** {{ rtcon_001_evidence }}
-- **Why this matters:** Optional — but when present, it defines constraints on runtime behavior.
-
-#### ft-sec-rtcon-002 — Runtime Constraints defines constraints
-- **Severity:** warning
-- **Weight:** 0.5
-- **Status:** {{ rtcon_002_status }}
-- **Evidence:** {{ rtcon_002_evidence }}
-- **Why this matters:** Constraints without definitions leave implementers unsure of performance and availability requirements.
-
-#### ft-sec-rtcon-003 — Runtime Constraints has measurable thresholds
-- **Severity:** warning
-- **Weight:** 0.5
-- **Status:** {{ rtcon_003_status }}
-- **Evidence:** {{ rtcon_003_evidence }}
-- **Why this matters:** Constraints without measurable thresholds are unverifiable — implementers cannot validate they've met the requirement.
-
----
-
-### architectural_constraints
-#### ft-sec-archcon-001 — Architectural Constraints section exists
-- **Severity:** info
-- **Weight:** 0.3
-- **Status:** {{ archcon_001_status }}
-- **Evidence:** {{ archcon_001_evidence }}
-- **Why this matters:** Optional — but when present, it defines architectural constraints that limit implementation.
-
-#### ft-sec-archcon-002 — Architectural Constraints defines constraints
-- **Severity:** warning
-- **Weight:** 0.5
-- **Status:** {{ archcon_002_status }}
-- **Evidence:** {{ archcon_002_evidence }}
-- **Why this matters:** Architectural constraints without definitions leave implementers guessing about hard boundaries.
-
-#### ft-sec-archcon-003 — Architectural Constraints references Architecture domain
-- **Severity:** warning
-- **Weight:** 0.5
-- **Status:** {{ archcon_003_status }}
-- **Evidence:** {{ archcon_003_evidence }}
-- **Why this matters:** Architectural constraints without Architecture references have no provenance — implementers cannot verify the constraint is real.
-
----
-
-### security_considerations
-#### ft-sec-security-001 — Security Considerations section exists
-- **Severity:** info
-- **Weight:** 0.3
-- **Status:** {{ security_001_status }}
-- **Evidence:** {{ security_001_evidence }}
-- **Why this matters:** Optional — but when present, it defines security aspects of the feature.
-
-#### ft-sec-security-002 — Security Considerations defines security aspects
-- **Severity:** warning
-- **Weight:** 0.5
-- **Status:** {{ security_002_status }}
-- **Evidence:** {{ security_002_evidence }}
-- **Why this matters:** Security considerations without definitions leave implementers guessing about authentication, authorization, and data protection requirements.
-
-#### ft-sec-security-003 — Security Considerations is technology-independent
-- **Severity:** error
-- **Weight:** 1.0
-- **Status:** {{ security_003_status }}
-- **Evidence:** {{ security_003_evidence }}
-- **Why this matters:** Security considerations that name specific security libraries or frameworks have leaked into Implementation territory.
-
----
-
-### performance_considerations
-#### ft-sec-perf-001 — Performance Considerations section exists
-- **Severity:** info
-- **Weight:** 0.3
-- **Status:** {{ perf_001_status }}
-- **Evidence:** {{ perf_001_evidence }}
-- **Why this matters:** Optional — but when present, it defines performance aspects of the feature.
-
-#### ft-sec-perf-002 — Performance Considerations defines performance aspects
-- **Severity:** warning
-- **Weight:** 0.5
-- **Status:** {{ perf_002_status }}
-- **Evidence:** {{ perf_002_evidence }}
-- **Why this matters:** Performance considerations without definitions leave implementers guessing about latency and throughput requirements.
-
-#### ft-sec-perf-003 — Performance Considerations has measurable targets
-- **Severity:** warning
-- **Weight:** 0.5
-- **Status:** {{ perf_003_status }}
-- **Evidence:** {{ perf_003_evidence }}
-- **Why this matters:** Performance targets without measurable thresholds are unverifiable — implementers cannot validate they've met the requirement.
-
----
-
-### failure_handling
-#### ft-sec-failure-001 — Failure Handling section exists
-- **Severity:** info
-- **Weight:** 0.3
-- **Status:** {{ failure_001_status }}
-- **Evidence:** {{ failure_001_evidence }}
-- **Why this matters:** Optional — but when present, it defines failure modes and recovery strategies.
-
-#### ft-sec-failure-002 — Failure Handling defines failure modes
-- **Severity:** warning
-- **Weight:** 0.5
-- **Status:** {{ failure_002_status }}
-- **Evidence:** {{ failure_002_evidence }}
-- **Why this matters:** Failure handling without defined modes leaves implementers guessing about retry, fallback, and recovery strategies.
-
-#### ft-sec-failure-003 — Failure Handling is technology-independent
-- **Severity:** error
-- **Weight:** 1.0
-- **Status:** {{ failure_003_status }}
-- **Evidence:** {{ failure_003_evidence }}
-- **Why this matters:** Failure handling that names specific error handling libraries or frameworks has leaked into Implementation territory.
-
----
-
-### extension_points
-#### ft-sec-extension-001 — Extension Points section exists
-- **Severity:** info
-- **Weight:** 0.3
-- **Status:** {{ extension_001_status }}
-- **Evidence:** {{ extension_001_evidence }}
-- **Why this matters:** Optional — but when present, it defines where and how the feature can be extended.
-
-#### ft-sec-extension-002 — Extension Points defines extension mechanisms
-- **Severity:** warning
-- **Weight:** 0.5
-- **Status:** {{ extension_002_status }}
-- **Evidence:** {{ extension_002_evidence }}
-- **Why this matters:** Extension points without defined mechanisms leave implementers guessing about customization boundaries.
-
-#### ft-sec-extension-003 — Extension Points is technology-independent
-- **Severity:** error
-- **Weight:** 1.0
-- **Status:** {{ extension_003_status }}
-- **Evidence:** {{ extension_003_evidence }}
-- **Why this matters:** Extension points that name specific plugin systems or frameworks have leaked into Implementation territory.
-
----
-
-### traceability
-#### ft-sec-trace-001 — Traceability section exists
-- **Severity:** info
-- **Weight:** 0.3
-- **Status:** {{ trace_001_status }}
-- **Evidence:** {{ trace_001_evidence }}
-- **Why this matters:** Optional — but when present, it links the technical specification back to upstream domains.
-
-#### ft-sec-trace-002 — Traceability links to upstream domains
-- **Severity:** warning
-- **Weight:** 0.5
-- **Status:** {{ trace_002_status }}
-- **Evidence:** {{ trace_002_evidence }}
-- **Why this matters:** Traceability without upstream links leaves readers unable to trace why this technical design exists.
-
-#### ft-sec-trace-003 — Traceability links to downstream implementation
-- **Severity:** warning
-- **Weight:** 0.5
-- **Status:** {{ trace_003_status }}
-- **Evidence:** {{ trace_003_evidence }}
-- **Why this matters:** Traceability without downstream links disconnects the spec from the realization pipeline.
-
----
-
-## Failures
-
-| Rule | Section | Severity | Weight | Evidence |
-|---|---|---|---|---|
-{{ failures_table }}
-
----
-
-## Score History
-
-| Date | Auditor | Score | Verdict | Revision |
-|---|---|---|---|---|
-| {{ audit_date }} | {{ auditor_name }} | {{ weighted_score }} | {{ verdict }} | 1 |
-
----
-
-## Trend
-
-{{ trend_indicator }} ({{ trend_description }})
+| Domain | feature-technical |
+| Standard | documentation-standards |
+| Section Rule Files | `audit/deterministic/section/10-feature-technical/*.yaml` |
+| Auditor | System (deterministic engine) |
+| Audit Date | {{ created_at }} |
+| Revision | {{ revision_number }} |
+| Session | {{ session_id }} |

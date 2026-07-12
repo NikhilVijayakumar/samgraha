@@ -1,117 +1,108 @@
-# {{ document_title }} — README Semantic Document Audit Report
+# Semantic Whole-Document Report — README
 
-> **Domain:** readme
-> **Scope:** document
-> **Kind:** semantic
-> **Date:** {{ audit_date }}
-> **Auditor:** {{ auditor_name }}
-
----
-
-## Document-Level Score
-
-| Metric | Value |
-|---|---|
-| **Weight Sum** | 5.0 |
-| **Weighted Score** | {{ weighted_score }} |
-| **Max Possible** | 5.0 |
-| **Percentage** | {{ score_percentage }} |
-| **Verdict** | {{ verdict }} |
-
-**Why this matters:** Semantic document audit verifies that the collection of README sections coheres as one accurate entry point. Section-level audits check each section individually; this audit catches cross-section contradictions — Usage examples that don't match Installation commands, or Development that contradicts Contributing.
+**Document:** {{ document_path }}
+**Standard:** `documentation-standards/15-readme-standards.md`
+**Rubric:** `audit/semantic/document/15-readme.md`
+**Auditor:** LLM ({{ model_name }})
+**Audit Date:** {{ created_at }}
+**Revision:** {{ revision_number }}
 
 ---
 
-## Criterion Results
+## Score
 
-### C1 — Usage examples consistent with Build/Installation instructions
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ c1_status }}
-- **Confidence:** {{ c1_confidence }}
-- **Evidence:** {{ c1_evidence }}
-- **Why this matters:** If Usage shows a command that doesn't match the binary installed per Installation, the README is internally contradictory — readers follow the steps and hit errors.
+**Semantic Whole Score: {{ score }} / 100**
+{% if previous_score %}({{ '↑ Improved' if score > previous_score else '↓ Regressed' if score < previous_score else '→ Unchanged' }} vs. previous run){% else %}(baseline — first audit of this document){% endif %}
 
-### C2 — Development and Contributing describe a consistent workflow
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ c2_status }}
-- **Confidence:** {{ c2_confidence }}
-- **Evidence:** {{ c2_evidence }}
-- **Why this matters:** If Development describes one test command and Contributing implies a different one is what CI actually runs, contributors don't know which to follow.
+```
+score = sum of passed criterion scores, capped at 100
+```
 
-### C3 — Terminology (commands, flags, names) consistent throughout
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ c3_status }}
-- **Confidence:** {{ c3_confidence }}
-- **Evidence:** {{ c3_evidence }}
-- **Why this matters:** When the same command is named differently across sections, readers cannot tell whether the difference is intentional or a typo.
+### Score History
+
+| Revision | Date | Score | vs. Previous | vs. Baseline |
+|---:|---|---:|---|---|
+{% for r in revision_history -%}
+| {{ r.revision }} | {{ r.date }} | {{ r.score }} / 100 | {{ r.delta_previous_display }} | {{ r.delta_baseline_display }} |
+{% endfor -%}
+| {{ revision_number }} (current) | {{ created_at }} | {{ score }} / 100 | {{ delta_previous_display }} | {{ delta_baseline_display }} |
+
+{% if not previous_score %}No prior runs — this revision is the baseline every future run is compared against.{% endif %}
+
+### Score by Model
+
+| Model | Runs | Avg Score | Min | Max |
+|---|---:|---:|---:|---|
+{% for m in model_scores -%}
+| {{ m.model_name }} | {{ m.run_count }} | {{ m.avg_score }} / 100 | {{ m.min_score }} / 100 | {{ m.max_score }} / 100 |
+{% endfor %}
+
+### Scoring Criteria
+
+| Criterion | Weight | Points | Previous | Current | Trend |
+|---|---|---:|---|---|---|
+| C1 — Usage examples consistent with Build/Installation instructions | mandatory | 40 | {{ results['C1'].previous_passed_display | default('—') }} | {{ results['C1'].passed_display }} | {{ results['C1'].trend_display }} |
+| C2 — Development and Contributing describe a consistent workflow | mandatory | 30 | {{ results['C2'].previous_passed_display | default('—') }} | {{ results['C2'].passed_display }} | {{ results['C2'].trend_display }} |
+| C3 — Terminology (commands, flags, names) consistent throughout | recommended | 30 | {{ results['C3'].previous_passed_display | default('—') }} | {{ results['C3'].passed_display }} | {{ results['C3'].trend_display }} |
+
+C1 and C2 are mandatory — either one failing caps this score at 30 (only C3's points remain reachable). C3 alone failing still allows 70.
 
 ---
 
-## Red Flags Detected
+## Judgment
 
-{{ red_flags_table }}
+Verifies a README coheres as one accurate entry point — Usage examples must match Build/Installation instructions, Development must match Contributing, and nothing in the README contradicts itself. Section-level quality (is each section well-written on its own) is a separate concern, owned by the Semantic Section report; this report only catches problems that only exist when sections are read together.
+
+## Scoring Criteria — Detail
+
+### C1 — mandatory, 0 or 40: Usage examples consistent with Build/Installation instructions
+
+**What this catches:** a command shown in Usage must actually exist given how Installation/Build set the project up. If Installation installs `acme-cli` but Usage shows `acmescheduler run`, the binary name doesn't match and the user can't run the example.
+
+**Previous:** {{ results['C1'].previous_passed_display | default('—') }} → **Current:** {{ results['C1'].passed_display }} ({{ results['C1'].trend_display }})
+**Evidence:** {{ results['C1'].evidence.excerpt | default('—') }}
+{% if not results['C1'].passed %}**Finding:** {{ results['C1'].message }}{% endif %}
+
+### C2 — mandatory, 0 or 30: Development and Contributing describe a consistent workflow
+
+**What this catches:** Development's local setup and Contributing's process must reference the same branch/PR conventions, test commands, and review process. If Development says `npm test` and Contributing implies CI runs `pytest`, the contributor doesn't know which one to trust.
+
+**Previous:** {{ results['C2'].previous_passed_display | default('—') }} → **Current:** {{ results['C2'].passed_display }} ({{ results['C2'].trend_display }})
+**Evidence:** {{ results['C2'].evidence.excerpt | default('—') }}
+{% if not results['C2'].passed %}**Finding:** {{ results['C2'].message }}{% endif %}
+
+### C3 — recommended, 0 or 30: Terminology (commands, flags, names) consistent throughout
+
+**What this catches:** the same command, flag, or concept named differently in different sections. If Project Name says "Samgraha" but Installation says "sam-graha" or Usage says "sg", the reader can't tell whether these are intentional distinctions or errors.
+
+**Previous:** {{ results['C3'].previous_passed_display | default('—') }} → **Current:** {{ results['C3'].passed_display }} ({{ results['C3'].trend_display }})
+**Evidence:** {{ results['C3'].evidence.excerpt | default('—') }}
+{% if not results['C3'].passed %}**Finding:** {{ results['C3'].message }}{% endif %}
 
 ---
 
-## Edge Cases Evaluated
+## All Findings
 
-{{ edge_cases_table }}
-
----
-
-## Score History
-
-| Date | Auditor | Score | Verdict | Revision |
+{% if findings | length > 0 %}
+| Criterion | Severity | Evidence | Message | New This Run? |
 |---|---|---|---|---|
-| {{ audit_date }} | {{ auditor_name }} | {{ weighted_score }} | {{ verdict }} | 1 |
+{% for f in findings -%}
+| {{ f.criterion_id }} | {{ f.severity }} | {{ f.evidence.excerpt | default('—') }} | {{ f.message }} | {{ 'Yes — regression' if f.is_new_finding else 'No — carried over' }} |
+{% endfor %}
+{% else %}
+No findings — document reads as one coherent README.
+{% endif %}
 
 ---
 
-## Trend
+## Metadata
 
-{{ trend_indicator }} ({{ trend_description }})
-
----
-
-## Failures
-
-| Criterion | Severity | Evidence | Regression? |
-|---|---|---|---|
-{{ failures_table }}
-
----
-
-## Summary
-
-{{ summary_text }}
-
-### Document-Level Breakdown
-
-| Category | Weight | Score | Status |
-|---|---|---|---|
-| Usage-Build Consistency | 40 | {{ c1_score }} | {{ c1_status }} |
-| Dev-Contrib Consistency | 30 | {{ c2_score }} | {{ c2_status }} |
-| Terminology Consistency | 30 | {{ c3_score }} | {{ c3_status }} |
-
-### Section-Level Breakdown
-
-| Section | Weight | Score | Status |
-|---|---|---|---|
-| project_name | {{ name_section_score }} | {{ name_section_weight }} | {{ name_section_status }} |
-| short_description | {{ short_desc_section_score }} | {{ short_desc_section_weight }} | {{ short_desc_section_status }} |
-| overview | {{ overview_section_score }} | {{ overview_section_weight }} | {{ overview_section_status }} |
-| purpose | {{ purpose_section_score }} | {{ purpose_section_weight }} | {{ purpose_section_status }} |
-| key_capabilities | {{ caps_section_score }} | {{ caps_section_weight }} | {{ caps_section_status }} |
-| repository_structure | {{ repo_section_score }} | {{ repo_section_weight }} | {{ repo_section_status }} |
-| documentation_structure | {{ doc_struct_section_score }} | {{ doc_struct_section_weight }} | {{ doc_struct_section_status }} |
-| getting_started | {{ gs_section_score }} | {{ gs_section_weight }} | {{ gs_section_status }} |
-| installation | {{ install_section_score }} | {{ install_section_weight }} | {{ install_section_status }} |
-| build | {{ build_section_score }} | {{ build_section_weight }} | {{ build_section_status }} |
-| usage | {{ usage_section_score }} | {{ usage_section_weight }} | {{ usage_section_status }} |
-| development | {{ dev_section_score }} | {{ dev_section_weight }} | {{ dev_section_status }} |
-| contributing | {{ contrib_section_score }} | {{ contrib_section_weight }} | {{ contrib_section_status }} |
-| configuration | {{ config_section_score }} | {{ config_section_weight }} | {{ config_section_status }} |
-| license | {{ license_section_score }} | {{ license_section_weight }} | {{ license_section_status }} |
+| Field | Value |
+|---|---|
+| Domain | readme |
+| Standard | documentation-standards |
+| Rubric File | `audit/semantic/document/15-readme.md` |
+| Auditor | LLM ({{ model_name }}) |
+| Audit Date | {{ created_at }} |
+| Revision | {{ revision_number }} |
+| Session | {{ session_id }} |

@@ -1,113 +1,108 @@
-# {{ document_title }} — Feature Semantic Document Audit Report
+# Semantic Whole-Document Report — Feature
 
-> **Domain:** feature
-> **Scope:** document
-> **Kind:** semantic
-> **Date:** {{ audit_date }}
-> **Auditor:** {{ auditor_name }}
-
----
-
-## Document-Level Score
-
-| Metric | Value |
-|---|---|
-| **Weight Sum** | 5.0 |
-| **Weighted Score** | {{ weighted_score }} |
-| **Max Possible** | 5.0 |
-| **Percentage** | {{ score_percentage }} |
-| **Verdict** | {{ verdict }} |
-
-**Why this matters:** Semantic document audit verifies that the collection of feature sections coheres as one specification. Section-level audits check each section individually; this audit catches cross-section contradictions — a Functional Requirement with no Acceptance Criterion, or an Acceptance Criterion that violates a Business Rule.
+**Document:** {{ document_path }}
+**Standard:** `documentation-standards/04-feature-standards.md`
+**Rubric:** `audit/semantic/document/04-feature.md`
+**Auditor:** LLM ({{ model_name }})
+**Audit Date:** {{ created_at }}
+**Revision:** {{ revision_number }}
 
 ---
 
-## Criterion Results
+## Score
 
-### C1 — Functional Requirements, Acceptance Criteria, and Business Rules are mutually consistent
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ c1_status }}
-- **Confidence:** {{ c1_confidence }}
-- **Evidence:** {{ c1_evidence }}
-- **Why this matters:** If an Acceptance Criterion would pass while violating a stated Business Rule, the feature specification is internally contradictory — developers cannot satisfy both simultaneously.
+**Semantic Whole Score: {{ score }} / 100**
+{% if previous_score %}({{ '↑ Improved' if score > previous_score else '↓ Regressed' if score < previous_score else '→ Unchanged' }} vs. previous run){% else %}(baseline — first audit of this document){% endif %}
 
-### C2 — Every Functional Requirement has a corresponding Acceptance Criterion
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ c2_status }}
-- **Confidence:** {{ c2_confidence }}
-- **Evidence:** {{ c2_evidence }}
-- **Why this matters:** A Functional Requirement with no Acceptance Criterion is unverifiable — there's no way to confirm the requirement is met, and it silently ships unchecked.
+```
+score = sum of passed criterion scores, capped at 100
+```
 
-### C3 — Terminology consistent across all Feature documents
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ c3_status }}
-- **Confidence:** {{ c3_confidence }}
-- **Evidence:** {{ c3_evidence }}
-- **Why this matters:** When the same entity is called "order" in Functional Requirements and "purchase" in Acceptance Criteria, readers cannot tell whether the difference is intentional or accidental.
+### Score History
+
+| Revision | Date | Score | vs. Previous | vs. Baseline |
+|---:|---|---:|---|---|
+{% for r in revision_history -%}
+| {{ r.revision }} | {{ r.date }} | {{ r.score }} / 100 | {{ r.delta_previous_display }} | {{ r.delta_baseline_display }} |
+{% endfor -%}
+| {{ revision_number }} (current) | {{ created_at }} | {{ score }} / 100 | {{ delta_previous_display }} | {{ delta_baseline_display }} |
+
+{% if not previous_score %}No prior runs — this revision is the baseline every future run is compared against.{% endif %}
+
+### Score by Model
+
+| Model | Runs | Avg Score | Min | Max |
+|---|---:|---:|---:|---|
+{% for m in model_scores -%}
+| {{ m.model_name }} | {{ m.run_count }} | {{ m.avg_score }} / 100 | {{ m.min_score }} / 100 | {{ m.max_score }} / 100 |
+{% endfor %}
+
+### Scoring Criteria
+
+| Criterion | Weight | Points | Previous | Current | Trend |
+|---|---|---:|---|---|---|
+| C1 — Functional Requirements, Acceptance Criteria, Business Rules consistency | mandatory | 40 | {{ results['C1'].previous_passed_display | default('—') }} | {{ results['C1'].passed_display }} | {{ results['C1'].trend_display }} |
+| C2 — Every Functional Requirement has a corresponding Acceptance Criterion | mandatory | 30 | {{ results['C2'].previous_passed_display | default('—') }} | {{ results['C2'].passed_display }} | {{ results['C2'].trend_display }} |
+| C3 — Terminology consistent across all Feature documents | recommended | 30 | {{ results['C3'].previous_passed_display | default('—') }} | {{ results['C3'].passed_display }} | {{ results['C3'].trend_display }} |
+
+C1 and C2 are mandatory — either one failing caps this score at 30 (only C3's points remain reachable). C3 alone failing still allows 70.
 
 ---
 
-## Red Flags Detected
+## Judgment
 
-{{ red_flags_table }}
+Verifies Feature Documentation coheres internally — Functional Requirements, Acceptance Criteria, and Business Rules must not contradict each other, and the feature collection as a whole must be internally consistent. Section-level quality (is each section well-written on its own) is a separate concern, owned by the Semantic Section report; this report only catches problems that only exist when sections or documents are read together.
+
+## Scoring Criteria — Detail
+
+### C1 — mandatory, 0 or 40: Functional Requirements, Acceptance Criteria, and Business Rules are mutually consistent
+
+**What this catches:** an Acceptance Criterion that contradicts a Business Rule; a Functional Requirement with no corresponding Acceptance Criterion; a Business Rule that conflicts with a stated requirement.
+
+**Previous:** {{ results['C1'].previous_passed_display | default('—') }} → **Current:** {{ results['C1'].passed_display }} ({{ results['C1'].trend_display }})
+**Evidence:** {{ results['C1'].evidence.excerpt | default('—') }}
+{% if not results['C1'].passed %}**Finding:** {{ results['C1'].message }}{% endif %}
+
+### C2 — mandatory, 0 or 30: Every Functional Requirement has a corresponding Acceptance Criterion
+
+**What this catches:** a Functional Requirement with no way to verify it was implemented correctly — an unverifiable requirement is indistinguishable from a requirement that was never implemented.
+
+**Previous:** {{ results['C2'].previous_passed_display | default('—') }} → **Current:** {{ results['C2'].passed_display }} ({{ results['C2'].trend_display }})
+**Evidence:** {{ results['C2'].evidence.excerpt | default('—') }}
+{% if not results['C2'].passed %}**Finding:** {{ results['C2'].message }}{% endif %}
+
+### C3 — recommended, 0 or 30: Terminology consistent across all Feature documents
+
+**What this catches:** the same entity or concept named differently across sections — "order" vs. "purchase" for the same concept, making it impossible to tell if the difference is intentional.
+
+**Previous:** {{ results['C3'].previous_passed_display | default('—') }} → **Current:** {{ results['C3'].passed_display }} ({{ results['C3'].trend_display }})
+**Evidence:** {{ results['C3'].evidence.excerpt | default('—') }}
+{% if not results['C3'].passed %}**Finding:** {{ results['C3'].message }}{% endif %}
 
 ---
 
-## Edge Cases Evaluated
+## All Findings
 
-{{ edge_cases_table }}
-
----
-
-## Score History
-
-| Date | Auditor | Score | Verdict | Revision |
+{% if findings | length > 0 %}
+| Criterion | Severity | Evidence | Message | New This Run? |
 |---|---|---|---|---|
-| {{ audit_date }} | {{ auditor_name }} | {{ weighted_score }} | {{ verdict }} | 1 |
+{% for f in findings -%}
+| {{ f.criterion_id }} | {{ f.severity }} | {{ f.evidence.excerpt | default('—') }} | {{ f.message }} | {{ 'Yes — regression' if f.is_new_finding else 'No — carried over' }} |
+{% endfor %}
+{% else %}
+No findings — document reads as one coherent feature specification.
+{% endif %}
 
 ---
 
-## Trend
+## Metadata
 
-{{ trend_indicator }} ({{ trend_description }})
-
----
-
-## Failures
-
-| Criterion | Severity | Evidence | Regression? |
-|---|---|---|---|
-{{ failures_table }}
-
----
-
-## Summary
-
-{{ summary_text }}
-
-### Document-Level Breakdown
-
-| Category | Weight | Score | Status |
-|---|---|---|---|
-| FR-AC-BR Consistency | 40 | {{ c1_score }} | {{ c1_status }} |
-| Requirement Coverage | 30 | {{ c2_score }} | {{ c2_status }} |
-| Terminology Consistency | 30 | {{ c3_score }} | {{ c3_status }} |
-
-### Section-Level Breakdown
-
-| Section | Weight | Score | Status |
-|---|---|---|---|
-| purpose | {{ purpose_section_score }} | {{ purpose_section_weight }} | {{ purpose_section_status }} |
-| functional_requirements | {{ freq_section_score }} | {{ freq_section_weight }} | {{ freq_section_status }} |
-| acceptance_criteria | {{ ac_section_score }} | {{ ac_section_weight }} | {{ ac_section_status }} |
-| business_rules | {{ br_section_score }} | {{ br_section_weight }} | {{ br_section_status }} |
-| inputs | {{ inputs_section_score }} | {{ inputs_section_weight }} | {{ inputs_section_status }} |
-| outputs | {{ outputs_section_score }} | {{ outputs_section_weight }} | {{ outputs_section_status }} |
-| constraints | {{ constraints_section_score }} | {{ constraints_section_weight }} | {{ constraints_section_status }} |
-| dependencies | {{ dependencies_section_score }} | {{ dependencies_section_weight }} | {{ dependencies_section_status }} |
-| non_goals | {{ non_goals_section_score }} | {{ non_goals_section_weight }} | {{ non_goals_section_status }} |
-| future_extensions | {{ future_section_score }} | {{ future_section_weight }} | {{ future_section_status }} |
-| traceability | {{ trace_section_score }} | {{ trace_section_weight }} | {{ trace_section_status }} |
+| Field | Value |
+|---|---|
+| Domain | feature |
+| Standard | documentation-standards |
+| Rubric File | `audit/semantic/document/04-feature.md` |
+| Auditor | LLM ({{ model_name }}) |
+| Audit Date | {{ created_at }} |
+| Revision | {{ revision_number }} |
+| Session | {{ session_id }} |

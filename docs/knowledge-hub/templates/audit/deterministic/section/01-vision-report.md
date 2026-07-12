@@ -1,429 +1,203 @@
-# {{ document_title }} — Vision Section Audit Report
+# Deterministic Section Report — Vision
 
-> **Domain:** vision
-> **Scope:** section
-> **Standard:** documentation-standards
-> **Date:** {{ audit_date }}
-- **Auditor:** {{ auditor_name }}
+**Document:** {{ document_path }}
+**Standard:** `documentation-standards/02-vision-standards.md`
+**Rule Files:** `audit/deterministic/section/01-vision/*.yaml`
+**Auditor:** System (deterministic engine)
+**Audit Date:** {{ created_at }}
+**Revision:** {{ revision_number }}
 
 ---
 
-## Section-Level Score
+## Score
 
-| Metric | Value |
+**Deterministic Section Score: {{ score }} / 100**
+{% if previous_score %}({{ '↑ Improved' if score > previous_score else '↓ Regressed' if score < previous_score else '→ Unchanged' }} vs. previous run){% else %}(baseline — first audit of this document){% endif %}
+
+```
+overall = average of the 10 section scores below
+section_score = 100 × (Σ weight of passed rules in that section) / (Σ weight of all rules in that section)
+```
+
+### Score History
+
+| Revision | Date | Score | vs. Previous | vs. Baseline |
+|---:|---|---:|---|---|
+{% for r in revision_history -%}
+| {{ r.revision }} | {{ r.date }} | {{ r.score }} / 100 | {{ r.delta_previous_display }} | {{ r.delta_baseline_display }} |
+{% endfor -%}
+| {{ revision_number }} (current) | {{ created_at }} | {{ score }} / 100 | {{ delta_previous_display }} | {{ delta_baseline_display }} |
+
+{% if not previous_score %}No prior runs — this revision is the baseline every future run is compared against.{% endif %}
+
+### Section Scores
+
+| # | Section | Required | Weight | Score | Previous | Trend |
+|---:|---|:---:|---:|---:|---:|---|
+| 1 | Purpose | **required** | 4.0 | {{ sections.purpose.score }} / 100 | {{ sections.purpose.previous_score | default('—') }} | {{ sections.purpose.trend_display }} |
+| 2 | Vision Statement | **required** | 4.8 | {{ sections.vision_statement.score }} / 100 | {{ sections.vision_statement.previous_score | default('—') }} | {{ sections.vision_statement.trend_display }} |
+| 3 | Problem | **required** | 6.0 | {{ sections.problem.score }} / 100 | {{ sections.problem.previous_score | default('—') }} | {{ sections.problem.trend_display }} |
+| 4 | Solution | **required** | 5.5 | {{ sections.solution.score }} / 100 | {{ sections.solution.previous_score | default('—') }} | {{ sections.solution.trend_display }} |
+| 5 | Target Audience | **required** | 4.0 | {{ sections.target_audience.score }} / 100 | {{ sections.target_audience.previous_score | default('—') }} | {{ sections.target_audience.trend_display }} |
+| 6 | Pillars | optional | 1.1 | {{ sections.pillars.score }} / 100 | {{ sections.pillars.previous_score | default('—') }} | {{ sections.pillars.trend_display }} |
+| 7 | Philosophy | optional | 0.8 | {{ sections.philosophy.score }} / 100 | {{ sections.philosophy.previous_score | default('—') }} | {{ sections.philosophy.trend_display }} |
+| 8 | Guiding Principles | optional | 0.8 | {{ sections.guiding_principles.score }} / 100 | {{ sections.guiding_principles.previous_score | default('—') }} | {{ sections.guiding_principles.trend_display }} |
+| 9 | Success Criteria | optional | 1.3 | {{ sections.success_criteria.score }} / 100 | {{ sections.success_criteria.previous_score | default('—') }} | {{ sections.success_criteria.trend_display }} |
+| 10 | Traceability | optional | 1.3 | {{ sections.traceability.score }} / 100 | {{ sections.traceability.previous_score | default('—') }} | {{ sections.traceability.trend_display }} |
+
+The 5 required sections carry 24.3 of the document's 29.6 total rule weight — a document can only pass if those five are both present and internally sound; the remaining five are recommended-quality signal, not gating.
+
+---
+
+## 1. Purpose — weight 4.0 — **required**
+
+**Why this matters:** Purpose is what tells a reader why Vision Documentation exists at all before they read a single direction statement. A Purpose section that's missing, vague, or technology-leaking undermines every section that follows it.
+
+**Section Score: {{ sections.purpose.score }} / 100** ({{ sections.purpose.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| vis-sec-purpose-001 | Purpose section exists | error (mandatory) | 1.5 | {{ results['vis-sec-purpose-001'].previous_status \| default('—') }} | {{ results['vis-sec-purpose-001'].status }} | {{ results['vis-sec-purpose-001'].trend_display }} | {{ results['vis-sec-purpose-001'].evidence \| default('—') }} |
+| vis-sec-purpose-002 | States vision intent | error (mandatory) | 1.0 | {{ results['vis-sec-purpose-002'].previous_status \| default('—') }} | {{ results['vis-sec-purpose-002'].status }} | {{ results['vis-sec-purpose-002'].trend_display }} | {{ results['vis-sec-purpose-002'].evidence \| default('—') }} |
+| vis-sec-purpose-003 | Technology-independent | error (mandatory) | 1.0 | {{ results['vis-sec-purpose-003'].previous_status \| default('—') }} | {{ results['vis-sec-purpose-003'].status }} | {{ results['vis-sec-purpose-003'].trend_display }} | {{ results['vis-sec-purpose-003'].evidence \| default('—') }} |
+| vis-sec-purpose-004 | Scope boundaries defined | warning (recommended) | 0.5 | {{ results['vis-sec-purpose-004'].previous_status \| default('—') }} | {{ results['vis-sec-purpose-004'].status }} | {{ results['vis-sec-purpose-004'].trend_display }} | {{ results['vis-sec-purpose-004'].evidence \| default('—') }} |
+
+## 2. Vision Statement — weight 4.8 — **required**
+
+**Why this matters:** Vision Statement is the core aspirational statement — where the product is going. A vague or technology-leaking vision statement gives Philosophy and Feature nothing concrete to derive against.
+
+**Section Score: {{ sections.vision_statement.score }} / 100** ({{ sections.vision_statement.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| vis-sec-vs-001 | Vision Statement section exists | error (mandatory) | 1.5 | {{ results['vis-sec-vs-001'].previous_status \| default('—') }} | {{ results['vis-sec-vs-001'].status }} | {{ results['vis-sec-vs-001'].trend_display }} | {{ results['vis-sec-vs-001'].evidence \| default('—') }} |
+| vis-sec-vs-002 | Describes long-term direction | error (mandatory) | 1.0 | {{ results['vis-sec-vs-002'].previous_status \| default('—') }} | {{ results['vis-sec-vs-002'].status }} | {{ results['vis-sec-vs-002'].trend_display }} | {{ results['vis-sec-vs-002'].evidence \| default('—') }} |
+| vis-sec-vs-003 | Technology-independent | error (mandatory) | 1.0 | {{ results['vis-sec-vs-003'].previous_status \| default('—') }} | {{ results['vis-sec-vs-003'].status }} | {{ results['vis-sec-vs-003'].trend_display }} | {{ results['vis-sec-vs-003'].evidence \| default('—') }} |
+| vis-sec-vs-004 | Concise (≤ 500 words) | warning (recommended) | 0.3 | {{ results['vis-sec-vs-004'].previous_status \| default('—') }} | {{ results['vis-sec-vs-004'].status }} | {{ results['vis-sec-vs-004'].trend_display }} | {{ results['vis-sec-vs-004'].evidence \| default('—') }} |
+
+## 3. Problem — weight 6.0 — **required**
+
+**Why this matters:** Problem is what motivates the entire vision. A section that mixes problem and solution gives Philosophy and Feature no clean handoff — they can't derive against a problem that's half-solved already.
+
+**Section Score: {{ sections.problem.score }} / 100** ({{ sections.problem.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| vis-sec-problem-001 | Problem section exists | error (mandatory) | 1.5 | {{ results['vis-sec-problem-001'].previous_status \| default('—') }} | {{ results['vis-sec-problem-001'].status }} | {{ results['vis-sec-problem-001'].trend_display }} | {{ results['vis-sec-problem-001'].evidence \| default('—') }} |
+| vis-sec-problem-002 | States the problem clearly | error (mandatory) | 1.0 | {{ results['vis-sec-problem-002'].previous_status \| default('—') }} | {{ results['vis-sec-problem-002'].status }} | {{ results['vis-sec-problem-002'].trend_display }} | {{ results['vis-sec-problem-002'].evidence \| default('—') }} |
+| vis-sec-problem-003 | Does not describe solutions | error (mandatory) | 1.0 | {{ results['vis-sec-problem-003'].previous_status \| default('—') }} | {{ results['vis-sec-problem-003'].status }} | {{ results['vis-sec-problem-003'].trend_display }} | {{ results['vis-sec-problem-003'].evidence \| default('—') }} |
+| vis-sec-problem-004 | Technology-independent | error (mandatory) | 1.0 | {{ results['vis-sec-problem-004'].previous_status \| default('—') }} | {{ results['vis-sec-problem-004'].status }} | {{ results['vis-sec-problem-004'].trend_display }} | {{ results['vis-sec-problem-004'].evidence \| default('—') }} |
+| vis-sec-problem-005 | Has measurable impact | warning (recommended) | 0.5 | {{ results['vis-sec-problem-005'].previous_status \| default('—') }} | {{ results['vis-sec-problem-005'].status }} | {{ results['vis-sec-problem-005'].trend_display }} | {{ results['vis-sec-problem-005'].evidence \| default('—') }} |
+
+## 4. Solution — weight 5.5 — **required**
+
+**Why this matters:** Solution is the aspirational approach — what the product will do, not how. A section that leaks into implementation details crosses into Architecture's territory and makes the document stale the moment those details change.
+
+**Section Score: {{ sections.solution.score }} / 100** ({{ sections.solution.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| vis-sec-solution-001 | Solution section exists | error (mandatory) | 1.5 | {{ results['vis-sec-solution-001'].previous_status \| default('—') }} | {{ results['vis-sec-solution-001'].status }} | {{ results['vis-sec-solution-001'].trend_display }} | {{ results['vis-sec-solution-001'].evidence \| default('—') }} |
+| vis-sec-solution-002 | Describes the proposed approach | error (mandatory) | 1.0 | {{ results['vis-sec-solution-002'].previous_status \| default('—') }} | {{ results['vis-sec-solution-002'].status }} | {{ results['vis-sec-solution-002'].trend_display }} | {{ results['vis-sec-solution-002'].evidence \| default('—') }} |
+| vis-sec-solution-003 | Technology-independent | error (mandatory) | 1.0 | {{ results['vis-sec-solution-003'].previous_status \| default('—') }} | {{ results['vis-sec-solution-003'].status }} | {{ results['vis-sec-solution-003'].trend_display }} | {{ results['vis-sec-solution-003'].evidence \| default('—') }} |
+| vis-sec-solution-004 | No implementation specifics (code, APIs, schemas, libraries) | error (mandatory) | 1.0 | {{ results['vis-sec-solution-004'].previous_status \| default('—') }} | {{ results['vis-sec-solution-004'].status }} | {{ results['vis-sec-solution-004'].trend_display }} | {{ results['vis-sec-solution-004'].evidence \| default('—') }} |
+| vis-sec-solution-005 | Addresses the stated problem | warning (recommended) | 0.5 | {{ results['vis-sec-solution-005'].previous_status \| default('—') }} | {{ results['vis-sec-solution-005'].status }} | {{ results['vis-sec-solution-005'].trend_display }} | {{ results['vis-sec-solution-005'].evidence \| default('—') }} |
+
+## 5. Target Audience — weight 4.0 — **required**
+
+**Why this matters:** Target Audience tells Philosophy who the product serves — the user model that drives guiding principles. A missing or vague audience section gives Philosophy nothing to reason about.
+
+**Section Score: {{ sections.target_audience.score }} / 100** ({{ sections.target_audience.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| vis-sec-ta-001 | Target Audience section exists | error (mandatory) | 1.5 | {{ results['vis-sec-ta-001'].previous_status \| default('—') }} | {{ results['vis-sec-ta-001'].status }} | {{ results['vis-sec-ta-001'].trend_display }} | {{ results['vis-sec-ta-001'].evidence \| default('—') }} |
+| vis-sec-ta-002 | Identifies who the product serves | error (mandatory) | 1.0 | {{ results['vis-sec-ta-002'].previous_status \| default('—') }} | {{ results['vis-sec-ta-002'].status }} | {{ results['vis-sec-ta-002'].trend_display }} | {{ results['vis-sec-ta-002'].evidence \| default('—') }} |
+| vis-sec-ta-003 | Technology-independent | error (mandatory) | 1.0 | {{ results['vis-sec-ta-003'].previous_status \| default('—') }} | {{ results['vis-sec-ta-003'].status }} | {{ results['vis-sec-ta-003'].trend_display }} | {{ results['vis-sec-ta-003'].evidence \| default('—') }} |
+| vis-sec-ta-004 | At least two audience segments | warning (recommended) | 0.5 | {{ results['vis-sec-ta-004'].previous_status \| default('—') }} | {{ results['vis-sec-ta-004'].status }} | {{ results['vis-sec-ta-004'].trend_display }} | {{ results['vis-sec-ta-004'].evidence \| default('—') }} |
+
+## 6. Pillars — weight 1.1 — optional
+
+**Why this matters:** Pillars distill the vision into core values that guide every downstream decision. A document without them gives Philosophy no explicit anchor for its guiding principles.
+
+**Section Score: {{ sections.pillars.score }} / 100** ({{ sections.pillars.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| vis-sec-pillars-001 | Pillars section exists | suggestion | 0.3 | {{ results['vis-sec-pillars-001'].previous_status \| default('—') }} | {{ results['vis-sec-pillars-001'].status }} | {{ results['vis-sec-pillars-001'].trend_display }} | {{ results['vis-sec-pillars-001'].evidence \| default('—') }} |
+| vis-sec-pillars-002 | Technology-independent | warning (recommended) | 0.5 | {{ results['vis-sec-pillars-002'].previous_status \| default('—') }} | {{ results['vis-sec-pillars-002'].status }} | {{ results['vis-sec-pillars-002'].trend_display }} | {{ results['vis-sec-pillars-002'].evidence \| default('—') }} |
+| vis-sec-pillars-003 | Lists at least three pillars | suggestion | 0.3 | {{ results['vis-sec-pillars-003'].previous_status \| default('—') }} | {{ results['vis-sec-pillars-003'].status }} | {{ results['vis-sec-pillars-003'].trend_display }} | {{ results['vis-sec-pillars-003'].evidence \| default('—') }} |
+
+## 7. Philosophy — weight 0.8 — optional
+
+**Why this matters:** Philosophy in Vision is a preview of what the dedicated Philosophy document will expand. Its absence means the vision has no explicit values layer.
+
+**Section Score: {{ sections.philosophy.score }} / 100** ({{ sections.philosophy.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| vis-sec-philosophy-001 | Philosophy section exists | suggestion | 0.3 | {{ results['vis-sec-philosophy-001'].previous_status \| default('—') }} | {{ results['vis-sec-philosophy-001'].status }} | {{ results['vis-sec-philosophy-001'].trend_display }} | {{ results['vis-sec-philosophy-001'].evidence \| default('—') }} |
+| vis-sec-philosophy-002 | Has substantive content (≥ 1 paragraph) | warning (recommended) | 0.5 | {{ results['vis-sec-philosophy-002'].previous_status \| default('—') }} | {{ results['vis-sec-philosophy-002'].status }} | {{ results['vis-sec-philosophy-002'].trend_display }} | {{ results['vis-sec-philosophy-002'].evidence \| default('—') }} |
+
+## 8. Guiding Principles — weight 0.8 — optional
+
+**Why this matters:** Guiding Principles in Vision are the seeds that Philosophy's Guiding Principles section expands. Without them, Philosophy has no explicit upstream to trace back to.
+
+**Section Score: {{ sections.guiding_principles.score }} / 100** ({{ sections.guiding_principles.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| vis-sec-gp-001 | Guiding Principles section exists | suggestion | 0.3 | {{ results['vis-sec-gp-001'].previous_status \| default('—') }} | {{ results['vis-sec-gp-001'].status }} | {{ results['vis-sec-gp-001'].trend_display }} | {{ results['vis-sec-gp-001'].evidence \| default('—') }} |
+| vis-sec-gp-002 | Has substantive content (≥ 1 paragraph) | warning (recommended) | 0.5 | {{ results['vis-sec-gp-002'].previous_status \| default('—') }} | {{ results['vis-sec-gp-002'].status }} | {{ results['vis-sec-gp-002'].trend_display }} | {{ results['vis-sec-gp-002'].evidence \| default('—') }} |
+
+## 9. Success Criteria — weight 1.3 — optional
+
+**Why this matters:** Success Criteria in Vision are the seeds that Feature's Acceptance Criteria section expands. Without them, Feature has no explicit upstream success definition to trace.
+
+**Section Score: {{ sections.success_criteria.score }} / 100** ({{ sections.success_criteria.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| vis-sec-sc-001 | Success Criteria section exists | suggestion | 0.3 | {{ results['vis-sec-sc-001'].previous_status \| default('—') }} | {{ results['vis-sec-sc-001'].status }} | {{ results['vis-sec-sc-001'].trend_display }} | {{ results['vis-sec-sc-001'].evidence \| default('—') }} |
+| vis-sec-sc-002 | Technology-independent | warning (recommended) | 0.5 | {{ results['vis-sec-sc-002'].previous_status \| default('—') }} | {{ results['vis-sec-sc-002'].status }} | {{ results['vis-sec-sc-002'].trend_display }} | {{ results['vis-sec-sc-002'].evidence \| default('—') }} |
+| vis-sec-sc-003 | Measurable (quantifiable or verifiable) | warning (recommended) | 0.5 | {{ results['vis-sec-sc-003'].previous_status \| default('—') }} | {{ results['vis-sec-sc-003'].status }} | {{ results['vis-sec-sc-003'].trend_display }} | {{ results['vis-sec-sc-003'].evidence \| default('—') }} |
+
+## 10. Traceability — weight 1.3 — optional
+
+**Why this matters:** Traceability is what makes the derivation chain enforceable — without it, nothing stops a downstream domain from silently drifting away from what Vision actually says.
+
+**Section Score: {{ sections.traceability.score }} / 100** ({{ sections.traceability.trend_display }})
+
+| Rule | Check | Severity | Weight | Previous | Current | Trend | Evidence |
+|---|---|---|---:|---|---|---|---|
+| vis-sec-trace-001 | Traceability section exists | suggestion | 0.3 | {{ results['vis-sec-trace-001'].previous_status \| default('—') }} | {{ results['vis-sec-trace-001'].status }} | {{ results['vis-sec-trace-001'].trend_display }} | {{ results['vis-sec-trace-001'].evidence \| default('—') }} |
+| vis-sec-trace-002 | Links to upstream origins | warning (recommended) | 0.5 | {{ results['vis-sec-trace-002'].previous_status \| default('—') }} | {{ results['vis-sec-trace-002'].status }} | {{ results['vis-sec-trace-002'].trend_display }} | {{ results['vis-sec-trace-002'].evidence \| default('—') }} |
+| vis-sec-trace-003 | Links to downstream consumers | warning (recommended) | 0.5 | {{ results['vis-sec-trace-003'].previous_status \| default('—') }} | {{ results['vis-sec-trace-003'].status }} | {{ results['vis-sec-trace-003'].trend_display }} | {{ results['vis-sec-trace-003'].evidence \| default('—') }} |
+
+---
+
+## Failures Requiring Attention
+
+{% if failed_rules | length > 0 %}
+| Section | Rule | Message | Evidence | New This Run? |
+|---|---|---|---|---|
+{% for r in failed_rules -%}
+| {{ r.section_type }} | {{ r.id }} | {{ r.message }} | {{ r.evidence | default('—') }} | {{ 'Yes — regression' if r.is_new_failure else 'No — carried over' }} |
+{% endfor %}
+{% else %}
+No failures across all 10 sections.
+{% endif %}
+
+---
+
+## Metadata
+
+| Field | Value |
 |---|---|
-| **Weight Sum** | {{ section_weight_sum }} |
-| **Weighted Score** | {{ weighted_score }} |
-| **Max Possible** | {{ section_weight_sum }} |
-| **Percentage** | {{ score_percentage }} |
-| **Verdict** | {{ verdict }} |
-
-**Why this matters:** Vision sections define specific aspirational components. Section-level audits verify each concern is internally consistent, technology-independent, and substantiated — the building blocks of a coherent vision.
-
----
-
-## Section: purpose
-
-### Rules
-
-#### vis-sec-purpose-001 — Purpose section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'purpose'
-- **Status:** {{ purpose_001_status }}
-- **Evidence:** {{ purpose_001_evidence }}
-
-#### vis-sec-purpose-002 — Purpose states vision intent
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section contains a statement of why Vision Documentation exists
-- **Status:** {{ purpose_002_status }}
-- **Evidence:** {{ purpose_002_evidence }}
-
-#### vis-sec-purpose-003 — Purpose is technology-independent
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section does not reference specific technologies, frameworks, or implementation details
-- **Status:** {{ purpose_003_status }}
-- **Evidence:** {{ purpose_003_evidence }}
-
-#### vis-sec-purpose-004 — Purpose scope boundaries defined
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section defines what Vision Documentation is and is not
-- **Status:** {{ purpose_004_status }}
-- **Evidence:** {{ purpose_004_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| vis-purpose-inspires-philosophy | derives_from | philosophy:purpose | incoming | {{ rel_purpose_philosophy }} |
-
----
-
-## Section: vision_statement
-
-### Rules
-
-#### vis-sec-vs-001 — Vision Statement section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'vision_statement'
-- **Status:** {{ vs_001_status }}
-- **Evidence:** {{ vs_001_evidence }}
-
-#### vis-sec-vs-002 — Vision Statement describes long-term direction
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section contains a forward-looking statement describing the product's desired future state
-- **Status:** {{ vs_002_status }}
-- **Evidence:** {{ vs_002_evidence }}
-
-#### vis-sec-vs-003 — Vision Statement is technology-independent
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section does not reference specific technologies, frameworks, languages, or implementation approaches
-- **Status:** {{ vs_003_status }}
-- **Evidence:** {{ vs_003_evidence }}
-
-#### vis-sec-vs-004 — Vision Statement is concise
-- **Severity:** warning
-- **Weight:** 0.3
-- **Condition:** section is no longer than 500 words
-- **Status:** {{ vs_004_status }}
-- **Evidence:** {{ vs_004_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| vis-vision-statement-inspires-philosophy | derives_from | philosophy:vision_alignment | incoming | {{ rel_vs_philosophy }} |
-| vis-vision-statement-inspires-feature | derives_from | feature:purpose | incoming | {{ rel_vs_feature }} |
-| vis-vision-statement-inspires-security | derives_from | security:purpose | incoming | {{ rel_vs_security }} |
-
----
-
-## Section: problem
-
-### Rules
-
-#### vis-sec-problem-001 — Problem section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'problem'
-- **Status:** {{ problem_001_status }}
-- **Evidence:** {{ problem_001_evidence }}
-
-#### vis-sec-problem-002 — Problem states the problem clearly
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section describes what problem or pain point the product addresses
-- **Status:** {{ problem_002_status }}
-- **Evidence:** {{ problem_002_evidence }}
-
-#### vis-sec-problem-003 — Problem section does not describe solutions
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section focuses on the problem, not on how it will be solved
-- **Status:** {{ problem_003_status }}
-- **Evidence:** {{ problem_003_evidence }}
-
-#### vis-sec-problem-004 — Problem is technology-independent
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section does not reference specific technologies, frameworks, or implementation details
-- **Status:** {{ problem_004_status }}
-- **Evidence:** {{ problem_004_evidence }}
-
-#### vis-sec-problem-005 — Problem section has measurable impact
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section includes or references quantifiable impact of the problem
-- **Status:** {{ problem_005_status }}
-- **Evidence:** {{ problem_005_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| vis-problem-inspires-philosophy | derives_from | philosophy:problem_framing | incoming | {{ rel_problem_philosophy }} |
-
----
-
-## Section: solution
-
-### Rules
-
-#### vis-sec-solution-001 — Solution section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'solution'
-- **Status:** {{ solution_001_status }}
-- **Evidence:** {{ solution_001_evidence }}
-
-#### vis-sec-solution-002 — Solution describes the proposed approach
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section describes the high-level approach to solving the stated problem
-- **Status:** {{ solution_002_status }}
-- **Evidence:** {{ solution_002_evidence }}
-
-#### vis-sec-solution-003 — Solution is technology-independent
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section does not reference specific technologies, frameworks, APIs, libraries, or implementation details
-- **Status:** {{ solution_003_status }}
-- **Evidence:** {{ solution_003_evidence }}
-
-#### vis-sec-solution-004 — Solution does not contain implementation specifics
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section does not contain code references, API names, schema definitions, or library names
-- **Status:** {{ solution_004_status }}
-- **Evidence:** {{ solution_004_evidence }}
-
-#### vis-sec-solution-005 — Solution addresses the stated problem
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section references or aligns with the problem statement
-- **Status:** {{ solution_005_status }}
-- **Evidence:** {{ solution_005_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| vis-solution-inspires-feature | derives_from | feature:purpose | incoming | {{ rel_solution_feature }} |
-| vis-solution-inspires-architecture | derives_from | architecture:system_overview | incoming | {{ rel_solution_architecture }} |
-
----
-
-## Section: target_audience
-
-### Rules
-
-#### vis-sec-ta-001 — Target Audience section exists
-- **Severity:** error
-- **Weight:** 1.5
-- **Condition:** document has a section with semantic_type = 'target_audience'
-- **Status:** {{ ta_001_status }}
-- **Evidence:** {{ ta_001_evidence }}
-
-#### vis-sec-ta-002 — Target Audience identifies who the product serves
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section clearly identifies the primary users, customers, or beneficiaries
-- **Status:** {{ ta_002_status }}
-- **Evidence:** {{ ta_002_evidence }}
-
-#### vis-sec-ta-003 — Target Audience is technology-independent
-- **Severity:** error
-- **Weight:** 1.0
-- **Condition:** section does not reference specific technologies, tools, or technical skill requirements
-- **Status:** {{ ta_003_status }}
-- **Evidence:** {{ ta_003_evidence }}
-
-#### vis-sec-ta-004 — Target Audience includes at least two audience segments
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section identifies two or more distinct audience groups
-- **Status:** {{ ta_004_status }}
-- **Evidence:** {{ ta_004_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| vis-target-audience-informs-philosophy | informs | philosophy:user_model | incoming | {{ rel_ta_philosophy }} |
-
----
-
-## Section: pillars
-
-### Rules
-
-#### vis-sec-pillars-001 — Pillars section exists
-- **Severity:** suggestion
-- **Weight:** 0.3
-- **Condition:** document has a section with semantic_type = 'pillars'
-- **Status:** {{ pillars_001_status }}
-- **Evidence:** {{ pillars_001_evidence }}
-
-#### vis-sec-pillars-002 — Pillars are technology-independent
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section does not reference specific technologies, frameworks, or implementation details
-- **Status:** {{ pillars_002_status }}
-- **Evidence:** {{ pillars_002_evidence }}
-
-#### vis-sec-pillars-003 — Pillars list at least three pillars
-- **Severity:** suggestion
-- **Weight:** 0.3
-- **Condition:** section lists three or more core pillars
-- **Status:** {{ pillars_003_status }}
-- **Evidence:** {{ pillars_003_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| vis-pillars-inspires-philosophy | derives_from | philosophy:guiding_principles | incoming | {{ rel_pillars_philosophy }} |
-
----
-
-## Section: philosophy
-
-### Rules
-
-#### vis-sec-philosophy-001 — Philosophy section exists
-- **Severity:** suggestion
-- **Weight:** 0.3
-- **Condition:** document has a section with semantic_type = 'philosophy'
-- **Status:** {{ philosophy_001_status }}
-- **Evidence:** {{ philosophy_001_evidence }}
-
-#### vis-sec-philosophy-002 — Philosophy has substantive content
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section contains at least one paragraph of project-specific content
-- **Status:** {{ philosophy_002_status }}
-- **Evidence:** {{ philosophy_002_evidence }}
-
----
-
-## Section: guiding_principles
-
-### Rules
-
-#### vis-sec-gp-001 — Guiding Principles section exists
-- **Severity:** suggestion
-- **Weight:** 0.3
-- **Condition:** document has a section with semantic_type = 'guiding_principles'
-- **Status:** {{ gp_001_status }}
-- **Evidence:** {{ gp_001_evidence }}
-
-#### vis-sec-gp-002 — Guiding Principles has substantive content
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section contains at least one paragraph of project-specific content
-- **Status:** {{ gp_002_status }}
-- **Evidence:** {{ gp_002_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| vis-guiding-principles-inspires-philosophy | derives_from | philosophy:guiding_principles | incoming | {{ rel_gp_philosophy }} |
-
----
-
-## Section: success_criteria
-
-### Rules
-
-#### vis-sec-sc-001 — Success Criteria section exists
-- **Severity:** suggestion
-- **Weight:** 0.3
-- **Condition:** document has a section with semantic_type = 'success_criteria'
-- **Status:** {{ sc_001_status }}
-- **Evidence:** {{ sc_001_evidence }}
-
-#### vis-sec-sc-002 — Success Criteria are technology-independent
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section does not reference specific technologies, frameworks, or implementation details
-- **Status:** {{ sc_002_status }}
-- **Evidence:** {{ sc_002_evidence }}
-
-#### vis-sec-sc-003 — Success Criteria are measurable
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section includes quantifiable or verifiable success metrics
-- **Status:** {{ sc_003_status }}
-- **Evidence:** {{ sc_003_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| vis-success-criteria-traceable-to-feature | traceable_to | feature:acceptance_criteria | incoming | {{ rel_sc_feature }} |
-
----
-
-## Section: traceability
-
-### Rules
-
-#### vis-sec-trace-001 — Traceability section exists
-- **Severity:** suggestion
-- **Weight:** 0.3
-- **Condition:** document has a section with semantic_type = 'traceability'
-- **Status:** {{ trace_001_status }}
-- **Evidence:** {{ trace_001_evidence }}
-
-#### vis-sec-trace-002 — Traceability links to upstream origins
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section documents the origin or inspiration source for the vision
-- **Status:** {{ trace_002_status }}
-- **Evidence:** {{ trace_002_evidence }}
-
-#### vis-sec-trace-003 — Traceability links to downstream consumers
-- **Severity:** warning
-- **Weight:** 0.5
-- **Condition:** section lists downstream domains that consume this vision (Philosophy, Feature, Security)
-- **Status:** {{ trace_003_status }}
-- **Evidence:** {{ trace_003_evidence }}
-
-### Relationships
-
-| ID | Type | Target | Direction | Status |
-|---|---|---|---|---|
-| vis-traceability-no-upstream | traceable_to | null | incoming | {{ rel_trace_upstream }} |
-| vis-traceability-downstream-philosophy | traceable_to | philosophy:purpose | incoming | {{ rel_trace_philosophy }} |
-| vis-traceability-downstream-feature | traceable_to | feature:purpose | incoming | {{ rel_trace_feature }} |
-| vis-traceability-downstream-security | traceable_to | security:purpose | incoming | {{ rel_trace_security }} |
-
----
-
-## Score History
-
-| Date | Auditor | Score | Verdict | Revision |
-|---|---|---|---|---|
-| {{ audit_date }} | {{ auditor_name }} | {{ weighted_score }} | {{ verdict }} | 1 |
-
----
-
-## Trend
-
-{{ trend_indicator }} ({{ trend_description }})
-
----
-
-## Failures
-
-| Rule | Severity | Section | Evidence | Regression? |
-|---|---|---|---|---|
-{{ failures_table }}
-
----
-
-## Summary
-
-{{ summary_text }}
-
-### Section-Level Breakdown
-
-| Section | Weight | Score | Status |
-|---|---|---|---|
-| purpose | {{ purpose_weight }} | {{ purpose_score }} | {{ purpose_status }} |
-| vision_statement | {{ vs_weight }} | {{ vs_score }} | {{ vs_status }} |
-| problem | {{ problem_weight }} | {{ problem_score }} | {{ problem_status }} |
-| solution | {{ solution_weight }} | {{ solution_score }} | {{ solution_status }} |
-| target_audience | {{ ta_weight }} | {{ ta_score }} | {{ ta_status }} |
-| pillars | {{ pillars_weight }} | {{ pillars_score }} | {{ pillars_status }} |
-| philosophy | {{ philosophy_weight }} | {{ philosophy_score }} | {{ philosophy_status }} |
-| guiding_principles | {{ gp_weight }} | {{ gp_score }} | {{ gp_status }} |
-| success_criteria | {{ sc_weight }} | {{ sc_score }} | {{ sc_status }} |
-| traceability | {{ trace_weight }} | {{ trace_score }} | {{ trace_status }} |
+| Domain | vision |
+| Standard | documentation-standards |
+| Section Rule Files | `audit/deterministic/section/01-vision/*.yaml` |
+| Auditor | System (deterministic engine) |
+| Audit Date | {{ created_at }} |
+| Revision | {{ revision_number }} |
+| Session | {{ session_id }} |

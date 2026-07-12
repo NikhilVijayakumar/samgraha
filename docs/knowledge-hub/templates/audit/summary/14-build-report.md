@@ -1,138 +1,158 @@
-# {{ document_title }} — Build Audit Summary
+# Audit Summary — Build
 
-> **Domain:** build
-> **Date:** {{ audit_date }}
-> **Auditor:** {{ auditor_name }}
-
----
-
-## Overall Score
-
-| Metric | Value |
-|---|---|
-| **Deterministic Document** | {{ det_doc_score }} |
-| **Deterministic Section** | {{ det_sec_score }} |
-| **Semantic Document** | {{ sem_doc_score }} |
-| **Semantic Section** | {{ sem_sec_score }} |
-| **Combined Score** | {{ combined_score }} |
-| **Verdict** | {{ verdict }} |
-
-**Why this matters:** The combined score aggregates deterministic rules (mechanical checks), section-level mechanical checks, semantic document coherence, and semantic section quality. No single audit level tells the full story — a document can pass mechanical rules while failing semantic coherence.
+**Document:** {{ document_path }}
+**Standard:** `documentation-standards/14-build-standards.md`
+**Auditor:** System (deterministic engine) + LLM ({{ model_name }})
+**Audit Date:** {{ created_at }}
+**Revision:** {{ revision_number }}
 
 ---
 
-## Deterministic Document Audit
+## Final Score
 
-### Rule Pass Rate
+**{{ final_score }} / 100** — **{{ rating }}**
+{% if previous_score %}({{ '↑ Improved' if final_score > previous_score else '↓ Regressed' if final_score < previous_score else '→ Unchanged' }} vs. previous run){% else %}(baseline — first audit of this document){% endif %}
 
-| Rules Checked | Passed | Failed | Errors | Warnings |
-|---|---|---|---|---|
-| {{ det_doc_rules_checked }} | {{ det_doc_passed }} | {{ det_doc_failed }} | {{ det_doc_errors }} | {{ det_doc_warnings }} |
+```
+final_score = (deterministic_whole/100 × 25)
+            + (deterministic_section/100 × 25)
+            + (semantic_whole/100 × 25)
+            + (semantic_section/100 × 25)
+```
 
-### Failures
+| Report | Score | Previous | Trend | Weight | Contribution |
+|---|---:|---:|---|---|---|
+| Deterministic — Whole | {{ deterministic_whole }} | {{ bucket_trend.det_whole.previous | default('—') }} | {{ bucket_trend.det_whole.trend_display }} | 25% | {{ (deterministic_whole / 100 * 25) | round(1) }} |
+| Deterministic — Section | {{ deterministic_section }} | {{ bucket_trend.det_section.previous | default('—') }} | {{ bucket_trend.det_section.trend_display }} | 25% | {{ (deterministic_section / 100 * 25) | round(1) }} |
+| Semantic — Whole | {{ semantic_whole }} | {{ bucket_trend.sem_whole.previous | default('—') }} | {{ bucket_trend.sem_whole.trend_display }} | 25% | {{ (semantic_whole / 100 * 25) | round(1) }} |
+| Semantic — Section | {{ semantic_section }} | {{ bucket_trend.sem_section.previous | default('—') }} | {{ bucket_trend.sem_section.trend_display }} | 25% | {{ (semantic_section / 100 * 25) | round(1) }} |
 
-| Rule | Severity | Weight | Evidence |
-|---|---|---|---|
-{{ det_doc_failures }}
-
----
-
-## Deterministic Section Audit
-
-### Rule Pass Rate by Section
-
-| Section | Rules | Passed | Failed | Errors | Warnings |
-|---|---|---|---|---|---|
-| documentation_quality | {{ doc_quality_det_rules }} | {{ doc_quality_det_passed }} | {{ doc_quality_det_failed }} | {{ doc_quality_det_errors }} | {{ doc_quality_det_warnings }} |
-| security_checks | {{ sec_det_rules }} | {{ sec_det_passed }} | {{ sec_det_failed }} | {{ sec_det_errors }} | {{ sec_det_warnings }} |
-| versioning_naming | {{ version_det_rules }} | {{ version_det_passed }} | {{ version_det_failed }} | {{ version_det_errors }} | {{ version_det_warnings }} |
-| purpose | {{ purpose_det_rules }} | {{ purpose_det_passed }} | {{ purpose_det_failed }} | {{ purpose_det_errors }} | {{ purpose_det_warnings }} |
-| size_checks | {{ size_det_rules }} | {{ size_det_passed }} | {{ size_det_failed }} | {{ size_det_errors }} | {{ size_det_warnings }} |
-| ml_artifact_management | {{ ml_det_rules }} | {{ ml_det_passed }} | {{ ml_det_failed }} | {{ ml_det_errors }} | {{ ml_det_warnings }} |
-| cicd_validation | {{ cicd_det_rules }} | {{ cicd_det_passed }} | {{ cicd_det_failed }} | {{ cicd_det_errors }} | {{ cicd_det_warnings }} |
-| obfuscation_optimization | {{ obf_det_rules }} | {{ obf_det_passed }} | {{ obf_det_failed }} | {{ obf_det_errors }} | {{ obf_det_warnings }} |
-
----
-
-## Semantic Document Audit
-
-### Criteria Results
-
-| Criterion | Weight | Score | Status | Confidence |
-|---|---|---|---|---|
-| C1: Security-Versioning Consistency | mandatory (40) | {{ sem_doc_c1_score }} | {{ sem_doc_c1_status }} | {{ sem_doc_c1_confidence }} |
-| C2: Gate Enforcement Alignment | mandatory (30) | {{ sem_doc_c2_score }} | {{ sem_doc_c2_status }} | {{ sem_doc_c2_confidence }} |
-| C3: Terminology Consistency | recommended (30) | {{ sem_doc_c3_score }} | {{ sem_doc_c3_status }} | {{ sem_doc_c3_confidence }} |
-
-### Failures
-
-| Criterion | Severity | Evidence |
-|---|---|---|
-{{ sem_doc_failures }}
-
----
-
-## Semantic Section Audit
-
-### Criteria Results by Section
-
-| Section | C1 (40) | C2 (30) | C3 (30) | Score | Status |
-|---|---|---|---|---|---|
-| documentation_quality | {{ doc_quality_c1 }} | {{ doc_quality_c2 }} | {{ doc_quality_c3 }} | {{ doc_quality_sem_score }} | {{ doc_quality_sem_status }} |
-| security_checks | {{ sec_c1 }} | {{ sec_c2 }} | {{ sec_c3 }} | {{ sec_sem_score }} | {{ sec_sem_status }} |
-| versioning_naming | {{ version_c1 }} | {{ version_c2 }} | {{ version_c3 }} | {{ version_sem_score }} | {{ version_sem_status }} |
-| purpose | {{ purpose_c1 }} | {{ purpose_c2 }} | {{ purpose_c3 }} | {{ purpose_sem_score }} | {{ purpose_sem_status }} |
-| size_checks | {{ size_c1 }} | {{ size_c2 }} | {{ size_c3 }} | {{ size_sem_score }} | {{ size_sem_status }} |
-| ml_artifact_management | {{ ml_c1 }} | {{ ml_c2 }} | {{ ml_c3 }} | {{ ml_sem_score }} | {{ ml_sem_status }} |
-| cicd_validation | {{ cicd_c1 }} | {{ cicd_c2 }} | {{ cicd_c3 }} | {{ cicd_sem_score }} | {{ cicd_sem_status }} |
-| obfuscation_optimization | {{ obf_c1 }} | {{ obf_c2 }} | {{ obf_c3 }} | {{ obf_sem_score }} | {{ obf_sem_status }} |
+Mandatory-criterion severity is absorbed inside each of the four reports' own scoring (see each report's Scoring Criteria table) — this rollup is a plain weighted sum, no additional gating here.
 
 ---
 
 ## Score History
 
-| Date | Auditor | Combined Score | Verdict | Revision |
-|---|---|---|---|---|
-| {{ audit_date }} | {{ auditor_name }} | {{ combined_score }} | {{ verdict }} | 1 |
+Every run of this document's audit, oldest first, with this revision last:
+
+| Revision | Date | Final Score | Rating | vs. Previous | vs. Baseline |
+|---:|---|---:|---|---|---|
+{% for r in revision_history -%}
+| {{ r.revision }} | {{ r.date }} | {{ r.score }} / 100 | {{ r.rating }} | {{ r.delta_previous_display }} | {{ r.delta_baseline_display }} |
+{% endfor -%}
+| {{ revision_number }} (current) | {{ created_at }} | {{ final_score }} / 100 | {{ rating }} | {{ delta_previous_display }} | {{ delta_baseline_display }} |
+
+{% if not previous_score %}No prior runs — this revision is the baseline every future run is compared against.{% else %}Baseline was revision {{ baseline_revision }} ({{ baseline_score }} / 100, {{ baseline_date }}).{% endif %}
 
 ---
 
-## Trend
+## Document-Level Breakdown
 
-{{ trend_indicator }} ({{ trend_description }})
+Deterministic and semantic judge different things at the document level — deterministic checks structural rule groupings, semantic checks judgment criteria. They aren't the same categories and don't map row-to-row, so they get separate tables rather than being forced side by side.
 
----
+### Deterministic — Whole (`audit/deterministic/document/14-build.yaml`)
 
-## Failures Summary
+| Category | Score | Previous | Trend |
+|---|---:|---:|---|
+| Collection Completeness | {{ categories.collection_completeness.score }} / 100 | {{ categories.collection_completeness.previous_score | default('—') }} | {{ categories.collection_completeness.trend_display }} |
+| Modularity | {{ categories.modularity.score }} / 100 | {{ categories.modularity.previous_score | default('—') }} | {{ categories.modularity.trend_display }} |
+| Derivation Completeness | {{ categories.derivation_completeness.score }} / 100 | {{ categories.derivation_completeness.previous_score | default('—') }} | {{ categories.derivation_completeness.trend_display }} |
+| Cross-References | {{ categories.cross_references.score }} / 100 | {{ categories.cross_references.previous_score | default('—') }} | {{ categories.cross_references.trend_display }} |
+| Duplicate Content | {{ categories.duplicate_content.score }} / 100 | {{ categories.duplicate_content.previous_score | default('—') }} | {{ categories.duplicate_content.trend_display }} |
 
-| Category | Rule/Criterion | Severity | Section | Evidence | Regression? |
-|---|---|---|---|---|---|
-{{ all_failures }}
+### Semantic — Whole (`audit/semantic/document/14-build.md`)
 
----
-
-## Summary
-
-{{ summary_text }}
-
-### Document-Level Breakdown
-
-| Category | Weight | Score | Status |
+| Criterion | Result | Previous | Trend |
 |---|---|---|---|
-| Deterministic Document | {{ det_doc_weight }} | {{ det_doc_score }} | {{ det_doc_status }} |
-| Deterministic Section | {{ det_sec_weight }} | {{ det_sec_score }} | {{ det_sec_status }} |
-| Semantic Document | {{ sem_doc_weight }} | {{ sem_doc_score }} | {{ sem_doc_status }} |
-| Semantic Section | {{ sem_sec_weight }} | {{ sem_sec_score }} | {{ sem_sec_status }} |
+| C1 — Security-Versioning consistency | {{ doc_semantic.c1_display }} | {{ doc_semantic.c1_previous_display | default('—') }} | {{ doc_semantic.c1_trend_display }} |
+| C2 — Documentation gates match enforcement | {{ doc_semantic.c2_display }} | {{ doc_semantic.c2_previous_display | default('—') }} | {{ doc_semantic.c2_trend_display }} |
+| C3 — Terminology consistency | {{ doc_semantic.c3_display }} | {{ doc_semantic.c3_previous_display | default('—') }} | {{ doc_semantic.c3_trend_display }} |
 
-### Section-Level Breakdown
+Full detail, including per-rule/per-criterion evidence: see the Deterministic — Whole and Semantic — Whole reports linked below.
 
-| Section | Deterministic | Semantic | Combined | Status |
+## Section-Level Breakdown
+
+Same reasoning as above, extended per section: a section's deterministic score and its semantic score aren't guaranteed to check the same things (a section can be structurally complete but semantically weak, or vice versa) — two separate tables, not one merged table with a false row-by-row correspondence.
+
+### Deterministic — Section (`audit/deterministic/section/14-build/*.yaml`)
+
+| # | Section | Required | Score | Previous | Trend |
+|---:|---|:---:|---:|---:|---|
+| 1 | Documentation Quality | **required** | {{ sections.documentation_quality.det_score }} / 100 | {{ sections.documentation_quality.det_previous_score | default('—') }} | {{ sections.documentation_quality.det_trend_display }} |
+| 2 | Security Checks | **required** | {{ sections.security_checks.det_score }} / 100 | {{ sections.security_checks.det_previous_score | default('—') }} | {{ sections.security_checks.det_trend_display }} |
+| 3 | Versioning & Naming | **required** | {{ sections.versioning_naming.det_score }} / 100 | {{ sections.versioning_naming.det_previous_score | default('—') }} | {{ sections.versioning_naming.det_trend_display }} |
+| 4 | Purpose | optional | {{ sections.purpose.det_score }} / 100 | {{ sections.purpose.det_previous_score | default('—') }} | {{ sections.purpose.det_trend_display }} |
+| 5 | Size Checks | **required** | {{ sections.size_checks.det_score }} / 100 | {{ sections.size_checks.det_previous_score | default('—') }} | {{ sections.size_checks.det_trend_display }} |
+| 6 | ML Artifact Management | **required** | {{ sections.ml_artifact_management.det_score }} / 100 | {{ sections.ml_artifact_management.det_previous_score | default('—') }} | {{ sections.ml_artifact_management.det_trend_display }} |
+| 7 | CI/CD Validation | **required** | {{ sections.cicd_validation.det_score }} / 100 | {{ sections.cicd_validation.det_previous_score | default('—') }} | {{ sections.cicd_validation.det_trend_display }} |
+| 8 | Obfuscation & Optimization | **required** | {{ sections.obfuscation_optimization.det_score }} / 100 | {{ sections.obfuscation_optimization.det_previous_score | default('—') }} | {{ sections.obfuscation_optimization.det_trend_display }} |
+
+### Semantic — Section (`audit/semantic/section/14-build/*.md`)
+
+| # | Section | Required | Score | Previous | Trend |
+|---:|---|:---:|---:|---:|---|
+| 1 | Documentation Quality | **required** | {{ sections.documentation_quality.sem_score }} / 100 | {{ sections.documentation_quality.sem_previous_score | default('—') }} | {{ sections.documentation_quality.sem_trend_display }} |
+| 2 | Security Checks | **required** | {{ sections.security_checks.sem_score }} / 100 | {{ sections.security_checks.sem_previous_score | default('—') }} | {{ sections.security_checks.sem_trend_display }} |
+| 3 | Versioning & Naming | **required** | {{ sections.versioning_naming.sem_score }} / 100 | {{ sections.versioning_naming.sem_previous_score | default('—') }} | {{ sections.versioning_naming.sem_trend_display }} |
+| 4 | Purpose | optional | {{ sections.purpose.sem_score }} / 100 | {{ sections.purpose.sem_previous_score | default('—') }} | {{ sections.purpose.sem_trend_display }} |
+| 5 | Size Checks | **required** | {{ sections.size_checks.sem_score }} / 100 | {{ sections.size_checks.sem_previous_score | default('—') }} | {{ sections.size_checks.sem_trend_display }} |
+| 6 | ML Artifact Management | **required** | {{ sections.ml_artifact_management.sem_score }} / 100 | {{ sections.ml_artifact_management.sem_previous_score | default('—') }} | {{ sections.ml_artifact_management.sem_trend_display }} |
+| 7 | CI/CD Validation | **required** | {{ sections.cicd_validation.sem_score }} / 100 | {{ sections.cicd_validation.sem_previous_score | default('—') }} | {{ sections.cicd_validation.sem_trend_display }} |
+| 8 | Obfuscation & Optimization | **required** | {{ sections.obfuscation_optimization.sem_score }} / 100 | {{ sections.obfuscation_optimization.sem_previous_score | default('—') }} | {{ sections.obfuscation_optimization.sem_trend_display }} |
+| — | Generic (unmatched sections) | n/a | {{ sections.generic.sem_score }} / 100 | {{ sections.generic.sem_previous_score | default('—') }} | {{ sections.generic.sem_trend_display }} |
+
+Full detail, including per-rule/per-criterion evidence for every row above: see the Deterministic — Section and Semantic — Section reports linked below.
+
+---
+
+## Score Bands
+
+| Range | Rating | Meaning |
+|---|---|---|
+| 95–100 | Excellent | Fully compliant, no reservations |
+| 90–94 | Very Good | Minor gaps, safe to proceed |
+| 80–89 | Good | Solid foundation, a few issues to resolve |
+| 70–79 | Acceptable | Core present but gaps exist |
+| Below 70 | Needs Improvement | Significant gaps, not ready |
+
+---
+
+## Report Links
+
+| Report | File |
+|---|---|
+| Deterministic — Whole | `{{ det_whole_report_path }}` (`audit/deterministic/document/14-build.yaml`) |
+| Deterministic — Section | `{{ det_section_report_path }}` (`audit/deterministic/section/14-build/*.yaml`) |
+| Semantic — Whole | `{{ sem_whole_report_path }}` (`audit/semantic/document/14-build.md`) |
+| Semantic — Section | `{{ sem_section_report_path }}` (`audit/semantic/section/14-build/*.md`) |
+
+---
+
+## Top Findings
+
+{% if top_findings | length > 0 %}
+| Severity | Source | Rule/Criterion | Message | New This Run? |
 |---|---|---|---|---|
-| documentation_quality | {{ doc_quality_det_score }} | {{ doc_quality_sem_score }} | {{ doc_quality_combined }} | {{ doc_quality_overall_status }} |
-| security_checks | {{ sec_det_score }} | {{ sec_sem_score }} | {{ sec_combined }} | {{ sec_overall_status }} |
-| versioning_naming | {{ version_det_score }} | {{ version_sem_score }} | {{ version_combined }} | {{ version_overall_status }} |
-| purpose | {{ purpose_det_score }} | {{ purpose_sem_score }} | {{ purpose_combined }} | {{ purpose_overall_status }} |
-| size_checks | {{ size_det_score }} | {{ size_sem_score }} | {{ size_combined }} | {{ size_overall_status }} |
-| ml_artifact_management | {{ ml_det_score }} | {{ ml_sem_score }} | {{ ml_combined }} | {{ ml_overall_status }} |
-| cicd_validation | {{ cicd_det_score }} | {{ cicd_sem_score }} | {{ cicd_combined }} | {{ cicd_overall_status }} |
-| obfuscation_optimization | {{ obf_det_score }} | {{ obf_sem_score }} | {{ obf_combined }} | {{ obf_overall_status }} |
+{% for f in top_findings -%}
+| {{ f.severity }} | {{ f.report_type }} | {{ f.rule_id }} | {{ f.message }} | {{ 'Yes — regression' if f.is_new_finding else 'No — carried over' }} |
+{% endfor %}
+{% else %}
+No findings.
+{% endif %}
+
+Full score-history and per-run trend detail lives in the Score History table above, and in each of the 4 linked detail reports (each carries its own Score History and per-row Previous/Trend columns) — this table only surfaces what's new since the last run.
+
+---
+
+## Metadata
+
+| Field | Value |
+|---|---|
+| Domain | build |
+| Standard | documentation-standards |
+| Document | {{ document_path }} |
+| Auditor | System (deterministic engine) + LLM ({{ model_name }}) |
+| Audit Date | {{ created_at }} |
+| Revision | {{ revision_number }} |
+| Session | {{ session_id }} |
+| Reports | 4 detail + 1 summary |

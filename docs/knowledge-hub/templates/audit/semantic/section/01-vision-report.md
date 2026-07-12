@@ -1,364 +1,241 @@
-# {{ document_title }} — Vision Semantic Section Audit Report
+# Semantic Section Report — Vision
 
-> **Domain:** vision
-> **Scope:** section
-> **Kind:** semantic
-> **Date:** {{ audit_date }}
-> **Auditor:** {{ auditor_name }}
+**Document:** {{ document_path }}
+**Standard:** `documentation-standards/02-vision-standards.md`
+**Rubric Files:** `audit/semantic/section/01-vision/*.md`
+**Auditor:** LLM ({{ model_name }})
+**Audit Date:** {{ created_at }}
+**Revision:** {{ revision_number }}
 
 ---
 
-## Section-Level Score
+## Score
 
-| Metric | Value |
+**Semantic Section Score: {{ score }} / 100**
+{% if previous_score %}({{ '↑ Improved' if score > previous_score else '↓ Regressed' if score < previous_score else '→ Unchanged' }} vs. previous run){% else %}(baseline — first audit of this document){% endif %}
+
+```
+overall = average of the section scores below, for sections actually present in the document
+section_score = sum of passed criterion points in that section, capped at 100
+```
+
+### Score History
+
+| Revision | Date | Score | vs. Previous | vs. Baseline |
+|---:|---|---:|---|---|
+{% for r in revision_history -%}
+| {{ r.revision }} | {{ r.date }} | {{ r.score }} / 100 | {{ r.delta_previous_display }} | {{ r.delta_baseline_display }} |
+{% endfor -%}
+| {{ revision_number }} (current) | {{ created_at }} | {{ score }} / 100 | {{ delta_previous_display }} | {{ delta_baseline_display }} |
+
+{% if not previous_score %}No prior runs — this revision is the baseline every future run is compared against.{% endif %}
+
+### Score by Model
+
+| Model | Runs | Avg Score | Min | Max |
+|---|---:|---:|---:|---|
+{% for m in model_scores -%}
+| {{ m.model_name }} | {{ m.run_count }} | {{ m.avg_score }} / 100 | {{ m.min_score }} / 100 | {{ m.max_score }} / 100 |
+{% endfor %}
+
+### Section Scores
+
+| # | Section | Required | Score | Previous | Trend |
+|---:|---|:---:|---:|---:|---|
+| 1 | Purpose | **required** | {{ sections.purpose.score }} / 100 | {{ sections.purpose.previous_score | default('—') }} | {{ sections.purpose.trend_display }} |
+| 2 | Vision Statement | **required** | {{ sections.vision_statement.score }} / 100 | {{ sections.vision_statement.previous_score | default('—') }} | {{ sections.vision_statement.trend_display }} |
+| 3 | Problem | **required** | {{ sections.problem.score }} / 100 | {{ sections.problem.previous_score | default('—') }} | {{ sections.problem.trend_display }} |
+| 4 | Solution | **required** | {{ sections.solution.score }} / 100 | {{ sections.solution.previous_score | default('—') }} | {{ sections.solution.trend_display }} |
+| 5 | Target Audience | **required** | {{ sections.target_audience.score }} / 100 | {{ sections.target_audience.previous_score | default('—') }} | {{ sections.target_audience.trend_display }} |
+| 6 | Pillars | optional | {{ sections.pillars.score }} / 100 | {{ sections.pillars.previous_score | default('—') }} | {{ sections.pillars.trend_display }} |
+| 7 | Philosophy | optional | {{ sections.philosophy.score }} / 100 | {{ sections.philosophy.previous_score | default('—') }} | {{ sections.philosophy.trend_display }} |
+| 8 | Guiding Principles | optional | {{ sections.guiding_principles.score }} / 100 | {{ sections.guiding_principles.previous_score | default('—') }} | {{ sections.guiding_principles.trend_display }} |
+| 9 | Success Criteria | optional | {{ sections.success_criteria.score }} / 100 | {{ sections.success_criteria.previous_score | default('—') }} | {{ sections.success_criteria.trend_display }} |
+| 10 | Traceability | optional | {{ sections.traceability.score }} / 100 | {{ sections.traceability.previous_score | default('—') }} | {{ sections.traceability.trend_display }} |
+| — | Generic (unmatched sections) | n/a | {{ sections.generic.score }} / 100 | {{ sections.generic.previous_score | default('—') }} | {{ sections.generic.trend_display }} |
+
+A section absent from the document (among the optional ones) isn't scored at all here — it's a deterministic presence check, not a semantic quality judgment on nothing.
+
+---
+
+## 1. Purpose — `section/01-vision/01-purpose.md` — **required**
+
+**Why this matters:** Purpose defines why Vision Documentation exists before they read a single direction statement. A Purpose section that's missing, vague, or technology-leaking undermines every section that follows it.
+
+**Section Score: {{ sections.purpose.score }} / 100** ({{ sections.purpose.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['purpose.C1'].previous_passed_display | default('—') }} | {{ results['purpose.C1'].passed_display }} | {{ results['purpose.C1'].trend_display }} | {{ results['purpose.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['purpose.C2'].previous_passed_display | default('—') }} | {{ results['purpose.C2'].passed_display }} | {{ results['purpose.C2'].trend_display }} | {{ results['purpose.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['purpose.C3'].previous_passed_display | default('—') }} | {{ results['purpose.C3'].passed_display }} | {{ results['purpose.C3'].trend_display }} | {{ results['purpose.C3'].evidence.excerpt | default('—') }} |
+
+C1: purpose is clearly stated with scope boundaries. C2: primary vision goals and their priorities are defined. C3: purpose is consistent with requirements and downstream sections.
+
+## 2. Vision Statement — `02-vision_statement.md` — **required**
+
+**Why this matters:** Vision Statement is the core aspirational statement — where the product is going. A vague or technology-leaking vision gives Philosophy and Feature nothing concrete to derive against.
+
+**Section Score: {{ sections.vision_statement.score }} / 100** ({{ sections.vision_statement.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['vision_statement.C1'].previous_passed_display | default('—') }} | {{ results['vision_statement.C1'].passed_display }} | {{ results['vision_statement.C1'].trend_display }} | {{ results['vision_statement.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['vision_statement.C2'].previous_passed_display | default('—') }} | {{ results['vision_statement.C2'].passed_display }} | {{ results['vision_statement.C2'].trend_display }} | {{ results['vision_statement.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['vision_statement.C3'].previous_passed_display | default('—') }} | {{ results['vision_statement.C3'].passed_display }} | {{ results['vision_statement.C3'].trend_display }} | {{ results['vision_statement.C3'].evidence.excerpt | default('—') }} |
+
+C1: vision describes a future state in 1-3 sentences. C2: free of implementation-specific language. C3: differentiates from current status quo or alternatives.
+
+## 3. Problem — `03-problem.md` — **required**
+
+**Why this matters:** Problem is what motivates the entire vision. A section that mixes problem and solution gives Philosophy and Feature no clean handoff.
+
+**Section Score: {{ sections.problem.score }} / 100** ({{ sections.problem.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['problem.C1'].previous_passed_display | default('—') }} | {{ results['problem.C1'].passed_display }} | {{ results['problem.C1'].trend_display }} | {{ results['problem.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['problem.C2'].previous_passed_display | default('—') }} | {{ results['problem.C2'].passed_display }} | {{ results['problem.C2'].trend_display }} | {{ results['problem.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['problem.C3'].previous_passed_display | default('—') }} | {{ results['problem.C3'].passed_display }} | {{ results['problem.C3'].trend_display }} | {{ results['problem.C3'].evidence.excerpt | default('—') }} |
+
+C1: problem stated from user/stakeholder perspective with evidence. C2: affected parties identified and scope bounded. C3: current workarounds or alternatives acknowledged.
+
+## 4. Solution — `04-solution.md` — **required**
+
+**Why this matters:** Solution is the aspirational approach — what the product will do, not how. A section that leaks into implementation details crosses into Architecture's territory.
+
+**Section Score: {{ sections.solution.score }} / 100** ({{ sections.solution.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['solution.C1'].previous_passed_display | default('—') }} | {{ results['solution.C1'].passed_display }} | {{ results['solution.C1'].trend_display }} | {{ results['solution.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['solution.C2'].previous_passed_display | default('—') }} | {{ results['solution.C2'].passed_display }} | {{ results['solution.C2'].trend_display }} | {{ results['solution.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['solution.C3'].previous_passed_display | default('—') }} | {{ results['solution.C3'].passed_display }} | {{ results['solution.C3'].trend_display }} | {{ results['solution.C3'].evidence.excerpt | default('—') }} |
+
+C1: solution addresses all aspects of the stated problem. C2: described at capability level without technology prescription. C3: constraints and feasibility considerations acknowledged.
+
+## 5. Target Audience — `05-target_audience.md` — **required**
+
+**Why this matters:** Target Audience tells Philosophy who the product serves. A missing or vague audience section gives Philosophy nothing to reason about.
+
+**Section Score: {{ sections.target_audience.score }} / 100** ({{ sections.target_audience.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['target_audience.C1'].previous_passed_display | default('—') }} | {{ results['target_audience.C1'].passed_display }} | {{ results['target_audience.C1'].trend_display }} | {{ results['target_audience.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['target_audience.C2'].previous_passed_display | default('—') }} | {{ results['target_audience.C2'].passed_display }} | {{ results['target_audience.C2'].trend_display }} | {{ results['target_audience.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['target_audience.C3'].previous_passed_display | default('—') }} | {{ results['target_audience.C3'].passed_display }} | {{ results['target_audience.C3'].trend_display }} | {{ results['target_audience.C3'].evidence.excerpt | default('—') }} |
+
+C1: section exists with substantive project-specific content. C2: internally consistent, does not contradict other sections. C3: includes concrete examples or project-specific detail.
+
+## 6. Pillars — `06-pillars.md` — optional
+
+**Why this matters:** Pillars distill the vision into core values that guide every downstream decision. A document without them gives Philosophy no explicit anchor.
+
+**Section Score: {{ sections.pillars.score }} / 100** ({{ sections.pillars.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['pillars.C1'].previous_passed_display | default('—') }} | {{ results['pillars.C1'].passed_display }} | {{ results['pillars.C1'].trend_display }} | {{ results['pillars.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['pillars.C2'].previous_passed_display | default('—') }} | {{ results['pillars.C2'].passed_display }} | {{ results['pillars.C2'].trend_display }} | {{ results['pillars.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['pillars.C3'].previous_passed_display | default('—') }} | {{ results['pillars.C3'].passed_display }} | {{ results['pillars.C3'].trend_display }} | {{ results['pillars.C3'].evidence.excerpt | default('—') }} |
+
+C1: section exists with substantive project-specific content. C2: internally consistent, does not contradict other sections. C3: includes concrete examples or project-specific detail.
+
+## 7. Philosophy — `07-philosophy.md` — optional
+
+**Why this matters:** Philosophy in Vision is a preview of what the dedicated Philosophy document will expand. Its absence means the vision has no explicit values layer.
+
+**Section Score: {{ sections.philosophy.score }} / 100** ({{ sections.philosophy.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['philosophy.C1'].previous_passed_display | default('—') }} | {{ results['philosophy.C1'].passed_display }} | {{ results['philosophy.C1'].trend_display }} | {{ results['philosophy.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['philosophy.C2'].previous_passed_display | default('—') }} | {{ results['philosophy.C2'].passed_display }} | {{ results['philosophy.C2'].trend_display }} | {{ results['philosophy.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['philosophy.C3'].previous_passed_display | default('—') }} | {{ results['philosophy.C3'].passed_display }} | {{ results['philosophy.C3'].trend_display }} | {{ results['philosophy.C3'].evidence.excerpt | default('—') }} |
+
+C1: section exists with substantive project-specific content. C2: internally consistent, does not contradict other sections. C3: includes concrete examples or project-specific detail.
+
+## 8. Guiding Principles — `08-guiding_principles.md` — optional
+
+**Why this matters:** Guiding Principles in Vision are the seeds that Philosophy's Guiding Principles section expands. Without them, Philosophy has no explicit upstream to trace back to.
+
+**Section Score: {{ sections.guiding_principles.score }} / 100** ({{ sections.guiding_principles.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['guiding_principles.C1'].previous_passed_display | default('—') }} | {{ results['guiding_principles.C1'].passed_display }} | {{ results['guiding_principles.C1'].trend_display }} | {{ results['guiding_principles.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['guiding_principles.C2'].previous_passed_display | default('—') }} | {{ results['guiding_principles.C2'].passed_display }} | {{ results['guiding_principles.C2'].trend_display }} | {{ results['guiding_principles.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['guiding_principles.C3'].previous_passed_display | default('—') }} | {{ results['guiding_principles.C3'].passed_display }} | {{ results['guiding_principles.C3'].trend_display }} | {{ results['guiding_principles.C3'].evidence.excerpt | default('—') }} |
+
+C1: section exists with substantive project-specific content. C2: internally consistent, does not contradict other sections. C3: includes concrete examples or project-specific detail.
+
+## 9. Success Criteria — `09-success_criteria.md` — optional
+
+**Why this matters:** Success Criteria in Vision are the seeds that Feature's Acceptance Criteria section expands. Without them, Feature has no explicit upstream success definition to trace.
+
+**Section Score: {{ sections.success_criteria.score }} / 100** ({{ sections.success_criteria.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['success_criteria.C1'].previous_passed_display | default('—') }} | {{ results['success_criteria.C1'].passed_display }} | {{ results['success_criteria.C1'].trend_display }} | {{ results['success_criteria.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['success_criteria.C2'].previous_passed_display | default('—') }} | {{ results['success_criteria.C2'].passed_display }} | {{ results['success_criteria.C2'].trend_display }} | {{ results['success_criteria.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['success_criteria.C3'].previous_passed_display | default('—') }} | {{ results['success_criteria.C3'].passed_display }} | {{ results['success_criteria.C3'].trend_display }} | {{ results['success_criteria.C3'].evidence.excerpt | default('—') }} |
+
+C1: criteria are specific, measurable, and include clear targets. C2: span multiple dimensions (user, business, technical). C3: include timeframes and distinguish leading vs lagging indicators.
+
+## 10. Traceability — `10-traceability.md` — optional
+
+**Why this matters:** Traceability is what makes the derivation chain enforceable — without it, nothing stops a downstream domain from silently drifting away from what Vision actually says.
+
+**Section Score: {{ sections.traceability.score }} / 100** ({{ sections.traceability.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['traceability.C1'].previous_passed_display | default('—') }} | {{ results['traceability.C1'].passed_display }} | {{ results['traceability.C1'].trend_display }} | {{ results['traceability.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['traceability.C2'].previous_passed_display | default('—') }} | {{ results['traceability.C2'].passed_display }} | {{ results['traceability.C2'].trend_display }} | {{ results['traceability.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['traceability.C3'].previous_passed_display | default('—') }} | {{ results['traceability.C3'].passed_display }} | {{ results['traceability.C3'].trend_display }} | {{ results['traceability.C3'].evidence.excerpt | default('—') }} |
+
+C1: traceability links to upstream origins are present. C2: links to downstream consumers are present. C3: no contradictory or unresolvable links.
+
+## Generic — `generic.md` (sections with no matching semantic_type)
+
+**Why this matters:** Catches vision-relevant content an author wrote under a heading that doesn't match any of the 10 named section types above — still judged for relevance and non-duplication, not given a free pass for being unclassified.
+
+**Section Score: {{ sections.generic.score }} / 100** ({{ sections.generic.trend_display }})
+
+| ID | Weight | Points | Previous | Current | Trend | Evidence |
+|---|---|---:|---|---|---|---|
+| C1 | mandatory | 40 | {{ results['generic.C1'].previous_passed_display | default('—') }} | {{ results['generic.C1'].passed_display }} | {{ results['generic.C1'].trend_display }} | {{ results['generic.C1'].evidence.excerpt | default('—') }} |
+| C2 | mandatory | 30 | {{ results['generic.C2'].previous_passed_display | default('—') }} | {{ results['generic.C2'].passed_display }} | {{ results['generic.C2'].trend_display }} | {{ results['generic.C2'].evidence.excerpt | default('—') }} |
+| C3 | recommended | 30 | {{ results['generic.C3'].previous_passed_display | default('—') }} | {{ results['generic.C3'].passed_display }} | {{ results['generic.C3'].trend_display }} | {{ results['generic.C3'].evidence.excerpt | default('—') }} |
+
+C1: content is vision-relevant, not implementation-specific. C2: claims and assertions are justified by evidence or reasoning. C3: no duplication of content from other vision section types.
+
+---
+
+## All Findings
+
+{% if findings | length > 0 %}
+| Section | Criterion | Severity | Evidence | Message | New This Run? |
+|---|---|---|---|---|---|
+{% for f in findings -%}
+| {{ f.section_type }} | {{ f.criterion_id }} | {{ f.severity }} | {{ f.evidence.excerpt | default('—') }} | {{ f.message }} | {{ 'Yes — regression' if f.is_new_finding else 'No — carried over' }} |
+{% endfor %}
+{% else %}
+No findings.
+{% endif %}
+
+---
+
+## Metadata
+
+| Field | Value |
 |---|---|
-| **Weight Sum** | {{ section_weight_sum }} |
-| **Weighted Score** | {{ weighted_score }} |
-| **Max Possible** | {{ section_weight_sum }} |
-| **Percentage** | {{ score_percentage }} |
-| **Verdict** | {{ verdict }} |
-
-**Why this matters:** Semantic section audit evaluates the quality of each vision section individually — whether content is substantive, internally consistent, technology-independent, and project-specific rather than generic. Each section contributes to the overall vision coherence.
-
----
-
-## Section: purpose
-
-### Criteria
-
-#### C1 — Section exists with substantive content specific to this project
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ purpose_c1_status }}
-- **Confidence:** {{ purpose_c1_confidence }}
-- **Evidence:** {{ purpose_c1_evidence }}
-- **Why this matters:** A Purpose section without project-specific content is a placeholder that provides no actual vision guidance.
-
-#### C2 — Content is internally consistent and does not contradict other sections
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ purpose_c2_status }}
-- **Confidence:** {{ purpose_c2_confidence }}
-- **Evidence:** {{ purpose_c2_evidence }}
-- **Why this matters:** Purpose that contradicts the actual Vision Statement misleads stakeholders about what the vision aspires to.
-
-#### C3 — Content includes concrete examples, evidence, or project-specific detail
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ purpose_c3_status }}
-- **Confidence:** {{ purpose_c3_confidence }}
-- **Evidence:** {{ purpose_c3_evidence }}
-- **Why this matters:** A generic purpose statement ("this document describes the vision") provides no value beyond what the filename already conveys.
-
----
-
-## Section: vision_statement
-
-### Criteria
-
-#### C1 — Vision is 1-3 sentences describing a future state
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ vs_c1_status }}
-- **Confidence:** {{ vs_c1_confidence }}
-- **Evidence:** {{ vs_c1_evidence }}
-- **Why this matters:** Vision statements longer than three sentences lose their north-star quality — they become specifications, not aspirations.
-
-#### C2 — Vision is free of implementation-specific language
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ vs_c2_status }}
-- **Confidence:** {{ vs_c2_confidence }}
-- **Evidence:** {{ vs_c2_evidence }}
-- **Why this matters:** Vision with implementation language ("we will build a microservices architecture") is a design doc, not a vision — it constrains solutions before the problem is fully understood.
-
-#### C3 — Vision differentiates from current status quo or alternatives
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ vs_c3_status }}
-- **Confidence:** {{ vs_c3_confidence }}
-- **Evidence:** {{ vs_c3_evidence }}
-- **Why this matters:** Vision indistinguishable from the status quo inspires no change — it describes what already exists, not what should exist.
-
----
-
-## Section: problem
-
-### Criteria
-
-#### C1 — Problem stated from user/stakeholder perspective with evidence
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ problem_c1_status }}
-- **Confidence:** {{ problem_c1_confidence }}
-- **Evidence:** {{ problem_c1_evidence }}
-- **Why this matters:** Problems described from the system's perspective ("the system lacks feature X") miss the human impact — the pain that motivates building something new.
-
-#### C2 — Affected parties identified and problem scope bounded
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ problem_c2_status }}
-- **Confidence:** {{ problem_c2_confidence }}
-- **Evidence:** {{ problem_c2_evidence }}
-- **Why this matters:** Unbounded problems ("users everywhere struggle with data") have no resolution criteria — the vision can never declare victory.
-
-#### C3 — Current workarounds or alternatives acknowledged
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ problem_c3_status }}
-- **Confidence:** {{ problem_c3_confidence }}
-- **Evidence:** {{ problem_c3_evidence }}
-- **Why this matters:** Problems that ignore existing workarounds may not be as painful as claimed — if users already have a viable alternative, the problem may be overstated.
-
----
-
-## Section: solution
-
-### Criteria
-
-#### C1 — Solution addresses all aspects of the stated problem
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ solution_c1_status }}
-- **Confidence:** {{ solution_c1_confidence }}
-- **Evidence:** {{ solution_c1_evidence }}
-- **Why this matters:** Solutions that address a different problem than the one Problem describes are visionary about the wrong thing.
-
-#### C2 — Solution described at capability level without technology prescription
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ solution_c2_status }}
-- **Confidence:** {{ solution_c2_confidence }}
-- **Evidence:** {{ solution_c2_evidence }}
-- **Why this matters:** Solutions that prescribe specific technologies constrain the solution space before the problem is fully understood.
-
-#### C3 — Constraints and feasibility considerations acknowledged
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ solution_c3_status }}
-- **Confidence:** {{ solution_c3_confidence }}
-- **Evidence:** {{ solution_c3_evidence }}
-- **Why this matters:** Solutions without feasibility considerations are aspirational fiction — they describe what could be, not what will be.
-
----
-
-## Section: target_audience
-
-### Criteria
-
-#### C1 — Section exists with substantive content specific to this project
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ ta_c1_status }}
-- **Confidence:** {{ ta_c1_confidence }}
-- **Evidence:** {{ ta_c1_evidence }}
-- **Why this matters:** A Target Audience section without project-specific content is a placeholder that provides no actual audience guidance.
-
-#### C2 — Content is internally consistent and does not contradict other sections
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ ta_c2_status }}
-- **Confidence:** {{ ta_c2_confidence }}
-- **Evidence:** {{ ta_c2_evidence }}
-- **Why this matters:** Target Audience that contradicts the Problem or Solution creates confusion about who the vision actually serves.
-
-#### C3 — Content includes concrete examples, evidence, or project-specific detail
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ ta_c3_status }}
-- **Confidence:** {{ ta_c3_confidence }}
-- **Evidence:** {{ ta_c3_evidence }}
-- **Why this matters:** Generic audience descriptions ("users", "enterprises") without specific personas or segments provide no actionable guidance.
-
----
-
-## Section: pillars
-
-### Criteria
-
-#### C1 — Section exists with substantive content specific to this project
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ pillars_c1_status }}
-- **Confidence:** {{ pillars_c1_confidence }}
-- **Evidence:** {{ pillars_c1_evidence }}
-- **Why this matters:** A Pillars section without project-specific content is a placeholder that provides no actual architectural guidance.
-
-#### C2 — Content is internally consistent and does not contradict other sections
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ pillars_c2_status }}
-- **Confidence:** {{ pillars_c2_confidence }}
-- **Evidence:** {{ pillars_c2_evidence }}
-- **Why this matters:** Pillars that contradict the Vision Statement or Solution create confusion about what the vision actually values.
-
-#### C3 — Content includes concrete examples, evidence, or project-specific detail
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ pillars_c3_status }}
-- **Confidence:** {{ pillars_c3_confidence }}
-- **Evidence:** {{ pillars_c3_evidence }}
-- **Why this matters:** Generic pillar descriptions ("scalability", "security") without project-specific definitions provide no actionable guidance.
-
----
-
-## Section: philosophy
-
-### Criteria
-
-#### C1 — Section exists with substantive content specific to this project
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ philosophy_c1_status }}
-- **Confidence:** {{ philosophy_c1_confidence }}
-- **Evidence:** {{ philosophy_c1_evidence }}
-- **Why this matters:** A Philosophy section without project-specific content is a placeholder that provides no actual philosophical guidance.
-
-#### C2 — Content is internally consistent and does not contradict other sections
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ philosophy_c2_status }}
-- **Confidence:** {{ philosophy_c2_confidence }}
-- **Evidence:** {{ philosophy_c2_evidence }}
-- **Why this matters:** Philosophy that contradicts the Vision Statement or Pillars creates confusion about what the vision actually believes.
-
-#### C3 — Content includes concrete examples, evidence, or project-specific detail
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ philosophy_c3_status }}
-- **Confidence:** {{ philosophy_c3_confidence }}
-- **Evidence:** {{ philosophy_c3_evidence }}
-- **Why this matters:** Generic philosophy descriptions ("we value quality") without project-specific beliefs provide no actionable guidance.
-
----
-
-## Section: guiding_principles
-
-### Criteria
-
-#### C1 — Section exists with substantive content specific to this project
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ gp_c1_status }}
-- **Confidence:** {{ gp_c1_confidence }}
-- **Evidence:** {{ gp_c1_evidence }}
-- **Why this matters:** A Guiding Principles section without project-specific content is a placeholder that provides no actual principle guidance.
-
-#### C2 — Content is internally consistent and does not contradict other sections
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ gp_c2_status }}
-- **Confidence:** {{ gp_c2_confidence }}
-- **Evidence:** {{ gp_c2_evidence }}
-- **Why this matters:** Guiding Principles that contradict the Vision Statement or Pillars create confusion about what the vision actually prioritizes.
-
-#### C3 — Content includes concrete examples, evidence, or project-specific detail
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ gp_c3_status }}
-- **Confidence:** {{ gp_c3_confidence }}
-- **Evidence:** {{ gp_c3_evidence }}
-- **Why this matters:** Generic guiding principle descriptions ("keep it simple") without project-specific applications provide no actionable guidance.
-
----
-
-## Section: success_criteria
-
-### Criteria
-
-#### C1 — Criteria are specific, measurable, and include clear targets
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ sc_c1_status }}
-- **Confidence:** {{ sc_c1_confidence }}
-- **Evidence:** {{ sc_c1_evidence }}
-- **Why this matters:** Success criteria that are untestable ("users will love the system") have no pass/fail — they're opinions, not success conditions.
-
-#### C2 — Criteria span multiple dimensions (user, business, technical)
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ sc_c2_status }}
-- **Confidence:** {{ sc_c2_confidence }}
-- **Evidence:** {{ sc_c2_evidence }}
-- **Why this matters:** Success criteria covering only one dimension (e.g., technical only) miss the full picture — a system can be technically excellent and commercially unsuccessful.
-
-#### C3 — Criteria include timeframes, distinguish leading vs lagging, and state dimension priority for conflict resolution
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ sc_c3_status }}
-- **Confidence:** {{ sc_c3_confidence }}
-- **Evidence:** {{ sc_c3_evidence }}
-- **Why this matters:** Multi-dimensional criteria with no conflict resolution leave stakeholders guessing which dimension wins when they point in opposite directions.
-
----
-
-## Section: traceability
-
-### Criteria
-
-#### C1 — Section exists with substantive content specific to this project
-- **Weight:** mandatory
-- **Score if passed:** 40
-- **Status:** {{ trace_c1_status }}
-- **Confidence:** {{ trace_c1_confidence }}
-- **Evidence:** {{ trace_c1_evidence }}
-- **Why this matters:** A Traceability section without project-specific content is a placeholder that provides no actual traceability.
-
-#### C2 — Content is internally consistent and does not contradict other sections
-- **Weight:** mandatory
-- **Score if passed:** 30
-- **Status:** {{ trace_c2_status }}
-- **Confidence:** {{ trace_c2_confidence }}
-- **Evidence:** {{ trace_c2_evidence }}
-- **Why this matters:** Traceability links that contradict the vision's actual lineage create confusion about where the vision comes from and where it goes.
-
-#### C3 — Content includes concrete examples, evidence, or project-specific detail
-- **Weight:** recommended
-- **Score if passed:** 30
-- **Status:** {{ trace_c3_status }}
-- **Confidence:** {{ trace_c3_confidence }}
-- **Evidence:** {{ trace_c3_evidence }}
-- **Why this matters:** Generic traceability descriptions ("traceable to philosophy") without specific links provide no actual traceability value.
-
----
-
-## Score History
-
-| Date | Auditor | Score | Verdict | Revision |
-|---|---|---|---|---|
-| {{ audit_date }} | {{ auditor_name }} | {{ weighted_score }} | {{ verdict }} | 1 |
-
----
-
-## Trend
-
-{{ trend_indicator }} ({{ trend_description }})
-
----
-
-## Failures
-
-| Criterion | Severity | Section | Evidence | Regression? |
-|---|---|---|---|---|
-{{ failures_table }}
-
----
-
-## Summary
-
-{{ summary_text }}
-
-### Section-Level Breakdown
-
-| Section | Weight | Score | Status |
-|---|---|---|---|
-| purpose | {{ purpose_weight }} | {{ purpose_score }} | {{ purpose_status }} |
-| vision_statement | {{ vs_weight }} | {{ vs_score }} | {{ vs_status }} |
-| problem | {{ problem_weight }} | {{ problem_score }} | {{ problem_status }} |
-| solution | {{ solution_weight }} | {{ solution_score }} | {{ solution_status }} |
-| target_audience | {{ ta_weight }} | {{ ta_score }} | {{ ta_status }} |
-| pillars | {{ pillars_weight }} | {{ pillars_score }} | {{ pillars_status }} |
-| philosophy | {{ philosophy_weight }} | {{ philosophy_score }} | {{ philosophy_status }} |
-| guiding_principles | {{ gp_weight }} | {{ gp_score }} | {{ gp_status }} |
-| success_criteria | {{ sc_weight }} | {{ sc_score }} | {{ sc_status }} |
-| traceability | {{ trace_weight }} | {{ trace_score }} | {{ trace_status }} |
+| Domain | vision |
+| Standard | documentation-standards |
+| Section Rubric Files | `audit/semantic/section/01-vision/*.md` |
+| Auditor | LLM ({{ model_name }}) |
+| Audit Date | {{ created_at }} |
+| Revision | {{ revision_number }} |
+| Session | {{ session_id }} |
