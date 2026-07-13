@@ -134,6 +134,7 @@ impl McpAdapter {
         caps.methods.push("get_plan_settings".to_string());
         caps.methods.push("get_plan_scenarios".to_string());
         caps.methods.push("list_script_checks".to_string());
+        caps.methods.push("run_check".to_string());
         let orchestrator = PlanOrchestrator::new(
             Arc::clone(&runtime),
             Arc::clone(&runtime.registry),
@@ -281,6 +282,7 @@ impl McpAdapter {
             "get_plan_settings"       => self.handle_get_plan_settings(),
             "get_plan_scenarios"      => self.handle_get_plan_scenarios(&req),
             "list_script_checks"      => self.handle_list_script_checks(&req),
+            "run_check"               => self.handle_run_check(&req),
             _                         => Err(anyhow::anyhow!("Unknown method: {}", req.method)),
         };
 
@@ -1565,5 +1567,39 @@ impl McpAdapter {
             }))
             .collect();
         Ok(serde_json::json!({ "script_checks": items, "total": items.len() }))
+    }
+
+    // ── Check runner ──────────────────────────────────────────────────────
+
+    fn handle_run_check(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let check_name = parse_string(req, "name")?;
+        let repo_root = req.params.get("repo_root")
+            .and_then(|v| v.as_str())
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| self.runtime.context.repository_root.clone());
+
+        let config = load_repo_config(&repo_root);
+
+        if let Some(source) = audit::check_runner::resolve_check(
+            &check_name,
+            &repo_root,
+            Some(&config),
+        ) {
+            let result = audit::check_runner::execute_check(&source, &repo_root, &check_name);
+            Ok(serde_json::json!({
+                "result": result,
+                "source": format!("{:?}", source),
+            }))
+        } else {
+            Ok(serde_json::json!({
+                "result": {
+                    "check_name": check_name,
+                    "status": "skip",
+                    "message": format!("No implementation found for check '{}'", check_name),
+                    "duration_ms": 0,
+                },
+                "source": null,
+            }))
+        }
     }
 }

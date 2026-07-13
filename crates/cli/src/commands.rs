@@ -201,6 +201,15 @@ pub enum Commands {
     #[command(about = "Display version information")]
     Version,
 
+    #[command(about = "Run a documentation check by name")]
+    Check {
+        /// Check name (e.g. "build-succeeds", "specs-compile")
+        name: String,
+
+        #[arg(long = "repo-root", help = "Path to repository root (default: cwd)")]
+        repo_root: Option<PathBuf>,
+    },
+
     #[command(about = "Documentation standards management")]
     Standards {
         #[command(subcommand)]
@@ -387,6 +396,7 @@ impl Cli {
                 self.execute_report(pipeline.as_deref(), session.as_deref(), template.as_deref(), *stdout, *list_sessions, *list_templates, &format)
             }
             Commands::Workspace { action } => self.execute_workspace(action, &format),
+            Commands::Check { name, repo_root } => self.execute_check(name, repo_root.as_ref()),
             Commands::Standards { action } => self.execute_standards(action, &format),
             Commands::Version => self.execute_version(&format),
         }
@@ -428,7 +438,7 @@ impl Cli {
         let config = crate::config::load_config(self.config.as_ref())?;
         let debounce_ms = config.compilation.debounce_ms;
         let runtime = KnowledgeRuntime::new(&root, config)?;
-        CompilationService::validate_config(&runtime.context.config, &runtime.standard_registry)?;
+        CompilationService::validate_config(&runtime.context.config, &runtime.standard_registry, domains)?;
 
         let scope = if domains.is_empty() {
             CompilationScope::Repository
@@ -1343,6 +1353,28 @@ impl Cli {
         }
 
         Ok(ExitCode::Success)
+    }
+
+    fn execute_check(&self, name: &str, repo_root: Option<&PathBuf>) -> Result<ExitCode> {
+        let cwd = std::env::current_dir()?;
+        let root = repo_root.unwrap_or(&cwd);
+
+        let config = crate::config::load_config(Some(&root.join("samgraha.toml")))?;
+
+        match audit::check_runner::resolve_check(name, root, Some(&config)) {
+            Some(source) => {
+                let result = audit::check_runner::execute_check(&source, root, name);
+                println!("{}", serde_json::to_string_pretty(&result)?);
+                match result.status {
+                    audit::check_runner::CheckStatus::Pass => Ok(ExitCode::Success),
+                    _ => Ok(ExitCode::AuditFailure),
+                }
+            }
+            None => {
+                eprintln!("No implementation found for check '{}'", name);
+                Ok(ExitCode::InputError)
+            }
+        }
     }
 
     fn execute_version(&self, format: &OutputFormat) -> Result<ExitCode> {

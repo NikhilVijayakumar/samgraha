@@ -275,21 +275,41 @@ impl DeterministicAuditProvider {
                 let Some(root) = root else {
                     return vec![];
                 };
-                let override_script = config.and_then(|c| c.repository.documentation.script_overrides.get(&rule.id));
-                let default_script = rule.params.get("script");
 
-                // Also check for a local synced copy first (from standards sync).
-                let local_script = root.join(".samgraha").join("scripts")
-                    .join(rule.params.get("script").map(|s| s.as_str()).unwrap_or(""));
-                
-                let script_path = if let Some(override_path) = override_script {
-                    root.join(override_path)
-                } else if local_script.exists() && default_script.is_some() {
-                    // Prefer local synced copy over global ~/.samgraha/scripts/
-                    local_script
-                } else if let Some(default_path) = default_script {
-                    common::env::home_dir().join(".samgraha").join("scripts").join(default_path)
-                } else {
+                // Extract check name from rule_ref (e.g. "script/schema/14-build/build-succeeds.schema.json#..." → "build-succeeds")
+                let check_name_from_ref = rule.params.get("rule_ref").and_then(|ref_path| {
+                    let file_part = ref_path.split('#').next()?;
+                    let stem = std::path::Path::new(file_part).file_stem()?.to_str()?;
+                    // strip trailing ".schema" if present
+                    Some(stem.strip_suffix(".schema").unwrap_or(stem).to_string())
+                });
+
+                // Resolution: check_overrides[check_name] → check_overrides[rule_id] → script_overrides[rule_id] → local → global
+                let check_override = check_name_from_ref.as_ref().and_then(|name| {
+                    config.and_then(|c| c.repository.documentation.check_overrides.get(name))
+                }).or_else(|| {
+                    config.and_then(|c| c.repository.documentation.check_overrides.get(&rule.id))
+                });
+                let override_script = config.and_then(|c| c.repository.documentation.script_overrides.get(&rule.id));
+
+                // Also try local synced copy, using check_name_from_ref as the script filename
+                let script_name = check_name_from_ref.as_deref()
+                    .or_else(|| rule.params.get("script").map(|s| s.as_str()))
+                    .unwrap_or("");
+
+                let resolved = check_override
+                    .map(|p| root.join(p))
+                    .or_else(|| override_script.map(|p| root.join(p)))
+                    .or_else(|| {
+                        if script_name.is_empty() {
+                            return None;
+                        }
+                        crate::check_runner::probe_script(&root.join(".samgraha").join("scripts"), script_name)
+                            // System-default scripts shipped next to the binary — same
+                            // mcp_dir() source standards.db/help.db sync uses.
+                            .or_else(|| crate::check_runner::probe_script(&common::env::mcp_dir().join("scripts"), script_name))
+                    });
+                let Some(script_path) = resolved else {
                     return vec![];
                 };
 
@@ -317,87 +337,61 @@ impl DeterministicAuditProvider {
                     }];
                 }
 
-                documents
-                    .par_iter()
-                    .filter_map(|doc| {
-                        let mut cmd = std::process::Command::new(&script_path);
-                        cmd.arg(doc.path.as_str());
-                        cmd.current_dir(root);
-
-                        // Apply timeout from ScriptCheck registry if available.
-                        let output_result = if let Some(secs) = timeout_secs {
-                            use std::time::Duration;
-                            cmd.spawn()
-                                .and_then(|mut child| {
-                                    let deadline = std::time::Instant::now() + Duration::from_secs(secs);
-                                    loop {
-                                        match child.try_wait() {
-                                            Ok(Some(status)) => {
-                                                // Collect output after process exits.
-                                                return child.wait_with_output().map(|o| {
-                                                    // Reconstruct with real status.
-                                                    let _ = status;
-                                                    o
-                                                });
-                                            }
-                                            Ok(None) => {
-                                                if std::time::Instant::now() >= deadline {
-                                                    let _ = child.kill();
-                                                    return Err(std::io::Error::new(
-                                                        std::io::ErrorKind::TimedOut,
-                                                        format!("Script timed out after {}s", secs),
-                                                    ));
-                                                }
-                                                std::thread::sleep(Duration::from_millis(100));
-                                            }
-                                            Err(e) => return Err(e),
-                                        }
-                                    }
-                                })
-                        } else {
-                            cmd.output()
-                        };
-                        
-                        match output_result {
-                            Ok(output) if !output.status.success() => {
-                                let stderr = String::from_utf8_lossy(&output.stderr);
-                                let stdout = String::from_utf8_lossy(&output.stdout);
-                                let msg = if !stderr.is_empty() { stderr } else { stdout };
-                                Some(AuditFinding {
-                                    check_id: rule.id.clone(),
-                                    severity: Severity::from_str(&rule.severity),
-                                    message: format!("{}: {}", rule.description, msg.trim()),
-                                    location: Some(doc.path.as_str().to_string()),
-                                    document_id: Some(doc.id),
-                                    provider: "deterministic".into(),
-                                    stage: None,
-                                    section_id: None,
-                                    confidence: None,
-                                    evidence: None,
-                                    status: None,
-                                    strategy: None,
-                                })
-                            }
-                            Err(e) => {
-                                Some(AuditFinding {
-                                    check_id: rule.id.clone(),
-                                    severity: Severity::from_str(&rule.severity),
-                                    message: format!("Failed to run script: {}", e),
-                                    location: Some(doc.path.as_str().to_string()),
-                                    document_id: Some(doc.id),
-                                    provider: "deterministic".into(),
-                                    stage: None,
-                                    section_id: None,
-                                    confidence: None,
-                                    evidence: None,
-                                    status: None,
-                                    strategy: None,
-                                })
-                            }
-                            _ => None,
+                // Repo-level check, not per-document: the real scripts take
+                // -RepoRoot/-RepoFingerprint/-Out only — no document argument
+                // exists in their interface (verified against the actual
+                // docs/knowledge-hub/script/{windows,ubuntu} scripts). Running
+                // once per document would re-run (e.g.) a full `cargo build`
+                // once per doc and multiply one repo-level fact into N
+                // identical findings — run it once, attach no document.
+                let fingerprint = format!("{}-{}", script_name, root.display());
+                match common::env::run_check_script(&script_path, root, &fingerprint, timeout_secs) {
+                    Ok(json) => {
+                        let status = json.get("status").and_then(|v| v.as_str()).unwrap_or("error");
+                        if status == "pass" || status == "not_applicable" {
+                            return vec![];
                         }
-                    })
-                    .collect()
+                        let evidence_msg = json
+                            .get("evidence")
+                            .and_then(|v| v.as_array())
+                            .map(|arr| {
+                                arr.iter()
+                                    .filter_map(|v| v.as_str())
+                                    .collect::<Vec<_>>()
+                                    .join("; ")
+                            })
+                            .filter(|s| !s.is_empty())
+                            .unwrap_or_else(|| format!("status: {}", status));
+                        vec![AuditFinding {
+                            check_id: rule.id.clone(),
+                            severity: Severity::from_str(&rule.severity),
+                            message: format!("{}: {}", rule.description, evidence_msg),
+                            location: None,
+                            document_id: None,
+                            provider: "deterministic".into(),
+                            stage: None,
+                            section_id: None,
+                            confidence: None,
+                            evidence: None,
+                            status: None,
+                            strategy: None,
+                        }]
+                    }
+                    Err(e) => vec![AuditFinding {
+                        check_id: rule.id.clone(),
+                        severity: Severity::from_str(&rule.severity),
+                        message: format!("Failed to run script: {}", e),
+                        location: None,
+                        document_id: None,
+                        provider: "deterministic".into(),
+                        stage: None,
+                        section_id: None,
+                        confidence: None,
+                        evidence: None,
+                        status: None,
+                        strategy: None,
+                    }],
+                }
             }
             _ => vec![],
         }

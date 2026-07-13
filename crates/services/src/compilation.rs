@@ -317,9 +317,23 @@ impl CompilationService {
     /// name that collides with built-in content.
     const RESERVED_DOMAINS: &[&str] = &["help", "standards"];
 
-    pub fn validate_config(config: &SamgrahaConfig, registry: &StandardRegistry) -> Result<()> {
-        let decls = &config.repository.documentation.domain;
+    /// Validates that every domain about to be compiled has a registered
+    /// standard. `domain_filter` is the `--domain` CLI filter (e.g. a narrow
+    /// `compile docs/raw/product-guide --domain help` from
+    /// `scripts/build-release.ps1`) — when non-empty, only those domains are
+    /// checked, not `config`'s full `domain` allowlist. Compiling a directory
+    /// that isn't this repo's own root (a different `--config` may be
+    /// loaded, or the target may have no `.samgraha/standards.db` of its
+    /// own at all) means the full allowlist is very likely irrelevant to
+    /// what's actually being compiled — validating it anyway rejects valid,
+    /// narrowly-scoped compiles for domains the caller never asked about.
+    pub fn validate_config(config: &SamgrahaConfig, registry: &StandardRegistry, domain_filter: &[String]) -> Result<()> {
         let excluded = &config.repository.documentation.domain_exclusion;
+        let decls: &[String] = if domain_filter.is_empty() {
+            &config.repository.documentation.domain
+        } else {
+            domain_filter
+        };
         for decl in decls {
             if !registry.has_standard(decl) {
                 anyhow::bail!("Standard '{}' not found in registry", decl);

@@ -384,6 +384,12 @@ pub struct DocumentationConfig {
     /// Script check overrides, mapping rule ID to custom script paths.
     #[serde(default)]
     pub script_overrides: std::collections::HashMap<String, String>,
+    /// Check overrides, mapping check name to custom script path.
+    /// Higher priority than script_overrides — the audit engine resolves
+    /// check_overrides[check_name] before script_overrides[rule_id].
+    /// Paths are relative to repo root (e.g. "scripts/build-succeeds.sh").
+    #[serde(default)]
+    pub check_overrides: std::collections::HashMap<String, String>,
     /// Domain names this repo declares (e.g. "architecture", "feature").
     /// Empty means "all builtin standards" (back-compat default).
     #[serde(default)]
@@ -405,6 +411,7 @@ impl Default for DocumentationConfig {
             root_dir: default_docs_root_dir(),
             standard_system: None,
             script_overrides: std::collections::HashMap::new(),
+            check_overrides: std::collections::HashMap::new(),
             domain: Vec::new(),
             domain_exclusion: Vec::new(),
         }

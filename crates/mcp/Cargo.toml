@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+audit.workspace = true
 common.workspace = true
 registry.workspace = true
 schemas.workspace = true

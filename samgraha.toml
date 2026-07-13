@@ -36,6 +36,22 @@ domain = ["readme", "vision", "philosophy", "architecture", "feature", "feature-
 # compile-time safeguard.
 domain_exclusion = ["design", "feature-design", "external-context", "prototype", "help", "standards"]
 
+# Check overrides — map check name to script path (relative to repo root).
+# Highest priority in the resolution chain: check_overrides -> scripts/ ->
+# .samgraha/scripts/ -> mcp-adjacent scripts/ (system defaults).
+#
+# samgraha treats itself as just another repo: its 18 check scripts live in
+# scripts/*.ps1 as thin wrappers delegating to docs/knowledge-hub/script/ (the
+# samgraha-documentation system's own script source — data, same status as
+# docs/knowledge-hub/audit/, .../templates/, etc.). That's Tier 2 (repo-local
+# scripts/, auto-resolved by name, no config needed) — nothing in crates/
+# knows docs/knowledge-hub/ exists, and this section stays empty. A different
+# repo puts its own scripts/<check-name>.{sh,ps1} here the same way; only use
+# check_overrides below for a path that isn't just scripts/<name>.
+# [repository.documentation.check_overrides]
+# build-succeeds = "scripts/build-succeeds.sh"
+# specs-compile = "scripts/specs-compile.sh"
+
 [repository.implementation]
 # Read by Coverage/Consistency pipeline checks as the source root (resolves
 # to "crates" for this repo via .env — a workspace, not a single "src/").

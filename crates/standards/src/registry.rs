@@ -29,11 +29,37 @@ impl StandardRegistry {
         }
     }
 
-    /// Empty registry — all standards now come from the knowledge-hub DB
-    /// via `from_standards_db_and_overrides()`. Kept for backward compat
-    /// with the `Default` trait and call sites that need an empty registry.
+    /// Seeds exactly one Rust-native standard: `help`. Every other domain
+    /// (readme, vision, architecture, ...) comes from the knowledge-hub DB
+    /// via `from_standards_db_and_overrides()` and this returns empty for
+    /// them — `help` is the one deliberate exception.
+    ///
+    /// `help` documents samgraha itself (its own CLI/MCP usage), not any
+    /// user-registered documentation-standard system — it has zero
+    /// dependency on knowledge-hub by design (same reasoning `docs/knowledge-hub/`
+    /// has zero dependency on samgraha: the direction only goes one way).
+    /// A repo picks whichever knowledge-hub system it wants, or none, and
+    /// `help` is unaffected either way. Minimal on purpose — no required
+    /// sections, no rules — just enough for `compile`'s `validate_config`
+    /// to find *something* registered under "help" so `docs/raw/product-guide`
+    /// (this repo's own help content, compiled by `scripts/build-release.ps1`
+    /// into `bin/help.db`) can compile without needing a whole knowledge-hub
+    /// system just to validate itself.
     pub fn with_builtins() -> Self {
-        Self::new()
+        let mut registry = Self::new();
+        registry.register(StandardDefinition {
+            id: "help".to_string(),
+            name: "Help".to_string(),
+            version: "1.0.0".to_string(),
+            domain: "help".to_string(),
+            description: "Samgraha's own usage documentation — no structural requirements.".to_string(),
+            required_sections: Vec::new(),
+            prohibited_content: Vec::new(),
+            relationships: Vec::new(),
+            audit_rules: Vec::new(),
+            profiles: Vec::new(),
+        });
+        registry
     }
 
     /// Open a knowledge-hub SQLite database at `{repo_root}/.samgraha/standards.db`
@@ -207,14 +233,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn with_builtins_and_overrides_returns_empty_when_no_custom_dir() {
+    fn with_builtins_and_overrides_has_only_help_when_no_custom_dir() {
         let repo_root = std::env::temp_dir().join(format!(
             "samgraha-standards-test-empty-{}",
             std::process::id()
         ));
         let registry = StandardRegistry::with_builtins_and_overrides(&repo_root).unwrap();
-        // No builtins anymore — registry is empty without a DB or custom overrides.
-        assert!(registry.all().is_empty());
+        // No knowledge-hub-DB-backed builtins — only the one deliberate
+        // Rust-native exception, `help`.
+        assert_eq!(registry.all().len(), 1);
+        assert!(registry.has_standard("help"));
     }
 
     #[test]
