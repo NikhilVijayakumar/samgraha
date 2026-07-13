@@ -2,6 +2,7 @@ use crate::StandardRegistry;
 use anyhow::{Context, Result};
 use rusqlite::Connection;
 use schemas::standard::{AuditRuleDef, SectionDefinition, StandardDefinition, StandardRelationship};
+use std::collections::HashMap;
 use tracing::warn;
 
 /// Projection mapping from knowledge-hub `evidence_type` to the existing
@@ -16,6 +17,32 @@ fn map_evidence_type_to_check_type(evidence_type: &str) -> Option<&str> {
         // excluded per Phase 1 scope.
         _ => None,
     }
+}
+
+/// Load semantic rubrics from the `templates` table — rows where
+/// `kind = 'audit_report'` and `audit_bucket = 'semantic'` hold full
+/// rubric markdown keyed by `"{domain_key}/{section_semantic_type}"`.
+pub fn load_semantic_rubrics(conn: &Connection) -> Result<HashMap<String, String>> {
+    let mut rubrics = HashMap::new();
+    let mut stmt = conn.prepare(
+        "SELECT d.key, sc.semantic_type, t.content
+         FROM templates t
+         JOIN domains d ON t.domain_id = d.id
+         LEFT JOIN section_catalog sc ON t.section_catalog_id = sc.id
+         WHERE t.kind = 'audit_report' AND t.audit_bucket = 'semantic'",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        let domain_key: String = row.get(0)?;
+        let semantic_type: String = row.get(1)?;
+        let content: String = row.get(2)?;
+        Ok((domain_key, semantic_type, content))
+    })?;
+    for row in rows {
+        let (domain_key, semantic_type, content) = row?;
+        let key = format!("{}/{}", domain_key, semantic_type);
+        rubrics.insert(key, content);
+    }
+    Ok(rubrics)
 }
 
 /// Load a `StandardRegistry` from a `schema/knowledge-hub`-shaped SQLite
@@ -238,6 +265,18 @@ pub fn from_standards_db(conn: &Connection) -> Result<StandardRegistry> {
             profiles: Vec::new(), // not in knowledge-hub schema
         };
         registry.register(std);
+    }
+
+    // Load semantic rubrics from templates table.
+    match load_semantic_rubrics(conn) {
+        Ok(rubrics) => {
+            let count = rubrics.len();
+            registry.set_rubrics(rubrics);
+            tracing::info!("Loaded {} semantic rubrics from templates", count);
+        }
+        Err(e) => {
+            tracing::warn!("Failed to load semantic rubrics: {}", e);
+        }
     }
 
     Ok(registry)
@@ -478,5 +517,82 @@ mod tests {
         // No prohibited_content or profiles from DB.
         assert!(vision.prohibited_content.is_empty());
         assert!(vision.profiles.is_empty());
+    }
+
+    /// Verify load_semantic_rubrics reads templates with kind='audit_report'
+    /// and audit_bucket='semantic', keyed by "{domain}/{semantic_type}".
+    #[test]
+    fn test_load_semantic_rubrics() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE systems (
+                id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE,
+                description TEXT, is_default INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE TABLE standards (
+                id INTEGER PRIMARY KEY, system_id INTEGER NOT NULL,
+                name TEXT NOT NULL, version TEXT NOT NULL, description TEXT,
+                UNIQUE(system_id, name, version)
+            );
+            CREATE TABLE domains (
+                id INTEGER PRIMARY KEY, standard_id INTEGER NOT NULL,
+                key TEXT NOT NULL, name TEXT NOT NULL, tier INTEGER NOT NULL,
+                sort_order INTEGER NOT NULL DEFAULT 0, description TEXT,
+                UNIQUE(standard_id, key)
+            );
+            CREATE TABLE section_catalog (
+                id INTEGER PRIMARY KEY, domain_id INTEGER NOT NULL,
+                semantic_type TEXT NOT NULL, name TEXT NOT NULL,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                mandatory INTEGER NOT NULL DEFAULT 1, aliases TEXT,
+                UNIQUE(domain_id, semantic_type)
+            );
+            CREATE TABLE templates (
+                id INTEGER PRIMARY KEY,
+                standard_id INTEGER NOT NULL,
+                domain_id INTEGER NOT NULL,
+                section_catalog_id INTEGER,
+                kind TEXT NOT NULL,
+                audit_bucket TEXT,
+                scope TEXT NOT NULL,
+                name TEXT NOT NULL,
+                content TEXT NOT NULL,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                source_file TEXT,
+                section_catalog_key INTEGER GENERATED ALWAYS AS (COALESCE(section_catalog_id, 0)) VIRTUAL,
+                audit_bucket_key TEXT GENERATED ALWAYS AS (COALESCE(audit_bucket, '')) VIRTUAL,
+                UNIQUE(standard_id, domain_id, section_catalog_key, kind, audit_bucket_key, scope)
+            );",
+        )
+        .unwrap();
+
+        conn.execute("INSERT INTO systems (id, name, is_default) VALUES (1, 'test', 1)", []).unwrap();
+        conn.execute("INSERT INTO standards (id, system_id, name, version) VALUES (1, 1, 'documentation-standards', '1.0.0')", []).unwrap();
+        conn.execute("INSERT INTO domains (id, standard_id, key, name, tier) VALUES (1, 1, 'vision', 'Vision', 1)", []).unwrap();
+        conn.execute("INSERT INTO section_catalog (id, domain_id, semantic_type, name) VALUES (1, 1, 'purpose', 'Purpose')", []).unwrap();
+
+        // Semantic rubric template — should be loaded.
+        conn.execute(
+            "INSERT INTO templates (standard_id, domain_id, section_catalog_id, kind, audit_bucket, scope, name, content)
+             VALUES (1, 1, 1, 'audit_report', 'semantic', 'section', 'Vision Purpose Rubric', '# Rubric content')",
+            [],
+        ).unwrap();
+        // Generation template — should NOT be loaded.
+        conn.execute(
+            "INSERT INTO templates (standard_id, domain_id, section_catalog_id, kind, audit_bucket, scope, name, content)
+             VALUES (1, 1, 1, 'generation', NULL, 'section', 'Gen Template', 'gen content')",
+            [],
+        ).unwrap();
+        // Deterministic audit template — should NOT be loaded.
+        conn.execute(
+            "INSERT INTO templates (standard_id, domain_id, kind, audit_bucket, scope, name, content)
+             VALUES (1, 1, 'audit_report', 'deterministic', 'document', 'Det Template', 'det content')",
+            [],
+        ).unwrap();
+
+        let rubrics = load_semantic_rubrics(&conn).unwrap();
+        assert_eq!(rubrics.len(), 1);
+        assert!(rubrics.contains_key("vision/purpose"));
+        assert_eq!(rubrics["vision/purpose"], "# Rubric content");
     }
 }

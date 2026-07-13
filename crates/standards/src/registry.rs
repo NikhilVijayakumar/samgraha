@@ -7,12 +7,14 @@ use std::path::Path;
 #[derive(Debug, Clone)]
 pub struct StandardRegistry {
     standards: HashMap<String, StandardDefinition>,
+    rubrics: HashMap<String, String>,
 }
 
 impl StandardRegistry {
     pub fn new() -> Self {
         Self {
             standards: HashMap::new(),
+            rubrics: HashMap::new(),
         }
     }
 
@@ -104,6 +106,25 @@ impl StandardRegistry {
         for (key, std) in other.standards {
             self.standards.entry(key).or_insert(std);
         }
+        for (key, content) in other.rubrics {
+            self.rubrics.entry(key).or_insert(content);
+        }
+    }
+
+    /// Set the semantic audit rubrics (loaded from `templates` table).
+    pub fn set_rubrics(&mut self, rubrics: HashMap<String, String>) {
+        self.rubrics = rubrics;
+    }
+
+    /// Retrieve the semantic audit rubric for a domain/section_type pair.
+    /// Returns `Err` when no rubric exists — callers treat that as "skip"
+    /// (same semantics as the old file-based `get_audit_knowledge`).
+    pub fn get_audit_knowledge(&self, domain: &str, section_type: &str) -> Result<&str> {
+        let key = format!("{}/{}", domain, section_type);
+        self.rubrics
+            .get(&key)
+            .map(|s| s.as_str())
+            .with_context(|| format!("No audit knowledge for {}/{}", domain, section_type))
     }
 }
 

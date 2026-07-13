@@ -509,8 +509,9 @@ impl KnowledgeRuntime {
     }
 
     pub fn get_audit_knowledge(&self, domain: &str, section_type: &str) -> Result<String> {
-        self.registry
-            .get_audit_knowledge(&self.context.repository_root, domain, section_type)
+        self.standard_registry
+            .get_audit_knowledge(domain, section_type)
+            .map(|s| s.to_string())
     }
 
     pub fn get_section_changed(&self, section_id: i64) -> Result<SectionChangedResult> {
