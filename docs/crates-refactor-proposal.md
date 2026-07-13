@@ -1,6 +1,6 @@
 # Proposal: `crates/` integration with `schema/knowledge-hub/` — dynamic, DB-backed standards
 
-**Status:** Phases 0-4, 6 complete. Phase 5 deferred (no consumer).
+**Status:** All phases (0-6) complete. Phase 5 implemented.
 
 ## Problem
 
@@ -228,7 +228,7 @@ This is the only phase that changes audit *behavior/output* for the 13
 already-live domains — review it on its own, separately from phases 1-3's
 pure plumbing.
 
-### Phase 5 — `plan_settings`/`plan_scenarios`/`script_checks` (deferred, no current consumer)
+### Phase 5 — `plan_settings`/`plan_scenarios`/`script_checks` ✅ DONE
 Nothing in `crates/` reads tier-gating or plan-orchestration data today —
 `AuditFramework` has no tier concept, and `services`' existing
 `project_plan_*` MCP tools are a different thing (project/roadmap
