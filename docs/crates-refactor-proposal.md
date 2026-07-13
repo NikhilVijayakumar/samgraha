@@ -1,7 +1,6 @@
 # Proposal: `crates/` integration with `schema/knowledge-hub/` — dynamic, DB-backed standards
 
-**Status:** proposal, for review. Nothing in `crates/` is changed by this
-document — it's a phased plan to review before any Rust code moves.
+**Status:** Phases 0-4, 6 complete. Phase 5 deferred (no consumer).
 
 ## Problem
 
@@ -117,7 +116,7 @@ resolved on review, no longer open.)
 
 ## Phases
 
-### Phase 0 — Confirm the storage decision
+### Phase 0 — Confirm the storage decision ✅ DONE
 Storage location is decided above (`.samgraha/standards.db`, separate
 file). Phase 0 is now just executing that: create the file convention and
 whatever bootstrapping (e.g. copying/pointing at a
@@ -125,7 +124,7 @@ whatever bootstrapping (e.g. copying/pointing at a
 `standards.db` into place for Phase 1 to read. Still blocks everything
 else, just no longer an open decision.
 
-### Phase 1 — Rust reads `schema/knowledge-hub`, read-only, nothing wired in yet
+### Phase 1 — Rust reads `schema/knowledge-hub`, read-only, nothing wired in yet ✅ DONE
 Add a reader (`crates/standards`, new module) that opens a
 `schema/knowledge-hub`-shaped SQLite file and projects rows into the
 **existing, unchanged** `StandardDefinition`/`SectionDefinition`/
@@ -187,7 +186,7 @@ the 11 domains present in both; every difference should trace to a
 documented projection gap above, nothing unexplained. Existing
 `crates/standards` test suite passes unchanged against both sources.
 
-### Phase 2 — Wire it in; retire the Rust-literal builtins
+### Phase 2 — Wire it in; retire the Rust-literal builtins ✅ DONE
 Change `services/src/runtime/runtime.rs:62` and `services/src/workspace.rs:49`
 from `StandardRegistry::with_builtins_and_overrides(&root)` to
 `StandardRegistry::from_standards_db_and_overrides(&db_path, &root)` —
@@ -201,7 +200,7 @@ pass unchanged — this phase must be invisible to every existing consumer,
 pure data-source swap per the seam confirmed in Phase 1 (only 2 call
 sites touch `StandardRegistry` construction anywhere in the codebase).
 
-### Phase 3 — Fix `get_audit_knowledge`, wire it to the DB
+### Phase 3 — Fix `get_audit_knowledge`, wire it to the DB ✅ DONE
 Replace `RegistryStore::get_audit_knowledge()`'s hardcoded, currently-dead
 `docs/raw/audit-standards/{domain}/{section_type}.md` file read with a
 query against the standards DB — `templates` rows where `kind =
@@ -212,7 +211,7 @@ verbatim (richer than reconstructing from `rules.description` +
 `get_audit_knowledge` per section; only the implementation underneath
 changes. Zero regression risk: the path it replaces doesn't work today.
 
-### Phase 4 — Extend `AuditRuleDef`/scoring for full richness (larger, can be deferred independently)
+### Phase 4 — Extend `AuditRuleDef`/scoring for full richness ✅ DONE
 - Add `weight: f64`, `mandatory: bool` to `AuditRuleDef`.
 - Extend deterministic check dispatch to cover the full `evidence_type`
   vocabulary instead of today's 4 values (**note:** the file initially
@@ -236,7 +235,7 @@ Nothing in `crates/` reads tier-gating or plan-orchestration data today —
 planning, not documentation-tier gating). This is net-new capability, not
 a refactor of something existing — lowest priority, own scope later.
 
-### Phase 6 — MCP tool + CLI subcommand for registration
+### Phase 6 — MCP tool + CLI subcommand for registration ✅ DONE
 - New MCP tools `register_standard`, `list_standards`, `get_standard` —
   the two read-only ones can likely just wrap `StandardRegistry::all()`/
   `get()` directly once Phase 2 lands; `register_standard` is the only
