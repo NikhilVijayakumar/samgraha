@@ -200,6 +200,27 @@ pub enum Commands {
 
     #[command(about = "Display version information")]
     Version,
+
+    #[command(about = "Documentation standards management")]
+    Standards {
+        #[command(subcommand)]
+        action: StandardsAction,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum StandardsAction {
+    #[command(about = "List all registered standards")]
+    List,
+
+    #[command(about = "Show details of a specific standard")]
+    Show {
+        #[arg(help = "Domain name (e.g. 'architecture')")]
+        domain: String,
+
+        #[arg(short, long, help = "Version (default: 1.0.0)")]
+        version: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -327,6 +348,7 @@ impl Cli {
                 self.execute_report(pipeline.as_deref(), session.as_deref(), template.as_deref(), *stdout, *list_sessions, *list_templates, &format)
             }
             Commands::Workspace { action } => self.execute_workspace(action, &format),
+            Commands::Standards { action } => self.execute_standards(action, &format),
             Commands::Version => self.execute_version(&format),
         }
     }
@@ -1073,6 +1095,51 @@ impl Cli {
                 Ok(ExitCode::Success)
             }
         }
+    }
+
+    fn execute_standards(&self, action: &StandardsAction, format: &OutputFormat) -> Result<ExitCode> {
+        let root = crate::config::discover_repository_root()?;
+        let config = crate::config::load_config(self.config.as_ref())?;
+        let runtime = KnowledgeRuntime::new(&root, config)?;
+
+        match action {
+            StandardsAction::List => {
+                let standards = runtime.standard_registry.all();
+                let items: Vec<serde_json::Value> = standards
+                    .iter()
+                    .map(|s| {
+                        serde_json::json!({
+                            "id": s.id,
+                            "name": s.name,
+                            "version": s.version,
+                            "domain": s.domain,
+                            "description": s.description,
+                            "rules_count": s.audit_rules.len(),
+                            "sections_count": s.required_sections.len(),
+                        })
+                    })
+                    .collect();
+                println!(
+                    "{}",
+                    format_output(
+                        &serde_json::json!({ "standards": items, "total": items.len() }),
+                        format,
+                    )
+                );
+            }
+            StandardsAction::Show { domain, version } => {
+                let ver = version.as_deref().unwrap_or("1.0.0");
+                let std = runtime.standard_registry
+                    .get(domain, ver)
+                    .ok_or_else(|| anyhow::anyhow!("Standard '{}/{}' not found", domain, ver))?;
+                println!(
+                    "{}",
+                    format_output(&serde_json::to_value(std)?, format)
+                );
+            }
+        }
+
+        Ok(ExitCode::Success)
     }
 
     fn execute_version(&self, format: &OutputFormat) -> Result<ExitCode> {

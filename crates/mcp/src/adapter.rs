@@ -125,6 +125,9 @@ impl McpAdapter {
         caps.methods.push("project_plan_execute".to_string());
         caps.methods.push("project_plan_status".to_string());
         caps.methods.push("project_plan_abort".to_string());
+        caps.methods.push("list_standards".to_string());
+        caps.methods.push("get_standard".to_string());
+        caps.methods.push("register_standard".to_string());
         let orchestrator = PlanOrchestrator::new(
             Arc::clone(&runtime),
             Arc::clone(&runtime.registry),
@@ -261,6 +264,10 @@ impl McpAdapter {
             "project_plan_execute"    => self.handle_project_plan_execute(&req),
             "project_plan_status"     => self.handle_project_plan_status(&req),
             "project_plan_abort"      => self.handle_project_plan_abort(&req),
+            // Standards management
+            "list_standards"          => self.handle_list_standards(),
+            "get_standard"            => self.handle_get_standard(&req),
+            "register_standard"       => self.handle_register_standard(&req),
             _                         => Err(anyhow::anyhow!("Unknown method: {}", req.method)),
         };
 
@@ -1295,5 +1302,65 @@ impl McpAdapter {
             .to_string();
         self.orchestrator.abort_plan(&plan_id, &reason)?;
         Ok(serde_json::json!({ "success": true, "plan_id": plan_id }))
+    }
+
+    // ── Standards management ──────────────────────────────────────────────
+
+    fn handle_list_standards(&self) -> Result<serde_json::Value> {
+        let standards = self.runtime.standard_registry.all();
+        let items: Vec<serde_json::Value> = standards
+            .iter()
+            .map(|s| {
+                serde_json::json!({
+                    "id": s.id,
+                    "name": s.name,
+                    "version": s.version,
+                    "domain": s.domain,
+                    "description": s.description,
+                    "rules_count": s.audit_rules.len(),
+                    "sections_count": s.required_sections.len(),
+                })
+            })
+            .collect();
+        Ok(serde_json::json!({
+            "standards": items,
+            "total": items.len(),
+        }))
+    }
+
+    fn handle_get_standard(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let domain = parse_string(req, "domain")?;
+        let version = req.params.get("version").and_then(|v| v.as_str()).unwrap_or("1.0.0");
+        let std = self.runtime.standard_registry
+            .get(&domain, version)
+            .ok_or_else(|| anyhow::anyhow!("Standard '{}/{}' not found", domain, version))?;
+        Ok(serde_json::to_value(std)?)
+    }
+
+    fn handle_register_standard(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let path = parse_string(req, "path")?;
+        let path = std::path::PathBuf::from(&path);
+        if !path.exists() {
+            return Err(anyhow::anyhow!("Path does not exist: {}", path.display()));
+        }
+        let db_path = self.runtime.context.repository_root
+            .join(".samgraha").join("standards.db");
+        let loader = std::env::current_exe()?
+            .parent().ok_or_else(|| anyhow::anyhow!("Cannot determine binary directory"))?
+            .join("..").join("schema").join("knowledge-hub").join("knowledge-hub-loader.py");
+        let output = std::process::Command::new("python3")
+            .arg(&loader)
+            .arg("--db").arg(&db_path)
+            .arg("--knowledge-hub").arg(&path)
+            .output()
+            .map_err(|e| anyhow::anyhow!("Failed to run loader: {}", e))?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(anyhow::anyhow!("Loader failed: {}", stderr));
+        }
+        Ok(serde_json::json!({
+            "success": true,
+            "db_path": db_path.display().to_string(),
+        }))
     }
 }

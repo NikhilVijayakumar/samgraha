@@ -851,6 +851,41 @@ fn tool_definitions() -> Vec<serde_json::Value> {
                 "required": ["plan_id"]
             }
         }),
+        serde_json::json!({
+            "name": "list_standards",
+            "description": "List all registered documentation standards with their domains, rules, and sections.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                }
+            }
+        }),
+        serde_json::json!({
+            "name": "get_standard",
+            "description": "Get a single documentation standard by domain and version.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "domain": { "type": "string", "description": "Domain/standard name (e.g. 'architecture')" },
+                    "version": { "type": "string", "description": "Standard version (default '1.0.0')" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["domain"]
+            }
+        }),
+        serde_json::json!({
+            "name": "register_standard",
+            "description": "Register a new standard by running the knowledge-hub loader on a directory of documentation files.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "path": { "type": "string", "description": "Path to the knowledge-hub directory to load" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["path"]
+            }
+        }),
     ]
 }
 
