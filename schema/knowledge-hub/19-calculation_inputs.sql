@@ -4,7 +4,7 @@
 
 CREATE TABLE calculation_inputs (
     id                   INTEGER PRIMARY KEY,
-    calculation_rule_id  INTEGER NOT NULL REFERENCES calculation_rules(id),
+    calculation_rule_id  INTEGER NOT NULL REFERENCES calculation_rules(id) ON DELETE CASCADE,
     name                 TEXT NOT NULL,
     weight               REAL NOT NULL,
     sort_order           INTEGER NOT NULL DEFAULT 0

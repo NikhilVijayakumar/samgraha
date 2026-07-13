@@ -10,8 +10,8 @@
 
 CREATE TABLE script_checks (
     id                INTEGER PRIMARY KEY,
-    standard_id       INTEGER NOT NULL REFERENCES standards(id),
-    domain_id         INTEGER REFERENCES domains(id),
+    standard_id       INTEGER NOT NULL REFERENCES standards(id) ON DELETE CASCADE,
+    domain_id         INTEGER REFERENCES domains(id) ON DELETE CASCADE,
     check_name        TEXT NOT NULL,
     category          TEXT,
     timeout_seconds   INTEGER NOT NULL DEFAULT 60,

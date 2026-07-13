@@ -6,7 +6,7 @@
 
 CREATE TABLE score_bands (
     id           INTEGER PRIMARY KEY,
-    standard_id  INTEGER NOT NULL REFERENCES standards(id),
+    standard_id  INTEGER NOT NULL REFERENCES standards(id) ON DELETE CASCADE,
     rating       TEXT NOT NULL,
     min_score    REAL NOT NULL,
     max_score    REAL NOT NULL,

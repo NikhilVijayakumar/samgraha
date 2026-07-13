@@ -4,7 +4,7 @@
 
 CREATE TABLE plan_scenarios (
     id           INTEGER PRIMARY KEY,
-    standard_id  INTEGER NOT NULL REFERENCES standards(id),
+    standard_id  INTEGER NOT NULL REFERENCES standards(id) ON DELETE CASCADE,
     repo_state   TEXT NOT NULL CHECK (repo_state IN ('existing','new')),
     doc_state    TEXT NOT NULL CHECK (doc_state IN ('no_documentation','has_documentation')),
     tier         INTEGER NOT NULL,

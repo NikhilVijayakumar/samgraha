@@ -10,10 +10,10 @@
 
 CREATE TABLE plan_settings (
     id                INTEGER PRIMARY KEY,
-    standard_id       INTEGER NOT NULL UNIQUE REFERENCES standards(id),
+    standard_id       INTEGER NOT NULL UNIQUE REFERENCES standards(id) ON DELETE CASCADE,
     threshold_rating  TEXT NOT NULL,
     max_iterations    INTEGER NOT NULL DEFAULT 5,
     fallback          TEXT NOT NULL DEFAULT 'human_review',
     note              TEXT,
-    FOREIGN KEY (standard_id, threshold_rating) REFERENCES score_bands(standard_id, rating)
+    FOREIGN KEY (standard_id, threshold_rating) REFERENCES score_bands(standard_id, rating) ON DELETE CASCADE
 );

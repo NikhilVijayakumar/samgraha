@@ -24,9 +24,9 @@
 
 CREATE TABLE templates (
     id                  INTEGER PRIMARY KEY,
-    standard_id         INTEGER NOT NULL REFERENCES standards(id),
-    domain_id           INTEGER NOT NULL REFERENCES domains(id),
-    section_catalog_id  INTEGER REFERENCES section_catalog(id),
+    standard_id         INTEGER NOT NULL REFERENCES standards(id) ON DELETE CASCADE,
+    domain_id           INTEGER NOT NULL REFERENCES domains(id) ON DELETE CASCADE,
+    section_catalog_id  INTEGER REFERENCES section_catalog(id) ON DELETE CASCADE,
     kind                TEXT NOT NULL CHECK (kind IN ('generation','audit_report')),
     audit_bucket        TEXT CHECK (audit_bucket IS NULL OR audit_bucket IN ('deterministic','semantic','summary')),
     scope               TEXT NOT NULL CHECK (scope IN ('document','section')),

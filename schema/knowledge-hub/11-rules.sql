@@ -37,9 +37,9 @@
 
 CREATE TABLE rules (
     id                  INTEGER PRIMARY KEY,
-    standard_id         INTEGER NOT NULL REFERENCES standards(id),
-    domain_id           INTEGER NOT NULL REFERENCES domains(id),
-    section_catalog_id  INTEGER REFERENCES section_catalog(id),
+    standard_id         INTEGER NOT NULL REFERENCES standards(id) ON DELETE CASCADE,
+    domain_id           INTEGER NOT NULL REFERENCES domains(id) ON DELETE CASCADE,
+    section_catalog_id  INTEGER REFERENCES section_catalog(id) ON DELETE CASCADE,
     rule_key            TEXT NOT NULL,
     kind                TEXT NOT NULL CHECK (kind IN ('deterministic','semantic')),
     scope               TEXT NOT NULL CHECK (scope IN ('document','section')),
@@ -50,7 +50,7 @@ CREATE TABLE rules (
     weight              REAL NOT NULL DEFAULT 1.0,
     mandatory           INTEGER NOT NULL DEFAULT 0,
     evidence_type       TEXT NOT NULL,
-    script_check_id     INTEGER REFERENCES script_checks(id),
+    script_check_id     INTEGER REFERENCES script_checks(id) ON DELETE CASCADE,
     is_fallback         INTEGER NOT NULL DEFAULT 0,
     section_catalog_key INTEGER GENERATED ALWAYS AS (COALESCE(section_catalog_id, 0)) VIRTUAL,
     UNIQUE(standard_id, domain_id, section_catalog_key, scope, kind, rule_key)

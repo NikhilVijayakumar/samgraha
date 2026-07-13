@@ -3,7 +3,7 @@
 
 CREATE TABLE script_check_dependencies (
     id                   INTEGER PRIMARY KEY,
-    script_check_id      INTEGER NOT NULL REFERENCES script_checks(id),
-    depends_on_check_id  INTEGER NOT NULL REFERENCES script_checks(id),
+    script_check_id      INTEGER NOT NULL REFERENCES script_checks(id) ON DELETE CASCADE,
+    depends_on_check_id  INTEGER NOT NULL REFERENCES script_checks(id) ON DELETE CASCADE,
     UNIQUE(script_check_id, depends_on_check_id)
 );

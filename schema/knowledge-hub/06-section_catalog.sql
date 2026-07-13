@@ -16,7 +16,7 @@
 
 CREATE TABLE section_catalog (
     id            INTEGER PRIMARY KEY,
-    domain_id     INTEGER NOT NULL REFERENCES domains(id),
+    domain_id     INTEGER NOT NULL REFERENCES domains(id) ON DELETE CASCADE,
     semantic_type TEXT NOT NULL,
     name          TEXT NOT NULL,
     sort_order    INTEGER NOT NULL DEFAULT 0,

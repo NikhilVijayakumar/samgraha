@@ -5,7 +5,7 @@
 
 CREATE TABLE script_cache (
     id                INTEGER PRIMARY KEY,
-    script_check_id   INTEGER NOT NULL REFERENCES script_checks(id),
+    script_check_id   INTEGER NOT NULL REFERENCES script_checks(id) ON DELETE CASCADE,
     repo_fingerprint  TEXT NOT NULL,
     status            TEXT NOT NULL CHECK (status IN ('pass','fail','error','not_applicable')),
     executed_at       TEXT NOT NULL,

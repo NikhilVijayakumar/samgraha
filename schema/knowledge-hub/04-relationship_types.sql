@@ -9,7 +9,7 @@
 
 CREATE TABLE relationship_types (
     id           INTEGER PRIMARY KEY,
-    standard_id  INTEGER NOT NULL REFERENCES standards(id),
+    standard_id  INTEGER NOT NULL REFERENCES standards(id) ON DELETE CASCADE,
     name         TEXT NOT NULL,
     tier_gating  TEXT NOT NULL CHECK (tier_gating IN ('strict','none')),
     description  TEXT,

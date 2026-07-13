@@ -282,13 +282,13 @@ pub fn from_standards_db(conn: &Connection) -> Result<StandardRegistry> {
             let section_name: Option<String> = row.get(10)?;
             Ok((
                 rule_id, domain_id, rule_key, description, severity,
-                evidence_type, section_catalog_id, weight, mandatory, section_name,
+                evidence_type, _scope, section_catalog_id, weight, mandatory, section_name,
             ))
         })?;
         for row in rows {
             let (
                 rule_id, domain_id, rule_key, description, severity,
-                evidence_type, _section_catalog_id, weight, mandatory, section_name,
+                evidence_type, _scope, _section_catalog_id, weight, mandatory, section_name,
             ) = row?;
 
             // For section_presence checks, scope = heading text from section_catalog.
@@ -296,7 +296,7 @@ pub fn from_standards_db(conn: &Connection) -> Result<StandardRegistry> {
             let scope = if evidence_type == "section_presence" {
                 section_name.unwrap_or_default()
             } else {
-                String::new()
+                _scope
             };
 
             let params = params_by_rule.remove(&rule_id).unwrap_or_default();
@@ -637,10 +637,10 @@ mod tests {
         assert_eq!(purpose_rule.evidence_type, "section_presence");
         assert_eq!(purpose_rule.scope, "Purpose");
 
-        // Check the keyword_absence rule has empty scope.
+        // Check the keyword_absence rule has scope from db.
         let no_impl_rule = vision.audit_rules.iter().find(|r| r.id == "vis-002").unwrap();
         assert_eq!(no_impl_rule.evidence_type, "keyword_absence");
-        assert_eq!(no_impl_rule.scope, "");
+        assert_eq!(no_impl_rule.scope, "document");
 
         // Check section_presence without section_catalog_id.
         let doc_rule = vision.audit_rules.iter().find(|r| r.id == "vis-004").unwrap();

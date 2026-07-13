@@ -5,7 +5,7 @@
 
 CREATE TABLE domains (
     id           INTEGER PRIMARY KEY,
-    standard_id  INTEGER NOT NULL REFERENCES standards(id),
+    standard_id  INTEGER NOT NULL REFERENCES standards(id) ON DELETE CASCADE,
     key          TEXT NOT NULL,
     name         TEXT NOT NULL,
     tier         INTEGER NOT NULL,

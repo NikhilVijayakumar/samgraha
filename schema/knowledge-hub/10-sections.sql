@@ -4,8 +4,8 @@
 
 CREATE TABLE sections (
     id                  INTEGER PRIMARY KEY,
-    document_id         INTEGER NOT NULL REFERENCES documents(id),
-    section_catalog_id  INTEGER NOT NULL REFERENCES section_catalog(id),
+    document_id         INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    section_catalog_id  INTEGER NOT NULL REFERENCES section_catalog(id) ON DELETE CASCADE,
     name                TEXT NOT NULL,
     sort_order          INTEGER NOT NULL DEFAULT 0,
     UNIQUE(document_id, section_catalog_id)

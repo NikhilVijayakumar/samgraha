@@ -5,7 +5,7 @@
 
 CREATE TABLE standards (
     id          INTEGER PRIMARY KEY,
-    system_id   INTEGER NOT NULL REFERENCES systems(id),
+    system_id   INTEGER NOT NULL REFERENCES systems(id) ON DELETE CASCADE,
     name        TEXT NOT NULL,
     version     TEXT NOT NULL,
     description TEXT,

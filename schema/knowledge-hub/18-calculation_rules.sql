@@ -16,7 +16,7 @@
 
 CREATE TABLE calculation_rules (
     id                    INTEGER PRIMARY KEY,
-    standard_id           INTEGER NOT NULL REFERENCES standards(id),
+    standard_id           INTEGER NOT NULL REFERENCES standards(id) ON DELETE CASCADE,
     bucket                TEXT NOT NULL,
     calculation_method    TEXT NOT NULL,
     scope                 TEXT CHECK (scope IS NULL OR scope IN ('document','section')),

@@ -6,7 +6,7 @@
 
 CREATE TABLE rule_evidence_params (
     id          INTEGER PRIMARY KEY,
-    rule_id     INTEGER NOT NULL REFERENCES rules(id),
+    rule_id     INTEGER NOT NULL REFERENCES rules(id) ON DELETE CASCADE,
     param_key   TEXT NOT NULL,
     param_value TEXT NOT NULL,
     sort_order  INTEGER NOT NULL DEFAULT 0

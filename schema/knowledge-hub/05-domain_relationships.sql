@@ -10,10 +10,10 @@
 
 CREATE TABLE domain_relationships (
     id                    INTEGER PRIMARY KEY,
-    standard_id           INTEGER NOT NULL REFERENCES standards(id),
-    from_domain_id        INTEGER NOT NULL REFERENCES domains(id),
-    to_domain_id          INTEGER NOT NULL REFERENCES domains(id),
-    relationship_type_id  INTEGER NOT NULL REFERENCES relationship_types(id),
+    standard_id           INTEGER NOT NULL REFERENCES standards(id) ON DELETE CASCADE,
+    from_domain_id        INTEGER NOT NULL REFERENCES domains(id) ON DELETE CASCADE,
+    to_domain_id          INTEGER NOT NULL REFERENCES domains(id) ON DELETE CASCADE,
+    relationship_type_id  INTEGER NOT NULL REFERENCES relationship_types(id) ON DELETE CASCADE,
     mutual                INTEGER NOT NULL DEFAULT 0,
     enforce_order         INTEGER NOT NULL DEFAULT 0,
     note                  TEXT,

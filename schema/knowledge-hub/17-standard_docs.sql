@@ -7,7 +7,7 @@
 
 CREATE TABLE standard_docs (
     id           INTEGER PRIMARY KEY,
-    domain_id    INTEGER NOT NULL UNIQUE REFERENCES domains(id),
+    domain_id    INTEGER NOT NULL UNIQUE REFERENCES domains(id) ON DELETE CASCADE,
     title        TEXT NOT NULL,
     content      TEXT NOT NULL,
     source_file  TEXT

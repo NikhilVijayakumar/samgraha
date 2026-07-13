@@ -4,8 +4,8 @@
 
 CREATE TABLE documents (
     id           INTEGER PRIMARY KEY,
-    standard_id  INTEGER NOT NULL REFERENCES standards(id),
-    domain_id    INTEGER NOT NULL REFERENCES domains(id),
+    standard_id  INTEGER NOT NULL REFERENCES standards(id) ON DELETE CASCADE,
+    domain_id    INTEGER NOT NULL REFERENCES domains(id) ON DELETE CASCADE,
     title        TEXT,
     path         TEXT NOT NULL,
     UNIQUE(standard_id, path)

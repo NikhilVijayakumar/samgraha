@@ -13,7 +13,7 @@
 
 CREATE TABLE scores (
     id                     INTEGER PRIMARY KEY,
-    document_id            INTEGER NOT NULL REFERENCES documents(id),
+    document_id            INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
     deterministic_whole    REAL,
     deterministic_section  REAL,
     semantic_whole         REAL,

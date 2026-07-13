@@ -15,7 +15,7 @@ CREATE TABLE audit_results (
     id           INTEGER PRIMARY KEY,
     target_id    INTEGER NOT NULL,
     target_kind  TEXT NOT NULL CHECK (target_kind IN ('document','section')),
-    rule_id      INTEGER NOT NULL REFERENCES rules(id),
+    rule_id      INTEGER NOT NULL REFERENCES rules(id) ON DELETE CASCADE,
     score        REAL NOT NULL,
     evidence     TEXT,
     created_at   TEXT NOT NULL
