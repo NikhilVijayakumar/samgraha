@@ -46,7 +46,12 @@ impl WorkspaceService {
         workspace_config: &WorkspaceConfig,
         request: &CompilationRequest,
     ) -> Result<WorkspaceBuildResult> {
-        let standard_registry = StandardRegistry::from_standards_db_and_overrides(workspace_root)?;
+        // Load workspace-level config to pass standard_system for standard selection.
+        let workspace_config_toml = Self::load_repo_config(workspace_root);
+        let standard_registry = StandardRegistry::from_standards_db_and_overrides_with_system(
+            workspace_root,
+            workspace_config_toml.repository.documentation.standard_system.as_deref(),
+        )?;
         let mut results = Vec::new();
         let mut total_docs = 0;
         let mut total_errors = 0;

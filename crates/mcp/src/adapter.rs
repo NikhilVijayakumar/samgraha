@@ -128,6 +128,10 @@ impl McpAdapter {
         caps.methods.push("list_standards".to_string());
         caps.methods.push("get_standard".to_string());
         caps.methods.push("register_standard".to_string());
+        caps.methods.push("sync_standards".to_string());
+        caps.methods.push("get_plan_settings".to_string());
+        caps.methods.push("get_plan_scenarios".to_string());
+        caps.methods.push("list_script_checks".to_string());
         let orchestrator = PlanOrchestrator::new(
             Arc::clone(&runtime),
             Arc::clone(&runtime.registry),
@@ -268,6 +272,11 @@ impl McpAdapter {
             "list_standards"          => self.handle_list_standards(),
             "get_standard"            => self.handle_get_standard(&req),
             "register_standard"       => self.handle_register_standard(&req),
+            "sync_standards"          => self.handle_sync_standards(&req),
+            // Phase 5: plan orchestration metadata
+            "get_plan_settings"       => self.handle_get_plan_settings(),
+            "get_plan_scenarios"      => self.handle_get_plan_scenarios(&req),
+            "list_script_checks"      => self.handle_list_script_checks(&req),
             _                         => Err(anyhow::anyhow!("Unknown method: {}", req.method)),
         };
 
@@ -1345,9 +1354,20 @@ impl McpAdapter {
         }
         let db_path = self.runtime.context.repository_root
             .join(".samgraha").join("standards.db");
-        let loader = std::env::current_exe()?
+        let exe_dir = std::env::current_exe()?
             .parent().ok_or_else(|| anyhow::anyhow!("Cannot determine binary directory"))?
-            .join("..").join("schema").join("knowledge-hub").join("knowledge-hub-loader.py");
+            .to_path_buf();
+            
+        let env_loader = std::env::var("SAMGRAHA_KNOWLEDGE_HUB_LOADER").ok().map(std::path::PathBuf::from);
+        
+        let loader = env_loader.filter(|p| p.exists()).unwrap_or_else(|| {
+            let p1 = exe_dir.join("..").join("schema").join("knowledge-hub").join("knowledge-hub-loader.py");
+            if p1.exists() {
+                p1
+            } else {
+                exe_dir.join("..").join("..").join("schema").join("knowledge-hub").join("knowledge-hub-loader.py")
+            }
+        });
         let output = std::process::Command::new("python3")
             .arg(&loader)
             .arg("--db").arg(&db_path)
@@ -1361,6 +1381,118 @@ impl McpAdapter {
         Ok(serde_json::json!({
             "success": true,
             "db_path": db_path.display().to_string(),
+            "message": "Standard registered successfully. Note: you may need to restart the MCP server to reload the standard registry."
         }))
+    }
+
+    fn handle_sync_standards(&self, _req: &McpRequest) -> Result<serde_json::Value> {
+        let local_db = self.runtime.context.repository_root.join(".samgraha").join("standards.db");
+        let global_db = std::env::var("SAMGRAHA_GLOBAL_DB")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|_| {
+                let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+                std::path::PathBuf::from(home)
+                    .join(".samgraha")
+                    .join("global_standards.db")
+            });
+
+        if !global_db.exists() {
+            return Err(anyhow::anyhow!("Global standards database not found at {}", global_db.display()));
+        }
+
+        // Fix 3A: Integrity check before overwriting.
+        {
+            let check_conn = rusqlite::Connection::open(&global_db)
+                .map_err(|e| anyhow::anyhow!("Cannot open global DB for integrity check: {}", e))?;
+            let ok: String = check_conn
+                .query_row("PRAGMA integrity_check", [], |row| row.get(0))
+                .map_err(|e| anyhow::anyhow!("integrity_check failed: {}", e))?;
+            if ok != "ok" {
+                return Err(anyhow::anyhow!(
+                    "Global standards DB failed integrity check: {}", ok
+                ));
+            }
+        }
+
+        if let Some(parent) = local_db.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+
+        std::fs::copy(&global_db, &local_db)?;
+
+        // Fix 2D: Also sync scripts directory alongside the DB.
+        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+        let global_scripts = std::path::PathBuf::from(&home).join(".samgraha").join("scripts");
+        if global_scripts.exists() {
+            let local_scripts = self.runtime.context.repository_root.join(".samgraha").join("scripts");
+            std::fs::create_dir_all(&local_scripts)?;
+            for entry in std::fs::read_dir(&global_scripts)? {
+                let entry = entry?;
+                let dest = local_scripts.join(entry.file_name());
+                std::fs::copy(entry.path(), &dest)?;
+            }
+        }
+        
+        Ok(serde_json::json!({
+            "success": true,
+            "synced_from": global_db.display().to_string(),
+            "synced_to": local_db.display().to_string(),
+        }))
+    }
+
+    // ── Phase 5: plan orchestration metadata ──────────────────────────────
+
+    fn handle_get_plan_settings(&self) -> Result<serde_json::Value> {
+        let settings = self.runtime.standard_registry.plan_settings();
+        let items: Vec<serde_json::Value> = settings
+            .iter()
+            .map(|s| serde_json::json!({
+                "threshold_rating": s.threshold_rating,
+                "max_iterations": s.max_iterations,
+                "fallback": s.fallback,
+                "note": s.note,
+            }))
+            .collect();
+        Ok(serde_json::json!({ "plan_settings": items, "total": items.len() }))
+    }
+
+    fn handle_get_plan_scenarios(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let tier_filter = req.params.get("tier").and_then(|v| v.as_str()).and_then(|t| t.parse::<i32>().ok());
+        let scenarios = self.runtime.standard_registry.plan_scenarios();
+        let items: Vec<serde_json::Value> = scenarios
+            .iter()
+            .filter(|s| tier_filter.map_or(true, |t| s.tier == t))
+            .map(|s| serde_json::json!({
+                "repo_state": s.repo_state,
+                "doc_state": s.doc_state,
+                "tier": s.tier,
+                "step": s.step,
+                "content": s.content,
+            }))
+            .collect();
+        Ok(serde_json::json!({ "plan_scenarios": items, "total": items.len() }))
+    }
+
+    fn handle_list_script_checks(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let domain_filter = req.params.get("domain").and_then(|v| v.as_str());
+        let checks = self.runtime.standard_registry.script_checks();
+        let items: Vec<serde_json::Value> = checks
+            .iter()
+            .filter(|c| {
+                domain_filter.map_or(true, |d| {
+                    c.domain_id.as_deref() == Some(d)
+                })
+            })
+            .map(|c| serde_json::json!({
+                "check_name": c.check_name,
+                "domain": c.domain_id,
+                "category": c.category,
+                "timeout_seconds": c.timeout_seconds,
+                "requires_network": c.requires_network,
+                "result_schema": c.result_schema,
+                "description": c.description,
+            }))
+            .collect();
+        Ok(serde_json::json!({ "script_checks": items, "total": items.len() }))
     }
 }

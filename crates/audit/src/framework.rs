@@ -120,6 +120,30 @@ impl AuditFramework {
 
         let total = domain_docs.len();
 
+        // --- Mandatory rule enforcement (Fix 1B) ---
+        // Build a set of rule IDs that are mandatory across all loaded standards.
+        // Any finding whose check_id matches a mandatory rule is upgraded to Error
+        // regardless of the rule's declared severity — a mandatory rule failure is
+        // always a blocking error.
+        let mandatory_rule_ids: std::collections::HashSet<&str> = standards
+            .iter()
+            .flat_map(|s| s.audit_rules.iter())
+            .filter(|r| r.mandatory)
+            .map(|r| r.id.as_str())
+            .collect();
+
+        let all_findings: Vec<AuditFinding> = all_findings
+            .into_iter()
+            .map(|mut f| {
+                if mandatory_rule_ids.contains(f.check_id.as_str())
+                    && f.severity != Severity::Error
+                {
+                    f.severity = Severity::Error;
+                }
+                f
+            })
+            .collect();
+
         let provider_used = providers
             .iter()
             .filter(|name| self.providers.contains_key(name.as_str()))

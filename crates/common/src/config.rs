@@ -378,6 +378,12 @@ pub struct DocumentationConfig {
     /// absolute path resolved from env — see [`resolve_configured_dir`]).
     #[serde(default = "default_docs_root_dir")]
     pub root_dir: String,
+    /// Which documentation standard system to use (fallback to default if None).
+    #[serde(default)]
+    pub standard_system: Option<String>,
+    /// Script check overrides, mapping rule ID to custom script paths.
+    #[serde(default)]
+    pub script_overrides: std::collections::HashMap<String, String>,
     /// Domain names this repo declares (e.g. "architecture", "feature").
     /// Empty means "all builtin standards" (back-compat default).
     #[serde(default)]
@@ -397,6 +403,8 @@ impl Default for DocumentationConfig {
     fn default() -> Self {
         Self {
             root_dir: default_docs_root_dir(),
+            standard_system: None,
+            script_overrides: std::collections::HashMap::new(),
             domain: Vec::new(),
             domain_exclusion: Vec::new(),
         }

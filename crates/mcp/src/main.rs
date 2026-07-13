@@ -886,6 +886,48 @@ fn tool_definitions() -> Vec<serde_json::Value> {
                 "required": ["path"]
             }
         }),
+        serde_json::json!({
+            "name": "sync_standards",
+            "description": "Sync standards from the global MCP database into the local repository. Also syncs the scripts directory.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                }
+            }
+        }),
+        serde_json::json!({
+            "name": "get_plan_settings",
+            "description": "Get the plan settings (threshold ratings, iteration limits, fallback strategies) defined by the documentation standard.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                }
+            }
+        }),
+        serde_json::json!({
+            "name": "get_plan_scenarios",
+            "description": "Get the plan scenarios (repo state/doc state/tier combinations with step content) from the documentation standard.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "tier": { "type": "string", "description": "Optional tier filter (e.g. 'gold', 'silver')" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                }
+            }
+        }),
+        serde_json::json!({
+            "name": "list_script_checks",
+            "description": "List registered script-based audit checks with their metadata (timeout, network requirements, result schema).",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "domain": { "type": "string", "description": "Optional domain filter (e.g. 'architecture')" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                }
+            }
+        }),
     ]
 }
 

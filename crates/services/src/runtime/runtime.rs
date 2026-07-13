@@ -59,10 +59,16 @@ impl KnowledgeRuntime {
             RegistryStore::open(&registry_path).context("Failed to open knowledge registry")?,
         );
 
-        let standard_registry = Arc::new(StandardRegistry::from_standards_db_and_overrides(&root)?);
+        let standard_registry = Arc::new(StandardRegistry::from_standards_db_and_overrides_with_system(
+            &root,
+            config.repository.documentation.standard_system.as_deref(),
+        )?);
         let mut audit_framework = AuditFramework::new(Arc::clone(&standard_registry));
-        audit_framework.register_provider("deterministic", Arc::new(|docs, rules, standard| {
-            audit_crate::DeterministicAuditProvider::execute(docs, rules, standard)
+        let config_clone = config.clone();
+        let root_clone = root.clone();
+        let script_checks_clone = standard_registry.script_checks().to_vec();
+        audit_framework.register_provider("deterministic", Arc::new(move |docs, rules, standard| {
+            audit_crate::DeterministicAuditProvider::execute(docs, rules, standard, Some(&config_clone), Some(&root_clone), &script_checks_clone)
         }));
         audit_framework.register_provider("semantic", Arc::new(|docs, rules, standard| {
             providers::SemanticAuditProvider::execute(docs, rules, standard)

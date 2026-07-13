@@ -246,6 +246,21 @@ a refactor of something existing — lowest priority, own scope later.
 - `register`'s actual population step: two options, not decided here —
   see Open Question 2.
 
+### Phase 7 — Global to Local Standards Synchronization
+
+**Status:** Planned
+
+Currently, `.samgraha/standards.db` lives directly in the local repository. To support a workflow where standards (including `help`, `qa`, scripts, and templates) are managed centrally but executed locally, we need a synchronization mechanism.
+
+- **Global MCP Database**: Establish a global registry for standards (e.g., `~/.samgraha/global_standards.db`) managed by the MCP server.
+- **Local Isolation**: The local repository must always refer to its own `.samgraha/standards.db` for audits and compilations to ensure reproducibility and version-locking.
+- **Sync Mechanism**: Introduce a new CLI subcommand `samgraha standards sync` (and an equivalent MCP tool `sync_standards`).
+- **Behavior**: The sync command will connect to the global MCP SQLite database, extract the latest definitions (standards, rules, domains, templates, scripts), and safely copy the data into the local repo's `.samgraha/standards.db`. 
+- **Standard Configuration (`samgraha.toml`)**: The repository's `samgraha.toml` must allow users to explicitly declare which documentation standard from the system to use. If no specific standard is defined, the engine will fallback to the system default standard.
+- **Script Overrides**: Users can override specific script checks that are provided by the default document system. By defining custom scripts and mapping them in `samgraha.toml`, the audit engine will execute the user-provided scripts instead of the globally synchronized defaults.
+
+This guarantees that a repository is fully self-contained once synced, and updates to organizational standards only affect the repo when a developer explicitly runs a sync, while preserving full flexibility for repo-specific overrides.
+
 ## Resolved on review
 
 - **Storage location.** Separate `.samgraha/standards.db` file, not folded

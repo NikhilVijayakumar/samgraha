@@ -155,12 +155,26 @@ pub fn load_script_checks(conn: &Connection, standard_id: i64) -> Result<Vec<Scr
 /// Load a `StandardRegistry` from a `schema/knowledge-hub`-shaped SQLite
 /// database, projecting rows onto the existing `StandardDefinition` structs.
 /// All deterministic rules survive (Phase 4); semantic rules are skipped.
-pub fn from_standards_db(conn: &Connection) -> Result<StandardRegistry> {
+///
+/// `system_name`: when `Some`, selects the system by name; when `None`,
+/// falls back to the system marked `is_default = 1`. This corresponds to
+/// `samgraha.toml [repository.documentation] standard_system = "..."`.
+pub fn from_standards_db(conn: &Connection, system_name: Option<&str>) -> Result<StandardRegistry> {
     let mut registry = StandardRegistry::new();
 
-    // Find the default system's documentation-standards standard.
-    let standard_id: i64 = conn
-        .query_row(
+    // Find the standard for the requested (or default) system.
+    let standard_id: i64 = if let Some(name) = system_name {
+        conn.query_row(
+            "SELECT s.id FROM standards s
+             JOIN systems sys ON s.system_id = sys.id
+             WHERE sys.name = ? AND s.name = 'documentation-standards'
+             LIMIT 1",
+            [name],
+            |row| row.get(0),
+        )
+        .with_context(|| format!("No documentation-standards found for system '{}' in DB", name))?
+    } else {
+        conn.query_row(
             "SELECT s.id FROM standards s
              JOIN systems sys ON s.system_id = sys.id
              WHERE sys.is_default = 1 AND s.name = 'documentation-standards'
@@ -168,7 +182,8 @@ pub fn from_standards_db(conn: &Connection) -> Result<StandardRegistry> {
             [],
             |row| row.get(0),
         )
-        .context("No default documentation-standards found in DB")?;
+        .context("No default documentation-standards found in DB")?
+    };
 
     let standard_version: String = conn
         .query_row(
@@ -600,7 +615,7 @@ mod tests {
         .unwrap();
 
         // Load from DB.
-        let registry = from_standards_db(&conn).unwrap();
+        let registry = from_standards_db(&conn, None).unwrap();
 
         // Should have 2 domains.
         let all = registry.all();

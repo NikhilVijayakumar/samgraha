@@ -228,10 +228,13 @@ pub enum StandardsAction {
         path: PathBuf,
     },
 
-    #[command(about = "Remove a standard by name")]
+    #[command(about = "Sync standards from the global MCP database")]
+    Sync,
+
+    #[command(about = "Remove a standard from the local registry")]
     Remove {
-        #[arg(help = "Standard name (e.g. 'documentation-standards')")]
-        name: String,
+        #[arg(help = "Standard domain (e.g. 'architecture')")]
+        domain: String,
     },
 }
 
@@ -245,7 +248,7 @@ pub enum WorkspaceAction {
         #[arg(help = "Repository paths to include")]
         repositories: Vec<String>,
 
-        #[arg(help = "Path for workspace root (default: current directory)")]
+        #[arg(long, help = "Path for workspace root (default: current directory)")]
         path: Option<PathBuf>,
     },
 
@@ -1155,10 +1158,20 @@ impl Cli {
                     anyhow::bail!("Path does not exist: {}", path.display());
                 }
                 
-                let loader = std::env::current_exe()?
+                let exe_dir = std::env::current_exe()?
                     .parent().ok_or_else(|| anyhow::anyhow!("Cannot determine binary directory"))?
-                    .join("..").join("schema").join("knowledge-hub").join("knowledge-hub-loader.py");
+                    .to_path_buf();
                 
+                let env_loader = std::env::var("SAMGRAHA_KNOWLEDGE_HUB_LOADER").ok().map(PathBuf::from);
+                
+                let loader = env_loader.filter(|p| p.exists()).unwrap_or_else(|| {
+                    let p1 = exe_dir.join("..").join("schema").join("knowledge-hub").join("knowledge-hub-loader.py");
+                    if p1.exists() {
+                        p1
+                    } else {
+                        exe_dir.join("..").join("..").join("schema").join("knowledge-hub").join("knowledge-hub-loader.py")
+                    }
+                });
                 println!("Registering standard from {}...", path.display());
                 let output = std::process::Command::new("python3")
                     .arg(&loader)
@@ -1173,21 +1186,74 @@ impl Cli {
                 }
                 println!("Standard registered successfully.");
             }
-            StandardsAction::Remove { name } => {
+            StandardsAction::Remove { domain } => {
                 let db_path = root.join(".samgraha").join("standards.db");
                 if db_path.exists() {
                     let conn = rusqlite::Connection::open(&db_path)?;
                     conn.execute("PRAGMA foreign_keys = ON", [])?;
-                    let rows = conn.execute("DELETE FROM standards WHERE name = ?", [name])?;
+                    let rows = conn.execute("DELETE FROM domains WHERE key = ?", [domain.clone()])?;
                     if rows > 0 {
-                        println!("Removed standard '{}'", name);
+                        println!("Removed standard domain '{}'", domain);
                     } else {
-                        println!("Standard '{}' not found", name);
+                        println!("Standard domain '{}' not found", domain);
                     }
                 } else {
                     println!("No standards.db found");
                 }
             }
+            StandardsAction::Sync => {
+                let local_db = root.join(".samgraha").join("standards.db");
+                let global_db = std::env::var("SAMGRAHA_GLOBAL_DB")
+                    .map(PathBuf::from)
+                    .unwrap_or_else(|_| {
+                        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+                        PathBuf::from(home)
+                            .join(".samgraha")
+                            .join("global_standards.db")
+                    });
+
+                if !global_db.exists() {
+                    anyhow::bail!("Global standards database not found at {}", global_db.display());
+                }
+
+                // Fix 3A: Integrity check before overwriting local DB.
+                {
+                    let check_conn = rusqlite::Connection::open(&global_db)
+                        .map_err(|e| anyhow::anyhow!("Cannot open global DB: {}", e))?;
+                    let ok: String = check_conn
+                        .query_row("PRAGMA integrity_check", [], |row| row.get(0))
+                        .map_err(|e| anyhow::anyhow!("integrity_check query failed: {}", e))?;
+                    if ok != "ok" {
+                        anyhow::bail!("Global standards DB failed integrity check: {}", ok);
+                    }
+                }
+
+                if let Some(parent) = local_db.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+
+                println!("Syncing standards from {} to {}...", global_db.display(), local_db.display());
+                std::fs::copy(&global_db, &local_db)?;
+
+                // Fix 2D: Also sync scripts directory.
+                let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+                let global_scripts = PathBuf::from(&home).join(".samgraha").join("scripts");
+                if global_scripts.exists() {
+                    let local_scripts = root.join(".samgraha").join("scripts");
+                    std::fs::create_dir_all(&local_scripts)?;
+                    let mut scripts_count = 0usize;
+                    for entry in std::fs::read_dir(&global_scripts)? {
+                        let entry = entry?;
+                        let dest = local_scripts.join(entry.file_name());
+                        std::fs::copy(entry.path(), &dest)?;
+                        scripts_count += 1;
+                    }
+                    println!("Synced {} scripts to {}", scripts_count, local_scripts.display());
+                }
+
+                println!("Standards synced successfully.");
+            }
+
         }
 
         Ok(ExitCode::Success)
