@@ -288,8 +288,7 @@ impl DeterministicAuditProvider {
                     // Prefer local synced copy over global ~/.samgraha/scripts/
                     local_script
                 } else if let Some(default_path) = default_script {
-                    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-                    std::path::PathBuf::from(home).join(".samgraha").join("scripts").join(default_path)
+                    common::env::home_dir().join(".samgraha").join("scripts").join(default_path)
                 } else {
                     return vec![];
                 };

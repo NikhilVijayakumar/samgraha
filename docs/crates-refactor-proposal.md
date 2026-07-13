@@ -246,20 +246,75 @@ a refactor of something existing — lowest priority, own scope later.
 - `register`'s actual population step: two options, not decided here —
   see Open Question 2.
 
-### Phase 7 — Global to Local Standards Synchronization
+### Phase 7 — MCP-folder Standards + Help Synchronization
 
-**Status:** Planned
+**Status:** Implemented, verified live (register/set-default/sync round-tripped
+against scratch DBs and read back with a plain SQLite client). Known open
+items: `docs/errors-list/02-gaps.md` Gap 5 (`standard_docs` unread), Gap 7
+(dead runtime tables in the knowledge-hub schema).
 
-Currently, `.samgraha/standards.db` lives directly in the local repository. To support a workflow where standards (including `help`, `qa`, scripts, and templates) are managed centrally but executed locally, we need a synchronization mechanism.
+`.samgraha/standards.db` and `.samgraha/knowledge.db` live in the local
+repository; the shared source both sync from is `standards.db`/`help.db`
+shipped next to the running MCP/CLI binary (`common::env::mcp_dir()` —
+binary-adjacent by default, overridable via `SAMGRAHA_MCP_DIR`), not a
+separate `$HOME`-managed global database.
 
-- **Global MCP Database**: Establish a global registry for standards (e.g., `~/.samgraha/global_standards.db`) managed by the MCP server.
-- **Local Isolation**: The local repository must always refer to its own `.samgraha/standards.db` for audits and compilations to ensure reproducibility and version-locking.
-- **Sync Mechanism**: Introduce a new CLI subcommand `samgraha standards sync` (and an equivalent MCP tool `sync_standards`).
-- **Behavior**: The sync command will connect to the global MCP SQLite database, extract the latest definitions (standards, rules, domains, templates, scripts), and safely copy the data into the local repo's `.samgraha/standards.db`. 
-- **Standard Configuration (`samgraha.toml`)**: The repository's `samgraha.toml` must allow users to explicitly declare which documentation standard from the system to use. If no specific standard is defined, the engine will fallback to the system default standard.
-- **Script Overrides**: Users can override specific script checks that are provided by the default document system. By defining custom scripts and mapping them in `samgraha.toml`, the audit engine will execute the user-provided scripts instead of the globally synchronized defaults.
+- **Shared, binary-adjacent source, two files** (couldn't be one at the time
+  this was built — the knowledge-hub schema then had `documents`/`sections`
+  tables (see Gap 7, since removed as dead weight) with different columns
+  than the registry crate's `documents` table that holds `help` content;
+  merging would have collided on table names. That specific collision is
+  gone now, but the two files stay separate — coordinating Python's
+  `init_schema()` SQL-file loader and Rust's embedded `REGISTRY_MIGRATIONS`
+  string constants against one physical file is real cross-language
+  coordination cost for no functional gain over `mcp_dir()` already treating
+  them as one logical package):
+  - `standards.db` — knowledge-hub schema (`schema/knowledge-hub/*.sql`),
+    holds every registered system (`systems`/`standards`/`domains`/`rules`/…),
+    exactly one marked `is_default`.
+  - `help.db` — registry-crate schema (`Document` rows, `standard = 'help'`),
+    samgraha's own usage documentation.
+- **Register**: `samgraha standards register --path <dir> [--system <name>]`
+  (and MCP `register_standard`) writes into the shared `standards.db` by
+  default — this is how additional documentation-standard systems get added.
+  `--local` (CLI) / `local: true` (MCP) writes straight into the calling
+  repo's own `.samgraha/standards.db` instead, bypassing sync entirely —
+  for self-hosting/bootstrap only.
+- **Switch default**: `samgraha standards set-default <system>` / MCP
+  `set_default_standard` flips which system is used when a repo's
+  `samgraha.toml` doesn't set `standard_system` — an atomic
+  demote-then-promote transaction against the shared `standards.db`, no need
+  to re-run the loader.
+- **Sync**: `samgraha standards sync` / MCP `sync_standards` pulls from the
+  shared source into the calling repo: copies `standards.db` wholesale into
+  local `.samgraha/standards.db` (system selection happens at *read* time —
+  `samgraha.toml [repository.documentation] standard_system`, default system
+  if unset — so the local copy can safely hold every registered system, only
+  the configured one is ever read), merges `help.db`'s documents into local
+  `.samgraha/knowledge.db` (full replace, matched by path — never by the
+  source db's raw id, to avoid colliding with an unrelated local document
+  sharing that same primary key), and copies the mcp-adjacent `scripts/`
+  directory into local `.samgraha/scripts/`.
+- **Local isolation after sync**: once synced, a repo's MCP/CLI queries never
+  touch anything but its own local `.samgraha/*.db` — the old runtime
+  fallback that fell through to the binary-adjacent files on every `help`
+  lookup is gone (`services::builtin` no longer opens either file as a
+  query-time source, only as a `sync` source).
+- **Standard Configuration (`samgraha.toml`)**: `[repository.documentation]
+  standard_system` selects which registered system a repo reads, both for
+  single-repo runtime construction and — per member repo — inside workspace
+  compilation.
+- **Script Overrides**: `script_overrides` in `samgraha.toml` map a rule id
+  to a custom script path, taking priority over the synced local copy and
+  the mcp-adjacent default (see `docs/errors-list/03-improvements.md`
+  Improvement 4 for the full 3-tier resolution order).
 
-This guarantees that a repository is fully self-contained once synced, and updates to organizational standards only affect the repo when a developer explicitly runs a sync, while preserving full flexibility for repo-specific overrides.
+This guarantees a repository is fully self-contained once synced — standards
+*and* help content — and updates to organizational standards or new systems
+only affect a repo when a developer explicitly runs `standards sync`, while
+preserving full flexibility for repo-specific script overrides and
+per-repo standard selection (including per-member selection inside a
+workspace, see Gap 3's fix).
 
 ## Resolved on review
 

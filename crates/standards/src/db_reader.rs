@@ -1,9 +1,41 @@
 use crate::StandardRegistry;
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use rusqlite::Connection;
 use schemas::audit::{CalculationInput, CalculationRule, ScoringConfig, ScoreBand};
-use schemas::standard::{AuditRuleDef, SectionDefinition, StandardDefinition, StandardRelationship, PlanSetting, PlanScenario, ScriptCheck};
+use schemas::standard::{AuditRuleDef, SectionDefinition, StandardDefinition, StandardDoc, StandardRelationship, PlanSetting, PlanScenario, ScriptCheck};
 use std::collections::HashMap;
+
+/// Must match `SCHEMA_VERSION` in `schema/knowledge-hub/knowledge-hub-loader.py`.
+/// Bump both together whenever a table is added/removed/changes shape.
+pub const EXPECTED_SCHEMA_VERSION: i64 = 1;
+
+/// Reject a standards.db whose `PRAGMA user_version` doesn't match what this
+/// build of samgraha understands — a version mismatch means the DB was
+/// written by a different schema shape (e.g. before/after the 09/10/13-15
+/// runtime-table removal), and reading it would otherwise fail with a
+/// confusing "no such table"/"no such column" deep inside a query instead of
+/// a clear message up front. `0` (SQLite's default when never set) means the
+/// DB predates version tracking entirely — same treatment, reject with a
+/// message that says so rather than a generic mismatch.
+pub fn check_schema_version(conn: &Connection) -> Result<()> {
+    let version: i64 = conn.query_row("PRAGMA user_version", [], |row| row.get(0))?;
+    if version == 0 {
+        bail!(
+            "standards.db has no schema version set (PRAGMA user_version = 0) — \
+             it predates version tracking. Re-register from the source knowledge-hub \
+             directory with the current loader to get a versioned DB."
+        );
+    }
+    if version != EXPECTED_SCHEMA_VERSION {
+        bail!(
+            "standards.db schema version {} does not match what this build expects ({}) — \
+             re-register from the source knowledge-hub directory with the current loader.",
+            version,
+            EXPECTED_SCHEMA_VERSION
+        );
+    }
+    Ok(())
+}
 
 /// Load semantic rubrics from the `templates` table — rows where
 /// `kind = 'audit_report'` and `audit_bucket = 'semantic'` hold full
@@ -124,6 +156,35 @@ pub fn load_plan_scenarios(conn: &Connection, standard_id: i64) -> Result<Vec<Pl
         scenarios.push(row?);
     }
     Ok(scenarios)
+}
+
+/// Load the `standard_docs` table — the human-readable documentation-standards
+/// spec content, one row per domain, keyed by the domain's `key`.
+pub fn load_standard_docs(conn: &Connection, standard_id: i64) -> Result<HashMap<String, StandardDoc>> {
+    let mut docs = HashMap::new();
+    let mut stmt = conn.prepare(
+        "SELECT d.key, sd.title, sd.content, sd.source_file
+         FROM standard_docs sd
+         JOIN domains d ON sd.domain_id = d.id
+         WHERE d.standard_id = ?",
+    )?;
+    let rows = stmt.query_map([standard_id], |row| {
+        let domain: String = row.get(0)?;
+        Ok((
+            domain.clone(),
+            StandardDoc {
+                domain,
+                title: row.get(1)?,
+                content: row.get(2)?,
+                source_file: row.get(3)?,
+            },
+        ))
+    })?;
+    for row in rows {
+        let (domain, doc) = row?;
+        docs.insert(domain, doc);
+    }
+    Ok(docs)
 }
 
 pub fn load_script_checks(conn: &Connection, standard_id: i64) -> Result<Vec<ScriptCheck>> {
@@ -439,6 +500,15 @@ pub fn from_standards_db(conn: &Connection, system_name: Option<&str>) -> Result
             tracing::info!("Loaded {} script checks", count);
         }
         Err(e) => tracing::warn!("Failed to load script checks: {}", e),
+    }
+
+    match load_standard_docs(conn, standard_id) {
+        Ok(docs) => {
+            let count = docs.len();
+            registry.set_standard_docs(docs);
+            tracing::info!("Loaded {} standard docs", count);
+        }
+        Err(e) => tracing::warn!("Failed to load standard docs: {}", e),
     }
 
     Ok(registry)

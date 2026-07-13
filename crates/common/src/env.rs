@@ -30,6 +30,50 @@ pub fn load_dotenv() {
     }
 }
 
+/// Cross-platform home directory resolution.
+/// Windows uses `USERPROFILE`; Unix uses `HOME`. Falls back to `.` if neither
+/// is set — matches the previous behavior but actually works on Windows.
+pub fn home_dir() -> std::path::PathBuf {
+    std::env::var("USERPROFILE")
+        .or_else(|_| std::env::var("HOME"))
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| std::path::PathBuf::from("."))
+}
+
+/// Directory the running binary (mcp.exe / cli.exe) lives in — where
+/// `standards.db` (knowledge-hub schema, multi-system) and `help.db`
+/// (registry schema, `domain = 'help'` documents) ship alongside the build.
+/// `SAMGRAHA_MCP_DIR` overrides for tests/dev; falls back to `.` if the
+/// binary's own path can't be resolved.
+pub fn mcp_dir() -> std::path::PathBuf {
+    std::env::var("SAMGRAHA_MCP_DIR")
+        .map(std::path::PathBuf::from)
+        .ok()
+        .or_else(|| {
+            std::env::current_exe()
+                .ok()
+                .and_then(|p| p.parent().map(std::path::PathBuf::from))
+        })
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+}
+
+/// Resolve the Python interpreter to shell out to for the knowledge-hub
+/// loader. Prefers `python3` (Unix convention); falls back to `python`
+/// (common on Windows, where `python3` often isn't on PATH even with
+/// Python 3 installed — verified on this dev machine).
+pub fn python_command() -> std::process::Command {
+    for candidate in ["python3", "python"] {
+        if std::process::Command::new(candidate)
+            .arg("--version")
+            .output()
+            .is_ok_and(|o| o.status.success())
+        {
+            return std::process::Command::new(candidate);
+        }
+    }
+    std::process::Command::new("python3")
+}
+
 fn find_dotenv(start: &Path) -> Option<std::path::PathBuf> {
     let mut dir = start;
     loop {

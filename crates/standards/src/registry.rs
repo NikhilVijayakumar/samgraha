@@ -1,7 +1,7 @@
 use crate::loader::StandardLoader;
 use anyhow::{Context, Result};
 use schemas::audit::ScoringConfig;
-use schemas::standard::{AuditRuleDef, StandardDeclaration, StandardDefinition, PlanSetting, PlanScenario, ScriptCheck};
+use schemas::standard::{AuditRuleDef, StandardDeclaration, StandardDefinition, StandardDoc, PlanSetting, PlanScenario, ScriptCheck};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -13,6 +13,7 @@ pub struct StandardRegistry {
     plan_settings: Vec<PlanSetting>,
     plan_scenarios: Vec<PlanScenario>,
     script_checks: Vec<ScriptCheck>,
+    standard_docs: HashMap<String, StandardDoc>,
 }
 
 impl StandardRegistry {
@@ -24,6 +25,7 @@ impl StandardRegistry {
             plan_settings: Vec::new(),
             plan_scenarios: Vec::new(),
             script_checks: Vec::new(),
+            standard_docs: HashMap::new(),
         }
     }
 
@@ -124,6 +126,9 @@ impl StandardRegistry {
         for (key, content) in other.rubrics {
             self.rubrics.entry(key).or_insert(content);
         }
+        for (key, doc) in other.standard_docs {
+            self.standard_docs.entry(key).or_insert(doc);
+        }
         // Keep own scoring if both have one (first wins).
         if self.scoring.calculation_rules.is_empty() && !other.scoring.calculation_rules.is_empty() {
             self.scoring = other.scoring;
@@ -178,6 +183,16 @@ impl StandardRegistry {
 
     pub fn set_script_checks(&mut self, checks: Vec<ScriptCheck>) {
         self.script_checks = checks;
+    }
+
+    /// The human-readable documentation-standards spec for a domain — the
+    /// prose behind `StandardDefinition`'s structural rules/sections.
+    pub fn get_standard_doc(&self, domain: &str) -> Option<&StandardDoc> {
+        self.standard_docs.get(domain)
+    }
+
+    pub fn set_standard_docs(&mut self, docs: HashMap<String, StandardDoc>) {
+        self.standard_docs = docs;
     }
 }
 

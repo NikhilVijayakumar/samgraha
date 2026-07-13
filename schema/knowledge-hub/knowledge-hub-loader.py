@@ -8,7 +8,8 @@ system content.
 
 Usage:
     python schema/knowledge-hub/knowledge-hub-loader.py [--db PATH] [--system NAME]
-        [--knowledge-hub PATH] [--schema PATH] [--dry-run]
+        [--knowledge-hub PATH] [--schema PATH] [--layout PATH] [--passes 1,3,5|all]
+        [--dry-run] [--reset]
 
 Runs all passes in order inside a single transaction. Idempotent — re-running
 updates existing rows via upsert, never duplicates.
@@ -22,6 +23,13 @@ import sys
 from pathlib import Path
 
 import yaml
+
+# Bumped whenever a table is added/removed/changed shape (e.g. the 09/10/13-15
+# runtime-table removal). Stored in SQLite's own `PRAGMA user_version` — no
+# extra table needed. `register`/`sync` on the Rust side reject a source DB
+# whose version doesn't match, instead of a confusing downstream SQL error
+# when a query expects a table/column an older or newer DB doesn't have.
+SCHEMA_VERSION = 1
 
 
 # ---------------------------------------------------------------------------
@@ -53,14 +61,22 @@ def init_schema(conn: sqlite3.Connection, schema_dir: Path, *, reset: bool = Fal
 # ---------------------------------------------------------------------------
 
 def pass_0(conn: sqlite3.Connection, system_name: str) -> tuple[int, int]:
-    """Upsert the systems and standards rows. Returns (system_id, standard_id)."""
+    """Upsert the systems and standards rows. Returns (system_id, standard_id).
+
+    The first system registered becomes the default (is_default=1). Subsequent
+    systems default to is_default=0 — the partial unique index
+    ux_systems_one_default enforces exactly one default, so inserting is_default=1
+    when another row already holds it crashes with IntegrityError.
+    """
+    has_systems = conn.execute("SELECT 1 FROM systems LIMIT 1").fetchone()
+    default_val = 0 if has_systems else 1
     conn.execute(
         """INSERT INTO systems (name, description, is_default)
-           VALUES (?, ?, 1)
+           VALUES (?, ?, ?)
            ON CONFLICT (name) DO UPDATE SET description = excluded.description,
                                             is_default = excluded.is_default
            RETURNING id""",
-        (system_name, f"Documentation standards for {system_name}"),
+        (system_name, f"Documentation standards for {system_name}", default_val),
     )
     system_id = conn.execute("SELECT id FROM systems WHERE name = ?", (system_name,)).fetchone()[0]
 
@@ -82,6 +98,50 @@ def pass_0(conn: sqlite3.Connection, system_name: str) -> tuple[int, int]:
 
 
 # ---------------------------------------------------------------------------
+# Layout — where each pass looks for its input, relative to the knowledge-hub
+# root. Every pass used to hardcode its own subpath (e.g. `kh_dir / "audit"`);
+# a system that reorganizes directory names (not file *format* — the
+# YAML/Markdown shape each pass parses is still the samgraha-documentation
+# convention, see docs/proposal.md) can now override just the paths via
+# --layout <json file> or a layout.json sitting in the knowledge-hub dir,
+# without touching this script. ponytail: directory names are pluggable,
+# parser format is not — a system needing a genuinely different YAML/Markdown
+# shape still needs its own loader (see Improvement 1 / Open Question 2 in
+# docs/proposal.md), this only removes the "my directories are named
+# differently" blocker.
+# ---------------------------------------------------------------------------
+
+DEFAULT_LAYOUT: dict[str, str] = {
+    "domain_relationships": "00-domain-relationships.md",
+    "plan_loop": "plan/core/loop.yaml",
+    "templates_generation_document": "templates/generation/document",
+    "audit_root": "audit",
+    "documentation_standards": "documentation-standards",
+    "script_schema": "script/schema",
+    "audit_deterministic": "audit/deterministic",
+    "audit_semantic": "audit/semantic",
+    "templates_root": "templates",
+    "calculation_root": "calculation",
+    "plan_usecase": "plan/usecase",
+}
+
+
+def resolve_layout(kh_dir: Path, overrides: dict[str, str] | None) -> dict[str, Path]:
+    """Merge `overrides` (partial — only the keys a system wants to rename)
+    over `DEFAULT_LAYOUT`, then resolve every value to an absolute Path
+    under `kh_dir`. Unknown override keys are ignored with a warning rather
+    than silently accepted — a typo'd key should not turn into "pass reads
+    default and warns file-not-found" without explanation."""
+    merged = dict(DEFAULT_LAYOUT)
+    for key, value in (overrides or {}).items():
+        if key not in DEFAULT_LAYOUT:
+            print(f"  Warning: layout override '{key}' is not a known layout key, ignored", file=sys.stderr)
+            continue
+        merged[key] = value
+    return {key: kh_dir / rel for key, rel in merged.items()}
+
+
+# ---------------------------------------------------------------------------
 # Pass registry — populated by later phases
 # ---------------------------------------------------------------------------
 
@@ -89,7 +149,7 @@ PASSES: list = []
 
 
 def register_pass(fn):
-    """Decorator to register a pass function. Each receives (conn, standard_id, kh_dir)."""
+    """Decorator to register a pass function. Each receives (conn, standard_id, layout)."""
     PASSES.append(fn)
     return fn
 
@@ -137,8 +197,8 @@ def extract_relationship_types_with_gating(raw_text: str) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 @register_pass
-def pass_1(conn: sqlite3.Connection, standard_id: int, kh_dir: Path) -> None:
-    md_path = kh_dir / "00-domain-relationships.md"
+def pass_1(conn: sqlite3.Connection, standard_id: int, layout: dict[str, Path]) -> None:
+    md_path = layout["domain_relationships"]
     raw_text = md_path.read_text(encoding="utf-8")
     data = extract_yaml_block(md_path)
 
@@ -223,7 +283,7 @@ def pass_1(conn: sqlite3.Connection, standard_id: int, kh_dir: Path) -> None:
     print(f"  domain_relationships: {rel_count}")
 
     # --- enforce_order (second pass over loop.yaml) ---
-    loop_path = kh_dir / "plan" / "core" / "loop.yaml"
+    loop_path = layout["plan_loop"]
     loop_data = yaml.safe_load(loop_path.read_text(encoding="utf-8"))
     enforce_count = 0
     for ordering in loop_data.get("within_tier_ordering", []):
@@ -323,8 +383,8 @@ def _resolve_section_type_collisions(section_dir: Path, glob_pat: str) -> dict[t
 
 
 @register_pass
-def pass_2(conn: sqlite3.Connection, standard_id: int, kh_dir: Path) -> None:
-    gen_dir = kh_dir / "templates" / "generation" / "document"
+def pass_2(conn: sqlite3.Connection, standard_id: int, layout: dict[str, Path]) -> None:
+    gen_dir = layout["templates_generation_document"]
     count = 0
     for md_file in sorted(gen_dir.glob("*.md")):
         # Extract domain key from filename: "01-vision.md" -> "vision"
@@ -374,7 +434,7 @@ def pass_2(conn: sqlite3.Connection, standard_id: int, kh_dir: Path) -> None:
     # this gap.
     extra_count = 0
     collision_count = 0
-    audit_dir = kh_dir / "audit"
+    audit_dir = layout["audit_root"]
     for tree, glob_pat in (
         (audit_dir / "semantic" / "section", "*.md"),
         (audit_dir / "deterministic" / "section", "*.yaml"),
@@ -433,8 +493,8 @@ def pass_2(conn: sqlite3.Connection, standard_id: int, kh_dir: Path) -> None:
 # ---------------------------------------------------------------------------
 
 @register_pass
-def pass_3(conn: sqlite3.Connection, standard_id: int, kh_dir: Path) -> None:
-    std_dir = kh_dir / "documentation-standards"
+def pass_3(conn: sqlite3.Connection, standard_id: int, layout: dict[str, Path]) -> None:
+    std_dir = layout["documentation_standards"]
     count = 0
     for md_file in sorted(std_dir.glob("*.md")):
         name = md_file.stem  # e.g. "01-vision-standards"
@@ -476,8 +536,8 @@ def pass_3(conn: sqlite3.Connection, standard_id: int, kh_dir: Path) -> None:
 # ---------------------------------------------------------------------------
 
 @register_pass
-def pass_4(conn: sqlite3.Connection, standard_id: int, kh_dir: Path) -> None:
-    schema_dir = kh_dir / "script" / "schema"
+def pass_4(conn: sqlite3.Connection, standard_id: int, layout: dict[str, Path]) -> None:
+    schema_dir = layout["script_schema"]
     check_name_to_id: dict[str, int] = {}
     manifest_data: list[dict] = []  # defer dependency insertion
 
@@ -659,12 +719,12 @@ def _parse_semantic_rubric(text: str) -> tuple[list[dict], str | None]:
 
 
 @register_pass
-def pass_5(conn: sqlite3.Connection, standard_id: int, kh_dir: Path) -> None:
+def pass_5(conn: sqlite3.Connection, standard_id: int, layout: dict[str, Path]) -> None:
     rule_count = 0
     param_count = 0
 
     # --- 5a. Deterministic YAML rules ---
-    det_dir = kh_dir / "audit" / "deterministic"
+    det_dir = layout["audit_deterministic"]
     for yaml_file in sorted(det_dir.rglob("*.yaml")):
         if yaml_file.name.endswith("-relationships.yaml"):
             continue  # handled in 5c
@@ -737,7 +797,7 @@ def pass_5(conn: sqlite3.Connection, standard_id: int, kh_dir: Path) -> None:
             param_count += len(evidence_params)
 
     # --- 5b. Semantic Markdown rubrics ---
-    sem_dir = kh_dir / "audit" / "semantic"
+    sem_dir = layout["audit_semantic"]
     # Same collision resolution as pass_2's audit-only-extras scan (see
     # _resolve_section_type_collisions) — must match exactly, or
     # section_catalog will have the suffixed entry but this pass will
@@ -905,8 +965,8 @@ def pass_5(conn: sqlite3.Connection, standard_id: int, kh_dir: Path) -> None:
 # ---------------------------------------------------------------------------
 
 @register_pass
-def pass_6(conn: sqlite3.Connection, standard_id: int, kh_dir: Path) -> None:
-    templates_dir = kh_dir / "templates"
+def pass_6(conn: sqlite3.Connection, standard_id: int, layout: dict[str, Path]) -> None:
+    templates_dir = layout["templates_root"]
     count = 0
 
     def _strip_prefix(name: str) -> str:
@@ -1039,8 +1099,8 @@ def pass_6(conn: sqlite3.Connection, standard_id: int, kh_dir: Path) -> None:
 # ---------------------------------------------------------------------------
 
 @register_pass
-def pass_7(conn: sqlite3.Connection, standard_id: int, kh_dir: Path) -> None:
-    calc_dir = kh_dir / "calculation"
+def pass_7(conn: sqlite3.Connection, standard_id: int, layout: dict[str, Path]) -> None:
+    calc_dir = layout["calculation_root"]
     rule_count = 0
     input_count = 0
     band_count = 0
@@ -1157,8 +1217,8 @@ def pass_7(conn: sqlite3.Connection, standard_id: int, kh_dir: Path) -> None:
 # ---------------------------------------------------------------------------
 
 @register_pass
-def pass_8(conn: sqlite3.Connection, standard_id: int, kh_dir: Path) -> None:
-    loop_path = kh_dir / "plan" / "core" / "loop.yaml"
+def pass_8(conn: sqlite3.Connection, standard_id: int, layout: dict[str, Path]) -> None:
+    loop_path = layout["plan_loop"]
     loop_data = yaml.safe_load(loop_path.read_text(encoding="utf-8"))
 
     # plan_settings (one row)
@@ -1179,7 +1239,7 @@ def pass_8(conn: sqlite3.Connection, standard_id: int, kh_dir: Path) -> None:
     )
 
     # plan_scenarios (walk the usecase tree)
-    usecase_dir = kh_dir / "plan" / "usecase"
+    usecase_dir = layout["plan_usecase"]
     scenario_count = 0
 
     # repo_state dirs: repo_existing, repo_new
@@ -1246,12 +1306,29 @@ def parse_args() -> argparse.Namespace:
         help="Path to the schema/*.sql directory (default: this script's own directory)",
     )
     parser.add_argument(
+        "--layout", default=None,
+        help="Path to a JSON file overriding directory-name keys in DEFAULT_LAYOUT "
+             "(partial — only include the keys you want to rename). Lets a system "
+             "with renamed directories register without editing this script; the "
+             "file/YAML *format* each pass parses is unchanged. Default: none "
+             "(uses samgraha-documentation's own layout), or auto-detects "
+             "<knowledge-hub-dir>/layout.json if present.",
+    )
+    parser.add_argument(
         "--dry-run", action="store_true",
-        help="Parse and validate without writing to DB",
+        help="Parse and validate without writing to DB (rolls back instead of committing)",
     )
     parser.add_argument(
         "--reset", action="store_true",
         help="Drop and recreate all tables before loading (destroys runtime data!)",
+    )
+    parser.add_argument(
+        "--passes", default="all",
+        help="Comma-separated pass numbers to run (e.g. '1,3,5'), or 'all' (default). "
+             "Pass 0 (systems+standards) always runs regardless — every other pass "
+             "depends on standard_id existing. A system that only defines domains and "
+             "rules doesn't need to scan for templates/scripts/scoring/plan files it "
+             "doesn't have.",
     )
     return parser.parse_args()
 
@@ -1285,6 +1362,22 @@ def main() -> int:
         print(f"Error: schema directory not found at {schema_dir}", file=sys.stderr)
         return 1
 
+    layout_overrides: dict[str, str] = {}
+    layout_source = Path(args.layout) if args.layout else (kh_dir / "layout.json")
+    if layout_source.is_file():
+        layout_overrides = json.loads(layout_source.read_text(encoding="utf-8"))
+        print(f"Layout overrides loaded from {layout_source} ({len(layout_overrides)} key(s))")
+    layout = resolve_layout(kh_dir, layout_overrides)
+
+    if args.passes == "all":
+        selected_passes = PASSES
+    else:
+        wanted = {int(n) for n in args.passes.split(",") if n.strip()}
+        selected_passes = [p for p in PASSES if int(p.__name__.rsplit("_", 1)[1]) in wanted]
+        skipped = {int(p.__name__.rsplit("_", 1)[1]) for p in PASSES} - wanted
+        if skipped:
+            print(f"Skipping passes: {sorted(skipped)}")
+
     db_path = Path(args.db)
     conn = sqlite3.connect(str(db_path))
     conn.execute("PRAGMA foreign_keys = ON")
@@ -1293,18 +1386,23 @@ def main() -> int:
     try:
         print(f"Initializing schema in {db_path} ...")
         init_schema(conn, schema_dir, reset=args.reset)
+        conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
 
         print(f"Pass 0: systems + standards ...")
         system_id, standard_id = pass_0(conn, args.system)
         print(f"  system_id={system_id}, standard_id={standard_id}")
 
-        for pass_fn in PASSES:
+        for pass_fn in selected_passes:
             name = pass_fn.__name__
             print(f"{name} ...")
-            pass_fn(conn, standard_id, kh_dir)
+            pass_fn(conn, standard_id, layout)
 
-        conn.commit()
-        print("Done — all passes committed.")
+        if args.dry_run:
+            conn.rollback()
+            print("Dry run — nothing written, rolled back.")
+        else:
+            conn.commit()
+            print("Done — all passes committed.")
     except Exception as e:
         conn.rollback()
         print(f"Error — rolled back: {e}", file=sys.stderr)

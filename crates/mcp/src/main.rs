@@ -875,20 +875,48 @@ fn tool_definitions() -> Vec<serde_json::Value> {
             }
         }),
         serde_json::json!({
+            "name": "get_standard_doc",
+            "description": "Get the human-readable documentation-standards spec content for a domain — the prose a domain's rules/sections/templates are derived from, as opposed to get_standard's structural metadata.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "domain": { "type": "string", "description": "Domain name (e.g. 'architecture')" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["domain"]
+            }
+        }),
+        serde_json::json!({
             "name": "register_standard",
-            "description": "Register a new standard by running the knowledge-hub loader on a directory of documentation files.",
+            "description": "Register a new documentation-standard system by running the knowledge-hub loader on a directory of documentation files. Writes into the shared standards.db shipped next to the MCP binary by default, so every repo's sync_standards can pull it — pass local: true to write straight into this repo's own standards.db instead (self-hosting/bootstrap only).",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "path": { "type": "string", "description": "Path to the knowledge-hub directory to load" },
+                    "system": { "type": "string", "description": "System name to register/update (default: samgraha-documentation)" },
+                    "layout": { "type": "string", "description": "Path to a JSON file overriding directory-name keys for a differently-laid-out knowledge-hub directory" },
+                    "local": { "type": "boolean", "description": "Write to this repo's local .samgraha/standards.db instead of the shared mcp-adjacent one" },
+                    "dry_run": { "type": "boolean", "description": "Parse and validate the knowledge-hub directory without writing to the DB" },
                     "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
                 },
                 "required": ["path"]
             }
         }),
         serde_json::json!({
+            "name": "set_default_standard",
+            "description": "Switch which registered system is the default in the shared standards.db — used by repos whose samgraha.toml doesn't set [repository.documentation] standard_system.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "system": { "type": "string", "description": "System name to make default" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["system"]
+            }
+        }),
+        serde_json::json!({
             "name": "sync_standards",
-            "description": "Sync standards from the global MCP database into the local repository. Also syncs the scripts directory.",
+            "description": "Pull this repo's configured (or default) documentation-standard system, plus help content, from the standards.db/help.db shipped next to the MCP binary into this repo's local .samgraha/standards.db and knowledge.db. Also syncs the scripts directory. After sync, no MCP call needs any database other than this repo's own.",
             "inputSchema": {
                 "type": "object",
                 "properties": {

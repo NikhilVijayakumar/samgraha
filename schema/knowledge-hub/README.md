@@ -1,7 +1,7 @@
 # Documentation System Schema
 
 Generic, standard-agnostic storage for registering document systems and
-running the audit engine against them. Fixed forever at 22 tables — a new
+running the audit engine against them. Fixed forever at 17 tables — a new
 domain, standard, or whole system is rows, never a migration.
 
 This directory (`schema/knowledge-hub/`) lives outside `docs/knowledge-hub/`
@@ -53,30 +53,28 @@ that reason).
 |---|-------|---------|
 | 07 | `script_checks` | Registry of script-backed audit checks (manifest + result schema) |
 | 08 | `script_check_dependencies` | A check's `depends_on` list as real edges |
+| 11 | `rules` | One row per rule (not per file) — self-contained content, not a file pointer. `is_fallback` flags a domain's section-scope fallback rule. `UNIQUE(standard_id, domain_id, section_catalog_id, scope, kind, rule_key)` — short criterion ids (`C1`/`C2`) are reused by design across sections, so the key needs all five columns, not just `rule_key` |
+| 12 | `rule_evidence_params` | A rule's evidence-extractor parameters, as rows instead of JSON |
 | 16 | `templates` | Full body of generation and audit-report templates. `source_file` is an optional debugging breadcrumb, not a lookup key |
-| 17 | `standard_docs` | Full body of each domain's documentation-standards spec. Same optional `source_file` breadcrumb |
+| 17 | `standard_docs` | Full body of each domain's documentation-standards spec. Same optional `source_file` breadcrumb. Read via `crates/standards`'s `load_standard_docs()` / `StandardRegistry::get_standard_doc()`, exposed as CLI `standards show-doc` and MCP `get_standard_doc` |
 | 18 | `calculation_rules` | Per-standard scoring bucket configs (deterministic/semantic x document/section, final_score, trend) |
 | 19 | `calculation_inputs` | `final_score`'s weighted-sum inputs |
 | 20 | `score_bands` | Per-standard rating thresholds (Excellent, Good, ...) |
 | 21 | `plan_settings` | Per-standard tier-loop orchestration config |
 | 22 | `plan_scenarios` | The repo-state x doc-state x tier x step generation/audit/fix matrix |
 
-### Runtime — one audit run's data
-
-| # | Table | Purpose |
-|---|-------|---------|
-| 09 | `documents` | One row per audited document |
-| 10 | `sections` | One row per section of a document |
-| 11 | `rules` | One row per rule (not per file) — self-contained content, not a file pointer. `is_fallback` flags a domain's section-scope fallback rule. `UNIQUE(standard_id, domain_id, section_catalog_id, scope, kind, rule_key)` — short criterion ids (`C1`/`C2`) are reused by design across sections, so the key needs all five columns, not just `rule_key` |
-| 12 | `rule_evidence_params` | A rule's evidence-extractor parameters, as rows instead of JSON |
-| 13 | `audit_results` | One row per rule evaluation (score + evidence JSON) |
-| 14 | `scores` | Aggregated scores per document per audit run |
-| 15 | `script_cache` | Last execution result per script check per repo fingerprint |
+Numbering has gaps (09, 10, 13-15) — those were runtime tables
+(`documents`/`sections`/`audit_results`/`scores`/`script_cache`) that
+duplicated what `registry`'s `knowledge.db` already does per-repo and that
+the loader never wrote a row into. Removed rather than kept as unused
+surface; numbers not reused, so any external reference to a specific file
+number stays meaningful. `sorted(glob("*.sql"))` in the loader tolerates the
+gaps fine — it's a lexical sort, not a contiguous sequence.
 
 ## Loading order
 
-Run `00-reset.sql` first for a clean slate, then `01` through `22` in
-order — foreign keys only ever point at a lower-numbered table.
+Run `00-reset.sql` first for a clean slate, then the remaining files in
+numeric order — foreign keys only ever point at a lower-numbered table.
 
 ## Population
 

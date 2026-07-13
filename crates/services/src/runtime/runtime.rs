@@ -38,8 +38,6 @@ pub struct KnowledgeRuntime {
     pub standard_registry: Arc<StandardRegistry>,
     pub audit_framework: AuditFramework,
     pub policy: RuntimePolicy,
-    /// Read-only built-in knowledge stores (help, standards) shipped next to the binary.
-    pub builtin: Vec<(String, Arc<RegistryStore>)>,
 }
 
 impl KnowledgeRuntime {
@@ -77,7 +75,6 @@ impl KnowledgeRuntime {
         let policy = RuntimePolicy::default();
 
         let context = RuntimeContext::new(root, registry_path, config);
-        let builtin = crate::builtin::load_builtin_stores();
 
         Ok(Self {
             context,
@@ -86,16 +83,7 @@ impl KnowledgeRuntime {
             standard_registry,
             audit_framework,
             policy,
-            builtin,
         })
-    }
-
-    /// All documents from built-in stores (help, standards), flattened.
-    fn builtin_documents(&self) -> Vec<Document> {
-        self.builtin
-            .iter()
-            .flat_map(|(_, store)| store.get_all_documents().unwrap_or_default())
-            .collect()
     }
 
     pub fn register_service(&mut self, service: BoxedService) {
@@ -457,57 +445,31 @@ impl KnowledgeRuntime {
         })
     }
 
-    /// Checks the primary store first; falls back to built-in stores.
-    /// Note: ids are only unique per-store, so an id collision across a
-    /// primary store and a built-in store would resolve to the primary's
-    /// document — acceptable since built-in stores are a distinct, small,
-    /// non-user-facing id space.
+    /// Local `.samgraha/knowledge.db` is the sole source at query time — no
+    /// fallback to any other database. `help`-domain content included: run
+    /// `samgraha standards sync` to pull it in from the binary-adjacent
+    /// `help.db` first (see `crate::builtin::open_help_store` +
+    /// `StandardsAction::Sync`).
     pub fn get_document(&self, id: i64) -> Result<Option<Document>> {
-        if let Some(doc) = self.registry.get_document(id)? {
-            return Ok(Some(doc));
-        }
-        for (_, store) in &self.builtin {
-            if let Some(doc) = store.get_document(id)? {
-                return Ok(Some(doc));
-            }
-        }
-        Ok(None)
+        self.registry.get_document(id)
     }
 
     pub fn get_document_by_path(&self, path: &str) -> Result<Option<Document>> {
-        if let Some(doc) = self.registry.get_document_by_path(path)? {
-            return Ok(Some(doc));
-        }
-        for (_, store) in &self.builtin {
-            if let Some(doc) = store.get_document_by_path(path)? {
-                return Ok(Some(doc));
-            }
-        }
-        Ok(None)
+        self.registry.get_document_by_path(path)
     }
 
     pub fn get_all_documents(&self) -> Result<Vec<Document>> {
-        let mut docs = self.registry.get_all_documents()?;
-        docs.extend(self.builtin_documents());
-        Ok(docs)
+        self.registry.get_all_documents()
     }
 
     // ── Semantic Audit Pass-Throughs ────────────────────────────────────────
 
     pub fn get_domains(&self) -> Result<Vec<String>> {
-        let mut domains = self.registry.get_domains()?;
-        domains.extend(self.builtin.iter().map(|(d, _)| d.clone()));
-        domains.sort();
-        domains.dedup();
-        Ok(domains)
+        self.registry.get_domains()
     }
 
     pub fn get_documents_by_domain(&self, domain: &str) -> Result<Vec<Document>> {
-        let mut docs = self.registry.get_documents_by_domain(domain)?;
-        if let Some((_, store)) = self.builtin.iter().find(|(d, _)| d == domain) {
-            docs.extend(store.get_all_documents()?);
-        }
-        Ok(docs)
+        self.registry.get_documents_by_domain(domain)
     }
 
     pub fn get_section_by_id(&self, section_id: i64) -> Result<Option<schemas::search::SemanticSection>> {
@@ -1810,11 +1772,11 @@ impl KnowledgeRuntime {
                 .map(|s| s.name().to_string())
                 .collect(),
             policy: self.policy.clone(),
-            builtin_stores: crate::builtin::BUILTIN_DOMAINS
+            builtin_stores: [("help", "help.db"), ("standards", "standards.db")]
                 .iter()
-                .map(|(domain, _)| {
-                    let loaded = self.builtin.iter().any(|(d, _)| d == domain);
-                    format!("{} ({})", domain, if loaded { "loaded" } else { "missing" })
+                .map(|(domain, filename)| {
+                    let present = common::env::mcp_dir().join(filename).exists();
+                    format!("{} ({})", domain, if present { "available, run `standards sync`" } else { "not shipped" })
                 })
                 .collect(),
         }

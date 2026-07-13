@@ -68,6 +68,18 @@ pub struct AuditRuleDef {
     pub params: std::collections::HashMap<String, String>,
 }
 
+/// The human-readable documentation-standards spec for a domain — the prose
+/// a domain's rules/templates/section-catalog are derived from, as opposed
+/// to `StandardDefinition`'s structural metadata. From the `standard_docs`
+/// table (`schema/knowledge-hub/17-standard_docs.sql`).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct StandardDoc {
+    pub domain: String,
+    pub title: String,
+    pub content: String,
+    pub source_file: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct StandardDeclaration {
     pub standard_id: StandardId,
@@ -130,22 +142,6 @@ impl StandardDefinition {
             .collect()
     }
 }
-
-pub const BUILTIN_DOMAINS: &[&str] = &[
-    "readme",
-    "vision",
-    "philosophy",
-    "architecture",
-    "feature",
-    "feature-design",
-    "feature-technical",
-    "design",
-    "engineering",
-    "external-context",
-    "prototype",
-    "help",
-    "standards",
-];
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PlanSetting {

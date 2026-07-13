@@ -127,7 +127,9 @@ impl McpAdapter {
         caps.methods.push("project_plan_abort".to_string());
         caps.methods.push("list_standards".to_string());
         caps.methods.push("get_standard".to_string());
+        caps.methods.push("get_standard_doc".to_string());
         caps.methods.push("register_standard".to_string());
+        caps.methods.push("set_default_standard".to_string());
         caps.methods.push("sync_standards".to_string());
         caps.methods.push("get_plan_settings".to_string());
         caps.methods.push("get_plan_scenarios".to_string());
@@ -271,7 +273,9 @@ impl McpAdapter {
             // Standards management
             "list_standards"          => self.handle_list_standards(),
             "get_standard"            => self.handle_get_standard(&req),
+            "get_standard_doc"        => self.handle_get_standard_doc(&req),
             "register_standard"       => self.handle_register_standard(&req),
+            "set_default_standard"    => self.handle_set_default_standard(&req),
             "sync_standards"          => self.handle_sync_standards(&req),
             // Phase 5: plan orchestration metadata
             "get_plan_settings"       => self.handle_get_plan_settings(),
@@ -1346,20 +1350,40 @@ impl McpAdapter {
         Ok(serde_json::to_value(std)?)
     }
 
+    /// Registers into the shared `standards.db` shipped next to this binary
+    /// (`common::env::mcp_dir()`) by default — every repo's `sync_standards`
+    /// pulls from there. Pass `local: true` to write straight into this
+    /// repo's own `.samgraha/standards.db` instead (self-hosting/bootstrap
+    /// only — bypasses sync).
+    fn handle_get_standard_doc(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let domain = parse_string(req, "domain")?;
+        let doc = self.runtime.standard_registry
+            .get_standard_doc(&domain)
+            .ok_or_else(|| anyhow::anyhow!("No standard doc for domain '{}'", domain))?;
+        Ok(serde_json::to_value(doc)?)
+    }
+
     fn handle_register_standard(&self, req: &McpRequest) -> Result<serde_json::Value> {
         let path = parse_string(req, "path")?;
         let path = std::path::PathBuf::from(&path);
         if !path.exists() {
             return Err(anyhow::anyhow!("Path does not exist: {}", path.display()));
         }
-        let db_path = self.runtime.context.repository_root
-            .join(".samgraha").join("standards.db");
+        let local = req.params.get("local").and_then(|v| v.as_bool()).unwrap_or(false);
+        let db_path = if local {
+            self.runtime.context.repository_root.join(".samgraha").join("standards.db")
+        } else {
+            common::env::mcp_dir().join("standards.db")
+        };
+        if let Some(parent) = db_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
         let exe_dir = std::env::current_exe()?
             .parent().ok_or_else(|| anyhow::anyhow!("Cannot determine binary directory"))?
             .to_path_buf();
-            
+
         let env_loader = std::env::var("SAMGRAHA_KNOWLEDGE_HUB_LOADER").ok().map(std::path::PathBuf::from);
-        
+
         let loader = env_loader.filter(|p| p.exists()).unwrap_or_else(|| {
             let p1 = exe_dir.join("..").join("schema").join("knowledge-hub").join("knowledge-hub-loader.py");
             if p1.exists() {
@@ -1368,10 +1392,21 @@ impl McpAdapter {
                 exe_dir.join("..").join("..").join("schema").join("knowledge-hub").join("knowledge-hub-loader.py")
             }
         });
-        let output = std::process::Command::new("python3")
-            .arg(&loader)
+        let mut cmd = common::env::python_command();
+        cmd.arg(&loader)
             .arg("--db").arg(&db_path)
-            .arg("--knowledge-hub").arg(&path)
+            .arg("--knowledge-hub").arg(&path);
+        if let Some(system) = req.params.get("system").and_then(|v| v.as_str()) {
+            cmd.arg("--system").arg(system);
+        }
+        if let Some(layout) = req.params.get("layout").and_then(|v| v.as_str()) {
+            cmd.arg("--layout").arg(layout);
+        }
+        let dry_run = req.params.get("dry_run").and_then(|v| v.as_bool()).unwrap_or(false);
+        if dry_run {
+            cmd.arg("--dry-run");
+        }
+        let output = cmd
             .output()
             .map_err(|e| anyhow::anyhow!("Failed to run loader: {}", e))?;
         if !output.status.success() {
@@ -1380,63 +1415,99 @@ impl McpAdapter {
         }
         Ok(serde_json::json!({
             "success": true,
+            "dry_run": dry_run,
             "db_path": db_path.display().to_string(),
-            "message": "Standard registered successfully. Note: you may need to restart the MCP server to reload the standard registry."
+            "loader_output": String::from_utf8_lossy(&output.stdout),
+            "message": if dry_run {
+                "Dry run complete — nothing written."
+            } else if local {
+                "Standard registered locally. Note: you may need to restart the MCP server to reload the standard registry."
+            } else {
+                "Standard registered into the shared standards.db. Run sync_standards in each repo that wants it."
+            }
         }))
     }
 
-    fn handle_sync_standards(&self, _req: &McpRequest) -> Result<serde_json::Value> {
-        let local_db = self.runtime.context.repository_root.join(".samgraha").join("standards.db");
-        let global_db = std::env::var("SAMGRAHA_GLOBAL_DB")
-            .map(std::path::PathBuf::from)
-            .unwrap_or_else(|_| {
-                let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-                std::path::PathBuf::from(home)
-                    .join(".samgraha")
-                    .join("global_standards.db")
-            });
+    /// Flips which registered system is default in the shared `standards.db` —
+    /// used by repos whose `samgraha.toml` doesn't set `standard_system`.
+    fn handle_set_default_standard(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let system = parse_string(req, "system")?;
+        let db_path = common::env::mcp_dir().join("standards.db");
+        if !db_path.exists() {
+            return Err(anyhow::anyhow!("No standards.db at {} — register a system first", db_path.display()));
+        }
+        let conn = rusqlite::Connection::open(&db_path)?;
+        let exists: bool = conn.query_row(
+            "SELECT 1 FROM systems WHERE name = ?",
+            [&system],
+            |_| Ok(true),
+        ).unwrap_or(false);
+        if !exists {
+            return Err(anyhow::anyhow!("System '{}' not found in {}", system, db_path.display()));
+        }
+        conn.execute("UPDATE systems SET is_default = 0 WHERE is_default = 1", [])?;
+        conn.execute("UPDATE systems SET is_default = 1 WHERE name = ?", [&system])?;
+        Ok(serde_json::json!({ "success": true, "default_system": system }))
+    }
 
-        if !global_db.exists() {
-            return Err(anyhow::anyhow!("Global standards database not found at {}", global_db.display()));
+    /// Pulls the repo's configured (or default) documentation-standard system,
+    /// plus `help` content, from the mcp-adjacent `standards.db`/`help.db`
+    /// into this repo's local `.samgraha/standards.db` / `knowledge.db`. Local
+    /// DBs are the only thing queried at runtime after this — no MCP call
+    /// switches between databases once a repo is synced.
+    fn handle_sync_standards(&self, _req: &McpRequest) -> Result<serde_json::Value> {
+        let mcp_dir = common::env::mcp_dir();
+        let root = &self.runtime.context.repository_root;
+        let local_db = root.join(".samgraha").join("standards.db");
+        let source_db = mcp_dir.join("standards.db");
+
+        if !source_db.exists() {
+            return Err(anyhow::anyhow!("No standards.db shipped at {} — register a system first", source_db.display()));
         }
 
         // Fix 3A: Integrity check before overwriting.
         {
-            let check_conn = rusqlite::Connection::open(&global_db)
-                .map_err(|e| anyhow::anyhow!("Cannot open global DB for integrity check: {}", e))?;
+            let check_conn = rusqlite::Connection::open(&source_db)
+                .map_err(|e| anyhow::anyhow!("Cannot open source standards DB for integrity check: {}", e))?;
             let ok: String = check_conn
                 .query_row("PRAGMA integrity_check", [], |row| row.get(0))
                 .map_err(|e| anyhow::anyhow!("integrity_check failed: {}", e))?;
             if ok != "ok" {
                 return Err(anyhow::anyhow!(
-                    "Global standards DB failed integrity check: {}", ok
+                    "Source standards DB failed integrity check: {}", ok
                 ));
             }
+            standards::check_schema_version(&check_conn)?;
         }
 
         if let Some(parent) = local_db.parent() {
             std::fs::create_dir_all(parent)?;
         }
 
-        std::fs::copy(&global_db, &local_db)?;
+        std::fs::copy(&source_db, &local_db)?;
+
+        let help_synced = services::sync_help_into_local(root)?;
 
         // Fix 2D: Also sync scripts directory alongside the DB.
-        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-        let global_scripts = std::path::PathBuf::from(&home).join(".samgraha").join("scripts");
-        if global_scripts.exists() {
-            let local_scripts = self.runtime.context.repository_root.join(".samgraha").join("scripts");
+        let source_scripts = mcp_dir.join("scripts");
+        let mut scripts_synced = 0usize;
+        if source_scripts.exists() {
+            let local_scripts = root.join(".samgraha").join("scripts");
             std::fs::create_dir_all(&local_scripts)?;
-            for entry in std::fs::read_dir(&global_scripts)? {
+            for entry in std::fs::read_dir(&source_scripts)? {
                 let entry = entry?;
                 let dest = local_scripts.join(entry.file_name());
                 std::fs::copy(entry.path(), &dest)?;
+                scripts_synced += 1;
             }
         }
-        
+
         Ok(serde_json::json!({
             "success": true,
-            "synced_from": global_db.display().to_string(),
+            "synced_from": source_db.display().to_string(),
             "synced_to": local_db.display().to_string(),
+            "help_documents_synced": help_synced,
+            "scripts_synced": scripts_synced,
         }))
     }
 
