@@ -159,6 +159,51 @@ pub fn create_test_standards_db() -> PathBuf {
             enforce_order INTEGER NOT NULL DEFAULT 0,
             note TEXT,
             UNIQUE(standard_id, from_domain_id, to_domain_id, relationship_type_id)
+        );
+
+        CREATE TABLE rule_evidence_params (
+            id          INTEGER PRIMARY KEY,
+            rule_id     INTEGER NOT NULL REFERENCES rules(id),
+            param_key   TEXT NOT NULL,
+            param_value TEXT NOT NULL,
+            sort_order  INTEGER NOT NULL DEFAULT 0
+        );
+
+        CREATE TABLE calculation_rules (
+            id                    INTEGER PRIMARY KEY,
+            standard_id           INTEGER NOT NULL REFERENCES standards(id),
+            bucket                TEXT NOT NULL,
+            calculation_method    TEXT NOT NULL,
+            scope                 TEXT CHECK (scope IS NULL OR scope IN ('document','section')),
+            formula               TEXT NOT NULL,
+            rollup                TEXT,
+            tolerance_method      TEXT,
+            tolerance_k           REAL,
+            tolerance_floor       REAL,
+            tolerance_scope       TEXT,
+            min_samples           INTEGER,
+            fallback_scope        TEXT,
+            fallback_min_samples  INTEGER,
+            note                  TEXT,
+            UNIQUE(standard_id, bucket)
+        );
+
+        CREATE TABLE calculation_inputs (
+            id                   INTEGER PRIMARY KEY,
+            calculation_rule_id  INTEGER NOT NULL REFERENCES calculation_rules(id),
+            name                 TEXT NOT NULL,
+            weight               REAL NOT NULL,
+            sort_order           INTEGER NOT NULL DEFAULT 0
+        );
+
+        CREATE TABLE score_bands (
+            id           INTEGER PRIMARY KEY,
+            standard_id  INTEGER NOT NULL REFERENCES standards(id),
+            rating       TEXT NOT NULL,
+            min_score    REAL NOT NULL,
+            max_score    REAL NOT NULL,
+            sort_order   INTEGER NOT NULL DEFAULT 0,
+            UNIQUE(standard_id, rating)
         );",
     )
     .unwrap();
@@ -313,6 +358,37 @@ pub fn create_test_standards_db() -> PathBuf {
         [], // architecture -> engineering (guides)
     )
     .unwrap();
+
+    // Default scoring config for tests.
+    conn.execute(
+        "INSERT INTO calculation_rules (standard_id, bucket, calculation_method, scope, formula) VALUES (1, 'deterministic_whole', 'weighted_pass_rate', 'document', '100 * sum(weight where passed) / sum(all weights)')",
+        [],
+    ).unwrap();
+    conn.execute(
+        "INSERT INTO calculation_rules (standard_id, bucket, calculation_method, scope, formula) VALUES (1, 'deterministic_section', 'weighted_pass_rate', 'section', '100 * sum(weight where passed) / sum(all weights)')",
+        [],
+    ).unwrap();
+    conn.execute(
+        "INSERT INTO calculation_rules (standard_id, bucket, calculation_method, formula) VALUES (1, 'final_score', 'weighted_sum', '0.25 * dw + 0.25 * ds + 0.25 * sw + 0.25 * ss')",
+        [],
+    ).unwrap();
+    conn.execute("INSERT INTO calculation_inputs (calculation_rule_id, name, weight, sort_order) VALUES (3, 'deterministic_whole', 25.0, 1)", []).unwrap();
+    conn.execute("INSERT INTO calculation_inputs (calculation_rule_id, name, weight, sort_order) VALUES (3, 'deterministic_section', 25.0, 2)", []).unwrap();
+    conn.execute("INSERT INTO calculation_inputs (calculation_rule_id, name, weight, sort_order) VALUES (3, 'semantic_whole', 25.0, 3)", []).unwrap();
+    conn.execute("INSERT INTO calculation_inputs (calculation_rule_id, name, weight, sort_order) VALUES (3, 'semantic_section', 25.0, 4)", []).unwrap();
+    let bands = vec![
+        ("Excellent", 95.0, 100.0),
+        ("Very Good", 90.0, 94.99),
+        ("Good", 80.0, 89.99),
+        ("Acceptable", 70.0, 79.99),
+        ("Needs Improvement", 0.0, 69.99),
+    ];
+    for (i, (rating, min, max)) in bands.iter().enumerate() {
+        conn.execute(
+            "INSERT INTO score_bands (standard_id, rating, min_score, max_score, sort_order) VALUES (1, ?1, ?2, ?3, ?4)",
+            rusqlite::params![rating, min, max, i as i64],
+        ).unwrap();
+    }
 
     tmp
 }

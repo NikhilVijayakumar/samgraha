@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 pub type StandardId = String;
 pub type StandardVersion = String;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct StandardDefinition {
     pub id: StandardId,
     pub name: String,
@@ -47,18 +47,25 @@ pub struct StandardRelationship {
     pub relationship: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AuditRuleDef {
     pub id: String,
     pub name: String,
     pub description: String,
     pub severity: String,
-    /// Check category — drives generic dispatch in DeterministicAuditProvider.
-    /// Values: "corpus_exists" | "has_title" | "has_section" | "no_implementation"
-    pub check_type: String,
-    /// Target for has_section checks: the heading text to look for (e.g. "Purpose").
-    /// Empty for other check types.
+    /// Evidence-check type — drives generic dispatch in DeterministicAuditProvider.
+    /// Values: "section_presence" | "keyword_absence" | "content_check" |
+    /// "cross_reference" | "word_count" | "script_result" | "llm_judgment" | ...
+    pub evidence_type: String,
+    /// Target for section-level checks: the heading text to look for.
+    /// Empty for document-scope checks.
     pub scope: String,
+    /// Weight for weighted scoring (higher = more important).
+    pub weight: f64,
+    /// Whether failing this rule is always an error regardless of score.
+    pub mandatory: bool,
+    /// Evidence-extractor parameters (key-value pairs from rule_evidence_params).
+    pub params: std::collections::HashMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

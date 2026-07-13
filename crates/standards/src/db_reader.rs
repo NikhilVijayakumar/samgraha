@@ -3,21 +3,6 @@ use anyhow::{Context, Result};
 use rusqlite::Connection;
 use schemas::standard::{AuditRuleDef, SectionDefinition, StandardDefinition, StandardRelationship};
 use std::collections::HashMap;
-use tracing::warn;
-
-/// Projection mapping from knowledge-hub `evidence_type` to the existing
-/// `AuditRuleDef.check_type` vocabulary. Only clean 1:1 maps survive;
-/// everything else is dropped with a log warning.
-fn map_evidence_type_to_check_type(evidence_type: &str) -> Option<&str> {
-    match evidence_type {
-        "section_presence" => Some("has_section"),
-        "keyword_absence" => Some("no_implementation"),
-        // content_check verifies presence; no_implementation verifies absence.
-        // Forcing one onto the other inverts the check's meaning — correctly
-        // excluded per Phase 1 scope.
-        _ => None,
-    }
-}
 
 /// Load semantic rubrics from the `templates` table — rows where
 /// `kind = 'audit_report'` and `audit_bucket = 'semantic'` hold full
@@ -47,12 +32,7 @@ pub fn load_semantic_rubrics(conn: &Connection) -> Result<HashMap<String, String
 
 /// Load a `StandardRegistry` from a `schema/knowledge-hub`-shaped SQLite
 /// database, projecting rows onto the existing `StandardDefinition` structs.
-///
-/// This is a lossy projection (Phase 1): only deterministic rules with
-/// a clean `evidence_type` → `check_type` mapping survive. Semantic rules,
-/// `content_check`, `cross_reference`, `word_count`, and `script_result`
-/// evidence types are dropped. See the proposal for the full coverage gap
-/// analysis.
+/// All deterministic rules survive (Phase 4); semantic rules are skipped.
 pub fn from_standards_db(conn: &Connection) -> Result<StandardRegistry> {
     let mut registry = StandardRegistry::new();
 
@@ -133,13 +113,33 @@ pub fn from_standards_db(conn: &Connection) -> Result<StandardRegistry> {
         }
     }
 
+    // Pre-load rule_evidence_params, grouped by rule_id.
+    let mut params_by_rule: std::collections::HashMap<i64, std::collections::HashMap<String, String>> =
+        std::collections::HashMap::new();
+    {
+        let mut stmt = conn.prepare(
+            "SELECT rule_id, param_key, param_value FROM rule_evidence_params ORDER BY rule_id, sort_order",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            let rule_id: i64 = row.get(0)?;
+            let key: String = row.get(1)?;
+            let value: String = row.get(2)?;
+            Ok((rule_id, key, value))
+        })?;
+        for row in rows {
+            let (rule_id, key, value) = row?;
+            params_by_rule.entry(rule_id).or_default().insert(key, value);
+        }
+    }
+
     // Pre-load deterministic rules, grouped by domain_id.
     let mut rules_by_domain: std::collections::HashMap<i64, Vec<AuditRuleDef>> =
         std::collections::HashMap::new();
     {
         let mut stmt = conn.prepare(
-            "SELECT r.domain_id, r.rule_key, r.description, r.severity,
+            "SELECT r.id, r.domain_id, r.rule_key, r.description, r.severity,
                     r.evidence_type, r.scope, r.section_catalog_id,
+                    r.weight, r.mandatory,
                     sc.name AS section_name
              FROM rules r
              LEFT JOIN section_catalog sc ON r.section_catalog_id = sc.id
@@ -147,54 +147,37 @@ pub fn from_standards_db(conn: &Connection) -> Result<StandardRegistry> {
              ORDER BY r.domain_id, r.rule_key",
         )?;
         let rows = stmt.query_map([standard_id], |row| {
-            let domain_id: i64 = row.get(0)?;
-            let rule_key: String = row.get(1)?;
-            let description: String = row.get(2)?;
-            let severity: String = row.get(3)?;
-            let evidence_type: String = row.get(4)?;
-            let _scope: String = row.get(5)?; // 'document' or 'section'
-            let section_catalog_id: Option<i64> = row.get(6)?;
-            let section_name: Option<String> = row.get(7)?;
+            let rule_id: i64 = row.get(0)?;
+            let domain_id: i64 = row.get(1)?;
+            let rule_key: String = row.get(2)?;
+            let description: String = row.get(3)?;
+            let severity: String = row.get(4)?;
+            let evidence_type: String = row.get(5)?;
+            let _scope: String = row.get(6)?;
+            let section_catalog_id: Option<i64> = row.get(7)?;
+            let weight: f64 = row.get(8)?;
+            let mandatory: bool = row.get(9)?;
+            let section_name: Option<String> = row.get(10)?;
             Ok((
-                domain_id,
-                rule_key,
-                description,
-                severity,
-                evidence_type,
-                section_catalog_id,
-                section_name,
+                rule_id, domain_id, rule_key, description, severity,
+                evidence_type, section_catalog_id, weight, mandatory, section_name,
             ))
         })?;
         for row in rows {
             let (
-                domain_id,
-                rule_key,
-                description,
-                severity,
-                evidence_type,
-                _section_catalog_id,
-                section_name,
+                rule_id, domain_id, rule_key, description, severity,
+                evidence_type, _section_catalog_id, weight, mandatory, section_name,
             ) = row?;
 
-            let check_type = match map_evidence_type_to_check_type(&evidence_type) {
-                Some(ct) => ct,
-                None => {
-                    warn!(
-                        rule_key = %rule_key,
-                        evidence_type = %evidence_type,
-                        "Dropping rule: no clean evidence_type → check_type projection"
-                    );
-                    continue;
-                }
-            };
-
-            // For has_section checks, scope = the heading text from section_catalog.
-            // For no_implementation and others, scope is empty.
-            let scope = if check_type == "has_section" {
+            // For section_presence checks, scope = heading text from section_catalog.
+            // For all others, scope is the raw DB scope value.
+            let scope = if evidence_type == "section_presence" {
                 section_name.unwrap_or_default()
             } else {
                 String::new()
             };
+
+            let params = params_by_rule.remove(&rule_id).unwrap_or_default();
 
             rules_by_domain.entry(domain_id).or_default().push(
                 AuditRuleDef {
@@ -202,8 +185,11 @@ pub fn from_standards_db(conn: &Connection) -> Result<StandardRegistry> {
                     name: description.clone(),
                     description,
                     severity,
-                    check_type: check_type.to_string(),
+                    evidence_type,
                     scope,
+                    weight,
+                    mandatory,
+                    params,
                 },
             );
         }
@@ -286,21 +272,6 @@ pub fn from_standards_db(conn: &Connection) -> Result<StandardRegistry> {
 mod tests {
     use super::*;
 
-    /// Verify the evidence_type → check_type mapping is complete for known types
-    /// and rejects unknowns.
-    #[test]
-    fn test_evidence_type_mapping() {
-        assert_eq!(map_evidence_type_to_check_type("section_presence"), Some("has_section"));
-        assert_eq!(map_evidence_type_to_check_type("keyword_absence"), Some("no_implementation"));
-        // These should NOT map — Phase 1 drops them.
-        assert_eq!(map_evidence_type_to_check_type("content_check"), None);
-        assert_eq!(map_evidence_type_to_check_type("cross_reference"), None);
-        assert_eq!(map_evidence_type_to_check_type("word_count"), None);
-        assert_eq!(map_evidence_type_to_check_type("script_result"), None);
-        assert_eq!(map_evidence_type_to_check_type("llm_judgment"), None);
-        assert_eq!(map_evidence_type_to_check_type("unknown_type"), None);
-    }
-
     /// Full pipeline test: create an in-memory DB with known data, load via
     /// from_standards_db(), verify all projections.
     #[test]
@@ -354,6 +325,13 @@ mod tests {
                 is_fallback INTEGER NOT NULL DEFAULT 0,
                 section_catalog_key INTEGER GENERATED ALWAYS AS (COALESCE(section_catalog_id, 0)) VIRTUAL,
                 UNIQUE(standard_id, domain_id, section_catalog_key, scope, kind, rule_key)
+            );
+            CREATE TABLE rule_evidence_params (
+                id INTEGER PRIMARY KEY,
+                rule_id INTEGER NOT NULL,
+                param_key TEXT NOT NULL,
+                param_value TEXT NOT NULL,
+                sort_order INTEGER NOT NULL DEFAULT 0
             );",
         )
         .unwrap();
@@ -425,10 +403,15 @@ mod tests {
             [],
         )
         .unwrap();
-        // content_check → DROPPED (no clean projection)
+        // content_check → kept (no longer dropped), with evidence params
         conn.execute(
             "INSERT INTO rules (id, standard_id, domain_id, rule_key, kind, scope, description, condition, message, severity, evidence_type)
              VALUES (3, 1, 1, 'vis-003', 'deterministic', 'document', 'Has overview', 'content present', 'Needs overview', 'error', 'content_check')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO rule_evidence_params (rule_id, param_key, param_value, sort_order) VALUES (3, 'keywords', 'overview,introduction,summary', 0)",
             [],
         )
         .unwrap();
@@ -480,27 +463,33 @@ mod tests {
         let constraints_section = vision.required_sections.iter().find(|s| s.semantic_type == "constraints").unwrap();
         assert!(!constraints_section.required);
 
-        // Vision rules: 3 of 4 deterministic survive (content_check dropped), semantic dropped.
-        assert_eq!(vision.audit_rules.len(), 3, "Expected 3 rules for vision, got {}", vision.audit_rules.len());
+        // Vision rules: all 4 deterministic survive (content_check no longer dropped), semantic dropped.
+        assert_eq!(vision.audit_rules.len(), 4, "Expected 4 rules for vision, got {}", vision.audit_rules.len());
         let rule_ids: Vec<&str> = vision.audit_rules.iter().map(|r| r.id.as_str()).collect();
         assert!(rule_ids.contains(&"vis-001"));
         assert!(rule_ids.contains(&"vis-002"));
+        assert!(rule_ids.contains(&"vis-003"));
         assert!(rule_ids.contains(&"vis-004"));
 
-        // Check the has_section rule has scope from section_catalog.
+        // Check the section_presence rule has scope from section_catalog.
         let purpose_rule = vision.audit_rules.iter().find(|r| r.id == "vis-001").unwrap();
-        assert_eq!(purpose_rule.check_type, "has_section");
+        assert_eq!(purpose_rule.evidence_type, "section_presence");
         assert_eq!(purpose_rule.scope, "Purpose");
 
-        // Check the no_implementation rule has empty scope.
+        // Check the keyword_absence rule has empty scope.
         let no_impl_rule = vision.audit_rules.iter().find(|r| r.id == "vis-002").unwrap();
-        assert_eq!(no_impl_rule.check_type, "no_implementation");
+        assert_eq!(no_impl_rule.evidence_type, "keyword_absence");
         assert_eq!(no_impl_rule.scope, "");
 
         // Check section_presence without section_catalog_id.
         let doc_rule = vision.audit_rules.iter().find(|r| r.id == "vis-004").unwrap();
-        assert_eq!(doc_rule.check_type, "has_section");
+        assert_eq!(doc_rule.evidence_type, "section_presence");
         assert_eq!(doc_rule.scope, ""); // no section catalog entry
+
+        // Check content_check rule is kept with params.
+        let cc_rule = vision.audit_rules.iter().find(|r| r.id == "vis-003").unwrap();
+        assert_eq!(cc_rule.evidence_type, "content_check");
+        assert_eq!(cc_rule.params.get("keywords").unwrap(), "overview,introduction,summary");
 
         // Relationships.
         assert_eq!(vision.relationships.len(), 1);

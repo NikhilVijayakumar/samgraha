@@ -79,46 +79,8 @@ impl DeterministicAuditProvider {
     }
 
     fn check_rule(documents: &[Document], rule: &AuditRuleDef) -> Vec<AuditFinding> {
-        match rule.check_type.as_str() {
-            "corpus_exists" => {
-                if documents.is_empty() {
-                    vec![AuditFinding {
-                        check_id: rule.id.clone(),
-                        severity: Severity::from_str(&rule.severity),
-                        message: rule.description.clone(),
-                        location: None,
-                        document_id: None,
-                        provider: "deterministic".into(),
-                        stage: None,
-                        section_id: None,
-                        confidence: None,
-                        evidence: None,
-                        status: None,
-                        strategy: None,
-                    }]
-                } else {
-                    vec![]
-                }
-            }
-            "has_title" => documents
-                .par_iter()
-                .filter(|doc| doc.title.trim().is_empty())
-                .map(|doc| AuditFinding {
-                    check_id: rule.id.clone(),
-                    severity: Severity::from_str(&rule.severity),
-                    message: format!("{}: '{}'", rule.description, doc.path.as_str()),
-                    location: Some(doc.path.as_str().to_string()),
-                    document_id: Some(doc.id),
-                    provider: "deterministic".into(),
-                    stage: None,
-                    section_id: None,
-                    confidence: None,
-                    evidence: None,
-                    status: None,
-                    strategy: None,
-                })
-                .collect(),
-            "has_section" => {
+        match rule.evidence_type.as_str() {
+            "section_presence" => {
                 let section_key = rule
                     .scope
                     .to_lowercase()
@@ -159,7 +121,7 @@ impl DeterministicAuditProvider {
                     })
                     .collect()
             }
-            "no_implementation" => documents
+            "keyword_absence" => documents
                 .par_iter()
                 .filter(|doc| has_implementation_details(doc.body.raw()))
                 .map(|doc| AuditFinding {
@@ -177,6 +139,93 @@ impl DeterministicAuditProvider {
                     strategy: None,
                 })
                 .collect(),
+            "content_check" => {
+                let keywords: Vec<String> = rule.params.get("keywords")
+                    .map(|k| k.split(',').map(|s| s.trim().to_lowercase()).collect())
+                    .unwrap_or_default();
+                let pattern = rule.params.get("pattern").cloned().unwrap_or_default();
+                documents
+                    .par_iter()
+                    .filter(|doc| {
+                        let body_lower = doc.body.raw().to_lowercase();
+                        // Check if any keyword is missing from the document.
+                        if !keywords.is_empty() {
+                            return keywords.iter().any(|kw| !body_lower.contains(kw.as_str()));
+                        }
+                        // Check if pattern is absent.
+                        if !pattern.is_empty() {
+                            return !body_lower.contains(pattern.as_str());
+                        }
+                        false
+                    })
+                    .map(|doc| AuditFinding {
+                        check_id: rule.id.clone(),
+                        severity: Severity::from_str(&rule.severity),
+                        message: format!("{}: '{}'", rule.description, doc.path.as_str()),
+                        location: Some(doc.path.as_str().to_string()),
+                        document_id: Some(doc.id),
+                        provider: "deterministic".into(),
+                        stage: None,
+                        section_id: None,
+                        confidence: None,
+                        evidence: None,
+                        status: None,
+                        strategy: None,
+                    })
+                    .collect()
+            }
+            "word_count" => {
+                let max_words: usize = rule.params.get("max_words")
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(5000);
+                documents
+                    .par_iter()
+                    .filter(|doc| doc.body.raw().split_whitespace().count() > max_words)
+                    .map(|doc| AuditFinding {
+                        check_id: rule.id.clone(),
+                        severity: Severity::from_str(&rule.severity),
+                        message: format!("{}: '{}'", rule.description, doc.path.as_str()),
+                        location: Some(doc.path.as_str().to_string()),
+                        document_id: Some(doc.id),
+                        provider: "deterministic".into(),
+                        stage: None,
+                        section_id: None,
+                        confidence: None,
+                        evidence: None,
+                        status: None,
+                        strategy: None,
+                    })
+                    .collect()
+            }
+            "cross_reference" => {
+                let expected_domains: Vec<String> = rule.params.get("expected_domains")
+                    .map(|d| d.split(',').map(|s| s.trim().to_string()).collect())
+                    .unwrap_or_default();
+                documents
+                    .par_iter()
+                    .filter(|doc| {
+                        let body_lower = doc.body.raw().to_lowercase();
+                        expected_domains.iter().any(|domain| {
+                            let domain_lower = domain.to_lowercase();
+                            !body_lower.contains(domain_lower.as_str())
+                        })
+                    })
+                    .map(|doc| AuditFinding {
+                        check_id: rule.id.clone(),
+                        severity: Severity::from_str(&rule.severity),
+                        message: format!("{}: '{}'", rule.description, doc.path.as_str()),
+                        location: Some(doc.path.as_str().to_string()),
+                        document_id: Some(doc.id),
+                        provider: "deterministic".into(),
+                        stage: None,
+                        section_id: None,
+                        confidence: None,
+                        evidence: None,
+                        status: None,
+                        strategy: None,
+                    })
+                    .collect()
+            }
             _ => vec![],
         }
     }
