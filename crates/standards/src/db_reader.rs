@@ -1,6 +1,7 @@
 use crate::StandardRegistry;
 use anyhow::{Context, Result};
 use rusqlite::Connection;
+use schemas::audit::{CalculationInput, CalculationRule, ScoringConfig, ScoreBand};
 use schemas::standard::{AuditRuleDef, SectionDefinition, StandardDefinition, StandardRelationship};
 use std::collections::HashMap;
 
@@ -28,6 +29,62 @@ pub fn load_semantic_rubrics(conn: &Connection) -> Result<HashMap<String, String
         rubrics.insert(key, content);
     }
     Ok(rubrics)
+}
+
+/// Load scoring configuration from `calculation_rules`, `calculation_inputs`,
+/// and `score_bands` tables.
+pub fn load_scoring_config(conn: &Connection) -> Result<ScoringConfig> {
+    let mut calc_rules = Vec::new();
+    let mut stmt = conn.prepare(
+        "SELECT bucket, calculation_method, formula FROM calculation_rules",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok(CalculationRule {
+            bucket: row.get(0)?,
+            calculation_method: row.get(1)?,
+            formula: row.get(2)?,
+        })
+    })?;
+    for row in rows {
+        calc_rules.push(row?);
+    }
+
+    let mut calc_inputs = Vec::new();
+    let mut stmt = conn.prepare(
+        "SELECT ci.name, ci.weight FROM calculation_inputs ci
+         JOIN calculation_rules cr ON ci.calculation_rule_id = cr.id
+         WHERE cr.bucket = 'final_score' ORDER BY ci.sort_order",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok(CalculationInput {
+            name: row.get(0)?,
+            weight: row.get(1)?,
+        })
+    })?;
+    for row in rows {
+        calc_inputs.push(row?);
+    }
+
+    let mut bands = Vec::new();
+    let mut stmt = conn.prepare(
+        "SELECT rating, min_score, max_score FROM score_bands ORDER BY sort_order",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok(ScoreBand {
+            rating: row.get(0)?,
+            min_score: row.get(1)?,
+            max_score: row.get(2)?,
+        })
+    })?;
+    for row in rows {
+        bands.push(row?);
+    }
+
+    Ok(ScoringConfig {
+        calculation_rules: calc_rules,
+        calculation_inputs: calc_inputs,
+        score_bands: bands,
+    })
 }
 
 /// Load a `StandardRegistry` from a `schema/knowledge-hub`-shaped SQLite
@@ -262,6 +319,18 @@ pub fn from_standards_db(conn: &Connection) -> Result<StandardRegistry> {
         }
         Err(e) => {
             tracing::warn!("Failed to load semantic rubrics: {}", e);
+        }
+    }
+
+    // Load scoring configuration.
+    match load_scoring_config(conn) {
+        Ok(scoring) => {
+            let count = scoring.calculation_rules.len();
+            registry.set_scoring(scoring);
+            tracing::info!("Loaded scoring config ({} calculation rules)", count);
+        }
+        Err(e) => {
+            tracing::warn!("Failed to load scoring config: {}", e);
         }
     }
 

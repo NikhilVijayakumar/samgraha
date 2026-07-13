@@ -5005,6 +5005,8 @@ mod tests {
                 documents_checked: 1,
                 documents_passed: 1,
                 findings_count: 1,
+                rating: "Good".to_string(),
+                bucket_scores: HashMap::new(),
             },
             findings: vec![AuditFinding {
                 check_id: "vision-002".to_string(),

@@ -216,6 +216,43 @@ pub struct AuditScore {
     pub documents_checked: usize,
     pub documents_passed: usize,
     pub findings_count: usize,
+    /// Band rating resolved from score_bands (e.g. "Excellent", "Good").
+    #[serde(default)]
+    pub rating: String,
+    /// Per-bucket scores (e.g. "deterministic_whole" → 92.5).
+    #[serde(default)]
+    pub bucket_scores: std::collections::HashMap<String, f64>,
+}
+
+/// A scoring calculation rule — one per bucket defined by a standard.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CalculationRule {
+    pub bucket: String,
+    pub calculation_method: String,
+    pub formula: String,
+}
+
+/// A weighted input to a calculation rule (e.g. final_score's 25/25/25/25).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CalculationInput {
+    pub name: String,
+    pub weight: f64,
+}
+
+/// A rating band threshold (e.g. Excellent 95-100).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ScoreBand {
+    pub rating: String,
+    pub min_score: f64,
+    pub max_score: f64,
+}
+
+/// Full scoring configuration loaded from calculation_rules + calculation_inputs + score_bands.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct ScoringConfig {
+    pub calculation_rules: Vec<CalculationRule>,
+    pub calculation_inputs: Vec<CalculationInput>,
+    pub score_bands: Vec<ScoreBand>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

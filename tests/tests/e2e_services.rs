@@ -20,6 +20,8 @@ fn test_quality_gate_passes() {
         documents_checked: 10,
         documents_passed: 10,
         findings_count: 0,
+        rating: "Excellent".to_string(),
+        bucket_scores: HashMap::new(),
     };
     let report = schemas::audit::AuditReport {
         id: "test".into(),

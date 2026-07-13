@@ -1,5 +1,6 @@
 use crate::loader::StandardLoader;
 use anyhow::{Context, Result};
+use schemas::audit::ScoringConfig;
 use schemas::standard::{AuditRuleDef, StandardDeclaration, StandardDefinition};
 use std::collections::HashMap;
 use std::path::Path;
@@ -8,6 +9,7 @@ use std::path::Path;
 pub struct StandardRegistry {
     standards: HashMap<String, StandardDefinition>,
     rubrics: HashMap<String, String>,
+    scoring: ScoringConfig,
 }
 
 impl StandardRegistry {
@@ -15,6 +17,7 @@ impl StandardRegistry {
         Self {
             standards: HashMap::new(),
             rubrics: HashMap::new(),
+            scoring: ScoringConfig::default(),
         }
     }
 
@@ -109,6 +112,10 @@ impl StandardRegistry {
         for (key, content) in other.rubrics {
             self.rubrics.entry(key).or_insert(content);
         }
+        // Keep own scoring if both have one (first wins).
+        if self.scoring.calculation_rules.is_empty() && !other.scoring.calculation_rules.is_empty() {
+            self.scoring = other.scoring;
+        }
     }
 
     /// Set the semantic audit rubrics (loaded from `templates` table).
@@ -125,6 +132,16 @@ impl StandardRegistry {
             .get(&key)
             .map(|s| s.as_str())
             .with_context(|| format!("No audit knowledge for {}/{}", domain, section_type))
+    }
+
+    /// Retrieve the scoring configuration.
+    pub fn scoring_config(&self) -> &ScoringConfig {
+        &self.scoring
+    }
+
+    /// Set the scoring configuration (loaded from DB).
+    pub fn set_scoring(&mut self, scoring: ScoringConfig) {
+        self.scoring = scoring;
     }
 }
 

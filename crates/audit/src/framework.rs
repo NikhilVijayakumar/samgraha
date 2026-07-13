@@ -132,39 +132,94 @@ impl AuditFramework {
             .count();
         let passed = total.saturating_sub(error_count);
 
+        // --- Weighted scoring (Phase 4) ---
+        let scoring = self.standard_registry.scoring_config();
+        let mut bucket_scores: HashMap<String, f64> = HashMap::new();
         let mut cat_scores: HashMap<String, f64> = HashMap::new();
+
         for std in &standards {
-            let domain_findings: Vec<&AuditFinding> = all_findings
-                .iter()
-                .filter(|f| {
-                    f.document_id
-                        .and_then(|id| domain_docs.iter().find(|d| d.id == id))
-                        .map_or(false, |d| d.standard == std.domain)
-                })
-                .collect();
-            let domain_total = domain_docs
+            let domain_rules: Vec<&AuditRuleDef> = std.audit_rules.iter().collect();
+            let domain_docs_list: Vec<&Document> = domain_docs
                 .iter()
                 .filter(|d| d.standard == std.domain)
-                .count();
-            let errors = domain_findings
-                .iter()
-                .filter(|f| f.severity == Severity::Error)
-                .count();
-            let score = if domain_total == 0 {
+                .collect();
+
+            if domain_rules.is_empty() || domain_docs_list.is_empty() {
+                cat_scores.insert(std.domain.clone(), 100.0);
+                continue;
+            }
+
+            let total_weight: f64 = domain_rules.iter().map(|r| r.weight).sum();
+            let mut doc_scores = Vec::new();
+
+            for doc in &domain_docs_list {
+                let failed_ids: std::collections::HashSet<&str> = all_findings
+                    .iter()
+                    .filter(|f| f.document_id == Some(doc.id))
+                    .map(|f| f.check_id.as_str())
+                    .collect();
+
+                let passed_weight: f64 = domain_rules
+                    .iter()
+                    .filter(|r| !failed_ids.contains(r.id.as_str()))
+                    .map(|r| r.weight)
+                    .sum();
+
+                let doc_score = if total_weight > 0.0 {
+                    (passed_weight / total_weight) * 100.0
+                } else {
+                    100.0
+                };
+                doc_scores.push(doc_score);
+            }
+
+            let section_score = if doc_scores.is_empty() {
                 100.0
             } else {
-                let passed = domain_total.saturating_sub(errors);
-                (passed as f64 / domain_total as f64) * 100.0
+                doc_scores.iter().sum::<f64>() / doc_scores.len() as f64
             };
-            cat_scores.insert(std.domain.clone(), score);
+
+            bucket_scores.insert(
+                format!("{}_deterministic_section", std.domain),
+                section_score,
+            );
+            cat_scores.insert(std.domain.clone(), section_score);
         }
 
-        let overall = if total == 0 {
-            100.0
+        // Document bucket mirrors section for now.
+        for (k, v) in bucket_scores.clone() {
+            if k.ends_with("_deterministic_section") {
+                let doc_key = k.replace("_deterministic_section", "_deterministic_whole");
+                bucket_scores.insert(doc_key, v);
+            }
+        }
+
+        // Final score: weighted sum of buckets (default 25/25/25/25).
+        let final_inputs: Vec<(&str, f64)> = scoring
+            .calculation_inputs
+            .iter()
+            .map(|ci| (ci.name.as_str(), ci.weight))
+            .collect();
+
+        let total_weight: f64 = final_inputs.iter().map(|(_, w)| w).sum();
+        let overall = if total_weight > 0.0 {
+            final_inputs
+                .iter()
+                .map(|(name, weight)| {
+                    let bucket_score = bucket_scores.get(*name).copied().unwrap_or(100.0);
+                    (bucket_score / 100.0) * weight
+                })
+                .sum::<f64>()
         } else {
-            let passed = total.saturating_sub(error_count);
-            (passed as f64 / total as f64) * 100.0
+            100.0
         };
+
+        let rating = scoring
+            .score_bands
+            .iter()
+            .find(|band| overall >= band.min_score && overall <= band.max_score)
+            .map(|band| band.rating.clone())
+            .unwrap_or_else(|| "Unknown".to_string());
 
         let readiness = if overall >= 90.0 && error_count == 0 {
             ReadinessAssessment::Production
@@ -186,6 +241,8 @@ impl AuditFramework {
             documents_checked: total,
             documents_passed: passed,
             findings_count: all_findings.len(),
+            rating,
+            bucket_scores,
         };
 
         let report = AuditReport {
