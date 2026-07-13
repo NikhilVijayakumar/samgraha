@@ -22,3 +22,4 @@ chrono.workspace = true
 toml.workspace = true
 toml_edit.workspace = true
 notify = { version = "6", features = ["macos_kqueue"] }
+rusqlite.workspace = true

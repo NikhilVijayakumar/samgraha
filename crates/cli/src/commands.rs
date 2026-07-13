@@ -221,6 +221,18 @@ pub enum StandardsAction {
         #[arg(short, long, help = "Version (default: 1.0.0)")]
         version: Option<String>,
     },
+
+    #[command(about = "Register a standard from a knowledge-hub directory")]
+    Register {
+        #[arg(long = "path", help = "Path to knowledge-hub directory")]
+        path: PathBuf,
+    },
+
+    #[command(about = "Remove a standard by name")]
+    Remove {
+        #[arg(help = "Standard name (e.g. 'documentation-standards')")]
+        name: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -1136,6 +1148,45 @@ impl Cli {
                     "{}",
                     format_output(&serde_json::to_value(std)?, format)
                 );
+            }
+            StandardsAction::Register { path } => {
+                let db_path = root.join(".samgraha").join("standards.db");
+                if !path.exists() {
+                    anyhow::bail!("Path does not exist: {}", path.display());
+                }
+                
+                let loader = std::env::current_exe()?
+                    .parent().ok_or_else(|| anyhow::anyhow!("Cannot determine binary directory"))?
+                    .join("..").join("schema").join("knowledge-hub").join("knowledge-hub-loader.py");
+                
+                println!("Registering standard from {}...", path.display());
+                let output = std::process::Command::new("python3")
+                    .arg(&loader)
+                    .arg("--db").arg(&db_path)
+                    .arg("--knowledge-hub").arg(path)
+                    .output()
+                    .map_err(|e| anyhow::anyhow!("Failed to run loader: {}", e))?;
+                    
+                if !output.status.success() {
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    anyhow::bail!("Loader failed: {}", stderr);
+                }
+                println!("Standard registered successfully.");
+            }
+            StandardsAction::Remove { name } => {
+                let db_path = root.join(".samgraha").join("standards.db");
+                if db_path.exists() {
+                    let conn = rusqlite::Connection::open(&db_path)?;
+                    conn.execute("PRAGMA foreign_keys = ON", [])?;
+                    let rows = conn.execute("DELETE FROM standards WHERE name = ?", [name])?;
+                    if rows > 0 {
+                        println!("Removed standard '{}'", name);
+                    } else {
+                        println!("Standard '{}' not found", name);
+                    }
+                } else {
+                    println!("No standards.db found");
+                }
             }
         }
 
