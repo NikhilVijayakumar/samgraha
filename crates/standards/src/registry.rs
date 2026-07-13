@@ -1,7 +1,7 @@
 use crate::loader::StandardLoader;
 use anyhow::{Context, Result};
 use schemas::audit::ScoringConfig;
-use schemas::standard::{AuditRuleDef, StandardDeclaration, StandardDefinition};
+use schemas::standard::{AuditRuleDef, StandardDeclaration, StandardDefinition, PlanSetting, PlanScenario, ScriptCheck};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -10,6 +10,9 @@ pub struct StandardRegistry {
     standards: HashMap<String, StandardDefinition>,
     rubrics: HashMap<String, String>,
     scoring: ScoringConfig,
+    plan_settings: Vec<PlanSetting>,
+    plan_scenarios: Vec<PlanScenario>,
+    script_checks: Vec<ScriptCheck>,
 }
 
 impl StandardRegistry {
@@ -18,6 +21,9 @@ impl StandardRegistry {
             standards: HashMap::new(),
             rubrics: HashMap::new(),
             scoring: ScoringConfig::default(),
+            plan_settings: Vec::new(),
+            plan_scenarios: Vec::new(),
+            script_checks: Vec::new(),
         }
     }
 
@@ -142,6 +148,30 @@ impl StandardRegistry {
     /// Set the scoring configuration (loaded from DB).
     pub fn set_scoring(&mut self, scoring: ScoringConfig) {
         self.scoring = scoring;
+    }
+
+    pub fn plan_settings(&self) -> &[PlanSetting] {
+        &self.plan_settings
+    }
+
+    pub fn set_plan_settings(&mut self, settings: Vec<PlanSetting>) {
+        self.plan_settings = settings;
+    }
+
+    pub fn plan_scenarios(&self) -> &[PlanScenario] {
+        &self.plan_scenarios
+    }
+
+    pub fn set_plan_scenarios(&mut self, scenarios: Vec<PlanScenario>) {
+        self.plan_scenarios = scenarios;
+    }
+
+    pub fn script_checks(&self) -> &[ScriptCheck] {
+        &self.script_checks
+    }
+
+    pub fn set_script_checks(&mut self, checks: Vec<ScriptCheck>) {
+        self.script_checks = checks;
     }
 }
 

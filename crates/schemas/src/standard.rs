@@ -146,3 +146,31 @@ pub const BUILTIN_DOMAINS: &[&str] = &[
     "help",
     "standards",
 ];
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PlanSetting {
+    pub threshold_rating: String,
+    pub max_iterations: i32,
+    pub fallback: String,
+    pub note: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PlanScenario {
+    pub repo_state: String,
+    pub doc_state: String,
+    pub tier: i32,
+    pub step: String,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ScriptCheck {
+    pub check_name: String,
+    pub domain_id: Option<String>,
+    pub category: Option<String>,
+    pub timeout_seconds: i32,
+    pub requires_network: bool,
+    pub result_schema: String,
+    pub description: Option<String>,
+}

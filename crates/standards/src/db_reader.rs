@@ -2,7 +2,7 @@ use crate::StandardRegistry;
 use anyhow::{Context, Result};
 use rusqlite::Connection;
 use schemas::audit::{CalculationInput, CalculationRule, ScoringConfig, ScoreBand};
-use schemas::standard::{AuditRuleDef, SectionDefinition, StandardDefinition, StandardRelationship};
+use schemas::standard::{AuditRuleDef, SectionDefinition, StandardDefinition, StandardRelationship, PlanSetting, PlanScenario, ScriptCheck};
 use std::collections::HashMap;
 
 /// Load semantic rubrics from the `templates` table — rows where
@@ -85,6 +85,71 @@ pub fn load_scoring_config(conn: &Connection) -> Result<ScoringConfig> {
         calculation_inputs: calc_inputs,
         score_bands: bands,
     })
+}
+
+pub fn load_plan_settings(conn: &Connection, standard_id: i64) -> Result<Vec<PlanSetting>> {
+    let mut settings = Vec::new();
+    let mut stmt = conn.prepare(
+        "SELECT threshold_rating, max_iterations, fallback, note FROM plan_settings WHERE standard_id = ?"
+    )?;
+    let rows = stmt.query_map([standard_id], |row| {
+        Ok(PlanSetting {
+            threshold_rating: row.get(0)?,
+            max_iterations: row.get(1)?,
+            fallback: row.get(2)?,
+            note: row.get(3)?,
+        })
+    })?;
+    for row in rows {
+        settings.push(row?);
+    }
+    Ok(settings)
+}
+
+pub fn load_plan_scenarios(conn: &Connection, standard_id: i64) -> Result<Vec<PlanScenario>> {
+    let mut scenarios = Vec::new();
+    let mut stmt = conn.prepare(
+        "SELECT repo_state, doc_state, tier, step, content FROM plan_scenarios WHERE standard_id = ?"
+    )?;
+    let rows = stmt.query_map([standard_id], |row| {
+        Ok(PlanScenario {
+            repo_state: row.get(0)?,
+            doc_state: row.get(1)?,
+            tier: row.get(2)?,
+            step: row.get(3)?,
+            content: row.get(4)?,
+        })
+    })?;
+    for row in rows {
+        scenarios.push(row?);
+    }
+    Ok(scenarios)
+}
+
+pub fn load_script_checks(conn: &Connection, standard_id: i64) -> Result<Vec<ScriptCheck>> {
+    let mut checks = Vec::new();
+    let mut stmt = conn.prepare(
+        "SELECT sc.check_name, d.key as domain_key, sc.category, sc.timeout_seconds, sc.requires_network, sc.result_schema, sc.description 
+         FROM script_checks sc 
+         LEFT JOIN domains d ON sc.domain_id = d.id 
+         WHERE sc.standard_id = ?"
+    )?;
+    let rows = stmt.query_map([standard_id], |row| {
+        let req_network: i32 = row.get(4)?;
+        Ok(ScriptCheck {
+            check_name: row.get(0)?,
+            domain_id: row.get(1)?,
+            category: row.get(2)?,
+            timeout_seconds: row.get(3)?,
+            requires_network: req_network != 0,
+            result_schema: row.get(5)?,
+            description: row.get(6)?,
+        })
+    })?;
+    for row in rows {
+        checks.push(row?);
+    }
+    Ok(checks)
 }
 
 /// Load a `StandardRegistry` from a `schema/knowledge-hub`-shaped SQLite
@@ -332,6 +397,33 @@ pub fn from_standards_db(conn: &Connection) -> Result<StandardRegistry> {
         Err(e) => {
             tracing::warn!("Failed to load scoring config: {}", e);
         }
+    }
+
+    match load_plan_settings(conn, standard_id) {
+        Ok(settings) => {
+            let count = settings.len();
+            registry.set_plan_settings(settings);
+            tracing::info!("Loaded {} plan settings", count);
+        }
+        Err(e) => tracing::warn!("Failed to load plan settings: {}", e),
+    }
+
+    match load_plan_scenarios(conn, standard_id) {
+        Ok(scenarios) => {
+            let count = scenarios.len();
+            registry.set_plan_scenarios(scenarios);
+            tracing::info!("Loaded {} plan scenarios", count);
+        }
+        Err(e) => tracing::warn!("Failed to load plan scenarios: {}", e),
+    }
+
+    match load_script_checks(conn, standard_id) {
+        Ok(checks) => {
+            let count = checks.len();
+            registry.set_script_checks(checks);
+            tracing::info!("Loaded {} script checks", count);
+        }
+        Err(e) => tracing::warn!("Failed to load script checks: {}", e),
     }
 
     Ok(registry)
