@@ -131,9 +131,22 @@ impl ContractRunner {
 }
 
 fn is_within(candidate: &Path, root: &Path) -> bool {
-    let candidate = std::path::absolute(candidate).unwrap_or_else(|_| candidate.to_path_buf());
-    let root = std::path::absolute(root).unwrap_or_else(|_| root.to_path_buf());
-    candidate.starts_with(&root)
+    // Prevent traversal attacks like /project_root/.. by canonicalizing if possible.
+    // If canonicalization fails (e.g. path doesn't exist), fall back to basic lexical
+    // checks but strictly reject any `..` components to prevent escaping.
+    let candidate_canon = std::fs::canonicalize(candidate);
+    let root_canon = std::fs::canonicalize(root);
+
+    if let (Ok(c), Ok(r)) = (candidate_canon, root_canon) {
+        c.starts_with(&r)
+    } else {
+        if candidate.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
+            return false;
+        }
+        let candidate = std::path::absolute(candidate).unwrap_or_else(|_| candidate.to_path_buf());
+        let root = std::path::absolute(root).unwrap_or_else(|_| root.to_path_buf());
+        candidate.starts_with(&root)
+    }
 }
 
 fn classify_freshness(artifact: &Path, source_mtime: Option<SystemTime>) -> Freshness {
