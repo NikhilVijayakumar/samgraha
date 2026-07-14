@@ -1,12 +1,12 @@
 use crate::protocol::{McpCapabilities, McpError, McpMessage, McpRequest, McpResponse};
 use anyhow::Result;
-use common::config::{parse_ttl_duration, SamgrahaConfig};
+use common::config::{parse_ttl_duration, RepositoryKind, SamgrahaConfig};
 use registry::RegistryStore;
 use schemas::audit::{AuditFinding, AuditStage, FindingStatus, SemanticReport};
 use schemas::compilation::{CompilationRequest, CompilationScope};
 use schemas::manifest::CachedRepoMetadata;
 use schemas::search::{RetrievalLevel, SearchQuery, SectionQuery};
-use services::compilation::{CompilationService, PipelineFactory};
+use services::compilation::PipelineFactory;
 use services::planner::write_meta_file;
 use services::project_planner::PlanOrchestrator;
 use services::registry_client::{FileRegistryClient, RegistryClient};
@@ -473,6 +473,18 @@ impl McpAdapter {
     }
 
     fn handle_search(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        // Repository Matrix: Search is not available for Knowledge Repositories.
+        // Knowledge Repositories produce systems for others to consume — they are
+        // not queried at runtime.
+        let runtime = self.runtime_for(req)?;
+        if runtime.context.config.repository.kind == RepositoryKind::Knowledge {
+            anyhow::bail!(
+                "Search is not available for Knowledge Repositories. \
+                 Use 'samgraha knowledge publish' to publish systems, \
+                 or 'samgraha knowledge pull' in a consuming repository."
+            );
+        }
+
         let query = req.params.get("query")
             .and_then(|v| v.as_str())
             .ok_or_else(|| anyhow::anyhow!("Missing 'query' parameter"))?;
@@ -499,7 +511,6 @@ impl McpAdapter {
         };
 
         let has_repo_path = req.params.contains_key("repo_path");
-        let runtime = self.runtime_for(req)?;
         let results = if has_repo_path {
             runtime.search(&search_query)?
         } else {
