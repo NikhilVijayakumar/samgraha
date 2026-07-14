@@ -6,7 +6,7 @@ use schemas::audit::{AuditFinding, AuditStage, FindingStatus, SemanticReport};
 use schemas::compilation::{CompilationRequest, CompilationScope};
 use schemas::manifest::CachedRepoMetadata;
 use schemas::search::{RetrievalLevel, SearchQuery, SectionQuery};
-use services::compilation::CompilationService;
+use services::compilation::{CompilationService, PipelineFactory};
 use services::planner::write_meta_file;
 use services::project_planner::PlanOrchestrator;
 use services::registry_client::{FileRegistryClient, RegistryClient};
@@ -418,7 +418,7 @@ impl McpAdapter {
         let db_path = root.join(".samgraha").join("knowledge.db");
         std::fs::create_dir_all(root.join(".samgraha"))?;
         let ext_registry = Arc::new(RegistryStore::open(&db_path)?);
-        CompilationService::execute(
+        PipelineFactory::compile(
             root,
             &target_config,
             request,

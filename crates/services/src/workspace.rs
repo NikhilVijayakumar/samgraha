@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tracing::info;
 
-use crate::compilation::CompilationService;
+use crate::compilation::PipelineFactory;
 use crate::search::SearchService;
 
 pub struct WorkspaceService;
@@ -103,7 +103,7 @@ impl WorkspaceService {
                 watch: false,
             };
 
-            match CompilationService::execute(
+            match PipelineFactory::compile(
                 &repo_root,
                 &repo_config,
                 &repo_request,

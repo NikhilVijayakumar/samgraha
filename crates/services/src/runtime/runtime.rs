@@ -1,5 +1,5 @@
 use crate::audit::AuditService;
-use crate::compilation::CompilationService;
+use crate::compilation::PipelineFactory;
 use crate::package::{PackageFormat, PackageRequest, PackageResult, PackageService};
 use crate::registry::{BoxedService, ServiceRegistry};
 use crate::resolution::{KnowledgeResolver, ResolutionResult};
@@ -114,7 +114,7 @@ impl KnowledgeRuntime {
                 return Ok(workspace_result_to_compilation(ws_result));
             }
         }
-        CompilationService::execute(
+        PipelineFactory::compile(
             &self.context.repository_root,
             &self.context.config,
             request,
@@ -191,6 +191,9 @@ impl KnowledgeRuntime {
             PipelineKind::DocumentationStructure => AuditService::run_pipeline(&DocumentationStructurePipeline, &ctx),
             PipelineKind::Dependency => AuditService::run_pipeline(&DependencyPipeline, &ctx),
             PipelineKind::Help => AuditService::run_pipeline(&HelpPipeline, &ctx),
+            PipelineKind::KnowledgeSystem => {
+                anyhow::bail!("KnowledgeSystem pipeline is not yet implemented");
+            }
             PipelineKind::Doc => {
                 anyhow::bail!("Use the standard audit() method for Documentation Audit");
             }
@@ -247,6 +250,9 @@ impl KnowledgeRuntime {
             PipelineKind::DocumentationStructure => AuditService::run_pipeline(&DocumentationStructurePipeline, &ctx),
             PipelineKind::Dependency => AuditService::run_pipeline(&DependencyPipeline, &ctx),
             PipelineKind::Help => AuditService::run_pipeline(&HelpPipeline, &ctx),
+            PipelineKind::KnowledgeSystem => {
+                anyhow::bail!("KnowledgeSystem pipeline is not yet implemented");
+            }
             PipelineKind::Doc => {
                 anyhow::bail!("Use the standard audit() method for Documentation Audit");
             }
@@ -979,6 +985,7 @@ impl KnowledgeRuntime {
                 }
                 Ok(report_id)
             }
+            PipelineKind::KnowledgeSystem => anyhow::bail!("KnowledgeSystem pipeline uses store_knowledge_system_report"),
             PipelineKind::Doc => anyhow::bail!("Doc pipeline uses audit() not run_pipeline()"),
         }
     }

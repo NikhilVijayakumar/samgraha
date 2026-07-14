@@ -16,6 +16,29 @@ use tracing::info;
 use uuid::Uuid;
 
 use crate::enrichment::EnrichmentService;
+use common::config::RepositoryKind;
+use compiler::KnowledgeSystemLoader;
+
+pub struct PipelineFactory;
+
+impl PipelineFactory {
+    pub fn compile<P: AsRef<Path>>(
+        root: P,
+        config: &SamgrahaConfig,
+        request: &CompilationRequest,
+        standard_registry: &StandardRegistry,
+        registry: Arc<RegistryStore>,
+    ) -> Result<CompilationResult> {
+        match config.repository.kind {
+            RepositoryKind::Repository => {
+                CompilationService::compile_repository(root, config, request, standard_registry, registry)
+            }
+            RepositoryKind::Knowledge => {
+                CompilationService::compile_knowledge(root, config, request, standard_registry, registry)
+            }
+        }
+    }
+}
 
 pub struct CompilationService;
 
@@ -51,7 +74,7 @@ pub fn read_existing_audit(root: &Path) -> (String, Option<String>) {
 }
 
 impl CompilationService {
-    pub fn execute<P: AsRef<Path>>(
+    pub fn compile_repository<P: AsRef<Path>>(
         root: P,
         config: &SamgrahaConfig,
         request: &CompilationRequest,
@@ -348,5 +371,37 @@ impl CompilationService {
             }
         }
         Ok(())
+    }
+
+    pub fn compile_knowledge<P: AsRef<Path>>(
+        root: P,
+        config: &SamgrahaConfig,
+        _request: &CompilationRequest,
+        _standard_registry: &StandardRegistry,
+        _registry: Arc<RegistryStore>,
+    ) -> Result<CompilationResult> {
+        let root = root.as_ref();
+        info!("Compiling Knowledge Repository at {:?}", root);
+
+        let systems_dir = root.join(&config.knowledge.root);
+        let discovered = KnowledgeSystemLoader::load_systems(&systems_dir)?;
+
+        info!("Discovered {} Knowledge Systems", discovered.len());
+
+        // In the future: build the Knowledge Package for each system.
+        // For now, return a successful compilation result.
+        Ok(CompilationResult {
+            success: true,
+            documents_found: discovered.len(),
+            documents_processed: discovered.len(),
+            documents_failed: 0,
+            documents_skipped: 0,
+            errors: vec![],
+            warnings: vec![],
+            diagnostics: vec![],
+            quality: None,
+            duration_ms: 0,
+            registry_path: None,
+        })
     }
 }

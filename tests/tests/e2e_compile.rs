@@ -6,7 +6,9 @@ use services::KnowledgeRuntime;
 
 #[test]
 fn test_compilation_service() {
-    let config = SamgrahaConfig::default();
+    let tmp_dir = tempfile::tempdir().unwrap();
+    let mut config = SamgrahaConfig::default();
+    config.repository.root = Some(tmp_dir.path().join("knowledge.db"));
     let root = std::env::current_dir().unwrap();
     let runtime = KnowledgeRuntime::new(&root, config).unwrap();
 
@@ -25,7 +27,9 @@ fn compile_populates_repository_metadata() {
     // created by the V30 migration but nothing ever wrote to it — this
     // drives a real compile and checks the table is actually populated
     // afterward, not just that the schema exists.
-    let config = SamgrahaConfig::default();
+    let tmp_dir = tempfile::tempdir().unwrap();
+    let mut config = SamgrahaConfig::default();
+    config.repository.root = Some(tmp_dir.path().join("knowledge.db"));
     let root = std::env::current_dir().unwrap();
     let runtime = KnowledgeRuntime::new(&root, config).unwrap();
 
@@ -51,7 +55,9 @@ fn audit_registers_default_providers() {
     // silently missed, so `audit` returned 0 findings / 100 score for every
     // domain, every repo, every time (via MCP; the CLI masked it by
     // registering providers locally right before calling audit()).
-    let config = SamgrahaConfig::default();
+    let tmp_dir = tempfile::tempdir().unwrap();
+    let mut config = SamgrahaConfig::default();
+    config.repository.root = Some(tmp_dir.path().join("knowledge.db"));
     let root = std::env::current_dir().unwrap();
     let runtime = KnowledgeRuntime::new(&root, config).unwrap();
 
@@ -85,4 +91,23 @@ fn test_standard_registry_db_backed() {
     assert!(!arch.required_sections.is_empty(), "architecture should have sections");
 
     std::fs::remove_dir_all(&tmp).ok();
+}
+
+#[test]
+fn test_knowledge_system_compilation() {
+    use common::config::RepositoryKind;
+    let tmp_dir = tempfile::tempdir().unwrap();
+    let mut config = SamgrahaConfig::default();
+    config.repository.kind = RepositoryKind::Knowledge;
+    config.repository.root = Some(tmp_dir.path().join("knowledge.db"));
+    let root = std::env::current_dir().unwrap();
+    let runtime = KnowledgeRuntime::new(&root, config).unwrap();
+
+    let request = CompilationRequest {
+        scope: CompilationScope::Repository,
+        force: false,
+        watch: false,
+    };
+    let result = runtime.compile(&request).unwrap();
+    assert_eq!(result.success, true);
 }
