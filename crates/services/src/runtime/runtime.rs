@@ -1772,13 +1772,18 @@ impl KnowledgeRuntime {
                 .map(|s| s.name().to_string())
                 .collect(),
             policy: self.policy.clone(),
-            builtin_stores: [("help", "help.db"), ("standards", "standards.db")]
-                .iter()
-                .map(|(domain, filename)| {
-                    let present = common::env::mcp_dir().join(filename).exists();
-                    format!("{} ({})", domain, if present { "available, run `standards sync`" } else { "not shipped" })
-                })
-                .collect(),
+            builtin_stores: {
+                let mut stores = Vec::new();
+                // help.db: compiled from product-guide source
+                let help_path = common::env::mcp_dir().join("help.db");
+                let help_status = if help_path.exists() { "available" } else { "not shipped" };
+                stores.push(format!("help ({})", help_status));
+                // knowledge.db: empty schema, populated by `standards register`
+                let knowledge_path = common::env::mcp_dir().join("knowledge.db");
+                let knowledge_status = if knowledge_path.exists() { "available (register a system)" } else { "not shipped" };
+                stores.push(format!("knowledge ({})", knowledge_status));
+                stores
+            },
         }
     }
 

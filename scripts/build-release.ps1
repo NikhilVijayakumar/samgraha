@@ -73,8 +73,9 @@ foreach ($dir in @("documentation-standards", "audit", "audit-standards")) {
 }
 
 # === Built-in Knowledge Sources ===
+# Only help.db is compiled from source; knowledge.db ships as an empty schema
+# that gets populated when a user registers their Knowledge System.
 $builtinSources = @(
-    @{ name = "standards"; path = "docs/raw/documentation-standards" },
     @{ name = "help"; path = "docs/raw/product-guide" }
 )
 
@@ -100,6 +101,33 @@ foreach ($src in $builtinSources) {
         throw "$($src.name) compile produced no knowledge.db at $dbSource"
     }
 }
+
+# === Empty Knowledge DB (schema only) ===
+# knowledge.db ships with the schema skeleton but no system rows.
+# Users populate it by running `standards register` with their Knowledge System.
+$schemaDir = Join-Path $root "schema\knowledge-hub"
+$knowledgeDb = Join-Path "$pkgDir\bin" "knowledge.db"
+if (Test-Path "$schemaDir\knowledge-hub-loader.py") {
+    Write-Host "==> Creating empty knowledge.db (schema only)..." -ForegroundColor Yellow
+    $sqlFiles = Get-ChildItem "$schemaDir\*.sql" | Sort-Object Name
+    & python3 -c @"
+import sqlite3, glob, os
+conn = sqlite3.connect(r'$knowledgeDb')
+conn.execute('PRAGMA foreign_keys = ON')
+for f in sorted(glob.glob(r'$schemaDir\*.sql')):
+    with open(f) as fh:
+        conn.executescript(fh.read())
+conn.execute('PRAGMA user_version = 1')
+conn.close()
+print('  -> $knowledgeDb (empty schema)')
+"@
+}
+
+# Ship schema + loader for Knowledge System registration
+New-Item -ItemType Directory -Force "$pkgDir\schema\knowledge-hub" | Out-Null
+Copy-Item "$schemaDir\*.sql" "$pkgDir\schema\knowledge-hub\" -Force
+Copy-Item "$schemaDir\knowledge-hub-loader.py" "$pkgDir\schema\knowledge-hub\" -Force
+Write-Host "  -> schema/knowledge-hub/ (loader + schema files)" -ForegroundColor Cyan
 
 # Launcher scripts
 $runCmdLines = @(

@@ -81,8 +81,9 @@ done
 # === Built-in Knowledge Sources ===
 # load_builtin_stores() (crates/services/src/builtin.rs) looks next to the running
 # binary (current_exe().parent()), i.e. bin/ — not the package root.
+# Only help.db is compiled from source; knowledge.db ships as an empty schema
+# that gets populated when a user registers their Knowledge System.
 declare -A BUILTIN_SOURCES=(
-    [standards]="docs/raw/documentation-standards"
     [help]="docs/raw/product-guide"
 )
 for name in "${!BUILTIN_SOURCES[@]}"; do
@@ -103,6 +104,32 @@ for name in "${!BUILTIN_SOURCES[@]}"; do
         exit 1
     fi
 done
+
+# === Empty Knowledge DB (schema only) ===
+# knowledge.db ships with the schema skeleton but no system rows.
+# Users populate it by running `standards register` with their Knowledge System.
+SCHEMA_DIR="$ROOT_DIR/schema/knowledge-hub"
+KNOWLEDGE_DB="$PKG_DIR/bin/knowledge.db"
+if [[ -f "$SCHEMA_DIR/knowledge-hub-loader.py" ]]; then
+    echo "==> Creating empty knowledge.db (schema only)..."
+    python3 -c "
+import sqlite3, glob, os
+conn = sqlite3.connect('$KNOWLEDGE_DB')
+conn.execute('PRAGMA foreign_keys = ON')
+for f in sorted(glob.glob('$SCHEMA_DIR/[0-9]*.sql')):
+    with open(f) as fh:
+        conn.executescript(fh.read())
+conn.execute('PRAGMA user_version = 1')
+conn.close()
+print('  -> $KNOWLEDGE_DB (empty schema)')
+"
+fi
+
+# Ship schema + loader for Knowledge System registration
+mkdir -p "$PKG_DIR/schema/knowledge-hub"
+cp "$SCHEMA_DIR"/*.sql "$PKG_DIR/schema/knowledge-hub/"
+cp "$SCHEMA_DIR/knowledge-hub-loader.py" "$PKG_DIR/schema/knowledge-hub/"
+echo "  -> schema/knowledge-hub/ (loader + schema files)"
 
 # Launcher scripts (Linux build: binaries have no .exe)
 cat > "$PKG_DIR/run-mcp.sh" <<SHEOF
