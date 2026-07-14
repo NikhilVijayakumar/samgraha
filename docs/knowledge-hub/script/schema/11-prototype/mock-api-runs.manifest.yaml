@@ -1,4 +1,0 @@
-check: mock-api-runs
-depends_on: []
-timeout_seconds: 120
-requires_network: false

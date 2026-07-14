@@ -1,4 +1,0 @@
-check: folder-structure
-depends_on: []
-timeout_seconds: 60
-requires_network: false
