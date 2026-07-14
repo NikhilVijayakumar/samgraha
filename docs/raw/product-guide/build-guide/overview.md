@@ -12,7 +12,7 @@ How the Samgraha build process works and how to build from source.
 Source code (Rust)  →  cargo build --release --bin mcp --bin cli  →  cli.exe + mcp.exe
                                           │
 Raw markdown docs   →  cli.exe compile    │
-(help + standards)                        │
+(help)                                  │
         │                                  │
         └─────────────┬────────────────────┘
                       │
@@ -24,8 +24,8 @@ Raw markdown docs   →  cli.exe compile    │
              ├── .samgraha/
              ├── samgraha.toml
              ├── run-mcp.cmd / run-mcp.sh
-             ├── standards.db
-             ├── help.db
+             ├── knowledge.db       (empty schema — register your Knowledge System)
+             ├── help.db            (compiled product help)
              └── SHA256SUMS
 ```
 
@@ -46,10 +46,11 @@ cargo build --release --bin mcp --bin cli
 This script:
 1. Builds `cli.exe` and `mcp.exe` in release mode.
 2. Packages them into `<OUTPUT_DIR>/samgraha/` along with config, universal docs (`standards`, `audit`, `audit-standards`), and an empty `.samgraha/`.
-3. Compiles `docs/raw/documentation-standards` and `docs/raw/help` using the just-packaged `cli.exe`, and copies the resulting knowledge databases out as `standards.db`/`help.db` in the package root.
-4. Writes `run-mcp.cmd`/`run-mcp.sh` launchers and a `SHA256SUMS` file.
+3. Compiles `docs/raw/product-guide` into `help.db` using the just-packaged `cli.exe`.
+4. Creates an empty `knowledge.db` (schema only) and copies the knowledge-hub loader + schema files for Knowledge System registration.
+5. Writes `run-mcp.cmd`/`run-mcp.sh` launchers and a `SHA256SUMS` file.
 
-`.env` at the repo root (`SAMGRAHA_EXPIRY_DAYS`, `SAMGRAHA_EXPIRY_HOURS`, `OUTPUT_DIR`) is the single source of truth for these settings — there are no CLI override flags. The script stops on any build/compile failure; a missing `docs/raw/documentation-standards` or `docs/raw/help` source directory just skips that step with a warning.
+`.env` at the repo root (`SAMGRAHA_EXPIRY_DAYS`, `SAMGRAHA_EXPIRY_HOURS`, `OUTPUT_DIR`) is the single source of truth for these settings — there are no CLI override flags. The script stops on any build/compile failure; a missing `docs/raw/product-guide` source directory just skips that step with a warning.
 
 ## Related
 

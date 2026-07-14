@@ -30,10 +30,11 @@ domain = ["readme", "vision", "philosophy", "architecture", "feature", "feature-
 # docs/raw/feature/cli-interface.md and the Domain Exclusions section in
 # docs/raw/feature-technical/cli-interface.md.
 # help/standards are excluded here too: they're built-in knowledge compiled
-# separately by the release script (--path docs/raw/product-guide|standards),
-# not part of this repo's own document set. Exclusion only affects the `info`
-# standards list — see [repository.ignore].patterns above for the real
-# compile-time safeguard.
+# separately by the release script (--path docs/raw/product-guide). knowledge.db
+# ships as an empty schema — users register their Knowledge System with
+# `standards register` which populates the local DB and syncs to the global
+# store. Exclusion only affects the `info` standards list — see
+# [repository.ignore].patterns above for the real compile-time safeguard.
 domain_exclusion = ["design", "feature-design", "external-context", "prototype", "help", "standards"]
 
 # Check overrides — map check name to script path (relative to repo root).

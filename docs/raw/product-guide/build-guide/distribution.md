@@ -19,12 +19,13 @@ samgraha/
 ├── .samgraha/                 # empty, for the package's own use
 ├── samgraha.toml
 ├── run-mcp.cmd / run-mcp.sh   # launcher scripts — the recommended way to start mcp.exe
-├── standards.db                # compiled built-in standards reference
+├── knowledge.db                # empty schema — users register their Knowledge System
 ├── help.db                     # compiled built-in product help
+├── schema/knowledge-hub/       # loader + SQL files for Knowledge System registration
 └── SHA256SUMS                  # checksums for cli.exe and mcp.exe
 ```
 
-`standards.db` and `help.db` sit at the package root, next to `bin/` — not inside `bin/` and not inside `.samgraha/`.
+`knowledge.db` and `help.db` sit at the package root, next to `bin/` — not inside `bin/` and not inside `.samgraha/`.
 
 ### Platform Support
 
@@ -36,7 +37,9 @@ Users extract/copy the `samgraha/` package directory and run `bin/cli.exe` / `bi
 
 ### Built-in Knowledge Distribution
 
-`standards.db` and `help.db` are compiled during the release build (from `docs/raw/documentation-standards` and `docs/raw/help` in the source repo) and placed in the package root. At runtime, both `cli.exe` and `mcp.exe` look for them next to whichever binary is running (via `std::env::current_exe()?.parent()`), so they must stay adjacent to the binary. If either is missing, that's a non-fatal degraded state — `samgraha info` reports built-in store status explicitly.
+`help.db` is compiled during the release build (from `docs/raw/product-guide`) and placed in the package root. `knowledge.db` ships with an empty schema — no system rows, no domains, no rules. Users register their Knowledge System with `standards register`, which creates local data and syncs to the global store.
+
+At runtime, `cli.exe` and `mcp.exe` look for these files next to whichever binary is running (via `std::env::current_exe()?.parent()`). If either is missing, that's a non-fatal degraded state — `samgraha info` reports built-in store status explicitly.
 
 ## Related
 
