@@ -237,7 +237,7 @@ pub enum StandardsAction {
         domain: String,
     },
 
-    #[command(about = "Register a standard from a knowledge-hub directory into the shared standards.db shipped next to this binary")]
+    #[command(about = "Register a Knowledge System from a knowledge-hub directory (writes locally first, then pushes to global)")]
     Register {
         #[arg(long = "path", help = "Path to knowledge-hub directory")]
         path: PathBuf,
@@ -248,12 +248,15 @@ pub enum StandardsAction {
         #[arg(long, help = "Path to a JSON file overriding directory-name keys for a differently-laid-out knowledge-hub directory (see schema/knowledge-hub/knowledge-hub-loader.py DEFAULT_LAYOUT)")]
         layout: Option<PathBuf>,
 
-        #[arg(long, help = "Write to this repo's local .samgraha/standards.db instead of the shared mcp-adjacent one — for self-hosting / bootstrap use only")]
-        local: bool,
+        #[arg(long, help = "Register locally only, do not push to global standards.db")]
+        no_push: bool,
 
         #[arg(long = "dry-run", help = "Parse and validate the knowledge-hub directory without writing to the DB")]
         dry_run: bool,
     },
+
+    #[command(about = "Push local standards.db to the global store (mcp_dir/standards.db)")]
+    Push,
 
     #[command(about = "Switch which registered system is the default (used when a repo's samgraha.toml doesn't specify [repository.documentation] standard_system)")]
     SetDefault {
@@ -261,7 +264,7 @@ pub enum StandardsAction {
         system: String,
     },
 
-    #[command(about = "Sync this repo's standards + help content from the mcp-adjacent standards.db/help.db")]
+    #[command(about = "Sync Knowledge System + help content from the global store to this repo's local DBs")]
     Sync,
 
     #[command(about = "Remove a standard from the local registry")]
@@ -1192,20 +1195,15 @@ impl Cli {
                     .ok_or_else(|| anyhow::anyhow!("No standard doc for domain '{}'", domain))?;
                 println!("{}", format_output(&serde_json::to_value(doc)?, format));
             }
-            StandardsAction::Register { path, system, layout, local, dry_run } => {
-                // Default target: standards.db shipped next to this binary (the
-                // shared source every repo's `standards sync` pulls from). `--local`
-                // writes straight into this repo's own .samgraha/standards.db instead
-                // — for self-hosting/bootstrap, bypassing the sync step entirely.
-                let db_path = if *local {
-                    root.join(".samgraha").join("standards.db")
-                } else {
-                    common::env::mcp_dir().join("standards.db")
-                };
+            StandardsAction::Register { path, system, layout, no_push, dry_run } => {
+                // Always write to local first — the repository is the
+                // authoritative place where the Knowledge System is created
+                // and validated.
+                let local_db = root.join(".samgraha").join("standards.db");
                 if !path.exists() {
                     anyhow::bail!("Path does not exist: {}", path.display());
                 }
-                if let Some(parent) = db_path.parent() {
+                if let Some(parent) = local_db.parent() {
                     std::fs::create_dir_all(parent)?;
                 }
 
@@ -1223,10 +1221,10 @@ impl Cli {
                         exe_dir.join("..").join("..").join("schema").join("knowledge-hub").join("knowledge-hub-loader.py")
                     }
                 });
-                println!("Registering standard from {} into {}...", path.display(), db_path.display());
+                println!("Registering Knowledge System from {} into {}...", path.display(), local_db.display());
                 let mut cmd = common::env::python_command();
                 cmd.arg(&loader)
-                    .arg("--db").arg(&db_path)
+                    .arg("--db").arg(&local_db)
                     .arg("--knowledge-hub").arg(path);
                 if let Some(system) = system {
                     cmd.arg("--system").arg(system);
@@ -1249,8 +1247,51 @@ impl Cli {
                 if *dry_run {
                     println!("Dry run complete — nothing written.");
                 } else {
-                    println!("Standard registered successfully.");
+                    println!("Knowledge System registered locally.");
+                    // Push to global unless --no-push
+                    if !no_push {
+                        let global_db = common::env::mcp_dir().join("standards.db");
+                        if let Some(parent) = global_db.parent() {
+                            std::fs::create_dir_all(parent)?;
+                        }
+                        // Integrity check before overwriting global
+                        {
+                            let check_conn = rusqlite::Connection::open(&local_db)?;
+                            let ok: String = check_conn.query_row(
+                                "PRAGMA integrity_check", [], |row| row.get(0)
+                            )?;
+                            if ok != "ok" {
+                                anyhow::bail!("Local standards DB failed integrity check: {}", ok);
+                            }
+                            standards::check_schema_version(&check_conn)?;
+                        }
+                        std::fs::copy(&local_db, &global_db)?;
+                        println!("Pushed to {}", global_db.display());
+                    }
                 }
+            }
+            StandardsAction::Push => {
+                let local_db = root.join(".samgraha").join("standards.db");
+                if !local_db.exists() {
+                    anyhow::bail!("No local .samgraha/standards.db — register a Knowledge System first");
+                }
+                let global_db = common::env::mcp_dir().join("standards.db");
+                if let Some(parent) = global_db.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                // Integrity check before pushing
+                {
+                    let check_conn = rusqlite::Connection::open(&local_db)?;
+                    let ok: String = check_conn.query_row(
+                        "PRAGMA integrity_check", [], |row| row.get(0)
+                    )?;
+                    if ok != "ok" {
+                        anyhow::bail!("Local standards DB failed integrity check: {}", ok);
+                    }
+                    standards::check_schema_version(&check_conn)?;
+                }
+                std::fs::copy(&local_db, &global_db)?;
+                println!("Pushed {} to {}", local_db.display(), global_db.display());
             }
             StandardsAction::SetDefault { system } => {
                 let db_path = common::env::mcp_dir().join("standards.db");

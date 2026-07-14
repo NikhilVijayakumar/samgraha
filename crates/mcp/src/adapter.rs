@@ -276,6 +276,7 @@ impl McpAdapter {
             "get_standard"            => self.handle_get_standard(&req),
             "get_standard_doc"        => self.handle_get_standard_doc(&req),
             "register_standard"       => self.handle_register_standard(&req),
+            "push_standards"          => self.handle_push_standards(),
             "set_default_standard"    => self.handle_set_default_standard(&req),
             "sync_standards"          => self.handle_sync_standards(&req),
             // Phase 5: plan orchestration metadata
@@ -1371,13 +1372,9 @@ impl McpAdapter {
         if !path.exists() {
             return Err(anyhow::anyhow!("Path does not exist: {}", path.display()));
         }
-        let local = req.params.get("local").and_then(|v| v.as_bool()).unwrap_or(false);
-        let db_path = if local {
-            self.runtime.context.repository_root.join(".samgraha").join("standards.db")
-        } else {
-            common::env::mcp_dir().join("standards.db")
-        };
-        if let Some(parent) = db_path.parent() {
+        let no_push = req.params.get("no_push").and_then(|v| v.as_bool()).unwrap_or(false);
+        let local_db = self.runtime.context.repository_root.join(".samgraha").join("standards.db");
+        if let Some(parent) = local_db.parent() {
             std::fs::create_dir_all(parent)?;
         }
         let exe_dir = std::env::current_exe()?
@@ -1396,7 +1393,7 @@ impl McpAdapter {
         });
         let mut cmd = common::env::python_command();
         cmd.arg(&loader)
-            .arg("--db").arg(&db_path)
+            .arg("--db").arg(&local_db)
             .arg("--knowledge-hub").arg(&path);
         if let Some(system) = req.params.get("system").and_then(|v| v.as_str()) {
             cmd.arg("--system").arg(system);
@@ -1415,18 +1412,66 @@ impl McpAdapter {
             let stderr = String::from_utf8_lossy(&output.stderr);
             return Err(anyhow::anyhow!("Loader failed: {}", stderr));
         }
+
+        if !dry_run && !no_push {
+            let global_db = common::env::mcp_dir().join("standards.db");
+            if let Some(parent) = global_db.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            {
+                let check_conn = rusqlite::Connection::open(&local_db)?;
+                let ok: String = check_conn.query_row(
+                    "PRAGMA integrity_check", [], |row| row.get(0)
+                )?;
+                if ok != "ok" {
+                    return Err(anyhow::anyhow!("Local standards DB failed integrity check: {}", ok));
+                }
+                standards::check_schema_version(&check_conn)?;
+            }
+            std::fs::copy(&local_db, &global_db)?;
+        }
+
         Ok(serde_json::json!({
             "success": true,
             "dry_run": dry_run,
-            "db_path": db_path.display().to_string(),
+            "db_path": local_db.display().to_string(),
+            "pushed": !dry_run && !no_push,
             "loader_output": String::from_utf8_lossy(&output.stdout),
             "message": if dry_run {
                 "Dry run complete — nothing written."
-            } else if local {
-                "Standard registered locally. Note: you may need to restart the MCP server to reload the standard registry."
+            } else if no_push {
+                "Knowledge System registered locally. Use push_standards to push to global."
             } else {
-                "Standard registered into the shared standards.db. Run sync_standards in each repo that wants it."
+                "Knowledge System registered locally and pushed to global."
             }
+        }))
+    }
+
+    fn handle_push_standards(&self) -> Result<serde_json::Value> {
+        let local_db = self.runtime.context.repository_root.join(".samgraha").join("standards.db");
+        if !local_db.exists() {
+            return Err(anyhow::anyhow!("No local .samgraha/standards.db — register a Knowledge System first"));
+        }
+        let global_db = common::env::mcp_dir().join("standards.db");
+        if let Some(parent) = global_db.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        {
+            let check_conn = rusqlite::Connection::open(&local_db)?;
+            let ok: String = check_conn.query_row(
+                "PRAGMA integrity_check", [], |row| row.get(0)
+            )?;
+            if ok != "ok" {
+                return Err(anyhow::anyhow!("Local standards DB failed integrity check: {}", ok));
+            }
+            standards::check_schema_version(&check_conn)?;
+        }
+        std::fs::copy(&local_db, &global_db)?;
+        Ok(serde_json::json!({
+            "success": true,
+            "pushed_from": local_db.display().to_string(),
+            "pushed_to": global_db.display().to_string(),
+            "message": "Local standards.db pushed to global."
         }))
     }
 
