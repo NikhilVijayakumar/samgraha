@@ -3,8 +3,8 @@
   "mcp": {
     "samgraha": {
       "type": "local",
-      "command": ["E:\\MCP\\Samgraha\\release\\samgraha\\bin\\mcp.exe"],
-      "env": { "SAMGRAHA_REPO": "E:\\MCP\\Samgraha\\release\\samgraha" }
+      "command": ["/home/dell/PycharmProjects/samgraha/target/release/mcp"],
+      "env": { "SAMGRAHA_REPO": "/home/dell/PycharmProjects/samgraha" }
     }
   }
 }
