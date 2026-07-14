@@ -47,7 +47,7 @@ impl DiscoveryEngine {
         )?;
 
         // When the compile root itself is a built-in knowledge directory (e.g. compiling
-        // `docs/raw/product-guide` or `docs/raw/documentation-standards` directly, as the release build does),
+        // a product-guide or documentation-standards directory directly, as the release build does),
         // every file under it belongs to that one domain regardless of nesting — per-file
         // inference by immediate parent directory name (below) can't see this in this case
         // since the root itself is stripped from every relative path before inference runs.
@@ -184,7 +184,7 @@ mod tests {
 
     #[test]
     fn test_infer_standard_definition() {
-        let p = Path::new("docs/raw/documentation-standards/08-feature-design-standards.md");
+        let p = Path::new("any/path/documentation-standards/08-feature-design-standards.md");
         assert_eq!(DiscoveryEngine::infer_standard(p), "standards");
     }
 

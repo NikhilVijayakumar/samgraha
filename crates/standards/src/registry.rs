@@ -59,6 +59,18 @@ impl StandardRegistry {
             audit_rules: Vec::new(),
             profiles: Vec::new(),
         });
+        registry.register(StandardDefinition {
+            id: "standards".to_string(),
+            name: "Documentation Standards".to_string(),
+            version: "1.0.0".to_string(),
+            domain: "standards".to_string(),
+            description: "Documentation-standards system — structural requirements for domain specs.".to_string(),
+            required_sections: Vec::new(),
+            prohibited_content: Vec::new(),
+            relationships: Vec::new(),
+            audit_rules: Vec::new(),
+            profiles: Vec::new(),
+        });
         registry
     }
 
@@ -239,10 +251,11 @@ mod tests {
             std::process::id()
         ));
         let registry = StandardRegistry::with_builtins_and_overrides(&repo_root).unwrap();
-        // No knowledge-hub-DB-backed builtins — only the one deliberate
-        // Rust-native exception, `help`.
-        assert_eq!(registry.all().len(), 1);
+        // No knowledge-hub-DB-backed builtins — only the two Rust-native
+        // exceptions: `help` and `standards`.
+        assert_eq!(registry.all().len(), 2);
         assert!(registry.has_standard("help"));
+        assert!(registry.has_standard("standards"));
     }
 
     #[test]
