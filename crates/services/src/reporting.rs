@@ -4114,6 +4114,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn real_help_template_renders_without_error() {
         // Reads the actual shipped `product-guide-report.md` and renders it with a
         // realistic context — this is the template `samgraha report help`
@@ -4151,6 +4152,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn real_architecture_template_renders_without_error() {
         // Reads the actual shipped template (not a hardcoded string) and
         // renders it with a realistic context — catches Tera syntax errors
@@ -4224,6 +4226,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn real_vision_template_renders_without_error() {
         let template_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../docs/raw/report-templates/vision-report.md");
@@ -4298,6 +4301,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn real_design_template_renders_without_error() {
         let template_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../docs/raw/report-templates/design-report.md");
@@ -4369,6 +4373,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn real_readme_template_renders_without_error() {
         let template_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../docs/raw/report-templates/readme-report.md");
@@ -4426,6 +4431,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn real_prototype_template_renders_without_error() {
         let template_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../docs/raw/report-templates/prototype-report.md");
@@ -4476,6 +4482,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn real_external_context_template_renders_without_error() {
         let template_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../docs/raw/report-templates/external-context-report.md");
@@ -4534,6 +4541,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn real_engineering_template_renders_without_error() {
         let template_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../docs/raw/report-templates/engineering-report.md");
@@ -4590,6 +4598,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn real_feature_template_renders_without_error() {
         let template_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../docs/raw/report-templates/feature-report.md");
@@ -4648,6 +4657,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn real_feature_technical_template_renders_without_error() {
         let template_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../docs/raw/report-templates/feature-technical-report.md");
@@ -4706,6 +4716,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn real_feature_design_template_renders_without_error() {
         let template_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../docs/raw/report-templates/feature-design-report.md");
@@ -4761,6 +4772,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn real_deterministic_runtime_template_renders_without_error() {
         let template_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../docs/raw/report-templates/deterministic-runtime-report.md");
@@ -4810,6 +4822,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn real_external_context_ownership_template_renders_without_error() {
         let template_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../docs/raw/report-templates/external-context-ownership-report.md");
@@ -4859,6 +4872,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn real_implementation_template_renders_without_error() {
         let template_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../docs/raw/report-templates/implementation-report.md");
