@@ -18,6 +18,11 @@ patterns = [
     "**/standards/**",
     "**/help/**",
     "**/release/**",
+    "**/.agents/**",
+    "**/rules/**",
+    "**/.opencode/**",
+    "**/.gsd/**",
+    "**/.claude/**",
 ]
 
 [repository.documentation]
