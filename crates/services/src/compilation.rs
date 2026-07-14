@@ -386,18 +386,45 @@ impl CompilationService {
         let systems_dir = root.join(&config.knowledge.root);
         let discovered = KnowledgeSystemLoader::load_systems(&systems_dir)?;
 
-        info!("Discovered {} Knowledge Systems", discovered.len());
+        let systems_count = discovered.len();
+        info!("Discovered {} Knowledge System(s)", systems_count);
 
-        // In the future: build the Knowledge Package for each system.
-        // For now, return a successful compilation result.
+        // Collect all validation warnings from each discovered system.
+        let mut warnings = Vec::new();
+        for system in &discovered {
+            info!(
+                "  → System '{}' (v{}) at {}",
+                system.identity.id,
+                system.identity.version,
+                system.path.display()
+            );
+            for w in &system.warnings {
+                tracing::warn!("    ⚠ {}", w.message);
+                warnings.push(w.message.clone());
+            }
+        }
+
+        if systems_count == 0 {
+            warnings.push(format!(
+                "No Knowledge Systems found in '{}'. \
+                 Each system must be a subdirectory containing a system.toml file.",
+                systems_dir.display()
+            ));
+        }
+
+        // NOTE: Full Knowledge Package compilation (invoking the knowledge-hub-loader
+        // per system to produce per-system standards.db files) is performed by
+        // `samgraha knowledge publish`, which calls the Python knowledge-hub-loader.
+        // `compile` in a Knowledge Repository validates structure and reports systems found.
+
         Ok(CompilationResult {
             success: true,
-            documents_found: discovered.len(),
-            documents_processed: discovered.len(),
+            documents_found: systems_count,
+            documents_processed: systems_count,
             documents_failed: 0,
             documents_skipped: 0,
             errors: vec![],
-            warnings: vec![],
+            warnings,
             diagnostics: vec![],
             quality: None,
             duration_ms: 0,
