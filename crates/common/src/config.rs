@@ -254,8 +254,11 @@ pub fn resolve_configured_dir(raw: &str, root: &Path, fallback_rel: &str) -> Pat
 
 /// Which repositories to load into the Knowledge Package for this repo.
 /// Planner reads this alongside .meta files to produce a deterministic Knowledge Plan.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct KnowledgeConfig {
+    /// The root directory containing Knowledge Systems (used when kind = "knowledge").
+    #[serde(default = "default_knowledge_root")]
+    pub root: String,
     /// Always loaded, high priority (required dependencies).
     #[serde(default)]
     pub dependencies: Vec<String>,
@@ -264,8 +267,37 @@ pub struct KnowledgeConfig {
     pub interests: Vec<String>,
 }
 
+fn default_knowledge_root() -> String {
+    "system".to_string()
+}
+
+impl Default for KnowledgeConfig {
+    fn default() -> Self {
+        Self {
+            root: default_knowledge_root(),
+            dependencies: Vec::new(),
+            interests: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum RepositoryKind {
+    Repository,
+    Knowledge,
+}
+
+impl Default for RepositoryKind {
+    fn default() -> Self {
+        Self::Repository
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RepositoryConfig {
+    #[serde(default)]
+    pub kind: RepositoryKind,
     #[serde(default)]
     pub root: Option<PathBuf>,
     #[serde(default)]
@@ -356,6 +388,7 @@ pub fn parse_ttl_duration(s: &str) -> Option<i64> {
 impl Default for RepositoryConfig {
     fn default() -> Self {
         Self {
+            kind: RepositoryKind::default(),
             root: None,
             documentation: DocumentationConfig::default(),
             ignore: IgnoreConfig::default(),

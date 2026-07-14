@@ -34,3 +34,5 @@ pub use search::*;
 pub use standard::*;
 pub use test_run::*;
 pub use urn::*;
+pub mod knowledge_system;
+pub use knowledge_system::*;

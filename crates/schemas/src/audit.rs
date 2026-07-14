@@ -25,6 +25,7 @@ pub enum PipelineKind {
     Dependency,
     Help,
     DocumentationStructure,
+    KnowledgeSystem,
 }
 
 impl PipelineKind {
@@ -51,6 +52,7 @@ impl PipelineKind {
             Self::Dependency => "dependency",
             Self::Help => "help",
             Self::DocumentationStructure => "documentation-structure",
+            Self::KnowledgeSystem => "knowledge-system",
         }
     }
 
@@ -77,6 +79,7 @@ impl PipelineKind {
             "dependency" => Some(Self::Dependency),
             "help" => Some(Self::Help),
             "documentation-structure" => Some(Self::DocumentationStructure),
+            "knowledge-system" => Some(Self::KnowledgeSystem),
             _ => None,
         }
     }
