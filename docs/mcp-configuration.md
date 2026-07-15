@@ -55,7 +55,7 @@ Set `OUTPUT_DIR` in `.env`, then build:
 
 ```bash
 # .env
-OUTPUT_DIR=/home/user/mcp/samgraha/release
+OUTPUT_DIR=$HOME/mcp/samgraha/release
 
 # Build
 bash scripts/build-release.sh
@@ -64,7 +64,7 @@ bash scripts/build-release.sh
 The script prints the output location on completion:
 
 ```
-Location: /home/user/mcp/samgraha/release/samgraha
+Location: /home/<you>/mcp/samgraha/release/samgraha
 ```
 
 The binary is always at `<Location>/bin/mcp`. Point Claude Code at it:
@@ -73,13 +73,13 @@ The binary is always at `<Location>/bin/mcp`. Point Claude Code at it:
 {
   "mcpServers": {
     "samgraha": {
-      "command": "/home/user/mcp/samgraha/release/samgraha/bin/mcp"
+      "command": "<Location>/bin/mcp"
     }
   }
 }
 ```
 
-Replace `/home/user/mcp/samgraha/release/samgraha` with the actual `Location` path printed by the script (which is `OUTPUT_DIR/samgraha` from your `.env`).
+Replace `<Location>` with the actual path printed by the script (which is `OUTPUT_DIR/samgraha` from your `.env`).
 
 The binary discovers its repo root by walking up from the process working directory looking for `.samgraha` or `samgraha.toml`. **Project-scope** config works with no extra setup — Claude Code spawns the server with `cwd` already inside the repo.
 
@@ -158,7 +158,7 @@ Set `OUTPUT_DIR` in `.env`, then build:
 
 ```bash
 # .env
-OUTPUT_DIR=/home/user/mcp/samgraha/release
+OUTPUT_DIR=$HOME/mcp/samgraha/release
 
 # Build
 bash scripts/build-release.sh
@@ -167,7 +167,7 @@ bash scripts/build-release.sh
 The script prints the output location on completion:
 
 ```
-Location: /home/user/mcp/samgraha/release/samgraha
+Location: /home/<you>/mcp/samgraha/release/samgraha
 ```
 
 The binary is always at `<Location>/bin/mcp`. Configure in `opencode.json`:
@@ -178,13 +178,13 @@ The binary is always at `<Location>/bin/mcp`. Configure in `opencode.json`:
   "mcp": {
     "samgraha": {
       "type": "local",
-      "command": ["/home/user/mcp/samgraha/release/samgraha/bin/mcp"]
+      "command": ["<Location>/bin/mcp"]
     }
   }
 }
 ```
 
-Replace `/home/user/mcp/samgraha/release/samgraha` with the actual `Location` path printed by the script.
+Replace `<Location>` with the actual path printed by the script.
 
 The binary discovers its repo root by walking up from the process working directory looking for `.samgraha` or `samgraha.toml`. This works for project-local `opencode.json` (cwd defaults to workspace root).
 
@@ -230,7 +230,7 @@ Configure MCP server in `~/.gemini/config/mcp_config.json`:
 {
   "mcpServers": {
     "samgraha": {
-      "command": "/home/user/mcp/samgraha/release/samgraha/bin/mcp"
+      "command": "<Location>/bin/mcp"
     }
   }
 }

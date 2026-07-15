@@ -27,7 +27,11 @@ tests/.samgraha/
 /samgraha.toml.phase1bak
 .env
 /docs/proposal.md
-/.opencode/
+# IDE / AI assistant config (never commit)
+.agent/
+.agents/
+.claude/
+.opencode/
 /docs/errors-list/
 /docs/raw/reports/
 /tests/docs/raw/reports/architecture/scorecard/latest.json
