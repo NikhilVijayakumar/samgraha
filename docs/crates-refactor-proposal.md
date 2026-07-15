@@ -79,11 +79,11 @@ description = "General software engineering documentation."
 ## 4. Lifecycle & Workflow Differences
 
 The separation creates two distinct lifecycle workflows and cleanly aligns the CLI verbs:
-- `repository` manages repositories.
+- `registry` manages the local registry of dependency repositories (unchanged from before this proposal — not renamed to `repository`, see §6.2).
 - `knowledge` manages knowledge systems.
 
 **Repository:**
-`clone` → `samgraha repository sync` → `samgraha compile` → `samgraha audit`
+`clone` → `samgraha registry sync` → `samgraha compile` → `samgraha audit`
 
 **Knowledge Repository:**
 `clone` → `samgraha knowledge publish` → `done`
@@ -117,7 +117,7 @@ Before implementing this proposal, we must address the following gaps in the cur
 
 ### 6.2. CLI Command Restructuring (`crates/cli/src/commands.rs`)
 - **Gap**: The CLI currently uses `samgraha standards register` (overloading "register").
-- **Optimization**: Move to `samgraha knowledge publish` and `samgraha knowledge pull`. Retain `samgraha repository register` for managing software projects locally.
+- **Optimization**: Move to `samgraha knowledge publish` and `samgraha knowledge pull`. The existing `samgraha registry register`/`sync`/`status` group (managing this repo's local registry of dependency repositories) is retained under its existing `registry` name rather than renamed to `repository` — that verb predates this proposal and names a different concept (dependency-registry membership, not repository *kind*), and renaming a shipped CLI verb is a breaking change with no functional upside here.
 
 ### 6.3. Pipeline Selection via Factory
 Instead of bypassing logic with `if knowledge` scattered everywhere, `compile` and `audit` should use a `PipelineFactory` to select the right pipelines based on the repository `kind`.
@@ -208,8 +208,9 @@ The rollout of this architecture will be executed in four primary phases, minimi
     *   Add `samgraha knowledge` command group.
     *   Implement `samgraha knowledge publish` (invokes `compile`, validates, and pushes all discovered Knowledge Packages to the Global Registry).
     *   Implement `samgraha knowledge pull`.
-    *   Keep `samgraha repository` verbs intact for Repositories.
-    *   Deprecate/Remove the old `samgraha standards register` command.
+    *   Keep `samgraha registry` verbs intact for Repositories (see §6.2 — not renamed to `repository`).
+    *   Deprecate/Remove the old `samgraha standards register` command. — **Done**: removed; `StandardsAction` no longer has a `Register` variant.
+    *   Gate `knowledge publish` behind `RepositoryKind::Knowledge` (Repository Matrix §5: Publish Knowledge is ❌ for a plain Repository). — **Done**, `crates/cli/src/commands.rs::execute_knowledge`.
 *   **Documentation & Testing**:
-    *   Update boilerplate (e.g., initial `samgraha.toml` template) to explicitly include `kind = "repository"`.
-    *   Add E2E tests for both standard project flows and knowledge publishing flows.
+    *   Update boilerplate (e.g., initial `samgraha.toml` template) to explicitly include `kind = "repository"`. — **Done**: `RepositoryConfig.kind` has no `skip_serializing_if`, so `samgraha init` always emits it.
+    *   Add E2E tests for both standard project flows and knowledge publishing flows. — **Done**: multi-system discovery + missing-directory-warning tests in `tests/tests/e2e_compile.rs`; MCP Repository Matrix gate tests in `crates/mcp/src/adapter.rs`.
