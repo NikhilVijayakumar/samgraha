@@ -451,6 +451,30 @@ impl Default for DocumentationConfig {
     }
 }
 
+/// Options controlling `init_repository()` behavior.
+/// All fields have safe defaults — zeroing `InitOptions` preserves
+/// the exact current behavior of `init_repository(root, false)`.
+#[derive(Debug, Clone, Default)]
+pub struct InitOptions {
+    /// Overwrite existing `samgraha.toml` (vs. backfill missing keys).
+    pub force: bool,
+    /// Document standard system name to set in
+    /// `[repository.documentation] standard_system`.
+    /// `None` = leave unset (current default behavior).
+    pub standard_system: Option<String>,
+    /// Script check overrides: rule_id -> script path.
+    pub script_overrides: HashMap<String, String>,
+    /// Check overrides: check_name -> script path.
+    /// Higher priority than `script_overrides` in the audit resolution chain.
+    pub check_overrides: HashMap<String, String>,
+    /// Probe repo root for `docs/`, `src|crates/`, `tests/`, `scripts/` and set
+    /// literal paths in the TOML if found. Skip missing dirs.
+    pub auto_detect_dirs: bool,
+    /// Sync the declared Knowledge System from global store into
+    /// the local `.samgraha/` after writing `samgraha.toml`.
+    pub sync_knowledge_system: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct IgnoreConfig {
     #[serde(default)]

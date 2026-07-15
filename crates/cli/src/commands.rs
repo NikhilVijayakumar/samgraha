@@ -145,6 +145,15 @@ pub enum Commands {
 
         #[arg(long = "force", help = "Overwrite existing configuration")]
         force: bool,
+
+        #[arg(long = "standard-system", help = "Document standard system name (e.g. 'samgraha-documentation')")]
+        standard_system: Option<String>,
+
+        #[arg(long = "auto-detect", help = "Auto-detect docs/src/tests/scripts directories")]
+        auto_detect: bool,
+
+        #[arg(long = "sync", help = "Sync Knowledge System from global store after init")]
+        sync: bool,
     },
 
     #[command(about = "Package compiled knowledge for distribution")]
@@ -283,7 +292,13 @@ pub enum KnowledgeAction {
     },
 
     #[command(about = "Pull Knowledge System + help content from the global store to this repo's local DBs")]
-    Pull,
+    Pull {
+        #[arg(long = "force", help = "Force re-sync even if local copy appears current")]
+        force: bool,
+    },
+
+    #[command(about = "Show sync status of the local Knowledge System vs global store")]
+    Status,
 }
 
 #[derive(Subcommand)]
@@ -403,7 +418,9 @@ impl Cli {
                 &format,
             ),
             Commands::Info { path } => self.execute_info(path.as_ref(), &format),
-            Commands::Init { path, force } => self.execute_init(path.as_ref(), *force, &format),
+            Commands::Init { path, force, standard_system, auto_detect, sync } => {
+                self.execute_init(path.as_ref(), *force, standard_system.as_deref(), *auto_detect, *sync, &format)
+            }
             Commands::Package { output, profile, json } => {
                 self.execute_package(output.as_ref(), profile.as_deref(), *json, &format)
             }
@@ -1015,14 +1032,34 @@ impl Cli {
         &self,
         path: Option<&PathBuf>,
         force: bool,
+        standard_system: Option<&str>,
+        auto_detect: bool,
+        sync: bool,
         format: &OutputFormat,
     ) -> Result<ExitCode> {
         let root = path
             .cloned()
             .unwrap_or_else(|| std::env::current_dir().unwrap());
-        let result = services::init::init_repository(&root, force)?;
+        let options = common::config::InitOptions {
+            force,
+            standard_system: standard_system.map(|s| s.to_string()),
+            auto_detect_dirs: auto_detect,
+            sync_knowledge_system: sync,
+            ..Default::default()
+        };
+        let result = services::init::init_repository(&root, &options)?;
 
         println!("{}", result.status);
+
+        if let Some(ref sync) = result.sync_result {
+            println!(
+                "Standards synced: {}",
+                if sync.standards_synced { "yes" } else { "no (source not found)" }
+            );
+            println!("Help documents synced: {}", sync.help_documents_synced);
+            println!("Scripts synced: {}", sync.scripts_synced);
+        }
+
         println!("Generated {}", result.env_path.display());
         println!("{}", format_output(&result.config, format));
         Ok(ExitCode::Success)
@@ -1460,61 +1497,11 @@ impl Cli {
                     }
                 }
             }
-            KnowledgeAction::Pull => {
-                let mcp_dir = common::env::mcp_dir();
-                let local_db = root.join(".samgraha").join("standards.db");
-                let source_db = mcp_dir.join("standards.db");
-
-                if !source_db.exists() {
-                    anyhow::bail!("No standards.db shipped at {} — publish a system first", source_db.display());
-                }
-
-                {
-                    let check_conn = rusqlite::Connection::open(&source_db)
-                        .map_err(|e| anyhow::anyhow!("Cannot open source standards DB: {}", e))?;
-                    let ok: String = check_conn
-                        .query_row("PRAGMA integrity_check", [], |row| row.get(0))
-                        .map_err(|e| anyhow::anyhow!("integrity_check query failed: {}", e))?;
-                    if ok != "ok" {
-                        anyhow::bail!("Source standards DB failed integrity check: {}", ok);
-                    }
-                    standards::check_schema_version(&check_conn)?;
-                }
-
-                if let Some(parent) = local_db.parent() {
-                    std::fs::create_dir_all(parent)?;
-                }
-
-                println!("Pulling standards from {} to {}...", source_db.display(), local_db.display());
-                std::fs::copy(&source_db, &local_db)?;
-
-                let system_note = runtime.context.config.repository.documentation.standard_system.as_deref()
-                    .map(|s| format!("configured system '{}'", s))
-                    .unwrap_or_else(|| "default system".to_string());
-                println!("Local .samgraha/standards.db now holds all synced systems; this repo reads the {} (samgraha.toml [repository.documentation] standard_system).", system_note);
-
-                let help_synced = services::sync_help_into_local(&root)?;
-                if help_synced > 0 {
-                    println!("Synced {} help documents to local knowledge.db", help_synced);
-                } else {
-                    println!("No help.db shipped at {} — skipped help sync", mcp_dir.join("help.db").display());
-                }
-
-                let source_scripts = mcp_dir.join("scripts");
-                if source_scripts.exists() {
-                    let local_scripts = root.join(".samgraha").join("scripts");
-                    std::fs::create_dir_all(&local_scripts)?;
-                    let mut scripts_count = 0usize;
-                    for entry in std::fs::read_dir(&source_scripts)? {
-                        let entry = entry?;
-                        let dest = local_scripts.join(entry.file_name());
-                        std::fs::copy(entry.path(), &dest)?;
-                        scripts_count += 1;
-                    }
-                    println!("Synced {} scripts to {}", scripts_count, local_scripts.display());
-                }
-
-                println!("Knowledge System pulled successfully.");
+            KnowledgeAction::Pull { force } => {
+                handle_knowledge_action(&root, KnowledgeAction::Pull { force: *force })?
+            }
+            KnowledgeAction::Status => {
+                handle_knowledge_action(&root, KnowledgeAction::Status)?
             }
         }
         Ok(ExitCode::Success)
@@ -1649,5 +1636,160 @@ impl ExitCode {
             ExitCode::Success => std::process::ExitCode::SUCCESS,
             _ => std::process::ExitCode::FAILURE,
         }
+    }
+}
+
+/// Handle a Knowledge pull or status action. Extracted from
+/// `execute_knowledge` so tests can exercise the logic without
+/// constructing the full `Commands` enum.
+fn handle_knowledge_action(
+    root: &std::path::Path,
+    action: KnowledgeAction,
+) -> Result<()> {
+    match action {
+        KnowledgeAction::Pull { force } => {
+            match services::init::sync_if_stale(root, force)? {
+                None => return Ok(()),
+                Some(result) => {
+                    println!(
+                        "Standards synced: {}",
+                        if result.standards_synced { "yes" } else { "no (source standards.db not found in global store)" }
+                    );
+                    println!("Help documents synced: {}", result.help_documents_synced);
+                    println!("Scripts synced: {}", result.scripts_synced);
+
+                    let meta_path = root.join(".samgraha").join("sync-meta.json");
+                    if let Ok(meta) = std::fs::read_to_string(&meta_path)
+                        .and_then(|s| serde_json::from_str::<services::init::SyncMeta>(&s).map_err(|e| e.into()))
+                    {
+                        println!("System: {} v{}", meta.system, meta.version);
+                    }
+                    println!("Knowledge System pulled successfully.");
+                }
+            }
+        }
+        KnowledgeAction::Status => {
+            let meta_path = root.join(".samgraha").join("sync-meta.json");
+            if !meta_path.exists() {
+                println!("Never synced — run `samgraha knowledge pull` to sync from global.");
+                return Ok(());
+            }
+            let meta: services::init::SyncMeta = serde_json::from_str(
+                &std::fs::read_to_string(&meta_path)?,
+            )?;
+            println!("Knowledge System: {}", meta.system);
+            println!("Version:          {}", meta.version);
+            println!("Last sync:        {}", meta.synced_at);
+
+            match services::init::check_knowledge_staleness(root)? {
+                services::init::StalenessStatus::UpToDate { .. } => {
+                    println!("Status:           Up to date")
+                }
+                services::init::StalenessStatus::Stale { local_version, global_version } => {
+                    println!(
+                        "Status:           STALE (local v{}, global v{})",
+                        local_version, global_version
+                    );
+                    println!("                  Run `samgraha knowledge pull` to update.");
+                }
+                services::init::StalenessStatus::SourceMissing => {
+                    println!("Status:           Source DB missing")
+                }
+                _ => println!("Status:           Unknown"),
+            }
+        }
+        _ => unreachable!("only Pull and Status dispatched here"),
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod knowledge_action_tests {
+    use super::*;
+
+    struct TempEnvGuard {
+        key: String,
+        old_val: Option<String>,
+    }
+    impl TempEnvGuard {
+        fn new(key: &str, val: &std::path::Path) -> Self {
+            let old_val = std::env::var(key).ok();
+            std::env::set_var(key, val);
+            Self { key: key.to_string(), old_val }
+        }
+    }
+    impl Drop for TempEnvGuard {
+        fn drop(&mut self) {
+            match &self.old_val {
+                Some(v) => std::env::set_var(&self.key, v),
+                None => std::env::remove_var(&self.key),
+            }
+        }
+    }
+
+    fn setup_mock_global_store(dir: &std::path::Path, system_name: &str, version: &str) {
+        let conn = rusqlite::Connection::open(dir.join("standards.db")).unwrap();
+        conn.execute_batch(&format!(
+            "PRAGMA user_version = 1;
+             CREATE TABLE IF NOT EXISTS systems (
+                 id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE,
+                 description TEXT, is_default INTEGER NOT NULL DEFAULT 1
+             );
+             CREATE TABLE IF NOT EXISTS standards (
+                 id INTEGER PRIMARY KEY, system_id INTEGER NOT NULL,
+                 name TEXT NOT NULL, version TEXT NOT NULL, description TEXT,
+                 UNIQUE(system_id, name, version)
+             );
+             DELETE FROM systems;
+             DELETE FROM standards;
+             INSERT INTO systems (id, name, is_default) VALUES (1, '{system_name}', 1);
+             INSERT INTO standards (id, system_id, name, version)
+                 VALUES (1, 1, '{system_name}-std', '{version}');",
+        ))
+        .unwrap();
+    }
+
+    fn setup_repo(root: &std::path::Path) {
+        std::fs::create_dir_all(root.join(".samgraha")).unwrap();
+        std::fs::write(root.join("samgraha.toml"), "[repository]\nid = \"test\"\n").unwrap();
+    }
+
+    #[test]
+    fn cli_knowledge_lifecycle() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("repo");
+        setup_repo(&root);
+
+        let global = tempfile::tempdir().unwrap();
+        setup_mock_global_store(global.path(), "my-sys", "1.0.0");
+
+        let _guard = TempEnvGuard::new("SAMGRAHA_MCP_DIR", global.path());
+
+        // 1. First pull
+        handle_knowledge_action(&root, KnowledgeAction::Pull { force: false }).unwrap();
+
+        // 2. Verify sync-meta.json
+        let meta: services::init::SyncMeta = serde_json::from_str(
+            &std::fs::read_to_string(root.join(".samgraha").join("sync-meta.json")).unwrap(),
+        ).unwrap();
+        assert_eq!(meta.system, "my-sys");
+        assert_eq!(meta.version, "1.0.0");
+
+        // 3. Second pull — should skip (up to date)
+        handle_knowledge_action(&root, KnowledgeAction::Pull { force: false }).unwrap();
+
+        // 4. Status shows correct info
+        handle_knowledge_action(&root, KnowledgeAction::Status).unwrap();
+
+        // 5. Upgrade global
+        setup_mock_global_store(global.path(), "my-sys", "2.0.0");
+
+        // 6. Force pull — should re-sync
+        handle_knowledge_action(&root, KnowledgeAction::Pull { force: true }).unwrap();
+
+        let meta: services::init::SyncMeta = serde_json::from_str(
+            &std::fs::read_to_string(root.join(".samgraha").join("sync-meta.json")).unwrap(),
+        ).unwrap();
+        assert_eq!(meta.version, "2.0.0");
     }
 }

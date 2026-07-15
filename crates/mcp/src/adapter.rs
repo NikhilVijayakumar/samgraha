@@ -317,6 +317,7 @@ impl McpAdapter {
             "push_standards"          => self.handle_push_standards(),
             "set_default_standard"    => self.handle_set_default_standard(&req),
             "sync_standards"          => self.handle_sync_standards(&req),
+            "check_knowledge_staleness" => self.handle_check_staleness(&req),
             // Phase 5: plan orchestration metadata
             "get_plan_settings"       => self.handle_get_plan_settings(),
             "get_plan_scenarios"      => self.handle_get_plan_scenarios(&req),
@@ -396,6 +397,21 @@ impl McpAdapter {
     /// clients can bootstrap a repo without dropping to a shell.
     fn handle_init(&self, req: &McpRequest) -> Result<serde_json::Value> {
         let force = req.params.get("force").and_then(|v| v.as_bool()).unwrap_or(false);
+        let standard_system = req.params.get("standard_system")
+            .and_then(|v| v.as_str()).map(|s| s.to_string());
+        let script_overrides: std::collections::HashMap<String, String> =
+            req.params.get("script_overrides")
+                .and_then(|v| serde_json::from_value(v.clone()).ok())
+                .unwrap_or_default();
+        let check_overrides: std::collections::HashMap<String, String> =
+            req.params.get("check_overrides")
+                .and_then(|v| serde_json::from_value(v.clone()).ok())
+                .unwrap_or_default();
+        let auto_detect = req.params.get("auto_detect")
+            .and_then(|v| v.as_bool()).unwrap_or(false);
+        let sync = req.params.get("sync")
+            .and_then(|v| v.as_bool()).unwrap_or(false);
+
         let owned_root;
         let root: &Path = match req.params.get("repo_path").and_then(|v| v.as_str()) {
             Some(p) => {
@@ -404,12 +420,26 @@ impl McpAdapter {
             }
             None => &self.runtime.context.repository_root,
         };
-        let result = services::init::init_repository(root, force)?;
+        let options = common::config::InitOptions {
+            force,
+            standard_system,
+            script_overrides,
+            check_overrides,
+            auto_detect_dirs: auto_detect,
+            sync_knowledge_system: sync,
+        };
+        let result = services::init::init_repository(root, &options)?;
+
         Ok(serde_json::json!({
             "status": result.status,
             "root": result.root.display().to_string(),
             "env_path": result.env_path.display().to_string(),
             "config": result.config,
+            "sync_result": result.sync_result.as_ref().map(|s| serde_json::json!({
+                "standards_synced": s.standards_synced,
+                "help_documents_synced": s.help_documents_synced,
+                "scripts_synced": s.scripts_synced,
+            })),
         }))
     }
 
@@ -1519,59 +1549,50 @@ impl McpAdapter {
     /// into this repo's local `.samgraha/standards.db` / `knowledge.db`. Local
     /// DBs are the only thing queried at runtime after this — no MCP call
     /// switches between databases once a repo is synced.
-    fn handle_sync_standards(&self, _req: &McpRequest) -> Result<serde_json::Value> {
-        let mcp_dir = common::env::mcp_dir();
-        let root = &self.runtime.context.repository_root;
-        let local_db = root.join(".samgraha").join("standards.db");
-        let source_db = mcp_dir.join("standards.db");
-
-        if !source_db.exists() {
-            return Err(anyhow::anyhow!("No standards.db shipped at {} — register a system first", source_db.display()));
-        }
-
-        // Fix 3A: Integrity check before overwriting.
-        {
-            let check_conn = rusqlite::Connection::open(&source_db)
-                .map_err(|e| anyhow::anyhow!("Cannot open source standards DB for integrity check: {}", e))?;
-            let ok: String = check_conn
-                .query_row("PRAGMA integrity_check", [], |row| row.get(0))
-                .map_err(|e| anyhow::anyhow!("integrity_check failed: {}", e))?;
-            if ok != "ok" {
-                return Err(anyhow::anyhow!(
-                    "Source standards DB failed integrity check: {}", ok
-                ));
+    fn handle_sync_standards(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let force = req.params.get("force").and_then(|v| v.as_bool()).unwrap_or(false);
+        let owned_root;
+        let root: &Path = match req.params.get("repo_path").and_then(|v| v.as_str()) {
+            Some(p) => {
+                owned_root = std::path::PathBuf::from(p);
+                &owned_root
             }
-            standards::check_schema_version(&check_conn)?;
+            None => &self.runtime.context.repository_root,
+        };
+
+        match services::init::sync_if_stale(root, force)? {
+            None => Ok(serde_json::json!({
+                "synced": false,
+                "reason": "up_to_date",
+            })),
+            Some(result) => Ok(serde_json::json!({
+                "synced": true,
+                "standards_synced": result.standards_synced,
+                "help_documents_synced": result.help_documents_synced,
+                "scripts_synced": result.scripts_synced,
+            })),
         }
+    }
 
-        if let Some(parent) = local_db.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-
-        std::fs::copy(&source_db, &local_db)?;
-
-        let help_synced = services::sync_help_into_local(root)?;
-
-        // Fix 2D: Also sync scripts directory alongside the DB.
-        let source_scripts = mcp_dir.join("scripts");
-        let mut scripts_synced = 0usize;
-        if source_scripts.exists() {
-            let local_scripts = root.join(".samgraha").join("scripts");
-            std::fs::create_dir_all(&local_scripts)?;
-            for entry in std::fs::read_dir(&source_scripts)? {
-                let entry = entry?;
-                let dest = local_scripts.join(entry.file_name());
-                std::fs::copy(entry.path(), &dest)?;
-                scripts_synced += 1;
+    fn handle_check_staleness(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let owned_root;
+        let root: &Path = match req.params.get("repo_path").and_then(|v| v.as_str()) {
+            Some(p) => {
+                owned_root = std::path::PathBuf::from(p);
+                &owned_root
             }
-        }
-
+            None => &self.runtime.context.repository_root,
+        };
+        let status = services::init::check_knowledge_staleness(root)?;
         Ok(serde_json::json!({
-            "success": true,
-            "synced_from": source_db.display().to_string(),
-            "synced_to": local_db.display().to_string(),
-            "help_documents_synced": help_synced,
-            "scripts_synced": scripts_synced,
+            "status": match &status {
+                services::init::StalenessStatus::NeverSynced => "never_synced",
+                services::init::StalenessStatus::MissingLocal => "missing_local",
+                services::init::StalenessStatus::UpToDate { .. } => "up_to_date",
+                services::init::StalenessStatus::Stale { .. } => "stale",
+                services::init::StalenessStatus::SourceMissing => "source_missing",
+            },
+            "detail": format!("{:?}", status),
         }))
     }
 
@@ -1751,5 +1772,136 @@ mod repository_matrix_tests {
                 );
             }
         }
+    }
+
+    // ── Integration tests: init / sync / staleness via handle_message ────
+
+    struct TempEnvGuard {
+        key: String,
+        old_val: Option<String>,
+    }
+    impl TempEnvGuard {
+        fn new(key: &str, val: &std::path::Path) -> Self {
+            let old_val = std::env::var(key).ok();
+            std::env::set_var(key, val);
+            Self { key: key.to_string(), old_val }
+        }
+    }
+    impl Drop for TempEnvGuard {
+        fn drop(&mut self) {
+            match &self.old_val {
+                Some(v) => std::env::set_var(&self.key, v),
+                None => std::env::remove_var(&self.key),
+            }
+        }
+    }
+
+    fn setup_mock_global_store(dir: &Path, system_name: &str, version: &str) {
+        let conn = rusqlite::Connection::open(dir.join("standards.db")).unwrap();
+        conn.execute_batch(&format!(
+            "PRAGMA user_version = 1;
+             CREATE TABLE IF NOT EXISTS systems (
+                 id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE,
+                 description TEXT, is_default INTEGER NOT NULL DEFAULT 1
+             );
+             CREATE TABLE IF NOT EXISTS standards (
+                 id INTEGER PRIMARY KEY, system_id INTEGER NOT NULL,
+                 name TEXT NOT NULL, version TEXT NOT NULL, description TEXT,
+                 UNIQUE(system_id, name, version)
+             );
+             DELETE FROM systems;
+             DELETE FROM standards;
+             INSERT INTO systems (id, name, is_default) VALUES (1, '{system_name}', 1);
+             INSERT INTO standards (id, system_id, name, version)
+                 VALUES (1, 1, '{system_name}-std', '{version}');",
+        ))
+        .unwrap();
+    }
+
+    fn req_with_params(method: &str, params: serde_json::Value) -> McpRequest {
+        McpRequest {
+            id: "test-1".to_string(),
+            method: method.to_string(),
+            params: params.as_object()
+                .map(|o| o.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+                .unwrap_or_default(),
+            repo: None,
+        }
+    }
+
+    fn extract_json(msg: McpMessage) -> serde_json::Value {
+        match msg {
+            McpMessage::Response(r) => r.result,
+            McpMessage::Error(e) => panic!("MCP error: {}", e.message),
+            other => panic!("unexpected message type: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn mcp_init_sync_staleness_lifecycle() {
+        let tmp = TempDir::new();
+        let adapter = adapter_with_kind(tmp.path(), RepositoryKind::Repository);
+
+        let global = TempDir::new();
+        setup_mock_global_store(global.path(), "my-sys", "1.0.0");
+        let _guard = TempEnvGuard::new("SAMGRAHA_MCP_DIR", global.path());
+
+        let root_param = tmp.path().to_str().unwrap().to_string();
+
+        // 1. Check staleness before any sync — NeverSynced
+        let result = extract_json(adapter.handle_message(McpMessage::Request(req_with_params(
+            "check_knowledge_staleness",
+            serde_json::json!({ "repo_path": &root_param }),
+        ))));
+        assert_eq!(result["status"], "never_synced");
+
+        // 2. Init with sync
+        let result = extract_json(adapter.handle_message(McpMessage::Request(req_with_params("init", serde_json::json!({
+            "repo_path": &root_param,
+            "standard_system": "my-sys",
+            "auto_detect": false,
+            "sync": true,
+        })))));
+        assert!(result["status"].as_str().unwrap().contains("Initialized"));
+        assert_eq!(result["sync_result"]["standards_synced"], true);
+
+        // 3. Sync again — should skip (up to date)
+        let result = extract_json(adapter.handle_message(McpMessage::Request(req_with_params("sync_standards", serde_json::json!({
+            "repo_path": &root_param,
+            "force": false,
+        })))));
+        assert_eq!(result["synced"], false);
+        assert_eq!(result["reason"], "up_to_date");
+
+        // 4. Check staleness — UpToDate
+        let result = extract_json(adapter.handle_message(McpMessage::Request(req_with_params(
+            "check_knowledge_staleness",
+            serde_json::json!({ "repo_path": &root_param }),
+        ))));
+        assert_eq!(result["status"], "up_to_date");
+
+        // 5. Upgrade global
+        setup_mock_global_store(global.path(), "my-sys", "2.0.0");
+
+        // 6. Check staleness — Stale
+        let result = extract_json(adapter.handle_message(McpMessage::Request(req_with_params(
+            "check_knowledge_staleness",
+            serde_json::json!({ "repo_path": &root_param }),
+        ))));
+        assert_eq!(result["status"], "stale");
+
+        // 7. Sync with force — should re-sync
+        let result = extract_json(adapter.handle_message(McpMessage::Request(req_with_params("sync_standards", serde_json::json!({
+            "repo_path": &root_param,
+            "force": true,
+        })))));
+        assert_eq!(result["synced"], true);
+
+        // 8. Check staleness — UpToDate again
+        let result = extract_json(adapter.handle_message(McpMessage::Request(req_with_params(
+            "check_knowledge_staleness",
+            serde_json::json!({ "repo_path": &root_param }),
+        ))));
+        assert_eq!(result["status"], "up_to_date");
     }
 }

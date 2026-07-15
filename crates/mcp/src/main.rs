@@ -221,12 +221,17 @@ fn tool_definitions() -> Vec<serde_json::Value> {
     vec![
         serde_json::json!({
             "name": "init",
-            "description": "Initialize samgraha.toml and .samgraha/ for a repository, or backfill any keys missing from an existing samgraha.toml (never overwrites a key that's already there). Run this first in a repo with no samgraha.toml before compile/register_repository. Pass 'repo_path' to target a different repository than the one this MCP session is anchored to — required for a global/user-scope server bootstrapping a repo it wasn't started in.",
+            "description": "Initialize samgraha.toml and .samgraha/ for a repository. Optionally select a document standard system, auto-detect directories, and sync the Knowledge System from global — all in one pass. Backfills missing keys if samgraha.toml already exists.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "force": { "type": "boolean", "description": "Overwrite existing samgraha.toml with a fresh template instead of backfilling missing keys" },
-                    "repo_path": { "type": "string", "description": "Absolute path to the repository to initialize, if not the one this MCP session is anchored to" }
+                    "repo_path": { "type": "string", "description": "Absolute path to the repository to initialize" },
+                    "standard_system": { "type": "string", "description": "Document standard system name (e.g. 'samgraha-documentation')" },
+                    "script_overrides": { "type": "object", "description": "Map of rule_id -> script path for [repository.documentation.script_overrides]" },
+                    "check_overrides": { "type": "object", "description": "Map of check_name -> script path for [repository.documentation.check_overrides]" },
+                    "auto_detect": { "type": "boolean", "description": "Probe repo for docs/, src|crates/, tests/, scripts/ and set literal paths if found" },
+                    "sync": { "type": "boolean", "description": "Sync Knowledge System from global store into .samgraha/ after init" }
                 }
             }
         }),
@@ -916,7 +921,18 @@ fn tool_definitions() -> Vec<serde_json::Value> {
         }),
         serde_json::json!({
             "name": "sync_standards",
-            "description": "Pull this repo's configured (or default) documentation-standard system, plus help content, from the standards.db/help.db shipped next to the MCP binary into this repo's local .samgraha/standards.db and knowledge.db. Also syncs the scripts directory. After sync, no MCP call needs any database other than this repo's own.",
+            "description": "Pull the Knowledge System from global store into this repo's local .samgraha/. Checks staleness by default; pass force=true to re-sync unconditionally.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "force": { "type": "boolean", "description": "Force re-sync even if local copy appears current" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                }
+            }
+        }),
+        serde_json::json!({
+            "name": "check_knowledge_staleness",
+            "description": "Check whether this repo's local Knowledge System is up-to-date vs the global store. Returns staleness status without syncing.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
