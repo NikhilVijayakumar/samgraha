@@ -17,3 +17,6 @@ chrono.workspace = true
 syn = { version = "2", features = ["full", "parsing", "extra-traits"] }
 quote = "1"
 proc-macro2 = "1"
+
+[dev-dependencies]
+toml.workspace = true
