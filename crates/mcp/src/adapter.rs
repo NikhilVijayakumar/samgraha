@@ -209,7 +209,45 @@ impl McpAdapter {
         }
     }
 
+    /// Repository Matrix (docs/crates-refactor-proposal.md §5): these methods
+    /// read `knowledge.db`'s document/section tables, which `compile_knowledge`
+    /// never populates for Knowledge Repositories — a Knowledge Repository
+    /// produces Knowledge Systems for others to consume, it isn't queried at
+    /// runtime itself. Centralizes what used to be one ad hoc check living
+    /// only inside `handle_search` (Gap 13) into a single dispatch-point gate
+    /// covering every runtime document/section query tool.
+    const KNOWLEDGE_REPO_BLOCKED_METHODS: &[&str] = &[
+        "search",
+        "get_sections",
+        "get_document",
+        "get_document_section",
+        "get_documents_by_domain",
+        "get_section",
+        "get_section_changed",
+        "get_audit_knowledge",
+        "get_audit_report",
+        "get_summary_report",
+        "get_product_knowledge_context",
+    ];
+
     fn handle_request(&self, req: McpRequest) -> McpMessage {
+        if Self::KNOWLEDGE_REPO_BLOCKED_METHODS.contains(&req.method.as_str()) {
+            if let Ok(rt) = self.runtime_for(&req) {
+                if rt.context.config.repository.kind == RepositoryKind::Knowledge {
+                    return McpMessage::Error(McpError {
+                        id: Some(req.id),
+                        code: -32000,
+                        message: format!(
+                            "'{}' is not available for Knowledge Repositories — they produce \
+                             Knowledge Systems for others to consume, not query at runtime. \
+                             Use 'knowledge publish'/'knowledge pull' instead.",
+                            req.method
+                        ),
+                    });
+                }
+            }
+        }
+
         let result: Result<serde_json::Value> = match req.method.as_str() {
             "ping"                    => Ok(serde_json::json!({"pong": "pong"})),
             "capabilities"            => Ok(serde_json::to_value(&self.capabilities).unwrap_or_default()),
@@ -473,17 +511,10 @@ impl McpAdapter {
     }
 
     fn handle_search(&self, req: &McpRequest) -> Result<serde_json::Value> {
-        // Repository Matrix: Search is not available for Knowledge Repositories.
-        // Knowledge Repositories produce systems for others to consume — they are
-        // not queried at runtime.
+        // Repository Matrix kind gate now lives centrally in `handle_request`
+        // (Gap 13) — every method in `KNOWLEDGE_REPO_BLOCKED_METHODS`,
+        // including this one, is already rejected before reaching here.
         let runtime = self.runtime_for(req)?;
-        if runtime.context.config.repository.kind == RepositoryKind::Knowledge {
-            anyhow::bail!(
-                "Search is not available for Knowledge Repositories. \
-                 Use 'samgraha knowledge publish' to publish systems, \
-                 or 'samgraha knowledge pull' in a consuming repository."
-            );
-        }
 
         let query = req.params.get("query")
             .and_then(|v| v.as_str())
@@ -1388,41 +1419,16 @@ impl McpAdapter {
         if let Some(parent) = local_db.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        let exe_dir = std::env::current_exe()?
-            .parent().ok_or_else(|| anyhow::anyhow!("Cannot determine binary directory"))?
-            .to_path_buf();
 
-        let env_loader = std::env::var("SAMGRAHA_KNOWLEDGE_HUB_LOADER").ok().map(std::path::PathBuf::from);
-
-        let loader = env_loader.filter(|p| p.exists()).unwrap_or_else(|| {
-            let p1 = exe_dir.join("..").join("schema").join("knowledge-hub").join("knowledge-hub-loader.py");
-            if p1.exists() {
-                p1
-            } else {
-                exe_dir.join("..").join("..").join("schema").join("knowledge-hub").join("knowledge-hub-loader.py")
-            }
-        });
-        let mut cmd = common::env::python_command();
-        cmd.arg(&loader)
-            .arg("--db").arg(&local_db)
-            .arg("--knowledge-hub").arg(&path);
-        if let Some(system) = req.params.get("system").and_then(|v| v.as_str()) {
-            cmd.arg("--system").arg(system);
-        }
-        if let Some(layout) = req.params.get("layout").and_then(|v| v.as_str()) {
-            cmd.arg("--layout").arg(layout);
-        }
+        // Shared with CLI `knowledge publish` (Optimization 8) — same
+        // loader-invocation logic, one place.
+        let loader = services::knowledge_publish::resolve_knowledge_hub_loader()?;
+        let system = req.params.get("system").and_then(|v| v.as_str());
+        let layout = req.params.get("layout").and_then(|v| v.as_str()).map(std::path::Path::new);
         let dry_run = req.params.get("dry_run").and_then(|v| v.as_bool()).unwrap_or(false);
-        if dry_run {
-            cmd.arg("--dry-run");
-        }
-        let output = cmd
-            .output()
-            .map_err(|e| anyhow::anyhow!("Failed to run loader: {}", e))?;
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(anyhow::anyhow!("Loader failed: {}", stderr));
-        }
+        let loader_output = services::knowledge_publish::run_knowledge_hub_loader(
+            &loader, &local_db, &path, system, layout, dry_run,
+        )?;
 
         if !dry_run && !no_push {
             let global_db = common::env::mcp_dir().join("standards.db");
@@ -1447,7 +1453,7 @@ impl McpAdapter {
             "dry_run": dry_run,
             "db_path": local_db.display().to_string(),
             "pushed": !dry_run && !no_push,
-            "loader_output": String::from_utf8_lossy(&output.stdout),
+            "loader_output": loader_output,
             "message": if dry_run {
                 "Dry run complete — nothing written."
             } else if no_push {
@@ -1656,6 +1662,94 @@ impl McpAdapter {
                 },
                 "source": null,
             }))
+        }
+    }
+}
+
+#[cfg(test)]
+mod repository_matrix_tests {
+    use super::*;
+    use crate::protocol::McpRequest;
+    use common::config::SamgrahaConfig;
+    use services::registry_client::FileRegistryClient;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+
+    struct TempDir(std::path::PathBuf);
+    impl TempDir {
+        fn new() -> Self {
+            let id = COUNTER.fetch_add(1, Ordering::SeqCst);
+            let root = std::env::temp_dir().join(format!("samgraha-mcp-matrix-test-{}-{}", std::process::id(), id));
+            std::fs::create_dir_all(&root).unwrap();
+            Self(root)
+        }
+        fn path(&self) -> &Path {
+            &self.0
+        }
+    }
+    impl Drop for TempDir {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    fn adapter_with_kind(root: &Path, kind: RepositoryKind) -> McpAdapter {
+        let mut config = SamgrahaConfig::default();
+        config.repository.kind = kind;
+        let runtime = Arc::new(KnowledgeRuntime::new(root, config).unwrap());
+        let registry: Arc<dyn services::registry_client::RegistryClient> =
+            Arc::new(FileRegistryClient::new(root));
+        McpAdapter::new(runtime, registry)
+    }
+
+    fn request(method: &str) -> McpRequest {
+        McpRequest {
+            id: "1".to_string(),
+            method: method.to_string(),
+            params: Default::default(),
+            repo: None,
+        }
+    }
+
+    /// Gap 16 (via Gap 13's fix): every method in
+    /// `KNOWLEDGE_REPO_BLOCKED_METHODS` must actually be rejected for a
+    /// Knowledge Repository, through the real `handle_message` entry point —
+    /// not just `search`, which is all the pre-fix code covered.
+    #[test]
+    fn knowledge_repository_blocks_every_matrix_restricted_method() {
+        let tmp = TempDir::new();
+        let adapter = adapter_with_kind(tmp.path(), RepositoryKind::Knowledge);
+
+        for method in McpAdapter::KNOWLEDGE_REPO_BLOCKED_METHODS {
+            let msg = adapter.handle_message(McpMessage::Request(request(method)));
+            match msg {
+                McpMessage::Error(e) => {
+                    assert!(
+                        e.message.contains("not available for Knowledge Repositories"),
+                        "method '{}' errored for the wrong reason: {}", method, e.message
+                    );
+                }
+                other => panic!("expected '{}' to be blocked for a Knowledge Repository, got {:?}", method, other),
+            }
+        }
+    }
+
+    /// Same methods must NOT be blocked for a plain Repository — the gate is
+    /// kind-specific, not a blanket removal of these tools.
+    #[test]
+    fn plain_repository_does_not_block_matrix_restricted_methods() {
+        let tmp = TempDir::new();
+        let adapter = adapter_with_kind(tmp.path(), RepositoryKind::Repository);
+
+        for method in McpAdapter::KNOWLEDGE_REPO_BLOCKED_METHODS {
+            let msg = adapter.handle_message(McpMessage::Request(request(method)));
+            if let McpMessage::Error(e) = msg {
+                assert!(
+                    !e.message.contains("not available for Knowledge Repositories"),
+                    "method '{}' was wrongly blocked for a plain Repository: {}", method, e.message
+                );
+            }
         }
     }
 }
