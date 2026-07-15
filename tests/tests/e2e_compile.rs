@@ -111,3 +111,67 @@ fn test_knowledge_system_compilation() {
     let result = runtime.compile(&request).unwrap();
     assert_eq!(result.success, true);
 }
+
+/// Gap 16: the test above only covers the zero-systems path (`root` has no
+/// `system/` dir at all). This drives a real multi-system Knowledge
+/// Repository, fully isolated in its own tmp root (not the shared
+/// `current_dir()` the test above reuses), and checks `compile_knowledge`'s
+/// `KnowledgeSystemLoader` discovery actually finds every system, cleanly,
+/// with no warnings when the recommended subdirectories are present.
+#[test]
+fn test_knowledge_system_multi_system_discovery() {
+    use common::config::RepositoryKind;
+    let tmp_dir = tempfile::tempdir().unwrap();
+    let root = tmp_dir.path();
+
+    for (id, name) in [("dev", "Software Development"), ("academic", "Academic Publishing")] {
+        let sys_dir = root.join("system").join(id);
+        for d in ["standards", "audit", "templates"] {
+            std::fs::create_dir_all(sys_dir.join(d)).unwrap();
+        }
+        std::fs::write(sys_dir.join("system.toml"), format!("id = \"{}\"\nname = \"{}\"\n", id, name)).unwrap();
+    }
+
+    let mut config = SamgrahaConfig::default();
+    config.repository.kind = RepositoryKind::Knowledge;
+    let runtime = KnowledgeRuntime::new(root, config).unwrap();
+
+    let request = CompilationRequest {
+        scope: CompilationScope::Repository,
+        force: false,
+        watch: false,
+    };
+    let result = runtime.compile(&request).unwrap();
+    assert_eq!(result.success, true);
+    assert_eq!(result.documents_found, 2);
+    assert!(result.warnings.is_empty(), "expected no warnings, got {:?}", result.warnings);
+}
+
+/// Gap 16: complements the clean-discovery test above with the
+/// missing-recommended-directory warning path (`KnowledgeSystemLoader`'s own
+/// warnings, surfaced through `compile_knowledge`).
+#[test]
+fn test_knowledge_system_discovery_warns_on_missing_recommended_directories() {
+    use common::config::RepositoryKind;
+    let tmp_dir = tempfile::tempdir().unwrap();
+    let root = tmp_dir.path();
+
+    let sys_dir = root.join("system").join("bare");
+    std::fs::create_dir_all(&sys_dir).unwrap();
+    std::fs::write(sys_dir.join("system.toml"), "id = \"bare\"\nname = \"Bare System\"\n").unwrap();
+
+    let mut config = SamgrahaConfig::default();
+    config.repository.kind = RepositoryKind::Knowledge;
+    let runtime = KnowledgeRuntime::new(root, config).unwrap();
+
+    let request = CompilationRequest {
+        scope: CompilationScope::Repository,
+        force: false,
+        watch: false,
+    };
+    let result = runtime.compile(&request).unwrap();
+    assert_eq!(result.success, true);
+    assert_eq!(result.documents_found, 1);
+    assert_eq!(result.warnings.len(), 3, "expected one warning per missing recommended dir, got {:?}", result.warnings);
+    assert!(result.warnings.iter().any(|w| w.contains("standards/") && w.contains("bare")));
+}
