@@ -5,6 +5,7 @@ pub mod builtin;
 pub mod compilation;
 pub mod enrichment;
 pub mod init;
+pub mod knowledge_publish;
 pub mod metadata_cache;
 pub mod package;
 pub mod planner;
