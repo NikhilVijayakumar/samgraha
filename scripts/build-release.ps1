@@ -110,7 +110,7 @@ $knowledgeDb = Join-Path "$pkgDir\bin" "knowledge.db"
 if (Test-Path "$schemaDir\knowledge-hub-loader.py") {
     Write-Host "==> Creating empty knowledge.db (schema only)..." -ForegroundColor Yellow
     $sqlFiles = Get-ChildItem "$schemaDir\*.sql" | Sort-Object Name
-    & python3 -c @"
+    & python -c @"
 import sqlite3, glob, os
 conn = sqlite3.connect(r'$knowledgeDb')
 conn.execute('PRAGMA foreign_keys = ON')
@@ -119,7 +119,7 @@ for f in sorted(glob.glob(r'$schemaDir\*.sql')):
         conn.executescript(fh.read())
 conn.execute('PRAGMA user_version = 1')
 conn.close()
-print('  -> $knowledgeDb (empty schema)')
+print(r'  -> $knowledgeDb (empty schema)')
 "@
 }
 
