@@ -87,7 +87,7 @@ pub enum Commands {
 
         #[arg(
             long = "pipeline",
-            help = "Audit pipeline to run (doc, build, security, consistency, coverage, architecture, vision, design, readme, prototype, external-context, engineering, feature, feature-technical, feature-design, deterministic-runtime, external-context-ownership, implementation, dependency, help)"
+            help = "Audit pipeline to run: 'all' (RepositoryKind-appropriate bundle, see audit::PipelineFactory), doc (default), build, security, consistency, coverage, architecture, vision, design, readme, prototype, external-context, engineering, feature, feature-technical, feature-design, deterministic-runtime, external-context-ownership, implementation, dependency, help, documentation-structure, knowledge-system"
         )]
         pipeline: Option<String>,
 
@@ -127,6 +127,9 @@ pub enum Commands {
 
         #[arg(long = "yes", help = "Skip the confirmation prompt for --execute")]
         yes: bool,
+
+        #[arg(long = "list-pipelines", help = "Print the RepositoryKind-appropriate pipeline bundle (see audit::PipelineFactory) and exit, without running anything")]
+        list_pipelines: bool,
     },
 
     #[command(about = "Display repository information")]
@@ -258,12 +261,15 @@ pub enum StandardsAction {
 
 #[derive(Subcommand)]
 pub enum KnowledgeAction {
-    #[command(about = "Publish a Knowledge System from a knowledge-hub directory (writes locally first, then pushes to global)")]
+    #[command(about = "Publish Knowledge System(s) (writes locally first, then pushes to global). \
+                        With no --path, discovers every system under [knowledge].root via \
+                        KnowledgeSystemLoader and publishes all of them; --path publishes one \
+                        knowledge-hub directory manually instead.")]
     Publish {
-        #[arg(long = "path", help = "Path to knowledge-hub directory")]
-        path: PathBuf,
+        #[arg(long = "path", help = "Path to a single knowledge-hub directory to publish manually, bypassing discovery under [knowledge].root")]
+        path: Option<PathBuf>,
 
-        #[arg(long, help = "System name to publish (default: samgraha-documentation)")]
+        #[arg(long, help = "With --path: system name to publish (default: samgraha-documentation). Without --path: limit discovery to this one system id.")]
         system: Option<String>,
 
         #[arg(long, help = "Path to a JSON file overriding directory-name keys for a differently-laid-out knowledge-hub directory")]
@@ -380,6 +386,7 @@ impl Cli {
                 execute,
                 dry_run,
                 yes,
+                list_pipelines,
             } => self.execute_audit(
                 domain.as_deref(),
                 pipeline.as_deref(),
@@ -392,6 +399,7 @@ impl Cli {
                 *execute,
                 *dry_run,
                 *yes,
+                *list_pipelines,
                 &format,
             ),
             Commands::Info { path } => self.execute_info(path.as_ref(), &format),
@@ -617,17 +625,46 @@ impl Cli {
         execute: bool,
         dry_run: bool,
         yes: bool,
+        list_pipelines: bool,
         format: &OutputFormat,
     ) -> Result<ExitCode> {
         let root = crate::config::discover_repository_root()?;
         let config = crate::config::load_config(self.config.as_ref())?;
+
+        // Improvement 10: show which pipelines `--pipeline all` would run for
+        // this repo's kind, without running anything.
+        if list_pipelines {
+            let kind = &config.repository.kind;
+            let selected = audit::PipelineFactory::for_kind(kind);
+            println!(
+                "Repository kind: {:?} — `samgraha audit --pipeline all` would run {} pipeline(s):",
+                kind, selected.len()
+            );
+            for pk in selected {
+                println!("  - {}", pk.as_str());
+            }
+            return Ok(ExitCode::Success);
+        }
+
+        // "all" is not a real PipelineKind — it means "run the RepositoryKind-
+        // appropriate bundle" (Gap 10: audit::PipelineFactory). Handled as its
+        // own path since it dispatches multiple pipelines through different
+        // runtime methods (audit() for Doc, run_pipeline() for the rest).
+        if pipeline.map(|p| p == "all").unwrap_or(false) {
+            if report {
+                anyhow::bail!(
+                    "--report is not yet supported with --pipeline all — run individual pipelines with --report instead."
+                );
+            }
+            return self.execute_audit_all(&root, config, gate, format);
+        }
 
         // Determine pipeline kind
         let pipeline_kind = match pipeline {
             Some(name) => match schemas::audit::PipelineKind::from_str(name) {
                 Some(k) => k,
                 None => anyhow::bail!(
-                    "Unknown pipeline '{}'. Valid values: doc, build, security, consistency, coverage, dependency",
+                    "Unknown pipeline '{}'. Valid values: all, doc, build, security, consistency, coverage, architecture, vision, design, readme, prototype, external-context, engineering, feature, feature-technical, feature-design, deterministic-runtime, external-context-ownership, implementation, dependency, help, documentation-structure, knowledge-system",
                     name
                 ),
             },
@@ -791,6 +828,86 @@ impl Cli {
 
             Ok(ExitCode::Success)
         }
+    }
+
+    /// `--pipeline all`: run the `RepositoryKind`-appropriate pipeline bundle
+    /// (Gap 10 fix, docs/errors-list/02-gaps.md) — `audit::PipelineFactory`
+    /// selects which pipelines apply, this dispatches each one through the
+    /// runtime method it actually needs (`audit()` for Doc, `run_pipeline()`
+    /// for the rest) and combines them into one gate/exit-code decision.
+    fn execute_audit_all(
+        &self,
+        root: &PathBuf,
+        config: common::config::SamgrahaConfig,
+        gate: Option<f64>,
+        format: &OutputFormat,
+    ) -> Result<ExitCode> {
+        ensure_compiled(root, &config)?;
+        let rt = KnowledgeRuntime::new(root, config)?;
+        let kind = rt.context.config.repository.kind.clone();
+        let selected = audit::PipelineFactory::for_kind(&kind);
+
+        println!(
+            "Repository kind: {:?} — running {} pipeline(s): {}",
+            kind,
+            selected.len(),
+            selected.iter().map(|k| k.as_str()).collect::<Vec<_>>().join(", ")
+        );
+        println!();
+
+        let mut worst_score: f64 = 100.0;
+        let mut any_error = false;
+
+        for pk in selected {
+            if *pk == schemas::audit::PipelineKind::Doc {
+                let audit_report = rt.audit(None, &["deterministic".to_string()], None)?;
+                println!("{}", render_audit(&audit_report, format));
+                worst_score = worst_score.min(audit_report.score.overall);
+                any_error = any_error
+                    || audit_report
+                        .findings
+                        .iter()
+                        .any(|f| matches!(f.severity, schemas::audit::Severity::Error));
+            } else {
+                let pipeline_report = rt.run_pipeline(pk, false, false, false, false)?;
+                println!("Pipeline: {}", pk.as_str());
+                println!("Score: {:.1}%", pipeline_report.score);
+                if !pipeline_report.categories.is_empty() {
+                    println!("Categories:");
+                    for (name, score) in &pipeline_report.categories {
+                        println!("  {}: {:.1}%", name, score);
+                    }
+                }
+                for f in &pipeline_report.findings {
+                    let sev = match f.severity {
+                        schemas::audit::Severity::Error => "ERROR",
+                        schemas::audit::Severity::Warning => "WARN ",
+                        schemas::audit::Severity::Suggestion => "SUGG ",
+                    };
+                    let loc = f.location.as_deref().unwrap_or("");
+                    println!("  [{}] {} {} — {}", sev, f.check_id, loc, f.message);
+                }
+                println!();
+                worst_score = worst_score.min(pipeline_report.score);
+                any_error = any_error
+                    || pipeline_report
+                        .findings
+                        .iter()
+                        .any(|f| matches!(f.severity, schemas::audit::Severity::Error));
+            }
+        }
+
+        if let Some(min_score) = gate {
+            if worst_score < min_score {
+                eprintln!(
+                    "Quality gate failed: worst pipeline score {:.1}% < minimum {:.1}%",
+                    worst_score, min_score
+                );
+                return Ok(ExitCode::AuditFailure);
+            }
+        }
+
+        Ok(if any_error { ExitCode::AuditFailure } else { ExitCode::Success })
     }
 
     fn execute_info(&self, path: Option<&PathBuf>, format: &OutputFormat) -> Result<ExitCode> {
@@ -1248,56 +1365,82 @@ impl Cli {
 
         match action {
             KnowledgeAction::Publish { path, system, layout, no_push, dry_run } => {
-                let local_db = root.join(".samgraha").join("standards.db");
-                if !path.exists() {
-                    anyhow::bail!("Path does not exist: {}", path.display());
+                // Repository Matrix (Gap 14): Publish Knowledge is ❌ for a
+                // plain Repository — only a Knowledge Repository produces
+                // Knowledge Systems. `knowledge pull` (Sync Knowledge) stays
+                // unrestricted, it's ✅ for both kinds.
+                if runtime.context.config.repository.kind != common::config::RepositoryKind::Knowledge {
+                    anyhow::bail!(
+                        "'knowledge publish' is not available for a plain Repository — only a \
+                         Knowledge Repository (`[repository] kind = \"knowledge\"` in samgraha.toml) \
+                         can publish Knowledge Systems."
+                    );
                 }
+                let local_db = root.join(".samgraha").join("standards.db");
                 if let Some(parent) = local_db.parent() {
                     std::fs::create_dir_all(parent)?;
                 }
+                let loader = services::knowledge_publish::resolve_knowledge_hub_loader()?;
 
-                let exe_dir = std::env::current_exe()?
-                    .parent().ok_or_else(|| anyhow::anyhow!("Cannot determine binary directory"))?
-                    .to_path_buf();
-
-                let env_loader = std::env::var("SAMGRAHA_KNOWLEDGE_HUB_LOADER").ok().map(std::path::PathBuf::from);
-
-                let loader = env_loader.filter(|p| p.exists()).unwrap_or_else(|| {
-                    let p1 = exe_dir.join("..").join("schema").join("knowledge-hub").join("knowledge-hub-loader.py");
-                    if p1.exists() {
-                        p1
-                    } else {
-                        exe_dir.join("..").join("..").join("schema").join("knowledge-hub").join("knowledge-hub-loader.py")
+                match path {
+                    // Explicit --path: manual single-directory publish, unchanged
+                    // from before — the escape hatch for a knowledge-hub
+                    // directory that isn't (yet) under this repo's [knowledge].root.
+                    Some(path) => {
+                        if !path.exists() {
+                            anyhow::bail!("Path does not exist: {}", path.display());
+                        }
+                        println!("Publishing Knowledge System from {} into {}...", path.display(), local_db.display());
+                        let out = services::knowledge_publish::run_knowledge_hub_loader(&loader, &local_db, path, system.as_deref(), layout.as_deref(), *dry_run)?;
+                        print!("{}", out);
                     }
-                });
-                println!("Publishing Knowledge System from {} into {}...", path.display(), local_db.display());
-                let mut cmd = common::env::python_command();
-                cmd.arg(&loader)
-                    .arg("--db").arg(&local_db)
-                    .arg("--knowledge-hub").arg(path);
-                if let Some(system) = system {
-                    cmd.arg("--system").arg(system);
+                    // No --path: discover every system under [knowledge].root
+                    // (the same KnowledgeSystemLoader `compile_knowledge` uses)
+                    // and publish each of them into the same local standards.db.
+                    None => {
+                        let systems_dir = root.join(&runtime.context.config.knowledge.root);
+                        let discovered = compiler::KnowledgeSystemLoader::load_systems(&systems_dir)?;
+                        if discovered.is_empty() {
+                            anyhow::bail!(
+                                "No Knowledge Systems found under '{}'. Each system must be a subdirectory \
+                                 containing a system.toml file, or pass --path to publish one directory manually.",
+                                systems_dir.display()
+                            );
+                        }
+                        let selected: Vec<_> = match system {
+                            Some(id) => {
+                                let matched: Vec<_> = discovered.iter().filter(|s| &s.identity.id == id).collect();
+                                if matched.is_empty() {
+                                    anyhow::bail!(
+                                        "No discovered Knowledge System matches --system '{}'. Discovered: {}",
+                                        id,
+                                        discovered.iter().map(|s| s.identity.id.as_str()).collect::<Vec<_>>().join(", ")
+                                    );
+                                }
+                                matched
+                            }
+                            None => discovered.iter().collect(),
+                        };
+                        println!(
+                            "Publishing {} discovered Knowledge System(s) from {} into {}...",
+                            selected.len(), systems_dir.display(), local_db.display()
+                        );
+                        for sys in &selected {
+                            for w in &sys.warnings {
+                                println!("  [WARN] {}", w.message);
+                            }
+                            println!("  → {} (v{}) from {}", sys.identity.id, sys.identity.version, sys.path.display());
+                            let out = services::knowledge_publish::run_knowledge_hub_loader(&loader, &local_db, &sys.path, Some(&sys.identity.id), layout.as_deref(), *dry_run)?;
+                            print!("{}", out);
+                        }
+                    }
                 }
-                if let Some(layout) = layout {
-                    cmd.arg("--layout").arg(layout);
-                }
-                if *dry_run {
-                    cmd.arg("--dry-run");
-                }
-                let output = cmd
-                    .output()
-                    .map_err(|e| anyhow::anyhow!("Failed to run loader: {}", e))?;
 
-                if !output.status.success() {
-                    let stderr = String::from_utf8_lossy(&output.stderr);
-                    anyhow::bail!("Loader failed: {}", stderr);
-                }
-                print!("{}", String::from_utf8_lossy(&output.stdout));
                 if *dry_run {
                     println!("Dry run complete — nothing written.");
                 } else {
-                    println!("Knowledge System published locally.");
-                    if !no_push {
+                    println!("Knowledge System(s) published locally.");
+                    if !*no_push {
                         let global_db = common::env::mcp_dir().join("standards.db");
                         if let Some(parent) = global_db.parent() {
                             std::fs::create_dir_all(parent)?;
