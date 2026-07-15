@@ -218,6 +218,7 @@ dependencies = [
  "chrono",
  "clap",
  "common",
+ "compiler",
  "notify",
  "providers",
  "rusqlite",
@@ -908,6 +909,7 @@ dependencies = [
  "sha2",
  "syn",
  "thiserror",
+ "toml",
  "uuid",
 ]
 
