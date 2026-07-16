@@ -1,267 +1,311 @@
-# MCP Issues Fix Proposal
+# Proposal: Structured JSON Output Alongside Markdown Reports
 
 **Created:** 2026-07-17
-**Scope:** 7 MCP issues found during Pitha integration testing
+**Scope:** All report generation in samgraha
 **Status:** Proposal — pending review
 
 ---
 
-## Issue Validation Summary
+## Problem
 
-| ID | Issue | Verdict | Reason |
-|----|-------|---------|--------|
-| MCP-001 | Check-scope false positives | **ACCEPT** | Confirmed in `providers.rs:92-131` — `section_presence` iterates all docs, no collection-scope path |
-| MCP-002 | No prerequisite checking in project plan | **REJECT** | Already implemented — `orchestrator.rs:113-127` checks `phase.dependencies` and bails if incomplete |
-| MCP-003 | No score threshold configuration | **ACCEPT** | `PASS_THRESHOLD` is hardcoded `70.0` in `executors.rs:170`, no `samgraha.toml` override |
-| MCP-004 | No graceful degradation | **REJECT** | Already implemented — `orchestrator.rs:164-179` marks phase Failed + dependent Blocked, continues pipeline iteration |
-| MCP-005 | Literal keyword matching | **PARTIAL** | `providers.rs:152` uses `body_lower.contains()` (substring) but `pipeline.rs:242-260` already has word-boundary matching — inconsistency only in deterministic provider |
-| MCP-006 | Philosophy missing from pipeline registry | **ACCEPT** | Confirmed — no `Philosophy` variant in `PipelineKind` enum (`schemas/src/audit.rs:6-29`), not in `DOC_DOMAINS` list |
-| MCP-007 | Semantic review never executes | **ACCEPT** | Semantic provider exists (`semantic.rs`) and runs heuristic checks, but it produces findings — the issue is that `audit()` doesn't propagate them to `semantic_review.tasks` or the LLM-based rubric review is unimplemented |
+All samgraha reports are rendered as markdown via templates. This is excellent for human readability but poor for programmatic consumption:
+
+- **Visualization tools** (dashboards, charts, trend analysis) need structured data
+- **Custom logic** (threshold comparisons, trend detection, cross-domain aggregation) requires parsing markdown back into data
+- **CI/CD integration** needs machine-readable pass/fail signals
+- **External consumers** (Pitha, other tools) want JSON APIs, not markdown parsing
+
+The scorecard system already writes `latest.json` alongside `latest.md` for domain audits, but all other report types (pipeline reports, per-audit reports, CLI reports) only produce markdown.
 
 ---
 
-## Rejection Details
+## Current State
 
-### MCP-002: No Prerequisite Checking — REJECTED
+| Report Path | JSON Output | Markdown Output |
+|-------------|-------------|-----------------|
+| `{domain}/scorecard/latest.{json,md}` | `AuditScorecard` (full) | Template-rendered |
+| `{domain}/{doc_id}/{section}/latest.json` | Raw `SemanticReport` | None |
+| `reports/{type}/latest/report.md` | **None** | Template-rendered |
+| `reports/{type}/archive/{ts}.md` | **None** | Template-rendered |
+| Pipeline in-memory (`render_report_from_pipeline`) | **None** | Template-rendered |
 
-The claim is that phases proceed without verifying upstream docs. The code shows otherwise:
+The gap: 15+ report types produce markdown only. The template context structs (`ArchitectureTeraContext`, `BuildTemplateContext`, etc.) are already `#[derive(Serialize)]` but the JSON is never written to disk.
+
+---
+
+## Proposed Solution
+
+Add a `latest.json` alongside every `latest.md` (or standalone `latest.json`) in the report output directories. The JSON contains the same data that was embedded in the template, serialized from the already-serializable context structs.
+
+### What Changes
+
+1. **`render_report()`** — currently returns `String` (markdown). Add a companion JSON output.
+2. **`render_report_from_pipeline()`** — currently returns `String` (markdown). Add JSON serialization.
+3. **CLI `report` command** — writes `latest/report.md`. Add `latest/report.json`.
+4. **`write_report()` / `write_report_file()`** — already supports arbitrary filenames. No change needed.
+
+### What Doesn't Change
+
+- Template files (`.md`) stay as-is
+- SQLite storage stays as-is
+- The `AuditScorecard` flow (already writes JSON) stays as-is
+- MCP tool responses stay as-is (they return JSON already)
+
+---
+
+## Detailed Design
+
+### Phase 1: Add JSON Serialization to `render_report()`
+
+**File:** `crates/services/src/reporting.rs`
+
+Currently `render_report()` builds a context struct, renders markdown, and returns the markdown string. The context struct is already `Serialize`. Change it to return both:
 
 ```rust
-// orchestrator.rs:113-127
-for dep_id in &phase.dependencies {
-    let dep = self.get_phase(dep_id)?;
-    if dep.status != PhaseStatus::Completed {
-        return Err(anyhow!("Dependency '{}' has not completed (status: {:?})", dep_id, dep.status));
-    }
+pub struct ReportOutput {
+    pub markdown: String,
+    pub json: String,
+}
+
+pub fn render_report(
+    report_type: &str,
+    templates_dir: &Path,
+    store: &registry::RegistryStore,
+) -> Result<ReportOutput> {
+    // ... existing context building ...
+    let markdown = render_*_template(&ctx, &template);
+    let json = serde_json::to_string_pretty(&ctx)
+        .context("Failed to serialize report context")?;
+    Ok(ReportOutput { markdown, json })
 }
 ```
 
-Each phase declares dependencies via `make_phase()`. `NewProjectPlanner` chains phases 1→2→3→...→8 sequentially. Phase 4 (Audit impl) depends on Phase 3 (Fix docs), which depends on Phase 2 (Audit docs), which depends on Phase 1 (Generate docs). The dependency chain is enforced at runtime.
+**Backward compatibility:** Existing callers that do `let md = render_report(...)?;` will need to destructure: `let ReportOutput { markdown, json } = render_report(...)?;`. The markdown content is identical — no visual change.
 
-**What's actually missing:** There's no check that the *content* of generated docs is sufficient — only that the previous phase completed. But that's a different issue (quality gate, not prerequisite checking). The prerequisite mechanism itself works.
+**Affected functions (15):**
+- `render_build_template` → `BuildTemplateContext`
+- `render_security_template` → `SecurityTemplateContext`
+- `render_consistency_template` → `ConsistencyTemplateContext`
+- `render_coverage_template` → `CoverageTemplateContext`
+- `render_help_template` → `HelpTemplateContext`
+- `render_architecture_template` → `ArchitectureTeraContext`
+- `render_vision_template` → `VisionTeraContext`
+- `render_design_template` → `DesignTeraContext`
+- `render_readme_template` → `ReadmeTeraContext`
+- `render_prototype_template` → `PrototypeTeraContext`
+- `render_external_context_template` → `ExternalContextTeraContext`
+- `render_engineering_template` → `EngineeringTeraContext`
+- `render_feature_template` → `FeatureTeraContext`
+- `render_feature_technical_template` → `FeatureTechnicalTeraContext`
+- `render_feature_design_template` → `FeatureDesignTeraContext`
+- `render_deterministic_runtime_template` → `DeterministicRuntimeTeraContext`
+- `render_external_context_ownership_template` → `ExternalContextOwnershipTeraContext`
+- `render_documentation_structure_template` → `DocumentationStructureTeraContext`
+- `render_implementation_template` → `ImplementationTeraContext`
 
-### MCP-004: No Graceful Degradation — REJECTED
+**All context structs already have `#[derive(Serialize)]`** — verified in codebase exploration. No schema changes needed.
 
-The claim is that workflow fails when domains can't reach target score. The code shows otherwise:
+### Phase 2: Add JSON to `render_report_from_pipeline()`
+
+**File:** `crates/services/src/reporting.rs` (line 3671)
+
+Currently builds a context struct from `PipelineReport` and renders markdown. Add JSON output:
 
 ```rust
-// executors.rs:213-219
-Err(e) => {
-    all_passed = false;
-    results.push(serde_json::json!({
-        "pipeline": pipeline_str,
-        "error": e.to_string(),
-        "passed": false,
-    }));
+pub fn render_report_from_pipeline(
+    report_type: &str,
+    template: &str,
+    report: &schemas::audit::PipelineReport,
+) -> ReportOutput {
+    let markdown = /* existing render logic */;
+    let json = serde_json::to_string_pretty(report)
+        .unwrap_or_else(|_| "{}".to_string());
+    ReportOutput { markdown, json }
 }
 ```
 
+For pipeline reports, the JSON is the `PipelineReport` itself (already `Serialize`) — no need to serialize the template context, since the context is a lossy transformation of the report.
+
+### Phase 3: CLI Report Command Writes JSON
+
+**File:** `crates/cli/src/commands.rs` (line ~1002)
+
+Currently:
 ```rust
-// orchestrator.rs:164-179
-PhaseStatus::Failed => {
-    for dep in downstream_phases { dep.status = PhaseStatus::Blocked; }
+let rendered = services::reporting::render_report(audit_type, &templates_dir, &runtime.registry)?;
+std::fs::write(&latest_path.join("report.md"), &rendered)?;
+std::fs::write(&archive_path.join(format!("{}.md", ts)), &rendered)?;
+```
+
+Change to:
+```rust
+let output = services::reporting::render_report(audit_type, &templates_dir, &runtime.registry)?;
+std::fs::write(latest_dir.join("report.md"), &output.markdown)?;
+std::fs::write(latest_dir.join("report.json"), &output.json)?;
+std::fs::write(archive_dir.join(format!("{}.md", ts)), &output.markdown)?;
+std::fs::write(archive_dir.join(format!("{}.json", ts)), &output.json)?;
+```
+
+### Phase 4: Add `json_output` Config Toggle
+
+**File:** `samgraha.toml`
+
+```toml
+[report]
+dir = "${SAMGRAHA_REPORT_DIR}"
+json = true  # Write JSON alongside markdown for all reports
+```
+
+**File:** `crates/common/src/config.rs`
+
+Add to `ReportConfigSection`:
+```rust
+#[serde(default = "default_true")]
+pub json: bool,
+```
+
+This lets users disable JSON output if they only want markdown (saves disk I/O).
+
+### Phase 5: Update MCP Report Tools
+
+**File:** `crates/mcp/src/adapter.rs`
+
+The MCP `render_report` tool currently returns markdown. Add an optional `format` parameter:
+
+```rust
+// Existing: returns markdown
+// New: format = "json" returns the structured JSON directly
+```
+
+This lets MCP consumers (Pitha, other tools) request structured data without parsing markdown.
+
+---
+
+## Output Structure
+
+### Domain Scorecard (already exists)
+
+```
+docs/raw/reports/{domain}/scorecard/
+  latest.json    # AuditScorecard { report, semantic_results }
+  latest.md      # Template-rendered markdown
+```
+
+No change — this already works.
+
+### Pipeline Reports (new JSON)
+
+```
+docs/raw/reports/{domain}/{doc_id}/{section}/
+  latest.json    # SemanticReport (already exists for some)
+  latest.md      # (new — template-rendered, currently not written here)
+```
+
+### CLI Reports (new JSON)
+
+```
+reports/{type}/
+  latest/
+    report.md    # Existing
+    report.json  # NEW — structured context data
+  archive/
+    {ts}.md      # Existing
+    {ts}.json    # NEW — structured context data
+```
+
+---
+
+## JSON Schema Examples
+
+### Architecture Report JSON
+
+```json
+{
+  "session_id": "abc-123",
+  "score": 92.5,
+  "rating": "Very Good",
+  "rating_description": "...",
+  "previous_score": 88.0,
+  "score_change_display": "+4.5 (improvement)",
+  "git_revision": "abc123",
+  "created_at": "2026-07-17T10:00:00Z",
+  "engineering_readiness": "READY",
+  "collection_integrity_score": 95.0,
+  "collection_integrity_rating": "Excellent",
+  "structural_integrity_score": 90.0,
+  "structural_integrity_rating": "Very Good",
+  "consistency_score": 88.0,
+  "consistency_rating": "Very Good",
+  "cross_repo_score": 94.0,
+  "cross_repo_rating": "Excellent",
+  "doc_scores": [
+    { "name": "overview.md", "score": 95.0, "rating": "Excellent" }
+  ],
+  "critical_findings": [],
+  "major_findings": [
+    { "check_id": "A4", "message": "...", "location": "..." }
+  ],
+  "minor_findings": [],
+  "recommendations": [
+    { "category": "Architecture", "priority": "medium", "description": "..." }
+  ]
 }
 ```
 
-When a pipeline fails, execution continues to the next pipeline. When a phase fails, downstream phases are blocked (not crashed). The system already degrades gracefully — it doesn't crash, it marks phases as Failed/Blocked and returns structured JSON with the error.
+### Build Report JSON
 
-**What's actually missing:** There's no "document limitation and proceed with warning" mode — it's binary pass/fail. But the core graceful degradation (don't crash, continue execution, report status) is implemented.
-
----
-
-## Accepted Issues — Phasewise Implementation Plan
-
-### Phase 1: Collection-Scope Section Presence (MCP-001)
-
-**Priority:** Critical — blocks accurate scores for Architecture, Engineering, Implementation, Vision
-**Files:** `crates/audit/src/providers.rs`
-**Effort:** Small
-
-**Problem:** `section_presence` check at `providers.rs:92-131` creates a finding for every document missing a section. Should create one finding if the section is missing from the entire domain.
-
-**Fix:**
-```rust
-"section_presence" => {
-    let section_key = rule.scope.to_lowercase().replace(' ', "_").replace('-', "_");
-    let has_anywhere = documents.iter().any(|doc| {
-        let count = doc.quality.per_type.get(&section_key).copied().unwrap_or(0);
-        if count > 0 { return true; }
-        let title_key = doc.title.to_lowercase().replace(' ', "_").replace('-', "_");
-        title_key == section_key
-    });
-    if !has_anywhere {
-        vec![AuditFinding {
-            check_id: rule.id.clone(),
-            severity: Severity::from_str(&rule.severity),
-            message: format!("{}: section '{}' missing from domain", rule.description, rule.scope),
-            location: None,
-            document_id: None,
-            provider: "deterministic".into(),
-            stage: None, section_id: None, confidence: None,
-            evidence: None, status: None, strategy: None,
-        }]
-    } else {
-        vec![]
-    }
+```json
+{
+  "session_id": "def-456",
+  "score": 100.0,
+  "date": "2026-07-17T10:00:00Z",
+  "git_revision": "def456",
+  "contract_name": "build",
+  "declared_produces": "target/debug/myapp",
+  "execution_success": "true",
+  "errors": [],
+  "warnings": [],
+  "suggestions": []
 }
 ```
 
-**Verification:** Run `audit(domain="architecture", providers=["deterministic"])` — score should jump from ~88 to ~95+. Check that `findings` count drops from 106+ to <10.
+---
+
+## Phasewise Implementation Plan
+
+| Phase | Change | Files | Risk | Effort |
+|-------|--------|-------|------|--------|
+| 1 | `ReportOutput` struct + `render_report()` returns both | `reporting.rs` | Low — additive | Small |
+| 2 | `render_report_from_pipeline()` returns both | `reporting.rs` | Low — additive | Small |
+| 3 | CLI writes JSON alongside markdown | `commands.rs` | Low — new files only | Small |
+| 4 | `[report].json` config toggle | `config.rs`, `samgraha.toml` | Low — default true | Small |
+| 5 | MCP `format` parameter | `adapter.rs` | Low — optional param | Small |
+
+**Phases 1-3 are independent.** Phase 4 is independent. Phase 5 depends on Phase 1.
 
 ---
 
-### Phase 2: Philosophy Pipeline Registration (MCP-006)
+## Backward Compatibility
 
-**Priority:** Medium — philosophy domain can't get pipeline-level scoring
-**Files:** `crates/schemas/src/audit.rs`, `crates/audit/src/pipelines/mod.rs`, `crates/services/src/runtime/runtime.rs`, `crates/services/src/project_planner/planners.rs`
-**Effort:** Medium
-
-**Problem:** No `Philosophy` variant in `PipelineKind`, no `PhilosophyPipeline` struct, not in `DOC_DOMAINS`.
-
-**Fix:**
-1. Add `Philosophy` variant to `PipelineKind` enum in `schemas/src/audit.rs`
-2. Add `"philosophy" => Some(Self::Philosophy)` to `from_str()`
-3. Add `"Philosophy" => "philosophy"` to `as_str()`
-4. Create `crates/audit/src/pipelines/philosophy.rs` implementing `Pipeline` trait
-5. Register in `pipelines/mod.rs` and `runtime.rs` dispatch match
-6. Add `"philosophy"` to `DOC_DOMAINS` in `planners.rs`
-
-**Pipeline checks** (analogous to Vision pipeline):
-- P1: Philosophy document exists
-- P2: Guiding Principles section present
-- P3: Values section present
-- P4: Trade-offs section present
-- P5: No implementation-specific technology references
-
-**Verification:** `audit(pipeline="philosophy")` should return a valid `PipelineReport` with score.
-
----
-
-### Phase 3: Word-Boundary Keyword Matching in Deterministic Provider (MCP-005)
-
-**Priority:** Low — affects edge cases ("aspires" vs "aspiration", "pipelines" vs "pip")
-**Files:** `crates/audit/src/providers.rs`
-**Effort:** Small
-
-**Problem:** `keyword_absence` at line 152 uses `body_lower.contains(kw.as_str())` — substring match. `content_check` at lines 187, 197 also uses `body_lower.contains()`. The pipeline layer (`pipeline.rs:242-260`) already has `has_word_boundaries()` — inconsistent.
-
-**Fix:** Reuse the existing word-boundary logic from `pipeline.rs`:
-
-```rust
-// In providers.rs, add a helper:
-fn contains_word(text: &str, keyword: &str) -> bool {
-    text.split_whitespace().any(|w| w == keyword)
-    // Or for substring-within-word safety:
-    // text.split(|c: char| !c.is_alphanumeric()).any(|w| w == keyword)
-}
-
-// Replace all body_lower.contains(kw.as_str()) calls with:
-contains_word(&body_lower, kw.as_str())
-```
-
-**Verification:** `audit(domain="vision")` — "aspires" should not trigger "aspiration" absence. "pipelines" should not trigger "pip" absence.
-
----
-
-### Phase 4: Configurable Score Thresholds (MCP-003)
-
-**Priority:** Low — current 70.0 threshold is reasonable default
-**Files:** `crates/services/src/project_planner/executors.rs`, `crates/common/src/config.rs`, `samgraha.toml`
-**Effort:** Small
-
-**Problem:** `PASS_THRESHOLD` is hardcoded `70.0`. Users can't set per-domain or per-project thresholds.
-
-**Fix:**
-1. Add `[audit.gates]` section to `samgraha.toml` schema:
-   ```toml
-   [audit.gates]
-   default = 70
-   architecture = 85
-   engineering = 70
-   ```
-2. Load gates config in `VerifyPhaseExecutor::execute()` via `runtime.config()`
-3. Fall back to `PASS_THRESHOLD` when no gate is configured for a pipeline
-
-```rust
-// executors.rs
-let threshold = runtime.config()
-    .and_then(|c| c.audit.gates.get(pipeline_str))
-    .copied()
-    .unwrap_or(Self::PASS_THRESHOLD);
-let passed = report.score >= threshold;
-```
-
-**Verification:** Set `architecture = 85` in `samgraha.toml`, run verify phase, confirm architecture uses 85 threshold.
-
----
-
-### Phase 5: Semantic Review Task Population (MCP-007)
-
-**Priority:** Critical — audit scores only reflect structure, not content quality
-**Files:** `crates/audit/src/framework.rs`, `crates/providers/src/semantic.rs`
-**Effort:** Large
-
-**Problem:** `semantic_review.tasks` is always empty. The semantic provider (`semantic.rs`) runs heuristic checks and returns findings, but `framework.rs` doesn't populate the `semantic_review` bundle from those findings.
-
-**Root cause analysis:**
-- `SemanticAuditProvider::execute()` returns `Vec<AuditFinding>` — these go into the combined findings array
-- `AuditReport::semantic_review` is a separate `PipelineSemanticReviewBundle` struct
-- Nothing bridges provider findings into the review bundle
-- The intended flow (audit emits rubric tasks → agent judges → agent stores report) requires LLM integration that doesn't exist yet
-
-**Fix (incremental):**
-1. In `framework.rs`, after running semantic provider, populate `semantic_review.tasks` from the provider's findings:
-   ```rust
-   // After semantic provider execution
-   let semantic_findings = semantic_provider.execute(docs, rules, standard);
-   report.semantic_review.tasks = semantic_findings.iter().map(|f| SemanticReviewTask {
-       document_id: f.document_id,
-       section_id: f.section_id,
-       check_id: f.check_id.clone(),
-       message: f.message.clone(),
-       severity: f.severity.clone(),
-       score: None, // to be filled by LLM review
-   }).collect();
-   ```
-2. Update `get_summary_report` to use `semantic_review.tasks` length/non-empty-ness for `standard_score`
-3. Future: Add LLM-based rubric evaluation (separate effort)
-
-**Verification:** `audit(domain="vision", providers=["deterministic", "semantic"])` should return non-empty `semantic_review.tasks`. `get_summary_report` should have non-null `standard_score`.
-
----
-
-## Implementation Order
-
-| Phase | Issue | Depends On | Risk |
-|-------|-------|------------|------|
-| 1 | MCP-001 (collection-scope) | None | Low — isolated change in one match arm |
-| 2 | MCP-006 (philosophy pipeline) | None | Low — new code, no existing behavior changed |
-| 3 | MCP-005 (word-boundary) | None | Low — helper function, existing pattern in pipeline.rs |
-| 4 | MCP-003 (score thresholds) | None | Low — config loading, backward-compatible default |
-| 5 | MCP-007 (semantic review) | MCP-001 | Medium — requires framework.rs changes, affects scoring |
-
-Phases 1-4 are independent and can be done in parallel. Phase 5 depends on Phase 1 being stable (collection-scope fixes the false positive noise that would otherwise drown out semantic findings).
+- **Markdown output is unchanged.** Templates render identically. No visual regression.
+- **JSON files are additive.** New `report.json` files appear alongside existing `report.md`. No existing files are modified or removed.
+- **`render_report()` return type changes** from `String` to `ReportOutput`. This is a breaking change for callers. All callers are internal (CLI, MCP, tests) — no external API break.
+- **Config default is `true`.** Existing projects get JSON output automatically. Set `json = false` to disable.
 
 ---
 
 ## Testing Strategy
 
-Each phase should include:
-1. **Unit test** in the modified file's `#[cfg(test)]` module
-2. **Integration test** in `tests/tests/` — run audit against test fixtures
-3. **Regression check** — confirm existing passing tests still pass (`cargo test`)
-
-Key test scenarios:
-- Phase 1: Section present in one doc → no finding. Missing from all docs → one finding.
-- Phase 2: `audit(pipeline="philosophy")` returns valid report.
-- Phase 3: "aspires" does not trigger "aspiration" check. "pipelines" does not trigger "pip".
-- Phase 4: Custom threshold from config overrides default.
-- Phase 5: `semantic_review.tasks` is non-empty after semantic provider runs.
+1. **Unit test:** Serialize each context struct to JSON, verify it's valid JSON and contains expected keys
+2. **Integration test:** Run `render_report("architecture", ...)`, verify both `markdown` and `json` are non-empty, verify JSON deserializes back to the same context struct
+3. **CLI test:** Run `samgraha report architecture`, verify `report.json` exists alongside `report.md`
+4. **Regression:** Verify existing tests still pass (markdown output unchanged)
 
 ---
 
 ## Out of Scope
 
-- **MCP-002 (rejected):** Prerequisite checking already works. If quality-gate-before-phase is desired, that's a new feature request, not a bug fix.
-- **MCP-004 (rejected):** Graceful degradation already works. If "document limitation and warn" mode is desired, that's a new feature request.
-- **LLM-based rubric evaluation:** MCP-007 Phase 5 bridges heuristic findings into the review bundle. Full LLM rubric evaluation is a separate, larger effort.
+- **SQLite schema changes** — reports are already stored in SQLite; JSON files are a parallel output, not a replacement
+- **Template changes** — markdown templates stay as-is
+- **Real-time streaming** — JSON files are written atomically, not streamed
+- **Report compression** — JSON files can be large for domains with many findings; compression is a future optimization

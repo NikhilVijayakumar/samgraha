@@ -138,3 +138,5 @@ color = true
 # Base dir for generated reports (e.g. `samgraha audit --report`).
 # Falls back to docs/raw/reports if SAMGRAHA_REPORT_DIR is unset.
 dir = "${SAMGRAHA_REPORT_DIR}"
+# Emit report.json alongside report.md for each report type.
+json = true

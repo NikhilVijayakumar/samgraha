@@ -808,11 +808,11 @@ impl Cli {
             // --report flag: render using per-audit template
             if report {
                 let audit_type = pipeline_kind.as_str();
-                let md = services::reporting::render_report_from_pipeline(
+                let rendered = services::reporting::render_report_from_pipeline(
                     audit_type,
                     services::reporting::get_default_template(),
                     &pipeline_report,
-                );
+                )?;
                 let reports_base = resolve_configured_dir(
                     &rt.context.config.report.dir,
                     &root,
@@ -825,9 +825,17 @@ impl Cli {
 
                 let now = chrono::Local::now();
                 let archive_path = archive_dir.join(format!("{}.md", now.format("%Y%m%d-%H%M%S")));
-                std::fs::write(&archive_path, &md)?;
+                std::fs::write(&archive_path, &rendered.markdown)?;
                 let latest_path = latest_dir.join("report.md");
-                std::fs::write(&latest_path, &md)?;
+                std::fs::write(&latest_path, &rendered.markdown)?;
+
+                if rt.context.config.report.json {
+                    let json_path = latest_dir.join("report.json");
+                    let json_archive = archive_dir.join(format!("{}.json", now.format("%Y%m%d-%H%M%S")));
+                    std::fs::write(&json_path, &rendered.json)?;
+                    std::fs::write(&json_archive, &rendered.json)?;
+                    println!("Report saved: {}", json_path.display());
+                }
 
                 println!("Report saved: {}", latest_path.display());
                 println!("Archived:     {}", archive_path.display());
@@ -1004,7 +1012,7 @@ impl Cli {
         let rendered = services::reporting::render_report(audit_type, &templates_dir, &runtime.registry)?;
 
         if stdout_only {
-            println!("{}", rendered);
+            println!("{}", rendered.markdown);
             return Ok(ExitCode::Success);
         }
 
@@ -1018,9 +1026,17 @@ impl Cli {
 
         let now = chrono::Local::now();
         let archive_path = archive_dir.join(format!("{}.md", now.format("%Y%m%d-%H%M%S")));
-        std::fs::write(&archive_path, &rendered)?;
+        std::fs::write(&archive_path, &rendered.markdown)?;
         let latest_path = latest_dir.join("report.md");
-        std::fs::write(&latest_path, &rendered)?;
+        std::fs::write(&latest_path, &rendered.markdown)?;
+
+        if runtime.context.config.report.json {
+            let json_path = latest_dir.join("report.json");
+            let json_archive = archive_dir.join(format!("{}.json", now.format("%Y%m%d-%H%M%S")));
+            std::fs::write(&json_path, &rendered.json)?;
+            std::fs::write(&json_archive, &rendered.json)?;
+            println!("Report saved: {}", json_path.display());
+        }
 
         println!("Report saved: {}", latest_path.display());
         println!("Archived:     {}", archive_path.display());

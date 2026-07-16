@@ -193,6 +193,8 @@ pub fn interpolate(input: &str, project_root: &Path) -> Result<String, String> {
 pub struct ReportConfig {
     #[serde(default = "default_report_dir")]
     pub dir: String,
+    #[serde(default)]
+    pub json: bool,
 }
 
 fn default_report_dir() -> String {
@@ -203,6 +205,7 @@ impl Default for ReportConfig {
     fn default() -> Self {
         Self {
             dir: default_report_dir(),
+            json: false,
         }
     }
 }

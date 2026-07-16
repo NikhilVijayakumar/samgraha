@@ -1202,7 +1202,8 @@ impl McpAdapter {
         let rendered = services::reporting::render_report(audit_type, &templates_dir, self.runtime.registry.as_ref())?;
         Ok(serde_json::json!({
             "type": audit_type,
-            "markdown": rendered,
+            "markdown": rendered.markdown,
+            "json": rendered.json,
         }))
     }
 

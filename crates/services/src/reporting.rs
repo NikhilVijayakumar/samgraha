@@ -5,6 +5,15 @@ use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+/// Structured output from report rendering — contains both the
+/// human-readable markdown and the machine-readable JSON serialization
+/// of the same template context data.
+#[derive(Debug, Clone)]
+pub struct ReportOutput {
+    pub markdown: String,
+    pub json: String,
+}
+
 /// Write a report JSON blob to the filesystem report store.
 ///
 /// # Atomicity
@@ -274,7 +283,7 @@ fn chrono_now() -> String {
 // ── Template Engine ─────────────────────────────────────────────────────
 
 /// Context for rendering pipeline report templates.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize)]
 pub struct TemplateContext {
     pub pipeline: String,
     pub score: f64,
@@ -293,14 +302,14 @@ pub struct TemplateContext {
     pub semantic_done: Vec<TemplateFinding>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct TemplateFinding {
     pub check_id: String,
     pub message: String,
     pub location: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct TemplateComment {
     pub author: String,
     pub body: String,
@@ -3210,7 +3219,7 @@ fn render_implementation_template(ctx: &ImplementationTeraContext, template: &st
 
 // ── Per-Audit Template Contexts (Phase 8) ──────────────────────────────
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize)]
 pub struct BuildTemplateContext {
     pub session_id: String,
     pub score: f64,
@@ -3227,7 +3236,7 @@ pub struct BuildTemplateContext {
     pub improvements: String,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize)]
 pub struct SecurityTemplateContext {
     pub session_id: String,
     pub score: f64,
@@ -3245,7 +3254,7 @@ pub struct SecurityTemplateContext {
     pub improvements: String,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize)]
 pub struct ConsistencyTemplateContext {
     pub session_id: String,
     pub score: f64,
@@ -3262,7 +3271,7 @@ pub struct ConsistencyTemplateContext {
     pub improvements: String,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize)]
 pub struct CoverageTemplateContext {
     pub session_id: String,
     pub score: f64,
@@ -3279,7 +3288,7 @@ pub struct CoverageTemplateContext {
     pub improvements: String,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize)]
 pub struct HelpTemplateContext {
     pub session_id: String,
     pub score: f64,
@@ -3480,7 +3489,7 @@ pub fn render_report(
     report_type: &str,
     templates_dir: &Path,
     store: &registry::RegistryStore,
-) -> Result<String> {
+) -> Result<ReportOutput> {
     let template_file = if report_type == "help" {
         "product-guide-report.md"
     } else {
@@ -3491,23 +3500,28 @@ pub fn render_report(
     match report_type {
         "build" => {
             let ctx = build_build_context(store);
-            Ok(render_build_template(&ctx, &template))
+            let json = serde_json::to_string_pretty(&ctx).context("Failed to serialize build context")?;
+            Ok(ReportOutput { markdown: render_build_template(&ctx, &template), json })
         }
         "security" => {
             let ctx = build_security_context(store);
-            Ok(render_security_template(&ctx, &template))
+            let json = serde_json::to_string_pretty(&ctx).context("Failed to serialize security context")?;
+            Ok(ReportOutput { markdown: render_security_template(&ctx, &template), json })
         }
         "consistency" => {
             let ctx = build_consistency_context(store);
-            Ok(render_consistency_template(&ctx, &template))
+            let json = serde_json::to_string_pretty(&ctx).context("Failed to serialize consistency context")?;
+            Ok(ReportOutput { markdown: render_consistency_template(&ctx, &template), json })
         }
         "coverage" => {
             let ctx = build_coverage_context(store);
-            Ok(render_coverage_template(&ctx, &template))
+            let json = serde_json::to_string_pretty(&ctx).context("Failed to serialize coverage context")?;
+            Ok(ReportOutput { markdown: render_coverage_template(&ctx, &template), json })
         }
         "help" => {
             let ctx = build_help_context(store);
-            Ok(render_help_template(&ctx, &template))
+            let json = serde_json::to_string_pretty(&ctx).context("Failed to serialize help context")?;
+            Ok(ReportOutput { markdown: render_help_template(&ctx, &template), json })
         }
         "architecture" => {
             let sessions = store.query_architecture_sessions(1)?;
@@ -3515,7 +3529,8 @@ pub fn render_report(
                 let report = store.get_architecture_report_with_findings(s.id)?;
                 if let Some(r) = report {
                     let ctx = build_architecture_context(s, r, store);
-                    return render_architecture_template(&ctx, &template);
+                    let json = serde_json::to_string_pretty(&ctx).context("Failed to serialize architecture context")?;
+                    return Ok(ReportOutput { markdown: render_architecture_template(&ctx, &template)?, json });
                 }
             }
             Err(anyhow::anyhow!("No architecture report available"))
@@ -3526,7 +3541,8 @@ pub fn render_report(
                 let report = store.get_vision_report_with_findings(s.id)?;
                 if let Some(r) = report {
                     let ctx = build_vision_context(s, r, store);
-                    return render_vision_template(&ctx, &template);
+                    let json = serde_json::to_string_pretty(&ctx).context("Failed to serialize vision context")?;
+                    return Ok(ReportOutput { markdown: render_vision_template(&ctx, &template)?, json });
                 }
             }
             Err(anyhow::anyhow!("No vision report available"))
@@ -3537,7 +3553,8 @@ pub fn render_report(
                 let report = store.get_design_report_with_findings(s.id)?;
                 if let Some(r) = report {
                     let ctx = build_design_context(s, r, store);
-                    return render_design_template(&ctx, &template);
+                    let json = serde_json::to_string_pretty(&ctx).context("Failed to serialize design context")?;
+                    return Ok(ReportOutput { markdown: render_design_template(&ctx, &template)?, json });
                 }
             }
             Err(anyhow::anyhow!("No design report available"))
@@ -3548,7 +3565,8 @@ pub fn render_report(
                 let report = store.get_readme_report_with_findings(s.id)?;
                 if let Some(r) = report {
                     let ctx = build_readme_context(s, r);
-                    return render_readme_template(&ctx, &template);
+                    let json = serde_json::to_string_pretty(&ctx).context("Failed to serialize readme context")?;
+                    return Ok(ReportOutput { markdown: render_readme_template(&ctx, &template)?, json });
                 }
             }
             Err(anyhow::anyhow!("No readme report available"))
@@ -3559,7 +3577,8 @@ pub fn render_report(
                 let report = store.get_prototype_report_with_findings(s.id)?;
                 if let Some(r) = report {
                     let ctx = build_prototype_context(s, r, store);
-                    return render_prototype_template(&ctx, &template);
+                    let json = serde_json::to_string_pretty(&ctx).context("Failed to serialize prototype context")?;
+                    return Ok(ReportOutput { markdown: render_prototype_template(&ctx, &template)?, json });
                 }
             }
             Err(anyhow::anyhow!("No prototype report available"))
@@ -3570,7 +3589,8 @@ pub fn render_report(
                 let report = store.get_external_context_report_with_findings(s.id)?;
                 if let Some(r) = report {
                     let ctx = build_external_context_context(s, r, store);
-                    return render_external_context_template(&ctx, &template);
+                    let json = serde_json::to_string_pretty(&ctx).context("Failed to serialize external-context context")?;
+                    return Ok(ReportOutput { markdown: render_external_context_template(&ctx, &template)?, json });
                 }
             }
             Err(anyhow::anyhow!("No external-context report available"))
@@ -3581,7 +3601,8 @@ pub fn render_report(
                 let report = store.get_engineering_report_with_findings(s.id)?;
                 if let Some(r) = report {
                     let ctx = build_engineering_context(s, r, store);
-                    return render_engineering_template(&ctx, &template);
+                    let json = serde_json::to_string_pretty(&ctx).context("Failed to serialize engineering context")?;
+                    return Ok(ReportOutput { markdown: render_engineering_template(&ctx, &template)?, json });
                 }
             }
             Err(anyhow::anyhow!("No engineering report available"))
@@ -3592,7 +3613,8 @@ pub fn render_report(
                 let report = store.get_feature_report_with_findings(s.id)?;
                 if let Some(r) = report {
                     let ctx = build_feature_context(s, r, store);
-                    return render_feature_template(&ctx, &template);
+                    let json = serde_json::to_string_pretty(&ctx).context("Failed to serialize feature context")?;
+                    return Ok(ReportOutput { markdown: render_feature_template(&ctx, &template)?, json });
                 }
             }
             Err(anyhow::anyhow!("No feature report available"))
@@ -3603,7 +3625,8 @@ pub fn render_report(
                 let report = store.get_feature_technical_report_with_findings(s.id)?;
                 if let Some(r) = report {
                     let ctx = build_feature_technical_context(s, r, store);
-                    return render_feature_technical_template(&ctx, &template);
+                    let json = serde_json::to_string_pretty(&ctx).context("Failed to serialize feature-technical context")?;
+                    return Ok(ReportOutput { markdown: render_feature_technical_template(&ctx, &template)?, json });
                 }
             }
             Err(anyhow::anyhow!("No feature-technical report available"))
@@ -3614,7 +3637,8 @@ pub fn render_report(
                 let report = store.get_feature_design_report_with_findings(s.id)?;
                 if let Some(r) = report {
                     let ctx = build_feature_design_context(s, r, store);
-                    return render_feature_design_template(&ctx, &template);
+                    let json = serde_json::to_string_pretty(&ctx).context("Failed to serialize feature-design context")?;
+                    return Ok(ReportOutput { markdown: render_feature_design_template(&ctx, &template)?, json });
                 }
             }
             Err(anyhow::anyhow!("No feature-design report available"))
@@ -3625,7 +3649,8 @@ pub fn render_report(
                 let report = store.get_deterministic_runtime_report_with_findings(s.id)?;
                 if let Some(r) = report {
                     let ctx = build_deterministic_runtime_context(s, r);
-                    return render_deterministic_runtime_template(&ctx, &template);
+                    let json = serde_json::to_string_pretty(&ctx).context("Failed to serialize deterministic-runtime context")?;
+                    return Ok(ReportOutput { markdown: render_deterministic_runtime_template(&ctx, &template)?, json });
                 }
             }
             Err(anyhow::anyhow!("No deterministic-runtime report available"))
@@ -3636,7 +3661,8 @@ pub fn render_report(
                 let report = store.get_external_context_ownership_report_with_findings(s.id)?;
                 if let Some(r) = report {
                     let ctx = build_external_context_ownership_context(s, r);
-                    return render_external_context_ownership_template(&ctx, &template);
+                    let json = serde_json::to_string_pretty(&ctx).context("Failed to serialize external-context-ownership context")?;
+                    return Ok(ReportOutput { markdown: render_external_context_ownership_template(&ctx, &template)?, json });
                 }
             }
             Err(anyhow::anyhow!("No external-context-ownership report available"))
@@ -3647,7 +3673,8 @@ pub fn render_report(
                 let report = store.get_implementation_report_with_findings(s.id)?;
                 if let Some(r) = report {
                     let ctx = build_implementation_context(s, r);
-                    return render_implementation_template(&ctx, &template);
+                    let json = serde_json::to_string_pretty(&ctx).context("Failed to serialize implementation context")?;
+                    return Ok(ReportOutput { markdown: render_implementation_template(&ctx, &template)?, json });
                 }
             }
             Err(anyhow::anyhow!("No implementation report available"))
@@ -3658,7 +3685,8 @@ pub fn render_report(
                 let report = store.get_documentation_structure_report_with_findings(s.id)?;
                 if let Some(r) = report {
                     let ctx = build_documentation_structure_context(s, r);
-                    return render_documentation_structure_template(&ctx, &template);
+                    let json = serde_json::to_string_pretty(&ctx).context("Failed to serialize documentation-structure context")?;
+                    return Ok(ReportOutput { markdown: render_documentation_structure_template(&ctx, &template)?, json });
                 }
             }
             Err(anyhow::anyhow!("No documentation-structure report available"))
@@ -3672,9 +3700,8 @@ pub fn render_report_from_pipeline(
     report_type: &str,
     template: &str,
     report: &schemas::audit::PipelineReport,
-) -> String {
+) -> Result<ReportOutput> {
     use schemas::audit::Severity;
-    // Helper to classify an AuditFinding's severity
     let classify = |sev: &Severity| -> &str {
         match sev {
             Severity::Error => "error",
@@ -3682,7 +3709,6 @@ pub fn render_report_from_pipeline(
             Severity::Suggestion => "suggestion",
         }
     };
-    // Build per-audit context from the pipeline report
     match report_type {
         "build" => {
             let mut ctx = BuildTemplateContext {
@@ -3704,7 +3730,8 @@ pub fn render_report_from_pipeline(
                     _ => ctx.suggestions.push(tf),
                 }
             }
-            render_build_template(&ctx, template)
+            let json = serde_json::to_string_pretty(&ctx).context("Failed to serialize build context")?;
+            Ok(ReportOutput { markdown: render_build_template(&ctx, template), json })
         }
         "security" => {
             let mut ctx = SecurityTemplateContext {
@@ -3725,7 +3752,8 @@ pub fn render_report_from_pipeline(
                     _ => ctx.suggestions.push(tf),
                 }
             }
-            render_security_template(&ctx, template)
+            let json = serde_json::to_string_pretty(&ctx).context("Failed to serialize security context")?;
+            Ok(ReportOutput { markdown: render_security_template(&ctx, template), json })
         }
         "consistency" => {
             let mut ctx = ConsistencyTemplateContext {
@@ -3746,7 +3774,8 @@ pub fn render_report_from_pipeline(
                     _ => ctx.suggestions.push(tf),
                 }
             }
-            render_consistency_template(&ctx, template)
+            let json = serde_json::to_string_pretty(&ctx).context("Failed to serialize consistency context")?;
+            Ok(ReportOutput { markdown: render_consistency_template(&ctx, template), json })
         }
         "coverage" => {
             let mut ctx = CoverageTemplateContext {
@@ -3767,10 +3796,10 @@ pub fn render_report_from_pipeline(
                     _ => ctx.suggestions.push(tf),
                 }
             }
-            render_coverage_template(&ctx, template)
+            let json = serde_json::to_string_pretty(&ctx).context("Failed to serialize coverage context")?;
+            Ok(ReportOutput { markdown: render_coverage_template(&ctx, template), json })
         }
         _ => {
-            // Fallback: use old template engine
             let mut errors = Vec::new();
             let mut warnings = Vec::new();
             let mut suggestions = Vec::new();
@@ -3798,7 +3827,8 @@ pub fn render_report_from_pipeline(
                 semantic_pending: Vec::new(),
                 semantic_done: Vec::new(),
             };
-            render_from_template(template, &ctx)
+            let json = serde_json::to_string_pretty(&ctx).context("Failed to serialize fallback context")?;
+            Ok(ReportOutput { markdown: render_from_template(template, &ctx), json })
         }
     }
 }
