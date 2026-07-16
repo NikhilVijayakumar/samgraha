@@ -32,6 +32,7 @@ tests/.samgraha/
 .agents/
 .claude/
 .opencode/
+opencode.json
 /docs/errors-list/
 /docs/raw/reports/
 /tests/docs/raw/reports/architecture/scorecard/latest.json
