@@ -1,7 +1,7 @@
 use anyhow::Result;
 use rayon::prelude::*;
 use schemas::audit::{
-    AuditFinding, AuditReport, AuditScore, QualityGate, ReadinessAssessment, SemanticReviewBundle, Severity,
+    AuditFinding, AuditReport, AuditScore, QualityGate, ReadinessAssessment, SemanticReviewBundle, SemanticReviewTask, Severity,
 };
 use schemas::document::Document;
 use schemas::standard::{AuditRuleDef, StandardDefinition};
@@ -218,6 +218,49 @@ impl AuditFramework {
             }
         }
 
+        // --- Populate semantic review bundle (MCP-007 fix) ---
+        // Collect findings from the semantic provider and convert them into
+        // SemanticReviewTask entries so the summary report can roll them up.
+        let semantic_findings: Vec<&AuditFinding> = all_findings
+            .iter()
+            .filter(|f| f.provider == "semantic")
+            .collect();
+
+        let semantic_tasks: Vec<SemanticReviewTask> = semantic_findings
+            .iter()
+            .filter_map(|f| {
+                let doc_id = f.document_id?;
+                let doc = domain_docs.iter().find(|d| d.id == doc_id)?;
+                Some(SemanticReviewTask {
+                    document_id: doc_id,
+                    section_id: f.section_id.unwrap_or(0),
+                    document_title: doc.title.clone(),
+                    document_path: doc.path.as_str().to_string(),
+                    domain: doc.standard.clone(),
+                    semantic_type: f.check_id.clone(),
+                    content: f.message.clone(),
+                })
+            })
+            .collect();
+
+        let semantic_review = if semantic_tasks.is_empty() {
+            SemanticReviewBundle::default()
+        } else {
+            SemanticReviewBundle {
+                instruction: "Review each section against the domain's writing guidance rubric. \
+                    Score completeness, tone, technology independence, and audience appropriateness."
+                    .to_string(),
+                rubrics: {
+                    let mut r = HashMap::new();
+                    r.insert("completeness".into(), "Section covers all required aspects per the standard".into());
+                    r.insert("tone".into(), "Writing matches the standard's voice guidance".into());
+                    r.insert("technology_independence".into(), "Domain docs avoid implementation-specific references".into());
+                    r
+                },
+                tasks: semantic_tasks,
+            }
+        };
+
         // Final score: weighted sum of buckets (default 25/25/25/25).
         let final_inputs: Vec<(&str, f64)> = scoring
             .calculation_inputs
@@ -278,7 +321,7 @@ impl AuditFramework {
             findings: all_findings,
             readiness,
             metadata: HashMap::new(),
-            semantic_review: SemanticReviewBundle::default(),
+            semantic_review,
         };
 
         info!(

@@ -168,6 +168,19 @@ pub struct VerifyPhaseExecutor;
 impl VerifyPhaseExecutor {
     /// Score threshold matching the "Acceptable" rating band.
     pub const PASS_THRESHOLD: f64 = 70.0;
+
+    /// Resolve the score threshold for a given pipeline, checking config
+    /// gates first, then falling back to the compile-time default.
+    fn threshold_for(pipeline: &str, runtime: &KnowledgeRuntime) -> f64 {
+        runtime
+            .context
+            .config
+            .audit
+            .gates
+            .get(pipeline)
+            .and_then(|g| g.min_score)
+            .unwrap_or(Self::PASS_THRESHOLD)
+    }
 }
 
 impl PhaseExecutor for VerifyPhaseExecutor {
@@ -199,7 +212,8 @@ impl PhaseExecutor for VerifyPhaseExecutor {
 
             match runtime.run_pipeline_with_id(&kind, false, true, false, false) {
                 Ok((report, _report_id)) => {
-                    let passed = report.score >= Self::PASS_THRESHOLD;
+                    let threshold = Self::threshold_for(pipeline_str, runtime);
+                    let passed = report.score >= threshold;
                     if !passed {
                         all_passed = false;
                     }
@@ -207,7 +221,7 @@ impl PhaseExecutor for VerifyPhaseExecutor {
                         "pipeline": pipeline_str,
                         "score": report.score,
                         "passed": passed,
-                        "threshold": Self::PASS_THRESHOLD,
+                        "threshold": threshold,
                     }));
                 }
                 Err(e) => {
@@ -223,7 +237,7 @@ impl PhaseExecutor for VerifyPhaseExecutor {
 
         Ok(serde_json::json!({
             "all_passed": all_passed,
-            "threshold": Self::PASS_THRESHOLD,
+            "default_threshold": Self::PASS_THRESHOLD,
             "results": results,
         }))
     }

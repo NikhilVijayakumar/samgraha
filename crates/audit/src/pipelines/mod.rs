@@ -15,6 +15,7 @@ pub mod feature_design;
 pub mod feature_technical;
 pub mod implementation;
 pub mod knowledge_system;
+pub mod philosophy;
 pub mod prototype;
 pub mod readme;
 pub mod security;

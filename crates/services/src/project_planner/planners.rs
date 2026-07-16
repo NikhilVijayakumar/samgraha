@@ -65,7 +65,7 @@ fn make_phase(
 pub(crate) const DOC_DOMAINS: &[&str] = &[
     "vision", "architecture", "engineering", "readme", "external-context",
     "external-context-ownership", "design", "feature", "feature-design",
-    "feature-technical", "prototype", "consistency", "coverage",
+    "feature-technical", "prototype", "consistency", "coverage", "philosophy",
 ];
 
 pub(crate) const DOC_PIPELINES: &[&str] = DOC_DOMAINS;

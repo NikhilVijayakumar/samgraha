@@ -118,6 +118,12 @@ debounce_ms = 100
 batch_size = 100
 
 [audit.gates]
+# Per-pipeline score thresholds for the Verify phase.
+# Uncomment and set min_score to override the default 70.0 threshold.
+# Example:
+# architecture = { min_score = 85 }
+# engineering = { min_score = 70 }
+# vision = { min_score = 90 }
 
 [audit]
 default-severity = "suggestion"

@@ -90,36 +90,43 @@ impl DeterministicAuditProvider {
     ) -> Vec<AuditFinding> {
         match rule.evidence_type.as_str() {
             "section_presence" => {
+                // Collection-scope check: the section must exist *somewhere* in the
+                // domain, not in every document.  One finding per missing section, not
+                // one per document missing it.  (MCP-001 fix)
                 let section_key = rule
                     .scope
                     .to_lowercase()
                     .replace(' ', "_")
                     .replace('-', "_");
-                documents
-                    .par_iter()
-                    .filter(|doc| {
-                        let count = doc
-                            .quality
-                            .per_type
-                            .get(&section_key)
-                            .copied()
-                            .unwrap_or(0);
-                        if count > 0 {
-                            return false;
-                        }
-                        let title_key = doc
-                            .title
-                            .to_lowercase()
-                            .replace(' ', "_")
-                            .replace('-', "_");
-                        title_key != section_key
-                    })
-                    .map(|doc| AuditFinding {
+                let has_anywhere = documents.iter().any(|doc| {
+                    let count = doc
+                        .quality
+                        .per_type
+                        .get(&section_key)
+                        .copied()
+                        .unwrap_or(0);
+                    if count > 0 {
+                        return true;
+                    }
+                    let title_key = doc
+                        .title
+                        .to_lowercase()
+                        .replace(' ', "_")
+                        .replace('-', "_");
+                    title_key == section_key
+                });
+                if has_anywhere {
+                    vec![]
+                } else {
+                    vec![AuditFinding {
                         check_id: rule.id.clone(),
                         severity: Severity::from_str(&rule.severity),
-                        message: format!("{}: '{}'", rule.description, doc.path.as_str()),
-                        location: Some(doc.path.as_str().to_string()),
-                        document_id: Some(doc.id),
+                        message: format!(
+                            "{}: section '{}' not found in any document in the domain",
+                            rule.description, rule.scope
+                        ),
+                        location: None,
+                        document_id: None,
                         provider: "deterministic".into(),
                         stage: None,
                         section_id: None,
@@ -127,8 +134,8 @@ impl DeterministicAuditProvider {
                         evidence: None,
                         status: None,
                         strategy: None,
-                    })
-                    .collect()
+                    }]
+                }
             }
             "keyword_absence" => {
                 // Use keywords from evidence params if provided by the DB rule;
@@ -149,7 +156,9 @@ impl DeterministicAuditProvider {
                             has_implementation_details(doc.body.raw())
                         } else {
                             // DB-driven: fail if any of the declared keywords appear in the body.
-                            param_keywords.iter().any(|kw| body_lower.contains(kw.as_str()))
+                            // Uses word-boundary matching to avoid substring false positives
+                            // (e.g. "pipelines" should not trigger "pip" check). (MCP-005)
+                            param_keywords.iter().any(|kw| contains_word(&body_lower, kw))
                         }
                     })
                     .map(|doc| AuditFinding {
@@ -184,20 +193,20 @@ impl DeterministicAuditProvider {
                             "must_not_contain" => {
                                 // Fail if any keyword or pattern is present.
                                 if !keywords.is_empty() {
-                                    return keywords.iter().any(|kw| body_lower.contains(kw.as_str()));
+                                    return keywords.iter().any(|kw| contains_word(&body_lower, kw));
                                 }
                                 if !pattern.is_empty() {
-                                    return body_lower.contains(pattern.as_str());
+                                    return contains_word(&body_lower, &pattern);
                                 }
                                 false
                             }
                             _ => {
                                 // Default "must_contain": fail if any required keyword is absent.
                                 if !keywords.is_empty() {
-                                    return keywords.iter().any(|kw| !body_lower.contains(kw.as_str()));
+                                    return keywords.iter().any(|kw| !contains_word(&body_lower, kw));
                                 }
                                 if !pattern.is_empty() {
-                                    return !body_lower.contains(pattern.as_str());
+                                    return !contains_word(&body_lower, &pattern);
                                 }
                                 false
                             }
@@ -252,7 +261,7 @@ impl DeterministicAuditProvider {
                         let body_lower = doc.body.raw().to_lowercase();
                         expected_domains.iter().any(|domain| {
                             let domain_lower = domain.to_lowercase();
-                            !body_lower.contains(domain_lower.as_str())
+                            !contains_word(&body_lower, &domain_lower)
                         })
                     })
                     .map(|doc| AuditFinding {
@@ -415,6 +424,31 @@ fn has_implementation_details(body: &str) -> bool {
         "pip install",
     ];
     indicators.iter().any(|i| body.contains(i))
+}
+
+/// Word-boundary-aware substring match.  Prevents "rust" matching inside
+/// "trust", "aspiration" satisfying "aspiration" check when only "aspir"
+/// was intended, etc.  Treats hyphens and underscores as word-joining
+/// (same as `pipeline::has_word_boundaries`).
+fn contains_word(text: &str, keyword: &str) -> bool {
+    fn joins_word(c: char) -> bool {
+        c.is_alphanumeric() || c == '-' || c == '_'
+    }
+    let kw_lower = keyword.to_lowercase();
+    let mut start = 0;
+    while let Some(pos) = text[start..].find(&kw_lower) {
+        let abs = start + pos;
+        let before_ok = !joins_word(kw_lower.chars().next().unwrap_or('x'))
+            || text[..abs].chars().next_back().is_none_or(|c| !joins_word(c));
+        let end = abs + kw_lower.len();
+        let after_ok = !joins_word(kw_lower.chars().last().unwrap_or('x'))
+            || text[end..].chars().next().is_none_or(|c| !joins_word(c));
+        if before_ok && after_ok {
+            return true;
+        }
+        start = abs + 1;
+    }
+    false
 }
 
 #[cfg(test)]

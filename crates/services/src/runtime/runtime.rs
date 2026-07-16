@@ -16,7 +16,7 @@ use audit_crate::fix::types::{FixPlan, FixSession, PlanType, SessionStatus};
 use audit_crate::fix::verifier::Verifier;
 use audit_crate::pipeline::PipelineContext;
 use uuid::Uuid;
-use audit_crate::pipelines::{architecture::ArchitecturePipeline, build::BuildPipeline, consistency::ConsistencyPipeline, coverage::CoveragePipeline, dependency::DependencyPipeline, design::DesignPipeline, deterministic_runtime::DeterministicRuntimePipeline, documentation_structure::DocumentationStructurePipeline, engineering::EngineeringPipeline, external_context::ExternalContextPipeline, external_context_ownership::ExternalContextOwnershipPipeline, feature::FeaturePipeline, feature_design::FeatureDesignPipeline, feature_technical::FeatureTechnicalPipeline, help::HelpPipeline, implementation::ImplementationPipeline, knowledge_system::KnowledgeSystemPipeline, prototype::PrototypePipeline, readme::ReadmePipeline, security::SecurityPipeline, vision::VisionPipeline};
+use audit_crate::pipelines::{architecture::ArchitecturePipeline, build::BuildPipeline, consistency::ConsistencyPipeline, coverage::CoveragePipeline, dependency::DependencyPipeline, design::DesignPipeline, deterministic_runtime::DeterministicRuntimePipeline, documentation_structure::DocumentationStructurePipeline, engineering::EngineeringPipeline, external_context::ExternalContextPipeline, external_context_ownership::ExternalContextOwnershipPipeline, feature::FeaturePipeline, feature_design::FeatureDesignPipeline, feature_technical::FeatureTechnicalPipeline, help::HelpPipeline, implementation::ImplementationPipeline, knowledge_system::KnowledgeSystemPipeline, philosophy::PhilosophyPipeline, prototype::PrototypePipeline, readme::ReadmePipeline, security::SecurityPipeline, vision::VisionPipeline};
 use audit_crate::AuditFramework;
 use common::config::SamgrahaConfig;
 use registry::RegistryStore;
@@ -192,6 +192,7 @@ impl KnowledgeRuntime {
             PipelineKind::Dependency => AuditService::run_pipeline(&DependencyPipeline, &ctx),
             PipelineKind::Help => AuditService::run_pipeline(&HelpPipeline, &ctx),
             PipelineKind::KnowledgeSystem => AuditService::run_pipeline(&KnowledgeSystemPipeline, &ctx),
+            PipelineKind::Philosophy => AuditService::run_pipeline(&PhilosophyPipeline, &ctx),
             PipelineKind::Doc => {
                 anyhow::bail!("Use the standard audit() method for Documentation Audit");
             }
@@ -249,6 +250,7 @@ impl KnowledgeRuntime {
             PipelineKind::Dependency => AuditService::run_pipeline(&DependencyPipeline, &ctx),
             PipelineKind::Help => AuditService::run_pipeline(&HelpPipeline, &ctx),
             PipelineKind::KnowledgeSystem => AuditService::run_pipeline(&KnowledgeSystemPipeline, &ctx),
+            PipelineKind::Philosophy => AuditService::run_pipeline(&PhilosophyPipeline, &ctx),
             PipelineKind::Doc => {
                 anyhow::bail!("Use the standard audit() method for Documentation Audit");
             }
@@ -994,6 +996,20 @@ impl KnowledgeRuntime {
                 if !recommendations.is_empty() {
                     let _ = self.registry.insert_recommendations(
                         "knowledge-system", report_id, &recommendations,
+                    );
+                }
+                Ok(report_id)
+            }
+            PipelineKind::Philosophy => {
+                let report_id = self.store_build_report(
+                    report.score, session_id,
+                    None, None, None, None, None, None,
+                    &report.findings,
+                )?;
+                let recommendations = generate_recommendations(&report.findings);
+                if !recommendations.is_empty() {
+                    let _ = self.registry.insert_recommendations(
+                        "philosophy", report_id, &recommendations,
                     );
                 }
                 Ok(report_id)
