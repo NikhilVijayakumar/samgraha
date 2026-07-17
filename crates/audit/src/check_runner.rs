@@ -87,12 +87,25 @@ pub fn resolve_check(
     None
 }
 
-/// Probe a directory for `{name}.sh`/`{name}.ps1` — platform-native extension
-/// first (`.ps1` on Windows, `.sh` elsewhere), so a repo shipping both (e.g.
-/// samgraha's own `scripts/`, matching docs/knowledge-hub's `windows/`+`ubuntu/`
-/// split) runs the variant meant for the OS actually running it, not
-/// whichever happens to sort first.
+/// Probe a directory for a script named `name`, trying platform-native
+/// extensions first (`.ps1` on Windows, `.sh` elsewhere — for a repo
+/// shipping both, e.g. samgraha's own `scripts/`, matching
+/// docs/knowledge-hub's `windows/`+`ubuntu/` split), then the two
+/// cross-platform interpreter extensions (`.py`, `.js` — no OS-specific
+/// variant, no platform subfolder).
+///
+/// `name` may already carry an extension and/or a relative path (e.g. a
+/// rule's `script` param naming `script/audit_testing.py` directly, the real
+/// shape `python_hackathon`'s deterministic rules use) — that's resolved as
+/// `dir.join(name)` directly, skipping the bare-name+extension-append
+/// convention entirely, since appending `.sh` to an already-`.py`-suffixed
+/// path would just build a path that can't exist.
 pub fn probe_script(dir: &Path, name: &str) -> Option<PathBuf> {
+    if has_known_script_extension(name) {
+        let direct = dir.join(name);
+        return direct.exists().then_some(direct);
+    }
+
     let native = if cfg!(windows) { ("windows", "ps1") } else { ("ubuntu", "sh") };
     let other = if cfg!(windows) { ("ubuntu", "sh") } else { ("windows", "ps1") };
     for (platform_dir, ext) in [native, other] {
@@ -109,7 +122,22 @@ pub fn probe_script(dir: &Path, name: &str) -> Option<PathBuf> {
             return Some(flat);
         }
     }
+
+    for ext in ["py", "js"] {
+        let flat = dir.join(format!("{}.{}", name, ext));
+        if flat.exists() {
+            return Some(flat);
+        }
+    }
+
     None
+}
+
+fn has_known_script_extension(name: &str) -> bool {
+    Path::new(name)
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|ext| matches!(ext, "sh" | "ps1" | "py" | "js"))
 }
 
 /// Execute a resolved check and return the result.
@@ -204,4 +232,66 @@ pub fn run_all_checks(
             }
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn scratch_dir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("samgraha-test-check-runner-{}-{}", name, std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn probe_script_finds_py_extension() {
+        let dir = scratch_dir("probe-py");
+        std::fs::write(dir.join("leaderboard.py"), "").unwrap();
+        assert_eq!(probe_script(&dir, "leaderboard"), Some(dir.join("leaderboard.py")));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn probe_script_finds_js_extension() {
+        let dir = scratch_dir("probe-js");
+        std::fs::write(dir.join("aggregate.js"), "").unwrap();
+        assert_eq!(probe_script(&dir, "aggregate"), Some(dir.join("aggregate.js")));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn probe_script_resolves_name_that_already_has_a_path_and_extension() {
+        // Real shape: python_hackathon's rule_evidence_params stores
+        // "script/audit_testing.py" directly, not a bare check name.
+        let dir = scratch_dir("probe-direct-path");
+        std::fs::create_dir_all(dir.join("script")).unwrap();
+        std::fs::write(dir.join("script").join("audit_testing.py"), "").unwrap();
+        assert_eq!(
+            probe_script(&dir, "script/audit_testing.py"),
+            Some(dir.join("script").join("audit_testing.py"))
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn probe_script_returns_none_when_nothing_matches() {
+        let dir = scratch_dir("probe-none");
+        assert_eq!(probe_script(&dir, "nonexistent"), None);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn probe_script_prefers_platform_native_over_py() {
+        // .sh/.ps1 (platform-native) still win over .py/.js when both exist
+        // for a bare check name — only the interpreter set grew, not the
+        // existing platform-native precedence.
+        let dir = scratch_dir("probe-precedence");
+        let native_ext = if cfg!(windows) { "ps1" } else { "sh" };
+        std::fs::write(dir.join(format!("check.{}", native_ext)), "").unwrap();
+        std::fs::write(dir.join("check.py"), "").unwrap();
+        assert_eq!(probe_script(&dir, "check"), Some(dir.join(format!("check.{}", native_ext))));
+        std::fs::remove_dir_all(&dir).ok();
+    }
 }

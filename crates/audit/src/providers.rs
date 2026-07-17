@@ -280,7 +280,60 @@ impl DeterministicAuditProvider {
                     })
                     .collect()
             }
-            "script" | "script_result" => {
+            "file_presence" => {
+                let Some(root) = root else { return vec![] };
+                let candidates = Self::path_candidates(rule);
+                if candidates.is_empty() || candidates.iter().any(|p| root.join(p).exists()) {
+                    vec![]
+                } else {
+                    vec![Self::finding(rule, format!(
+                        "{}: none of [{}] found",
+                        rule.description,
+                        candidates.join(", ")
+                    ), None, None)]
+                }
+            }
+            "file_absence" => {
+                let Some(root) = root else { return vec![] };
+                let candidates = Self::path_candidates(rule);
+                let present: Vec<&String> = candidates.iter().filter(|p| root.join(p).exists()).collect();
+                if present.is_empty() {
+                    vec![]
+                } else {
+                    vec![Self::finding(rule, format!(
+                        "{}: unexpected file(s) present: {}",
+                        rule.description,
+                        present.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", ")
+                    ), None, None)]
+                }
+            }
+            "glob_match" => {
+                let Some(root) = root else { return vec![] };
+                let patterns: Vec<String> = rule.params.get("pattern")
+                    .map(|p| p.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect())
+                    .unwrap_or_default();
+                if patterns.is_empty() {
+                    return vec![];
+                }
+                let matched = walk_repo_relative_paths(root).iter().any(|rel| {
+                    patterns.iter().any(|pat| common::glob::matches_glob(pat, rel))
+                });
+                if matched {
+                    vec![]
+                } else {
+                    vec![Self::finding(rule, format!(
+                        "{}: no file matched [{}]",
+                        rule.description,
+                        patterns.join(", ")
+                    ), None, None)]
+                }
+            }
+            // "script_output" is the literal evidence.type string real rule
+            // files use (verified: python_hackathon's testing/security/mlops/
+            // model-artifact/git domains all use `evidence: {type: script_output,
+            // script: ..., check: ...}`) — an alias of "script"/"script_result",
+            // not a different protocol.
+            "script" | "script_result" | "script_output" => {
                 let Some(root) = root else {
                     return vec![];
                 };
@@ -405,6 +458,71 @@ impl DeterministicAuditProvider {
             _ => vec![],
         }
     }
+
+    fn finding(rule: &AuditRuleDef, message: String, location: Option<String>, document_id: Option<i64>) -> AuditFinding {
+        AuditFinding {
+            check_id: rule.id.clone(),
+            severity: Severity::from_str(&rule.severity),
+            message,
+            location,
+            document_id,
+            provider: "deterministic".into(),
+            stage: None,
+            section_id: None,
+            confidence: None,
+            evidence: None,
+            status: None,
+            strategy: None,
+        }
+    }
+
+    /// A file_presence/file_absence rule names its path(s) via `target` (one
+    /// path) and/or `paths` (comma-joined alternatives, OR semantics) —
+    /// both real shapes, not standard-specific: base_dev-style rules tend to
+    /// use `target`, python_hackathon-style rules use both across its own
+    /// rule files.
+    fn path_candidates(rule: &AuditRuleDef) -> Vec<String> {
+        let mut out: Vec<String> = Vec::new();
+        if let Some(t) = rule.params.get("target") {
+            out.push(t.clone());
+        }
+        if let Some(p) = rule.params.get("paths") {
+            out.extend(p.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()));
+        }
+        out
+    }
+}
+
+/// Repo-relative paths of every file under `root`, skipping VCS/build/
+/// dependency directories a glob_match rule was never meant to search.
+/// Bounded at 50k files — ponytail: flat-list walk, not an indexed search;
+/// raise the cap or add real ignore-pattern support (`common::config::IgnoreConfig`,
+/// already used by compilation) if a glob_match rule ever needs to search a
+/// repo bigger than that.
+fn walk_repo_relative_paths(root: &std::path::Path) -> Vec<String> {
+    const SKIP_DIRS: &[&str] = &[".git", "target", "node_modules", ".samgraha", "__pycache__", ".venv", "venv"];
+    const MAX_FILES: usize = 50_000;
+    let mut out = Vec::new();
+    let mut stack = vec![root.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        let Ok(entries) = std::fs::read_dir(&dir) else { continue };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            if path.is_dir() {
+                if !SKIP_DIRS.contains(&name.as_ref()) {
+                    stack.push(path);
+                }
+            } else if let Ok(rel) = path.strip_prefix(root) {
+                out.push(rel.to_string_lossy().replace('\\', "/"));
+                if out.len() >= MAX_FILES {
+                    return out;
+                }
+            }
+        }
+    }
+    out
 }
 
 fn has_implementation_details(body: &str) -> bool {
@@ -492,7 +610,9 @@ mod tests {
             prohibited_content: vec![],
             relationships: vec![],
             audit_rules: vec![],
+            semantic_rules: vec![],
             profiles: vec![],
+            tier: None,
         }
     }
 
@@ -565,6 +685,83 @@ mod tests {
         let r = rule("ka-legacy", "keyword_absence", vec![]);
         let findings = DeterministicAuditProvider::execute(&[doc], &[r], None, None, None, &[]);
         assert!(!findings.is_empty(), "Legacy heuristic should fire on code blocks");
+    }
+
+    fn scratch_dir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("samgraha-test-providers-{}-{}", name, std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn file_presence_passes_when_target_exists() {
+        let dir = scratch_dir("file-presence-pass");
+        std::fs::write(dir.join("uv.lock"), "").unwrap();
+        let r = rule("inf-001", "file_presence", vec![("target", "uv.lock")]);
+        let findings = DeterministicAuditProvider::execute(&[], &[r], None, None, Some(&dir), &[]);
+        assert!(findings.is_empty(), "uv.lock exists, expected no finding");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn file_presence_fails_when_target_missing() {
+        let dir = scratch_dir("file-presence-fail");
+        let r = rule("inf-001", "file_presence", vec![("target", "uv.lock")]);
+        let findings = DeterministicAuditProvider::execute(&[], &[r], None, None, Some(&dir), &[]);
+        assert_eq!(findings.len(), 1, "uv.lock missing, expected one finding");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn file_presence_paths_are_or_semantics() {
+        // Real shape: multiple alternative paths, any one present satisfies the rule.
+        let dir = scratch_dir("file-presence-or");
+        std::fs::write(dir.join("poetry.lock"), "").unwrap();
+        let r = rule("inf-002", "file_presence", vec![("paths", "uv.lock,poetry.lock")]);
+        let findings = DeterministicAuditProvider::execute(&[], &[r], None, None, Some(&dir), &[]);
+        assert!(findings.is_empty(), "poetry.lock satisfies the OR, expected no finding");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn file_absence_fails_when_target_present() {
+        let dir = scratch_dir("file-absence-fail");
+        std::fs::write(dir.join("secrets.env"), "").unwrap();
+        let r = rule("sec-001", "file_absence", vec![("target", "secrets.env")]);
+        let findings = DeterministicAuditProvider::execute(&[], &[r], None, None, Some(&dir), &[]);
+        assert_eq!(findings.len(), 1);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn glob_match_finds_file_matching_one_of_several_patterns() {
+        let dir = scratch_dir("glob-match");
+        std::fs::write(dir.join("docker-compose.yml"), "").unwrap();
+        let r = rule("inf-003", "glob_match", vec![("pattern", "docker-compose.yaml,docker-compose.yml")]);
+        let findings = DeterministicAuditProvider::execute(&[], &[r], None, None, Some(&dir), &[]);
+        assert!(findings.is_empty(), "docker-compose.yml matches the second pattern, expected no finding");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn glob_match_searches_nested_paths_with_double_star() {
+        let dir = scratch_dir("glob-match-recursive");
+        std::fs::create_dir_all(dir.join("src")).unwrap();
+        std::fs::write(dir.join("src").join("main.dockerfile"), "").unwrap();
+        let r = rule("inf-004", "glob_match", vec![("pattern", "**/*.dockerfile")]);
+        let findings = DeterministicAuditProvider::execute(&[], &[r], None, None, Some(&dir), &[]);
+        assert!(findings.is_empty(), "**/*.dockerfile should match a nested .dockerfile file");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn glob_match_fails_when_nothing_matches() {
+        let dir = scratch_dir("glob-match-fail");
+        let r = rule("inf-003", "glob_match", vec![("pattern", "docker-compose.yaml,docker-compose.yml")]);
+        let findings = DeterministicAuditProvider::execute(&[], &[r], None, None, Some(&dir), &[]);
+        assert_eq!(findings.len(), 1);
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

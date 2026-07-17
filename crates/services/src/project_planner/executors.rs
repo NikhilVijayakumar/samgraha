@@ -95,11 +95,54 @@ impl PhaseExecutor for AuditPhaseExecutor {
                 "findings_count": report.findings.len(),
             }));
         }
+
+        // StandardWorkflowPlanner-generated phases name domains but leave
+        // pipeline_ids empty (these domains aren't PipelineKind variants) —
+        // route those through runtime.audit() (StandardRegistry.audit_rules)
+        // instead. Gated on pipeline_ids being empty so this never
+        // double-runs for the other 4 planners, whose domains/pipeline_ids
+        // both list the same built-in pipeline names.
+        if phase.pipeline_ids.is_empty() {
+            for domain in &phase.domains {
+                let report = runtime
+                    .audit(Some(domain.as_str()), &["deterministic".to_string()], None)
+                    .with_context(|| format!("Domain audit '{}' failed", domain))?;
+                results.push(serde_json::json!({
+                    "domain": domain,
+                    "score": report.score.overall,
+                    "findings_count": report.findings.len(),
+                }));
+            }
+        }
+
         Ok(serde_json::json!({ "pipelines": results }))
     }
 }
 
 // ── FixPhaseExecutor ──────────────────────────────────────────────────────
+//
+// No domain-audit fallback here (unlike AuditPhaseExecutor above) — deliberately
+// not built yet, and checked deeper than the first pass at this comment found:
+//
+// - report_id: i64 turned out NOT to be the real blocker. fix_sessions.report_id
+//   has no FK constraint (`crates/registry/src/migration.rs` V28) — it's pure
+//   bookkeeping, nothing joins against it expecting a real row. A synthetic id
+//   (e.g. a timestamp) would be honest and safe to pass here.
+// - The actual blocker: `resolve_finding_path` (above) requires either
+//   `finding.document_id` (looked up via `registry.get_document`) or
+//   `finding.location` — a domain-driven standard's `file_presence`/`glob_match`
+//   findings (python_hackathon's actual shape: "Dockerfile missing") have
+//   neither. There's no document these findings are "in"; they're about a
+//   file's *absence*, not its content.
+// - Even with a path, every existing FixPlanner (`crate::fix::planner::*`)
+//   generates edits to existing document content. None of them know how to
+//   scaffold a missing file from nothing (a Dockerfile, a docker-compose.yml).
+//   That's a materially different capability, not a missing plumbing step —
+//   building it means a new FixPlanner variant with real judgment about what
+//   a generated Dockerfile should contain, not something to improvise here.
+//
+// A StandardWorkflowPlanner-generated Fix phase currently just no-ops (empty
+// pipeline_ids, so the loop below never iterates).
 
 pub struct FixPhaseExecutor;
 

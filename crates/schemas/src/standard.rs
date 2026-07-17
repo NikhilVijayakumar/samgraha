@@ -14,7 +14,20 @@ pub struct StandardDefinition {
     pub prohibited_content: Vec<String>,
     pub relationships: Vec<StandardRelationship>,
     pub audit_rules: Vec<AuditRuleDef>,
+    /// `kind = 'semantic'` rules for this domain (`evidence_type:
+    /// "llm_judgment"`, prompt/rubric text in `params`) — a rule here isn't
+    /// scored by any Rust code (that needs an LLM); `SemanticAuditProvider`
+    /// turns each into a review-task-eligible finding, picked up by the same
+    /// `semantic_review` bundling `AuditFramework::execute` already does for
+    /// findings tagged `provider: "semantic"`.
+    #[serde(default)]
+    pub semantic_rules: Vec<AuditRuleDef>,
     pub profiles: Vec<ProfileDef>,
+    /// This domain's tier within its standard's `domains` table (e.g.
+    /// python_hackathon's "infrastructure" is tier 1) — `None` for the two
+    /// builtin non-DB standards (`help`, `standards`), which have no tiers.
+    #[serde(default)]
+    pub tier: Option<i32>,
 }
 
 /// A semantic section definition within a Documentation Standard.
@@ -45,6 +58,17 @@ pub struct StandardRelationship {
     pub from_domain: String,
     pub to_domain: String,
     pub relationship: String,
+    /// Within the same tier, `from_domain` must complete before `to_domain`
+    /// starts (`domain_relationships.enforce_order`) — the one documented
+    /// exception in base_dev's own tiers (External Context before
+    /// Engineering); most edges leave this false and rely only on tier
+    /// ordering itself.
+    pub enforce_order: bool,
+    /// This relationship type's tier-gating rule
+    /// (`relationship_types.tier_gating`: "strict" blocks tier advancement
+    /// until `from_domain` clears, "none" is informational-only, e.g. a
+    /// citation or a non-mandatory soft alignment).
+    pub tier_gating_strict: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -158,6 +182,20 @@ pub struct PlanScenario {
     pub tier: i32,
     pub step: String,
     pub content: String,
+}
+
+/// One stage of a standard's `plan/core/loop.yaml` `stages:` list (e.g.
+/// `python_hackathon`'s repository -> audit -> calculate -> aggregate ->
+/// normalize -> validate -> report sequence), in declared order. No fixed
+/// `stage_type` vocabulary — a standard's own workflow shape, not
+/// samgraha's to enumerate; `params` is whatever that stage's own YAML dict
+/// held (`type`, `scope`, `parallel`, `source`, `on_failure`, ...), each
+/// value serialized to its own string.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct WorkflowStage {
+    pub sort_order: i32,
+    pub stage_type: String,
+    pub params: std::collections::HashMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

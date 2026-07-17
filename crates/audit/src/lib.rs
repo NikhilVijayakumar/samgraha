@@ -1,3 +1,4 @@
+pub mod calculation;
 pub mod check_runner;
 pub mod contract;
 pub mod fix;
@@ -7,8 +8,10 @@ pub mod pipeline_factory;
 pub mod pipelines;
 pub mod providers;
 pub mod spec_parser;
+pub mod yaml_runner;
 
 pub use framework::*;
 pub use pipeline::*;
 pub use pipeline_factory::PipelineFactory;
 pub use providers::*;
+pub use yaml_runner::YamlPipeline;

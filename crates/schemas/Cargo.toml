@@ -8,6 +8,7 @@ license.workspace = true
 common.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+serde_yaml = "0.9"
 thiserror.workspace = true
 sha2.workspace = true
 uuid.workspace = true

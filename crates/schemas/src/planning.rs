@@ -89,6 +89,11 @@ pub enum ProjectCase {
     DocAudit,
     ImplTestAudit,
     BuildAudit,
+    /// Generate/audit/fix phases sourced from a registered standard's own
+    /// `plan_scenarios` (tier x repo_state x doc_state x step content),
+    /// instead of the fixed `DOC_DOMAINS`/`IMPL_DOMAINS` const arrays the
+    /// other 4 cases use — see `StandardWorkflowPlanner`.
+    Standard,
 }
 
 impl std::fmt::Display for ProjectCase {
@@ -98,6 +103,7 @@ impl std::fmt::Display for ProjectCase {
             Self::DocAudit => write!(f, "docs_audit"),
             Self::ImplTestAudit => write!(f, "impl_test_audit"),
             Self::BuildAudit => write!(f, "build_audit"),
+            Self::Standard => write!(f, "standard"),
         }
     }
 }
@@ -109,6 +115,7 @@ impl ProjectCase {
             "docs_audit" => Some(Self::DocAudit),
             "impl_test_audit" => Some(Self::ImplTestAudit),
             "build_audit" => Some(Self::BuildAudit),
+            "standard" => Some(Self::Standard),
             _ => None,
         }
     }

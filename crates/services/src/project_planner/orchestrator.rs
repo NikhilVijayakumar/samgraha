@@ -29,7 +29,11 @@ impl PlanOrchestrator {
 
     /// Create a new plan for a given case.
     pub fn create_plan(&self, case: &schemas::ProjectCase, title: &str) -> Result<ProjectPlanWithPhases> {
-        let ctx = ProjectContext::detect(&self.runtime.context.repository_root, case)?;
+        let ctx = ProjectContext::detect_with_registry(
+            &self.runtime.context.repository_root,
+            case,
+            Some(&self.runtime.standard_registry),
+        )?;
         let planner = resolve_planner(case);
         let result = planner.generate_plan(&ctx, title);
         self.persist_plan(&result.plan, &result.phases)?;

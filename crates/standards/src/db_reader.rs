@@ -1,8 +1,8 @@
 use crate::StandardRegistry;
 use anyhow::{bail, Context, Result};
 use rusqlite::Connection;
-use schemas::audit::{CalculationInput, CalculationRule, ScoringConfig, ScoreBand};
-use schemas::standard::{AuditRuleDef, SectionDefinition, StandardDefinition, StandardDoc, StandardRelationship, PlanSetting, PlanScenario, ScriptCheck};
+use schemas::audit::{CalculationInput, CalculationRule, ScoreBand, ScoringConfig, ValidationRule};
+use schemas::standard::{AuditRuleDef, SectionDefinition, StandardDefinition, StandardDoc, StandardRelationship, PlanSetting, PlanScenario, ScriptCheck, WorkflowStage};
 use std::collections::HashMap;
 
 /// Must match `SCHEMA_VERSION` in `schema/knowledge-hub/knowledge-hub-loader.py`.
@@ -81,11 +81,20 @@ pub fn load_scoring_config(conn: &Connection) -> Result<ScoringConfig> {
         calc_rules.push(row?);
     }
 
+    // Was `WHERE cr.bucket = 'final_score'` — a literal bucket-name string
+    // that broke silently the moment bucket names stopped being a fixed
+    // hardcoded set (knowledge-hub-loader.py's Pass 7 now derives bucket
+    // names from each calculation file's own path, e.g.
+    // "summary/final_score.yaml" -> "summary_final_score", not "final_score").
+    // `calculation_method` is the actual semantic marker for "this is the
+    // weighted-sum bucket" — a name-agnostic property every standard's
+    // final-score-shaped bucket shares, not a name every standard has to
+    // spell the same way.
     let mut calc_inputs = Vec::new();
     let mut stmt = conn.prepare(
         "SELECT ci.name, ci.weight FROM calculation_inputs ci
          JOIN calculation_rules cr ON ci.calculation_rule_id = cr.id
-         WHERE cr.bucket = 'final_score' ORDER BY ci.sort_order",
+         WHERE cr.calculation_method = 'weighted_sum' ORDER BY ci.sort_order",
     )?;
     let rows = stmt.query_map([], |row| {
         Ok(CalculationInput {
@@ -112,10 +121,30 @@ pub fn load_scoring_config(conn: &Connection) -> Result<ScoringConfig> {
         bands.push(row?);
     }
 
+    let mut validation_rules = Vec::new();
+    let mut stmt = conn.prepare(
+        "SELECT check_key, name, description, rule, severity, invalidate_audit
+         FROM validation_rules ORDER BY sort_order",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok(ValidationRule {
+            check_key: row.get(0)?,
+            name: row.get(1)?,
+            description: row.get(2)?,
+            rule: row.get(3)?,
+            severity: row.get(4)?,
+            invalidate_audit: row.get(5)?,
+        })
+    })?;
+    for row in rows {
+        validation_rules.push(row?);
+    }
+
     Ok(ScoringConfig {
         calculation_rules: calc_rules,
         calculation_inputs: calc_inputs,
         score_bands: bands,
+        validation_rules,
     })
 }
 
@@ -156,6 +185,39 @@ pub fn load_plan_scenarios(conn: &Connection, standard_id: i64) -> Result<Vec<Pl
         scenarios.push(row?);
     }
     Ok(scenarios)
+}
+
+pub fn load_workflow_stages(conn: &Connection, standard_id: i64) -> Result<Vec<WorkflowStage>> {
+    let mut stages = Vec::new();
+    let mut stmt = conn.prepare(
+        "SELECT sort_order, stage_type, params_json FROM workflow_stages WHERE standard_id = ? ORDER BY sort_order"
+    )?;
+    let rows = stmt.query_map([standard_id], |row| {
+        let sort_order: i32 = row.get(0)?;
+        let stage_type: String = row.get(1)?;
+        let params_json: String = row.get(2)?;
+        Ok((sort_order, stage_type, params_json))
+    })?;
+    for row in rows {
+        let (sort_order, stage_type, params_json) = row?;
+        // Each stage's params are a flat scalar dict in the DB — deserialize
+        // to a string map directly rather than serde_json::Value, since
+        // every consumer wants strings the same way rule params already are.
+        let raw: std::collections::HashMap<String, serde_json::Value> =
+            serde_json::from_str(&params_json).unwrap_or_default();
+        let params = raw
+            .into_iter()
+            .map(|(k, v)| {
+                let s = match v {
+                    serde_json::Value::String(s) => s,
+                    other => other.to_string(),
+                };
+                (k, s)
+            })
+            .collect();
+        stages.push(WorkflowStage { sort_order, stage_type, params });
+    }
+    Ok(stages)
 }
 
 /// Load the `standard_docs` table — the human-readable documentation-standards
@@ -255,11 +317,11 @@ pub fn from_standards_db(conn: &Connection, system_name: Option<&str>) -> Result
 
     // Load all domains for this standard.
     let mut stmt_domains = conn.prepare(
-        "SELECT id, key, name, description FROM domains
+        "SELECT id, key, name, description, tier FROM domains
          WHERE standard_id = ? ORDER BY sort_order",
     )?;
 
-    let domains: Vec<(i64, String, String, String)> = stmt_domains
+    let domains: Vec<(i64, String, String, String, i64)> = stmt_domains
         .query_map([standard_id], |row| {
             Ok((
                 row.get(0)?,
@@ -267,6 +329,7 @@ pub fn from_standards_db(conn: &Connection, system_name: Option<&str>) -> Result
                 row.get(2)?,
                 row.get::<_, Option<String>>(3)?
                     .unwrap_or_default(),
+                row.get(4)?,
             ))
         })?
         .collect::<Result<Vec<_>, _>>()
@@ -326,22 +389,44 @@ pub fn from_standards_db(conn: &Connection, system_name: Option<&str>) -> Result
         })?;
         for row in rows {
             let (rule_id, key, value) = row?;
-            params_by_rule.entry(rule_id).or_default().insert(key, value);
+            // rule_evidence_params stores one row per value for multi-value
+            // params (e.g. a rule's evidence.paths: [a, b] list) sharing the
+            // same param_key, ordered by sort_order — every consumer of
+            // AuditRuleDef.params (providers.rs's evidence-type match arms)
+            // already expects a single comma-joined string it can .split(',')
+            // on, so accumulate here rather than overwrite (plain `insert`
+            // silently kept only the last row for any multi-value param).
+            let params = params_by_rule.entry(rule_id).or_default();
+            params
+                .entry(key)
+                .and_modify(|v: &mut String| {
+                    v.push(',');
+                    v.push_str(&value);
+                })
+                .or_insert(value);
         }
     }
 
-    // Pre-load deterministic rules, grouped by domain_id.
+    // Pre-load rules (both kinds), grouped by domain_id and split by kind.
+    // Was `WHERE r.kind = 'deterministic'` — semantic rows (kind='semantic',
+    // evidence_type='llm_judgment', matching audit/semantic/document/*.yaml's
+    // real shape) were silently never loaded into anything, so nothing could
+    // ever execute them. Same `rules` table, same evidence_type/params shape
+    // either kind — no new query needed, just no longer filtering one kind
+    // out.
     let mut rules_by_domain: std::collections::HashMap<i64, Vec<AuditRuleDef>> =
+        std::collections::HashMap::new();
+    let mut semantic_rules_by_domain: std::collections::HashMap<i64, Vec<AuditRuleDef>> =
         std::collections::HashMap::new();
     {
         let mut stmt = conn.prepare(
             "SELECT r.id, r.domain_id, r.rule_key, r.description, r.severity,
                     r.evidence_type, r.scope, r.section_catalog_id,
-                    r.weight, r.mandatory,
+                    r.weight, r.mandatory, r.kind,
                     sc.name AS section_name
              FROM rules r
              LEFT JOIN section_catalog sc ON r.section_catalog_id = sc.id
-             WHERE r.standard_id = ? AND r.kind = 'deterministic'
+             WHERE r.standard_id = ?
              ORDER BY r.domain_id, r.rule_key",
         )?;
         let rows = stmt.query_map([standard_id], |row| {
@@ -355,16 +440,17 @@ pub fn from_standards_db(conn: &Connection, system_name: Option<&str>) -> Result
             let section_catalog_id: Option<i64> = row.get(7)?;
             let weight: f64 = row.get(8)?;
             let mandatory: bool = row.get(9)?;
-            let section_name: Option<String> = row.get(10)?;
+            let kind: String = row.get(10)?;
+            let section_name: Option<String> = row.get(11)?;
             Ok((
                 rule_id, domain_id, rule_key, description, severity,
-                evidence_type, _scope, section_catalog_id, weight, mandatory, section_name,
+                evidence_type, _scope, section_catalog_id, weight, mandatory, kind, section_name,
             ))
         })?;
         for row in rows {
             let (
                 rule_id, domain_id, rule_key, description, severity,
-                evidence_type, _scope, _section_catalog_id, weight, mandatory, section_name,
+                evidence_type, _scope, _section_catalog_id, weight, mandatory, kind, section_name,
             ) = row?;
 
             // For section_presence checks, scope = heading text from section_catalog.
@@ -377,19 +463,20 @@ pub fn from_standards_db(conn: &Connection, system_name: Option<&str>) -> Result
 
             let params = params_by_rule.remove(&rule_id).unwrap_or_default();
 
-            rules_by_domain.entry(domain_id).or_default().push(
-                AuditRuleDef {
-                    id: rule_key.clone(),
-                    name: description.clone(),
-                    description,
-                    severity,
-                    evidence_type,
-                    scope,
-                    weight,
-                    mandatory,
-                    params,
-                },
-            );
+            let rule = AuditRuleDef {
+                id: rule_key.clone(),
+                name: description.clone(),
+                description,
+                severity,
+                evidence_type,
+                scope,
+                weight,
+                mandatory,
+                params,
+            };
+
+            let target = if kind == "semantic" { &mut semantic_rules_by_domain } else { &mut rules_by_domain };
+            target.entry(domain_id).or_default().push(rule);
         }
     }
 
@@ -401,7 +488,9 @@ pub fn from_standards_db(conn: &Connection, system_name: Option<&str>) -> Result
             "SELECT dr.from_domain_id,
                     from_d.key AS from_key,
                     to_d.key AS to_key,
-                    rt.name AS rel_name
+                    rt.name AS rel_name,
+                    dr.enforce_order,
+                    rt.tier_gating
              FROM domain_relationships dr
              JOIN domains from_d ON dr.from_domain_id = from_d.id
              JOIN domains to_d ON dr.to_domain_id = to_d.id
@@ -413,10 +502,12 @@ pub fn from_standards_db(conn: &Connection, system_name: Option<&str>) -> Result
             let from_key: String = row.get(1)?;
             let to_key: String = row.get(2)?;
             let rel_name: String = row.get(3)?;
-            Ok((from_domain_id, from_key, to_key, rel_name))
+            let enforce_order: bool = row.get(4)?;
+            let tier_gating: String = row.get(5)?;
+            Ok((from_domain_id, from_key, to_key, rel_name, enforce_order, tier_gating))
         })?;
         for row in rows {
-            let (from_domain_id, from_key, to_key, rel_name) = row?;
+            let (from_domain_id, from_key, to_key, rel_name, enforce_order, tier_gating) = row?;
             rels_by_domain
                 .entry(from_domain_id)
                 .or_default()
@@ -424,16 +515,19 @@ pub fn from_standards_db(conn: &Connection, system_name: Option<&str>) -> Result
                     from_domain: from_key,
                     to_domain: to_key,
                     relationship: rel_name,
+                    enforce_order,
+                    tier_gating_strict: tier_gating == "strict",
                 });
         }
     }
 
     // Assemble one StandardDefinition per domain.
-    for (domain_id, domain_key, domain_name, domain_desc) in &domains {
+    for (domain_id, domain_key, domain_name, domain_desc, domain_tier) in &domains {
         let required_sections = sections_by_domain
             .remove(domain_id)
             .unwrap_or_default();
         let audit_rules = rules_by_domain.remove(domain_id).unwrap_or_default();
+        let semantic_rules = semantic_rules_by_domain.remove(domain_id).unwrap_or_default();
         let relationships = rels_by_domain.remove(domain_id).unwrap_or_default();
 
         let std = StandardDefinition {
@@ -446,7 +540,9 @@ pub fn from_standards_db(conn: &Connection, system_name: Option<&str>) -> Result
             prohibited_content: Vec::new(), // not in knowledge-hub schema
             relationships,
             audit_rules,
+            semantic_rules,
             profiles: Vec::new(), // not in knowledge-hub schema
+            tier: Some(*domain_tier as i32),
         };
         registry.register(std);
     }
@@ -491,6 +587,15 @@ pub fn from_standards_db(conn: &Connection, system_name: Option<&str>) -> Result
             tracing::info!("Loaded {} plan scenarios", count);
         }
         Err(e) => tracing::warn!("Failed to load plan scenarios: {}", e),
+    }
+
+    match load_workflow_stages(conn, standard_id) {
+        Ok(stages) => {
+            let count = stages.len();
+            registry.set_workflow_stages(stages);
+            tracing::info!("Loaded {} workflow stages", count);
+        }
+        Err(e) => tracing::warn!("Failed to load workflow stages: {}", e),
     }
 
     match load_script_checks(conn, standard_id) {

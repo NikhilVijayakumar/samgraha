@@ -1,5 +1,5 @@
 use crate::protocol::{McpCapabilities, McpError, McpMessage, McpRequest, McpResponse};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use common::config::{parse_ttl_duration, RepositoryKind, SamgrahaConfig};
 use registry::RegistryStore;
 use schemas::audit::{AuditFinding, AuditStage, FindingStatus, SemanticReport};
@@ -63,6 +63,24 @@ fn parse_i64(req: &McpRequest, name: &str) -> Result<i64> {
     req.params.get(name)
         .and_then(|v| v.as_i64())
         .ok_or_else(|| anyhow::anyhow!("Missing or invalid '{}' parameter", name))
+}
+
+/// Copy every file directly under `source_dir` (a standard's own `script/`
+/// directory) into `dest_dir`, so `resolve_check`'s existing
+/// `.samgraha/scripts/`/`mcp_dir()/scripts/` tiers can find them — same
+/// flat, non-recursive shape `sync`'s `mcp_dir/scripts` -> `.samgraha/scripts`
+/// copy already uses (`services::init`). Returns the number of files copied.
+fn copy_standard_scripts(source_dir: &Path, dest_dir: &Path) -> Result<usize> {
+    std::fs::create_dir_all(dest_dir)?;
+    let mut count = 0;
+    for entry in std::fs::read_dir(source_dir)? {
+        let entry = entry?;
+        if entry.file_type()?.is_file() {
+            std::fs::copy(entry.path(), dest_dir.join(entry.file_name()))?;
+            count += 1;
+        }
+    }
+    Ok(count)
 }
 
 pub struct McpAdapter {
@@ -256,6 +274,7 @@ impl McpAdapter {
             "search"                  => self.handle_search(&req),
             "get_sections"            => self.handle_get_sections(&req),
             "audit"                   => self.handle_audit(&req),
+            "audit_runs"              => self.handle_audit_runs(&req),
             "info"                    => self.handle_info(&req),
             "get_document"            => self.handle_get_document(&req),
             "get_document_section"    => self.handle_get_document_section(&req),
@@ -619,6 +638,29 @@ impl McpAdapter {
 
     fn handle_audit(&self, req: &McpRequest) -> Result<serde_json::Value> {
         let pipeline_name = req.params.get("pipeline").and_then(|v| v.as_str());
+        let standard_name = req.params.get("standard").and_then(|v| v.as_str());
+
+        // Standard-driven audit: Model A (audit/pipelines/*.yaml) if the
+        // standard shipped one, else the DB-backed path (Phase 1/2 —
+        // StandardRegistry.audit_rules/.scoring, populated by
+        // knowledge-hub-loader.py at register_standard time). Neither
+        // real standard (python_hackathon, base_dev) uses Model A, so this
+        // fallback is what actually makes `standard: "python_hackathon"`
+        // work, not just `standard: "<a Model A standard>"`.
+        if let Some(std_name) = standard_name {
+            let runtime = self.runtime_for(req)?;
+            let has_model_a = !audit::pipeline_factory::PipelineFactory::load_yaml_pipelines_for_standard(
+                &runtime.context.repository_root,
+                std_name,
+            )
+            .is_empty();
+            return if has_model_a {
+                self.handle_yaml_pipeline_audit(req, std_name)
+            } else {
+                self.handle_db_backed_standard_audit(req, std_name)
+            };
+        }
+
         let pipeline_kind = match pipeline_name {
             Some(name) => schemas::audit::PipelineKind::from_str(name)
                 .ok_or_else(|| anyhow::anyhow!(
@@ -668,6 +710,131 @@ impl McpAdapter {
         };
         let report = runtime.audit(domain, &providers, cross_repo_docs.as_deref())?;
         Ok(serde_json::to_value(&report)?)
+    }
+
+    /// Handle YAML pipeline audit execution via the standard parameter.
+    /// `domain` picks which of the standard's pipelines to run (a standard
+    /// holds one pipeline per domain, e.g. `infrastructure`, `engineering`);
+    /// it's required whenever the standard defines more than one.
+    /// `model` is optional, self-reported by the caller, and archived with
+    /// the run so history can be grouped by it later (leaderboards, etc.) —
+    /// samgraha has no protocol-level way to learn it on its own.
+    fn handle_yaml_pipeline_audit(&self, req: &McpRequest, standard_name: &str) -> Result<serde_json::Value> {
+        use audit::pipeline::Pipeline;
+
+        let runtime = self.runtime_for(req)?;
+        let project_root = &runtime.context.repository_root;
+        let domain = req.params.get("domain").and_then(|v| v.as_str());
+        let model = req.params.get("model").and_then(|v| v.as_str());
+
+        let pipelines =
+            audit::pipeline_factory::PipelineFactory::load_yaml_pipelines_for_standard(project_root, standard_name);
+        if pipelines.is_empty() {
+            anyhow::bail!(
+                "No YAML pipelines found for standard '{}'. Expected .samgraha/standards/{}/audit/pipelines/*.yaml",
+                standard_name,
+                standard_name
+            );
+        }
+
+        let pipeline = match domain {
+            Some(d) => pipelines
+                .into_iter()
+                .find(|p| p.def.pipeline.name == d)
+                .ok_or_else(|| {
+                    anyhow::anyhow!("Standard '{}' has no pipeline for domain '{}'", standard_name, d)
+                })?,
+            None if pipelines.len() == 1 => pipelines.into_iter().next().unwrap(),
+            None => {
+                let names: Vec<_> = pipelines.iter().map(|p| p.def.pipeline.name.clone()).collect();
+                anyhow::bail!(
+                    "Standard '{}' defines multiple pipelines ({}); pass 'domain' to select one",
+                    standard_name,
+                    names.join(", ")
+                );
+            }
+        };
+
+        let ctx = audit::pipeline::PipelineContext::new(
+            project_root.to_path_buf(),
+            runtime.context.config.clone(),
+        );
+
+        let report = pipeline.run(&ctx);
+        if let Err(e) = runtime.store_standard_audit_run(standard_name, &pipeline.def.pipeline.name, model, &report) {
+            tracing::warn!("Failed to archive standard audit run for '{}': {}", standard_name, e);
+        }
+        Ok(serde_json::to_value(&report)?)
+    }
+
+    /// Handle a standard-driven audit via `StandardRegistry.audit_rules`
+    /// (Phase 1/2 of docs/crates-refactor-proposal.md) — the path for a
+    /// registered standard with no `audit/pipelines/*.yaml` (Model A), i.e.
+    /// both real standards checked against this session. Builds its own
+    /// `StandardRegistry`/`AuditFramework` scoped to `standard_name` instead
+    /// of using `self.runtime`'s, which is scoped to whatever `system_name`
+    /// `samgraha.toml` configured — the two are independent, and a caller
+    /// should be able to name any registered standard per-call.
+    fn handle_db_backed_standard_audit(&self, req: &McpRequest, standard_name: &str) -> Result<serde_json::Value> {
+        let domain = req.params.get("domain").and_then(|v| v.as_str());
+        let model = req.params.get("model").and_then(|v| v.as_str());
+        let providers = req.params.get("providers")
+            .and_then(|v| v.as_array())
+            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect::<Vec<_>>())
+            .unwrap_or_else(|| vec!["deterministic".to_string()]);
+
+        let runtime = self.runtime_for(req)?;
+        let project_root = runtime.context.repository_root.clone();
+        let config = runtime.context.config.clone();
+
+        let standard_registry = std::sync::Arc::new(
+            standards::StandardRegistry::from_standards_db_and_overrides_with_system(&project_root, Some(standard_name))
+                .with_context(|| format!("Failed to load standard '{}'", standard_name))?,
+        );
+        if standard_registry.all().is_empty() {
+            anyhow::bail!(
+                "Standard '{}' has no registered domains. Check it was registered via register_standard.",
+                standard_name
+            );
+        }
+
+        let mut framework = audit::framework::AuditFramework::new(std::sync::Arc::clone(&standard_registry));
+        let script_checks = standard_registry.script_checks().to_vec();
+        let det_config = config.clone();
+        let det_root = project_root.clone();
+        framework.register_provider("deterministic", std::sync::Arc::new(move |docs, rules, standard| {
+            audit::providers::DeterministicAuditProvider::execute(docs, rules, standard, Some(&det_config), Some(&det_root), &script_checks)
+        }));
+        framework.register_provider("semantic", std::sync::Arc::new(|docs, rules, standard| {
+            services::SemanticAuditProvider::execute(docs, rules, standard)
+        }));
+
+        // Standard-driven rules (file_presence/glob_match/script_output) act
+        // on the repository filesystem directly via `root`, not on compiled
+        // Document objects the way samgraha's own built-in domains do — no
+        // document set to pass here.
+        let report = framework.execute(domain, &[], &providers)?;
+
+        if let Some(d) = domain {
+            let report_json = serde_json::to_string(&report)?;
+            if let Err(e) = runtime.registry.store_standard_audit_run(
+                standard_name, d, model, report.score.overall, &report_json, None,
+            ) {
+                tracing::warn!("Failed to archive standard audit run for '{}': {}", standard_name, e);
+            }
+        }
+
+        Ok(serde_json::to_value(&report)?)
+    }
+
+    fn handle_audit_runs(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let standard = req.params.get("standard").and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'standard' parameter"))?;
+        let domain = req.params.get("domain").and_then(|v| v.as_str());
+        let limit = req.params.get("limit").and_then(|v| v.as_i64()).unwrap_or(20);
+        let runtime = self.runtime_for(req)?;
+        let runs = runtime.list_standard_audit_runs(standard, domain, limit)?;
+        Ok(serde_json::to_value(&runs)?)
     }
 
     fn handle_info(&self, req: &McpRequest) -> Result<serde_json::Value> {
@@ -1461,6 +1628,28 @@ impl McpAdapter {
             &loader, &local_db, &path, system, layout, dry_run,
         )?;
 
+        // A standard's own script/ directory (e.g. python_hackathon's
+        // audit_testing.py, leaderboard.py) was never in any of
+        // resolve_check's discovery tiers — the loader ingests rules that
+        // *reference* those scripts (rule_evidence_params' "script" param)
+        // but nothing ever copied the scripts themselves anywhere run_check
+        // looks. Mirrors the existing local_db/global_db dual-write below:
+        // local .samgraha/scripts/ for immediate use in this repo, global
+        // mcp_dir()/scripts/ so a future `sync` in another repo picks them
+        // up the same way it already does for samgraha's own scripts.
+        let mut scripts_copied = 0usize;
+        if !dry_run {
+            let source_scripts = path.join("script");
+            if source_scripts.is_dir() {
+                let local_scripts = self.runtime.context.repository_root.join(".samgraha").join("scripts");
+                scripts_copied += copy_standard_scripts(&source_scripts, &local_scripts)?;
+                if !no_push {
+                    let global_scripts = common::env::mcp_dir().join("scripts");
+                    copy_standard_scripts(&source_scripts, &global_scripts)?;
+                }
+            }
+        }
+
         if !dry_run && !no_push {
             let global_db = common::env::mcp_dir().join("standards.db");
             if let Some(parent) = global_db.parent() {
@@ -1484,6 +1673,7 @@ impl McpAdapter {
             "dry_run": dry_run,
             "db_path": local_db.display().to_string(),
             "pushed": !dry_run && !no_push,
+            "scripts_copied": scripts_copied,
             "loader_output": loader_output,
             "message": if dry_run {
                 "Dry run complete — nothing written."
@@ -1685,6 +1875,52 @@ impl McpAdapter {
                 "source": null,
             }))
         }
+    }
+}
+
+#[cfg(test)]
+mod copy_standard_scripts_tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    fn scratch_dir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("samgraha-test-adapter-{}-{}", name, std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn copies_flat_files_not_subdirectories() {
+        let root = scratch_dir("copy-scripts");
+        let source = root.join("source");
+        let dest = root.join("dest");
+        std::fs::create_dir_all(source.join("nested")).unwrap();
+        std::fs::write(source.join("leaderboard.py"), "").unwrap();
+        std::fs::write(source.join("audit_testing.py"), "").unwrap();
+        std::fs::write(source.join("nested").join("helper.py"), "").unwrap();
+
+        let count = copy_standard_scripts(&source, &dest).unwrap();
+
+        assert_eq!(count, 2, "only the 2 flat files, not the nested one");
+        assert!(dest.join("leaderboard.py").exists());
+        assert!(dest.join("audit_testing.py").exists());
+        assert!(!dest.join("nested").exists());
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn creates_dest_dir_if_missing() {
+        let root = scratch_dir("copy-scripts-create-dest");
+        let source = root.join("source");
+        std::fs::create_dir_all(&source).unwrap();
+        std::fs::write(source.join("script.py"), "").unwrap();
+        let dest = root.join("does").join("not").join("exist");
+
+        let count = copy_standard_scripts(&source, &dest).unwrap();
+        assert_eq!(count, 1);
+        assert!(dest.join("script.py").exists());
+        std::fs::remove_dir_all(&root).ok();
     }
 }
 

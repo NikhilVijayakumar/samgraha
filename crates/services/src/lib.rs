@@ -22,6 +22,7 @@ pub mod workspace;
 
 pub use audit::*;
 pub use audit_crate::{AuditFramework, DeterministicAuditProvider};
+pub use providers::SemanticAuditProvider;
 pub use builtin::*;
 pub use compilation::*;
 pub use enrichment::*;

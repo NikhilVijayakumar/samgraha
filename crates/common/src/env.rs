@@ -76,10 +76,17 @@ pub fn python_command() -> std::process::Command {
 }
 
 /// Build the `Command` to run a check script, wrapped in its interpreter —
-/// `.ps1`/`.sh` aren't natively executable on every platform (a `.ps1` isn't
-/// a Win32 executable even on Windows; a `.sh` has no shebang-exec on Windows
-/// at all). Anything else (a compiled native binary a `check_overrides` entry
-/// points at) runs directly. `args` are appended after the script path.
+/// `.ps1`/`.sh`/`.py`/`.js` aren't natively executable on every platform (a
+/// `.ps1` isn't a Win32 executable even on Windows; a `.sh` has no
+/// shebang-exec on Windows at all; `.py`/`.js` need their interpreter
+/// regardless of platform or shebang/execute-bit). Anything else (a compiled
+/// native binary a `check_overrides` entry points at) runs directly. `args`
+/// are appended after the script path.
+///
+/// `.rs` and other compile-first languages are deliberately not here —
+/// "compile then run" is a different, heavier mechanism (needs a toolchain
+/// check, is slow) than "invoke an interpreter that's either present or
+/// isn't." Add one only when a standard actually ships a script needing it.
 pub fn script_command(script_path: &Path, args: &[&str]) -> std::process::Command {
     match script_path.extension().and_then(|e| e.to_str()) {
         Some("ps1") => {
@@ -94,11 +101,118 @@ pub fn script_command(script_path: &Path, args: &[&str]) -> std::process::Comman
             cmd.args(args);
             cmd
         }
+        Some("py") => {
+            let mut cmd = python_command();
+            cmd.arg(script_path);
+            cmd.args(args);
+            cmd
+        }
+        Some("js") => {
+            let mut cmd = node_command();
+            cmd.arg(script_path);
+            cmd.args(args);
+            cmd
+        }
         _ => {
             let mut cmd = std::process::Command::new(script_path);
             cmd.args(args);
             cmd
         }
+    }
+}
+
+/// Resolve the Node interpreter — same probe-then-fallback shape as
+/// `python_command`/`pwsh_command`/`sh_command`.
+pub fn node_command() -> std::process::Command {
+    if std::process::Command::new("node")
+        .arg("--version")
+        .output()
+        .is_ok_and(|o| o.status.success())
+    {
+        return std::process::Command::new("node");
+    }
+    std::process::Command::new("node")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn script_command_dispatches_py_through_python_interpreter() {
+        let cmd = script_command(Path::new("leaderboard.py"), &["--json-out", "out.json"]);
+        let program = cmd.get_program().to_string_lossy().to_string();
+        assert!(program == "python3" || program == "python", "expected a python interpreter, got '{}'", program);
+        let args: Vec<String> = cmd.get_args().map(|a| a.to_string_lossy().to_string()).collect();
+        assert_eq!(args, vec!["leaderboard.py", "--json-out", "out.json"]);
+    }
+
+    #[test]
+    fn script_command_dispatches_js_through_node() {
+        let cmd = script_command(Path::new("aggregate.js"), &["--team", "alpha"]);
+        assert_eq!(cmd.get_program().to_string_lossy(), "node");
+        let args: Vec<String> = cmd.get_args().map(|a| a.to_string_lossy().to_string()).collect();
+        assert_eq!(args, vec!["aggregate.js", "--team", "alpha"]);
+    }
+
+    #[test]
+    fn script_command_still_dispatches_sh_correctly() {
+        let cmd = script_command(Path::new("check.sh"), &["--repo-root", "/tmp"]);
+        let program = cmd.get_program().to_string_lossy().to_string();
+        assert!(program == "sh" || program == "bash", "expected a shell interpreter, got '{}'", program);
+    }
+
+    #[test]
+    fn script_command_runs_unrecognized_extension_directly() {
+        // A check_overrides entry pointing at a compiled native binary.
+        let cmd = script_command(Path::new("./checker"), &["--flag"]);
+        assert_eq!(cmd.get_program().to_string_lossy(), "./checker");
+    }
+
+    fn scratch_dir(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("samgraha-test-env-{}-{}", name, std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn run_workflow_script_captures_exit_code_stdout_args_and_env() {
+        let dir = scratch_dir("workflow-script");
+        let script = dir.join("echo_args.py");
+        std::fs::write(
+            &script,
+            "import sys, os\n\
+             print('args:' + ','.join(sys.argv[1:]))\n\
+             print('team:' + os.environ.get('TEAM', 'missing'))\n\
+             sys.exit(3)\n",
+        )
+        .unwrap();
+
+        let result = run_workflow_script(
+            &script,
+            &dir,
+            &["--json-out".to_string(), "out.json".to_string()],
+            &[("TEAM".to_string(), "alpha".to_string())],
+            Some(10),
+        )
+        .unwrap();
+
+        assert_eq!(result.exit_code, Some(3));
+        assert!(result.stdout.contains("args:--json-out,out.json"), "stdout: {}", result.stdout);
+        assert!(result.stdout.contains("team:alpha"), "stdout: {}", result.stdout);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn run_workflow_script_kills_process_on_timeout() {
+        let dir = scratch_dir("workflow-script-timeout");
+        let script = dir.join("sleep_forever.py");
+        std::fs::write(&script, "import time\ntime.sleep(30)\n").unwrap();
+
+        let result = run_workflow_script(&script, &dir, &[], &[], Some(1));
+        assert!(result.is_err(), "expected a timeout error");
+        std::fs::remove_dir_all(&dir).ok();
     }
 }
 
@@ -178,31 +292,7 @@ pub fn run_check_script(
     let mut cmd = script_command(script_path, &arg_refs);
     cmd.current_dir(repo_root);
 
-    let run_result: std::io::Result<std::process::Output> = if let Some(secs) = timeout_secs {
-        cmd.spawn().and_then(|mut child| {
-            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(secs);
-            loop {
-                match child.try_wait() {
-                    Ok(Some(_status)) => return child.wait_with_output(),
-                    Ok(None) => {
-                        if std::time::Instant::now() >= deadline {
-                            let _ = child.kill();
-                            return Err(std::io::Error::new(
-                                std::io::ErrorKind::TimedOut,
-                                format!("Script timed out after {}s", secs),
-                            ));
-                        }
-                        std::thread::sleep(std::time::Duration::from_millis(100));
-                    }
-                    Err(e) => return Err(e),
-                }
-            }
-        })
-    } else {
-        cmd.output()
-    };
-
-    let output = run_result.context("Failed to execute script")?;
+    let output = run_with_optional_timeout(cmd, timeout_secs).context("Failed to execute script")?;
     let content = std::fs::read_to_string(&out_file);
     let _ = std::fs::remove_file(&out_file);
 
@@ -223,6 +313,92 @@ pub fn run_check_script(
             )
         }
     }
+}
+
+/// Run `cmd` to completion, killing it and returning a `TimedOut` error if
+/// `timeout_secs` elapses first. Shared by `run_check_script` and
+/// `run_workflow_script` — the only difference between the two contracts is
+/// which args/env go into `cmd` before it gets here, not how it's run.
+fn run_with_optional_timeout(
+    mut cmd: std::process::Command,
+    timeout_secs: Option<u64>,
+) -> std::io::Result<std::process::Output> {
+    let Some(secs) = timeout_secs else {
+        return cmd.output();
+    };
+    // spawn() inherits the parent's stdio by default (unlike output(), which
+    // pipes automatically) — without this, wait_with_output() below always
+    // returns empty stdout/stderr regardless of what the child actually
+    // printed. Pre-existing bug in this exact spawn/poll/kill shape before
+    // it was extracted into this shared helper — surfaced by a test that
+    // actually asserts on captured output instead of just checking exit
+    // status.
+    cmd.stdout(std::process::Stdio::piped());
+    cmd.stderr(std::process::Stdio::piped());
+    cmd.spawn().and_then(|mut child| {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(secs);
+        loop {
+            match child.try_wait() {
+                Ok(Some(_status)) => return child.wait_with_output(),
+                Ok(None) => {
+                    if std::time::Instant::now() >= deadline {
+                        let _ = child.kill();
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::TimedOut,
+                            format!("Script timed out after {}s", secs),
+                        ));
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                }
+                Err(e) => return Err(e),
+            }
+        }
+    })
+}
+
+/// Result of a workflow-script run — raw process output, no interpretation.
+/// Unlike `run_check_script`'s fixed `{status, evidence, metrics}` JSON
+/// contract, a workflow script (e.g. `leaderboard.py`) defines its own
+/// output shape (writes whatever files it wants); the caller inspects
+/// `exit_code`/`stdout`/`stderr` and reads back any output file it knows to
+/// expect, this function doesn't guess at one.
+pub struct WorkflowScriptOutput {
+    pub exit_code: Option<i32>,
+    pub stdout: String,
+    pub stderr: String,
+}
+
+/// Run a script with the workflow-script contract (see
+/// `docs/crates-refactor-proposal.md` Phase 4): caller-supplied CLI `args`
+/// and `env`, not the check-script contract's fixed
+/// `--repo-root/--repo-fingerprint/--out` flags. Right shape for a script
+/// like `leaderboard.py --adjusted ... --weights ... --json-out ...` that
+/// operates across multiple repos/teams and has its own CLI, not a
+/// per-repo pass/fail check. Reuses `script_command`'s interpreter dispatch
+/// (`.sh`/`.ps1`/`.py`/`.js`) — the only difference from the check-script
+/// contract is which arguments get built, not how the process runs.
+pub fn run_workflow_script(
+    script_path: &Path,
+    cwd: &Path,
+    args: &[String],
+    env: &[(String, String)],
+    timeout_secs: Option<u64>,
+) -> anyhow::Result<WorkflowScriptOutput> {
+    let arg_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+    let mut cmd = script_command(script_path, &arg_refs);
+    cmd.current_dir(cwd);
+    for (key, value) in env {
+        cmd.env(key, value);
+    }
+
+    let output = run_with_optional_timeout(cmd, timeout_secs)
+        .with_context(|| format!("Failed to run script: {}", script_path.display()))?;
+
+    Ok(WorkflowScriptOutput {
+        exit_code: output.status.code(),
+        stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+        stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+    })
 }
 
 fn find_dotenv(start: &Path) -> Option<std::path::PathBuf> {

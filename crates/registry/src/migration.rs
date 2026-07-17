@@ -1,5 +1,5 @@
 /// Knowledge registry migrations — create `knowledge.db` tables.
-pub const KNOWLEDGE_MIGRATIONS: &[&str] = &[V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32];
+pub const KNOWLEDGE_MIGRATIONS: &[&str] = &[V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33];
 
 /// Repository registry migrations — create `registry.db` tables.
 pub const REGISTRY_MIGRATIONS: &[&str] = &[REG_V1, REG_V2];
@@ -982,4 +982,26 @@ CREATE TABLE IF NOT EXISTS summary_reports (
     created_at              TEXT    NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_summary_reports_target ON summary_reports(target_type, target_name);
+";
+
+const V33: &str = "
+-- V33: Archive for standard-driven (YAML pipeline) audit runs. Every
+--      standard/YAML pipeline audit is stateless today (result returned to
+--      the MCP caller, never persisted) — this is the first archive for
+--      that path. `model` is self-reported by the calling agent (MCP has
+--      no protocol-level way to learn which LLM is driving a client), so
+--      it can be NULL; grouping by it (leaderboards, agreement across
+--      repeat runs) is a query concern, not enforced here.
+CREATE TABLE IF NOT EXISTS standard_audit_runs (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    standard        TEXT    NOT NULL,
+    pipeline        TEXT    NOT NULL,
+    model           TEXT,
+    score           REAL    NOT NULL,
+    report          TEXT    NOT NULL,
+    git_revision    TEXT,
+    created_at      TEXT    NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_standard_audit_runs_standard ON standard_audit_runs(standard, pipeline);
+CREATE INDEX IF NOT EXISTS idx_standard_audit_runs_model ON standard_audit_runs(model);
 ";

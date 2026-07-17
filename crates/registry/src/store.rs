@@ -2,8 +2,8 @@ use crate::migration::KNOWLEDGE_MIGRATIONS;
 use anyhow::{Context, Result};
 use rusqlite::{params, Connection};
 use schemas::audit::{
-    AuditFinding, AuditStage, FindingStatus, GateResult, SectionChangedResult,
-    SemanticReport,
+    AuditFinding, AuditStage, FindingStatus, GateResult, SectionChangedResult, SemanticReport,
+    StandardAuditRun,
 };
 use schemas::document::{Document, DocumentBody, DocumentSection};
 use schemas::fix::{
@@ -1084,6 +1084,59 @@ impl RegistryStore {
         } else {
             Ok(None)
         }
+    }
+
+    // ── Standard-Driven (YAML Pipeline) Audit Archive ───────────────────────
+
+    /// Archive one run of a standard/YAML pipeline audit. `model` is
+    /// self-reported by the caller (see `StandardAuditRun` doc comment).
+    pub fn store_standard_audit_run(
+        &self,
+        standard: &str,
+        pipeline: &str,
+        model: Option<&str>,
+        score: f64,
+        report_json: &str,
+        git_revision: Option<&str>,
+    ) -> Result<i64> {
+        let created_at = chrono::Utc::now().to_rfc3339();
+        self.conn.execute(
+            "INSERT INTO standard_audit_runs (standard, pipeline, model, score, report, git_revision, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![standard, pipeline, model, score, report_json, git_revision, created_at],
+        )?;
+        Ok(self.conn.last_insert_rowid())
+    }
+
+    /// Most recent archived runs for a standard, newest first. `pipeline`
+    /// narrows to one domain within the standard when given.
+    pub fn list_standard_audit_runs(
+        &self,
+        standard: &str,
+        pipeline: Option<&str>,
+        limit: i64,
+    ) -> Result<Vec<StandardAuditRun>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, standard, pipeline, model, score, report, git_revision, created_at
+             FROM standard_audit_runs
+             WHERE standard = ?1 AND (?2 IS NULL OR pipeline = ?2)
+             ORDER BY id DESC LIMIT ?3",
+        )?;
+        let rows = stmt
+            .query_map(params![standard, pipeline, limit], |row| {
+                Ok(StandardAuditRun {
+                    id: row.get(0)?,
+                    standard: row.get(1)?,
+                    pipeline: row.get(2)?,
+                    model: row.get(3)?,
+                    score: row.get(4)?,
+                    report: row.get(5)?,
+                    git_revision: row.get(6)?,
+                    created_at: row.get(7)?,
+                })
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(rows)
     }
 
     /// Pipeline counterpart to `check_gate`'s Section/Document/CrossDomain
@@ -4668,6 +4721,39 @@ mod tests {
         };
         store.store_pipeline_check_report(&converged).unwrap();
         assert!(store.check_pipeline_gate("architecture").unwrap().blocked);
+    }
+
+    #[test]
+    fn test_standard_audit_run_archive_and_leaderboard() {
+        let store = RegistryStore::open_in_memory().unwrap();
+
+        store
+            .store_standard_audit_run("python_hackathon", "infrastructure", Some("claude-sonnet-5"), 90.0, "{}", None)
+            .unwrap();
+        store
+            .store_standard_audit_run("python_hackathon", "infrastructure", Some("claude-sonnet-5"), 80.0, "{}", None)
+            .unwrap();
+        store
+            .store_standard_audit_run("python_hackathon", "infrastructure", Some("gpt-5"), 60.0, "{}", None)
+            .unwrap();
+        // No self-reported model — archived, but excluded from the leaderboard.
+        store
+            .store_standard_audit_run("python_hackathon", "infrastructure", None, 100.0, "{}", None)
+            .unwrap();
+        // Different domain — must not bleed into the "infrastructure" leaderboard.
+        store
+            .store_standard_audit_run("python_hackathon", "engineering", Some("gpt-5"), 10.0, "{}", None)
+            .unwrap();
+
+        let runs = store.list_standard_audit_runs("python_hackathon", Some("infrastructure"), 10).unwrap();
+        assert_eq!(runs.len(), 4);
+        assert_eq!(runs[0].score, 100.0); // newest first
+        assert_eq!(runs[0].model, None);
+        assert_eq!(runs[1].model.as_deref(), Some("gpt-5"));
+
+        // Different domain doesn't bleed into "infrastructure"'s results.
+        let engineering_runs = store.list_standard_audit_runs("python_hackathon", Some("engineering"), 10).unwrap();
+        assert_eq!(engineering_runs.len(), 1);
     }
 
     #[test]

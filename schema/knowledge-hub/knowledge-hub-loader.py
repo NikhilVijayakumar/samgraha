@@ -773,14 +773,32 @@ def pass_5(conn: sqlite3.Connection, standard_id: int, layout: dict[str, Path]) 
             severity = rule.get("severity", "warning")
             weight = float(rule.get("weight", 1.0))
             mandatory = 1 if rule.get("mandatory", False) else 0
-            evidence = rule.get("evidence", {})
-            evidence_type = evidence.get("type", "unknown")
+            # A rule declares its evidence either as `evidence: {type: ..., ...}`
+            # or, for glob-shaped checks, as `check: {file_globs: [...]}` with
+            # no `type` key at all (both forms are real — the same standard's
+            # own rule files mix them, e.g. inf-001/002 use `evidence:`,
+            # inf-003 uses `check:`). Falling back to "unknown" with zero
+            # params for the second form would silently make that rule a
+            # permanent no-op, so both are normalized into the same
+            # (evidence_type, params) shape here rather than assuming every
+            # rule uses one form.
+            evidence = rule.get("evidence")
+            check = rule.get("check")
+            if evidence:
+                evidence_type = evidence.get("type", "unknown")
+                evidence_items = {k: v for k, v in evidence.items() if k != "type"}
+            elif check and "file_globs" in check:
+                evidence_type = "glob_match"
+                evidence_items = {"pattern": check["file_globs"]}
+            elif check:
+                evidence_type = "unknown"
+                evidence_items = check
+            else:
+                evidence_type = "unknown"
+                evidence_items = {}
 
-            # Build evidence params from non-type keys
             evidence_params = []
-            for k, v in evidence.items():
-                if k == "type":
-                    continue
+            for k, v in evidence_items.items():
                 if isinstance(v, list):
                     for item in v:
                         evidence_params.append({"key": k, "value": str(item)})
@@ -879,6 +897,53 @@ def pass_5(conn: sqlite3.Connection, standard_id: int, layout: dict[str, Path]) 
                 1 if is_generic else 0, [],
             )
             rule_count += 1
+
+    # --- 5b2. Semantic YAML (document-scope, one prompt per domain) ---
+    # A different real shape from 5b's markdown criteria tables — no
+    # per-criterion "Scoring Criteria" table, one prompt_template evaluating
+    # the whole domain's documentation at once (python_hackathon's actual
+    # audit/semantic/document/*.yaml — 5b's rglob("*.md") never sees these
+    # at all, so without this they were silently never ingested). One rule
+    # per file, rule_key fixed at "llm-review" (there's exactly one prompt
+    # per domain per file, no natural per-criterion id the way the markdown
+    # table format has one).
+    for yaml_file in sorted(sem_dir.rglob("*.yaml")):
+        data = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
+        if not data or "prompt_template" not in data:
+            continue  # not this shape — e.g. a file 5a already handled
+
+        domain_key = data.get("domain")
+        scope = data.get("scope", "document")
+        if not domain_key:
+            print(f"  WARNING: missing domain in {yaml_file}, skipping")
+            continue
+
+        row = conn.execute(
+            "SELECT id FROM domains WHERE standard_id = ? AND key = ?",
+            (standard_id, domain_key),
+        ).fetchone()
+        if row is None:
+            print(f"  WARNING: domain '{domain_key}' not found, skipping {yaml_file.name}")
+            continue
+        domain_id = row[0]
+
+        description = (data.get("description") or f"Semantic review of {domain_key}").strip()
+        prompt = data.get("prompt_template", "").strip()
+
+        params = [{"key": "prompt_template", "value": prompt}]
+        for model in (data.get("ensemble") or {}).get("required_models", []):
+            params.append({"key": "ensemble_models", "value": model})
+        for field in data.get("metadata_fields", []):
+            params.append({"key": "metadata_fields", "value": field})
+
+        _insert_rule_and_params(
+            conn, standard_id, "llm-review", "semantic", scope,
+            domain_id, None, description, description,
+            description, "warning", 1.0, 0, "llm_judgment",
+            0, params,
+        )
+        rule_count += 1
+        param_count += len(params)
 
     # --- 5c. Relationship YAML rules ---
     for yaml_file in sorted(det_dir.glob("*-relationships.yaml")):
@@ -1098,8 +1163,32 @@ def pass_6(conn: sqlite3.Connection, standard_id: int, layout: dict[str, Path]) 
 # Pass 7 — calculation_rules, calculation_inputs, score_bands
 # ---------------------------------------------------------------------------
 
+def _bucket_name(yaml_file: Path, calc_dir: Path) -> str:
+    """Derive a bucket key from a calculation file's own location — e.g.
+    deterministic/document.yaml -> deterministic_document,
+    aggregation/domain/01-infrastructure.yaml -> aggregation_domain_01_infrastructure.
+    No standard's specific bucket names (deterministic_document, final_score, ...)
+    are hardcoded anywhere — whatever files a standard's calculation/ directory
+    contains is what becomes rows here, named after their own path."""
+    rel = yaml_file.relative_to(calc_dir).with_suffix("")
+    return re.sub(r"[^a-zA-Z0-9]+", "_", str(rel)).strip("_")
+
+
 @register_pass
 def pass_7(conn: sqlite3.Connection, standard_id: int, layout: dict[str, Path]) -> None:
+    # No fixed list of expected files/buckets (no "every standard has exactly
+    # a deterministic/document.yaml, a summary/final_score.yaml, ..."
+    # assumption) — every *.yaml under calculation/ is inspected by its own
+    # content and classified generically:
+    #   "bands" present            -> a rating-band file -> score_bands
+    #   "calculation" + "formula"  -> a scoring-bucket file -> calculation_rules
+    #   neither                    -> not a calculation-rule file (e.g. a
+    #                                 standard's weights.yaml or
+    #                                 validation/scoring_validation.yaml,
+    #                                 which has its own "checks" shape) -> skipped
+    # This means a standard that defines its own bucket set — 3 buckets, 12
+    # buckets, no "final_score"/"trend" at all — is fully supported without
+    # touching this loader.
     calc_dir = layout["calculation_root"]
     rule_count = 0
     input_count = 0
@@ -1127,85 +1216,79 @@ def pass_7(conn: sqlite3.Connection, standard_id: int, layout: dict[str, Path]) 
                    min_samples = excluded.min_samples,
                    fallback_scope = excluded.fallback_scope,
                    fallback_min_samples = excluded.fallback_min_samples,
-                   note = excluded.note""",
+                   note = excluded.note
+               RETURNING id""",
             (standard_id, bucket, method, scope, formula, rollup,
              tol_method, tol_k, tol_floor, tol_scope,
              min_samples, fallback_scope, fallback_min, note),
         )
         rule_count += 1
+        return conn.execute(
+            "SELECT id FROM calculation_rules WHERE standard_id = ? AND bucket = ?",
+            (standard_id, bucket),
+        ).fetchone()[0]
 
-    # --- deterministic/document.yaml ---
-    data = yaml.safe_load((calc_dir / "deterministic" / "document.yaml").read_text(encoding="utf-8"))
-    _upsert_rule("deterministic_document", data["calculation"], "document",
-                 data["formula"].strip(), note=data.get("note", "").strip() or None)
+    if not calc_dir.is_dir():
+        print("  calculation_rules: 0 (no calculation/ directory)")
+        return
 
-    # --- deterministic/section.yaml ---
-    data = yaml.safe_load((calc_dir / "deterministic" / "section.yaml").read_text(encoding="utf-8"))
-    rollup_json = json.dumps(data.get("rollup")) if data.get("rollup") else None
-    _upsert_rule("deterministic_section", data["calculation"], "section",
-                 data["formula"].strip(), rollup=rollup_json,
-                 note=data.get("note", "").strip() or None)
+    for yaml_file in sorted(calc_dir.rglob("*.yaml")):
+        data = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            continue
 
-    # --- semantic/document.yaml ---
-    data = yaml.safe_load((calc_dir / "semantic" / "document.yaml").read_text(encoding="utf-8"))
-    _upsert_rule("semantic_document", data["calculation"], "document",
-                 data["formula"].strip(), note=data.get("note", "").strip() or None)
+        if "bands" in data:
+            for i, band in enumerate(data["bands"]):
+                conn.execute(
+                    """INSERT INTO score_bands
+                          (standard_id, rating, min_score, max_score, sort_order)
+                       VALUES (?, ?, ?, ?, ?)
+                       ON CONFLICT (standard_id, rating) DO UPDATE SET
+                           min_score = excluded.min_score,
+                           max_score = excluded.max_score,
+                           sort_order = excluded.sort_order""",
+                    (standard_id, band["rating"], band["min"], band["max"], i),
+                )
+                band_count += 1
+            continue
 
-    # --- semantic/section.yaml ---
-    data = yaml.safe_load((calc_dir / "semantic" / "section.yaml").read_text(encoding="utf-8"))
-    rollup_json = json.dumps(data.get("rollup")) if data.get("rollup") else None
-    _upsert_rule("semantic_section", data["calculation"], "section",
-                 data["formula"].strip(), rollup=rollup_json,
-                 note=data.get("note", "").strip() or None)
+        if "calculation" not in data or "formula" not in data:
+            continue  # not a calculation-rule file — e.g. weights.yaml, validation/*.yaml
 
-    # --- summary/final_score.yaml ---
-    data = yaml.safe_load((calc_dir / "summary" / "final_score.yaml").read_text(encoding="utf-8"))
-    _upsert_rule("final_score", data["calculation"], None,
-                 data["formula"].strip(), note=data.get("note", "").strip() or None)
+        bucket = _bucket_name(yaml_file, calc_dir)
+        rollup = data.get("rollup")
+        rollup_json = json.dumps(rollup) if rollup else None
+        tol = data.get("tolerance") or {}
+        note = (data.get("note") or "").strip() or None
 
-    final_score_row = conn.execute(
-        "SELECT id FROM calculation_rules WHERE standard_id = ? AND bucket = ?",
-        (standard_id, "final_score"),
-    ).fetchone()
-    final_score_id = final_score_row[0]
-
-    # --- calculation_inputs (delete+reinsert) ---
-    conn.execute("DELETE FROM calculation_inputs WHERE calculation_rule_id = ?", (final_score_id,))
-    for i, inp in enumerate(data["inputs"]):
-        conn.execute(
-            """INSERT INTO calculation_inputs
-                  (calculation_rule_id, name, weight, sort_order)
-               VALUES (?, ?, ?, ?)""",
-            (final_score_id, inp["name"], inp["weight"], i),
+        rule_id = _upsert_rule(
+            bucket, data["calculation"], data.get("scope"), data["formula"].strip(),
+            rollup=rollup_json,
+            tol_method=tol.get("method"), tol_k=tol.get("k"), tol_floor=tol.get("floor"),
+            tol_scope=tol.get("scope"), min_samples=tol.get("min_samples"),
+            fallback_scope=tol.get("fallback_scope"), fallback_min=tol.get("fallback_min_samples"),
+            note=note,
         )
-        input_count += 1
 
-    # --- summary/trend.yaml ---
-    data = yaml.safe_load((calc_dir / "summary" / "trend.yaml").read_text(encoding="utf-8"))
-    tol = data.get("tolerance", {})
-    _upsert_rule("trend", data["calculation"], None,
-                 data["formula"].strip(),
-                 tol_method=tol.get("method"), tol_k=tol.get("k"),
-                 tol_floor=tol.get("floor"), tol_scope=tol.get("scope"),
-                 min_samples=tol.get("min_samples"),
-                 fallback_scope=tol.get("fallback_scope"),
-                 fallback_min=tol.get("fallback_min_samples"),
-                 note=data.get("note", "").strip() or None)
-
-    # --- summary/score_bands.yaml ---
-    data = yaml.safe_load((calc_dir / "summary" / "score_bands.yaml").read_text(encoding="utf-8"))
-    for i, band in enumerate(data["bands"]):
-        conn.execute(
-            """INSERT INTO score_bands
-                  (standard_id, rating, min_score, max_score, sort_order)
-               VALUES (?, ?, ?, ?, ?)
-               ON CONFLICT (standard_id, rating) DO UPDATE SET
-                   min_score = excluded.min_score,
-                   max_score = excluded.max_score,
-                   sort_order = excluded.sort_order""",
-            (standard_id, band["rating"], band["min"], band["max"], i),
-        )
-        band_count += 1
+        # A file's "inputs" only becomes calculation_inputs rows when it's a
+        # weighted list of named buckets (final_score's shape) — deterministic/
+        # semantic bucket files also have an "inputs" key, but it's a
+        # {from, fields} source descriptor, not a weight list; trend's
+        # "inputs" is a plain [current_score, previous_score] name list with
+        # no weights. Distinguished by shape, not by which file this is.
+        inputs = data.get("inputs")
+        if isinstance(inputs, list) and inputs and all(
+            isinstance(i, dict) and "name" in i and "weight" in i for i in inputs
+        ):
+            conn.execute("DELETE FROM calculation_inputs WHERE calculation_rule_id = ?", (rule_id,))
+            for i, inp in enumerate(inputs):
+                conn.execute(
+                    """INSERT INTO calculation_inputs
+                          (calculation_rule_id, name, weight, sort_order)
+                       VALUES (?, ?, ?, ?)""",
+                    (rule_id, inp["name"], inp["weight"], i),
+                )
+                input_count += 1
 
     print(f"  calculation_rules: {rule_count}")
     print(f"  calculation_inputs: {input_count}")
@@ -1279,6 +1362,78 @@ def pass_8(conn: sqlite3.Connection, standard_id: int, layout: dict[str, Path]) 
 
     print(f"  plan_settings: 1")
     print(f"  plan_scenarios: {scenario_count}")
+
+
+# ---------------------------------------------------------------------------
+# Pass 9 — validation_rules
+# ---------------------------------------------------------------------------
+
+@register_pass
+def pass_9(conn: sqlite3.Connection, standard_id: int, layout: dict[str, Path]) -> None:
+    """calculation/validation/scoring_validation.yaml -> validation_rules.
+    Optional — a standard with no validation/ subdirectory under its
+    calculation/ root simply gets zero rows, not an error (same convention
+    Pass 7 already applies to a missing calculation/ directory entirely)."""
+    validation_path = layout["calculation_root"] / "validation" / "scoring_validation.yaml"
+    if not validation_path.is_file():
+        print("  validation_rules: 0 (no calculation/validation/scoring_validation.yaml)")
+        return
+
+    data = yaml.safe_load(validation_path.read_text(encoding="utf-8"))
+    checks = data.get("checks", [])
+    rule_count = 0
+    for i, check in enumerate(checks):
+        conn.execute(
+            """INSERT INTO validation_rules
+                  (standard_id, check_key, name, description, rule, severity, invalidate_audit, sort_order)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT (standard_id, check_key) DO UPDATE SET
+                   name = excluded.name,
+                   description = excluded.description,
+                   rule = excluded.rule,
+                   severity = excluded.severity,
+                   invalidate_audit = excluded.invalidate_audit,
+                   sort_order = excluded.sort_order""",
+            (standard_id, check["id"], check.get("name", check["id"]),
+             check.get("description"), check.get("rule", ""),
+             check.get("severity"), 1 if check.get("invalidate_audit", False) else 0, i),
+        )
+        rule_count += 1
+
+    print(f"  validation_rules: {rule_count}")
+
+
+# ---------------------------------------------------------------------------
+# Pass 10 — workflow_stages
+# ---------------------------------------------------------------------------
+
+@register_pass
+def pass_10(conn: sqlite3.Connection, standard_id: int, layout: dict[str, Path]) -> None:
+    """plan/core/loop.yaml's `stages:` list -> workflow_stages, one row per
+    stage in order. Reuses the same file Pass 1 already reads for
+    within_tier_ordering and Pass 8 already reads for its threshold header —
+    this pass is the one piece of that file (the stage sequence itself)
+    neither of those touches."""
+    loop_path = layout["plan_loop"]
+    loop_data = yaml.safe_load(loop_path.read_text(encoding="utf-8"))
+    stages = loop_data.get("stages", [])
+
+    conn.execute("DELETE FROM workflow_stages WHERE standard_id = ?", (standard_id,))
+    stage_count = 0
+    for i, stage in enumerate(stages):
+        if not isinstance(stage, dict) or len(stage) != 1:
+            print(f"  WARNING: stage #{i} in {loop_path} is not a single-key dict, skipping: {stage!r}")
+            continue
+        ((stage_type, params),) = stage.items()
+        params = params or {}
+        conn.execute(
+            """INSERT INTO workflow_stages (standard_id, sort_order, stage_type, params_json)
+               VALUES (?, ?, ?, ?)""",
+            (standard_id, i, stage_type, json.dumps(params)),
+        )
+        stage_count += 1
+
+    print(f"  workflow_stages: {stage_count}")
 
 
 # ---------------------------------------------------------------------------

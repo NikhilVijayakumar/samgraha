@@ -63,6 +63,7 @@ impl McpCapabilities {
                 "search".to_string(),
                 "get_sections".to_string(),
                 "audit".to_string(),
+                "audit_runs".to_string(),
                 "info".to_string(),
                 "get_document".to_string(),
                 "get_document_section".to_string(),

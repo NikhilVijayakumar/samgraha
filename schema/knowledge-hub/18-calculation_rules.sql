@@ -8,18 +8,21 @@
 -- the 'trend' bucket (trend_comparison's two-tier per_standard -> global ->
 -- floor tolerance resolution); NULL otherwise.
 --
--- scope is NULL for the two cross-cutting buckets (final_score, trend) —
--- the CHECK spells out "OR scope IS NULL" explicitly rather than relying
--- on SQLite's default CHECK-ignores-NULL behavior, so the same constraint
--- means the same thing if this schema is ever ported to a database that
--- enforces CHECK against NULL (e.g. some CHECK dialects do).
+-- scope is NULL for cross-cutting buckets (e.g. final_score, trend) and
+-- otherwise whatever granularity the standard's own calculation file names
+-- (document, section, domain, ...). No fixed vocabulary here, deliberately —
+-- a CHECK enumerating known scope values would be exactly the kind of
+-- standard-shaped assumption this table exists to avoid (found the hard way:
+-- python_hackathon's calculation/aggregation/domain/*.yaml declares
+-- "scope: domain", which an earlier ('document','section')-only CHECK
+-- rejected outright).
 
 CREATE TABLE calculation_rules (
     id                    INTEGER PRIMARY KEY,
     standard_id           INTEGER NOT NULL REFERENCES standards(id) ON DELETE CASCADE,
     bucket                TEXT NOT NULL,
     calculation_method    TEXT NOT NULL,
-    scope                 TEXT CHECK (scope IS NULL OR scope IN ('document','section')),
+    scope                 TEXT,
     formula               TEXT NOT NULL,
     rollup                TEXT,
     tolerance_method      TEXT,

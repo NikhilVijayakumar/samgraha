@@ -312,19 +312,36 @@ fn tool_definitions() -> Vec<serde_json::Value> {
         }),
         serde_json::json!({
             "name": "audit",
-            "description": "Run audit checks on documentation. For a domain audit (no 'pipeline', or pipeline: 'doc'), the response's semantic_review.tasks bundles per-section LLM review work (section content + rubric) that the calling agent should judge and report via store_section_report — see semantic_review.instruction for the exact next step. Pass 'pipeline' to run a structural pipeline instead (e.g. 'architecture', 'documentation-structure', 'build', 'security', 'consistency', 'coverage', 'dependency', or any domain name) — those return a PipelineReport directly, no semantic_review. Pass 'repo_path' to target a different local repository.",
+            "description": "Run audit checks on documentation. For a domain audit (no 'pipeline', or pipeline: 'doc'), the response's semantic_review.tasks bundles per-section LLM review work (section content + rubric) that the calling agent should judge and report via store_section_report — see semantic_review.instruction for the exact next step. Pass 'pipeline' to run a structural pipeline instead (e.g. 'architecture', 'documentation-structure', 'build', 'security', 'consistency', 'coverage', 'dependency', or any domain name) — those return a PipelineReport directly, no semantic_review. Pass 'standard' to run YAML-defined audit rules from a registered standard; 'domain' then selects which of that standard's pipelines to run (required if it defines more than one), and the run is archived — see audit_runs. Pass 'repo_path' to target a different local repository.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "domain": { "type": "string", "description": "Domain to audit (Documentation Audit only, ignored if 'pipeline' is set)" },
+                    "domain": { "type": "string", "description": "Documentation Audit: domain to audit (ignored if 'pipeline' is set). With 'standard': selects which of the standard's pipelines to run." },
                     "providers": { "type": "array", "items": { "type": "string" }, "description": "Audit providers, e.g. [\"deterministic\"] or [\"deterministic\", \"semantic\"]" },
                     "pipeline": { "type": "string", "description": "Run a custom pipeline instead of the Documentation Audit: doc, architecture, build, security, consistency, coverage, dependency, documentation-structure, vision, design, readme, prototype, external-context, engineering, feature, feature-technical, feature-design, deterministic-runtime, external-context-ownership, implementation, help" },
+                    "standard": { "type": "string", "description": "Run YAML-defined audit rules from a registered standard (e.g. 'python_hackathon'). Looks for .samgraha/standards/{standard}/audit/pipelines/*.yaml." },
+                    "model": { "type": "string", "description": "Standard audits only: self-reported identifier of the model/agent driving this call (e.g. 'claude-sonnet-5'). Archived with the run, retrievable via audit_runs. Optional — samgraha has no other way to learn it." },
+                    "scope": { "type": "string", "enum": ["document", "session", "both"], "description": "Audit scope: document (per-doc), session (cross-doc), or both. Default: document" },
                     "inspect_artifact": { "type": "boolean", "description": "build pipeline only: verify the declared binary artifact exists" },
                     "runtime": { "type": "boolean", "description": "security pipeline only: connect to the running app and verify auth/TLS/rate-limiting" },
                     "execute": { "type": "boolean", "description": "build pipeline only: actually run the declared build command" },
                     "dry_run": { "type": "boolean", "description": "build pipeline only: dry-run the declared build command" },
                     "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
                 }
+            }
+        }),
+        serde_json::json!({
+            "name": "audit_runs",
+            "description": "List archived standard-driven audit runs (most recent first): standard, domain, self-reported model (if any), score, and the full report JSON. Raw facts only — no ranking/aggregation opinion. A standard that wants a leaderboard or cross-model comparison defines that itself as a script (see list_script_checks/run_check) and reads these runs as its input; samgraha doesn't compute one for you.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "standard": { "type": "string", "description": "Standard name (e.g. 'python_hackathon')" },
+                    "domain": { "type": "string", "description": "Narrow to one of the standard's pipelines/domains" },
+                    "limit": { "type": "integer", "description": "Max rows to return. Default: 20" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["standard"]
             }
         }),
         serde_json::json!({

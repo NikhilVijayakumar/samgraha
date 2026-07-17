@@ -215,6 +215,24 @@ pub struct PipelineCheckReport {
     pub created_at: String,
 }
 
+/// One archived run of a standard-driven (YAML pipeline) audit. `model` is
+/// self-reported by the calling agent on the `audit` MCP tool call — samgraha
+/// has no other way to learn which LLM is driving the client. `report` is the
+/// full `PipelineExecutionResult`/`PipelineReport` JSON, kept as a blob (same
+/// convention `semantic_reports.findings` uses) rather than normalized, since
+/// nothing queries into it yet beyond `score`/`model`/`standard`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StandardAuditRun {
+    pub id: i64,
+    pub standard: String,
+    pub pipeline: String,
+    pub model: Option<String>,
+    pub score: f64,
+    pub report: String,
+    pub git_revision: Option<String>,
+    pub created_at: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AuditScore {
     pub overall: f64,
@@ -253,12 +271,29 @@ pub struct ScoreBand {
     pub max_score: f64,
 }
 
-/// Full scoring configuration loaded from calculation_rules + calculation_inputs + score_bands.
+/// One of a standard's own scoring-pipeline integrity checks
+/// (calculation/validation/scoring_validation.yaml — weight sums, score
+/// bounds, domain counts, ...). `rule` is prose describing the check, same
+/// relationship `AuditRuleDef.condition` has to its `evidence` — documentation
+/// for a human/LLM, not an expression this (or any) Rust code evaluates.
+/// No evaluator exists yet; these are loaded and exposed, not enforced.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ValidationRule {
+    pub check_key: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub rule: String,
+    pub severity: Option<String>,
+    pub invalidate_audit: bool,
+}
+
+/// Full scoring configuration loaded from calculation_rules + calculation_inputs + score_bands + validation_rules.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct ScoringConfig {
     pub calculation_rules: Vec<CalculationRule>,
     pub calculation_inputs: Vec<CalculationInput>,
     pub score_bands: Vec<ScoreBand>,
+    pub validation_rules: Vec<ValidationRule>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

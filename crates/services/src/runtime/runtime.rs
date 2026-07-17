@@ -546,6 +546,36 @@ impl KnowledgeRuntime {
         self.registry.store_pipeline_check_report(report)
     }
 
+    /// Archive one standard-driven (YAML pipeline) audit run. `model` is
+    /// self-reported by the caller (see `StandardAuditRun` doc comment).
+    pub fn store_standard_audit_run(
+        &self,
+        standard: &str,
+        pipeline: &str,
+        model: Option<&str>,
+        report: &schemas::audit::PipelineReport,
+    ) -> Result<i64> {
+        let report_json = serde_json::to_string(report)?;
+        let git_revision = self.get_git_revision();
+        self.registry.store_standard_audit_run(
+            standard,
+            pipeline,
+            model,
+            report.score,
+            &report_json,
+            git_revision.as_deref(),
+        )
+    }
+
+    pub fn list_standard_audit_runs(
+        &self,
+        standard: &str,
+        pipeline: Option<&str>,
+        limit: i64,
+    ) -> Result<Vec<schemas::audit::StandardAuditRun>> {
+        self.registry.list_standard_audit_runs(standard, pipeline, limit)
+    }
+
     pub fn get_pipeline_check_report(
         &self,
         pipeline: &str,

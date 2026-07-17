@@ -63,6 +63,14 @@ impl AuditFramework {
             .iter()
             .map(|s| (s.domain.clone(), s.audit_rules.iter().cloned().collect()))
             .collect();
+        // Semantic providers get semantic_rules (kind='semantic', evidence_type
+        // "llm_judgment"), not audit_rules (kind='deterministic') — was
+        // unreachable before semantic_rules existed at all (SemanticAuditProvider
+        // ignored its rules param entirely, `_rules`).
+        let semantic_rules_by_domain: HashMap<String, Vec<AuditRuleDef>> = standards
+            .iter()
+            .map(|s| (s.domain.clone(), s.semantic_rules.iter().cloned().collect()))
+            .collect();
         let standard_by_domain: HashMap<String, StandardDefinition> = standards
             .iter()
             .map(|s| (s.domain.clone(), s.clone()))
@@ -80,13 +88,15 @@ impl AuditFramework {
         let all_findings: Vec<AuditFinding> = match domain {
             Some(d) => {
                 let rules = rules_by_domain.get(d).cloned().unwrap_or_default();
+                let semantic_rules = semantic_rules_by_domain.get(d).cloned().unwrap_or_default();
                 let standard = standard_by_domain.get(d);
                 providers
                     .par_iter()
                     .flat_map(|provider_name| {
+                        let rules_for_provider = if provider_name == "semantic" { &semantic_rules } else { &rules };
                         self.providers
                             .get(provider_name.as_str())
-                            .map(|provider_fn| provider_fn(&domain_docs, &rules, standard))
+                            .map(|provider_fn| provider_fn(&domain_docs, rules_for_provider, standard))
                             .unwrap_or_default()
                     })
                     .collect()
@@ -103,13 +113,15 @@ impl AuditFramework {
                     .into_par_iter()
                     .flat_map(|(std_name, docs)| {
                         let rules = rules_by_domain.get(&std_name).cloned().unwrap_or_default();
+                        let semantic_rules = semantic_rules_by_domain.get(&std_name).cloned().unwrap_or_default();
                         let standard = standard_by_domain.get(&std_name);
                         providers
                             .par_iter()
                             .flat_map(|provider_name| {
+                                let rules_for_provider = if provider_name == "semantic" { &semantic_rules } else { &rules };
                                 self.providers
                                     .get(provider_name.as_str())
-                                    .map(|provider_fn| provider_fn(&docs, &rules, standard))
+                                    .map(|provider_fn| provider_fn(&docs, rules_for_provider, standard))
                                     .unwrap_or_default()
                             })
                             .collect::<Vec<_>>()
@@ -127,7 +139,7 @@ impl AuditFramework {
         // always a blocking error.
         let mandatory_rule_ids: std::collections::HashSet<&str> = standards
             .iter()
-            .flat_map(|s| s.audit_rules.iter())
+            .flat_map(|s| s.audit_rules.iter().chain(s.semantic_rules.iter()))
             .filter(|r| r.mandatory)
             .map(|r| r.id.as_str())
             .collect();
@@ -156,47 +168,81 @@ impl AuditFramework {
             .count();
         let passed = total.saturating_sub(error_count);
 
-        // --- Weighted scoring (Phase 4) ---
+        // --- Weighted scoring ---
+        // Method dispatch, not a hardcoded formula: a standard's own
+        // calculation_rules row for the "deterministic_document" bucket
+        // names which method applies (see crates/audit/src/calculation.rs).
+        // Only "weighted_pass_rate" has a real implementation today — every
+        // standard actually loaded so far (python_hackathon, base_dev)
+        // declares exactly that for this bucket, but this is checked, not
+        // assumed: an unrecognized method logs a warning and falls back
+        // rather than silently applying weighted_pass_rate math to a
+        // standard that asked for something else.
         let scoring = self.standard_registry.scoring_config();
+        let deterministic_method = crate::calculation::find_bucket(&scoring.calculation_rules, "deterministic_document")
+            .map(|r| r.calculation_method.as_str());
+        if let Some(method) = deterministic_method {
+            if method != "weighted_pass_rate" {
+                tracing::warn!(
+                    "Standard declares calculation_method '{}' for deterministic_document, \
+                     but only 'weighted_pass_rate' is implemented — falling back to it anyway.",
+                    method
+                );
+            }
+        }
+
         let mut bucket_scores: HashMap<String, f64> = HashMap::new();
         let mut cat_scores: HashMap<String, f64> = HashMap::new();
 
         for std in &standards {
             let domain_rules: Vec<&AuditRuleDef> = std.audit_rules.iter().collect();
+            if domain_rules.is_empty() {
+                cat_scores.insert(std.domain.clone(), 100.0);
+                continue;
+            }
             let domain_docs_list: Vec<&Document> = domain_docs
                 .iter()
                 .filter(|d| d.standard == std.domain)
                 .collect();
 
-            if domain_rules.is_empty() || domain_docs_list.is_empty() {
-                cat_scores.insert(std.domain.clone(), 100.0);
+            if domain_docs_list.is_empty() {
+                // No compiled Document for this domain — not necessarily
+                // "nothing to check": a standard whose rules are
+                // file_presence/glob_match (python_hackathon's shape, no
+                // Document objects involved at all) still has real findings
+                // in all_findings, just none tagged with a document_id. The
+                // old unconditional "no docs -> score 100" here silently
+                // ignored those findings entirely. Score domain-wide instead
+                // of per-document-averaged when there's no document to
+                // average over.
+                let failed_ids: std::collections::HashSet<&str> = all_findings
+                    .iter()
+                    .filter(|f| domain_rules.iter().any(|r| r.id == f.check_id))
+                    .map(|f| f.check_id.as_str())
+                    .collect();
+                let score = crate::calculation::weighted_pass_rate(&domain_rules, &failed_ids);
+                bucket_scores.insert(format!("{}_deterministic_section", std.domain), score);
+                cat_scores.insert(std.domain.clone(), score);
                 continue;
             }
 
-            let total_weight: f64 = domain_rules.iter().map(|r| r.weight).sum();
-            let mut doc_scores = Vec::new();
+            let doc_scores: Vec<f64> = domain_docs_list
+                .iter()
+                .map(|doc| {
+                    let failed_ids: std::collections::HashSet<&str> = all_findings
+                        .iter()
+                        .filter(|f| f.document_id == Some(doc.id))
+                        .map(|f| f.check_id.as_str())
+                        .collect();
+                    crate::calculation::weighted_pass_rate(&domain_rules, &failed_ids)
+                })
+                .collect();
 
-            for doc in &domain_docs_list {
-                let failed_ids: std::collections::HashSet<&str> = all_findings
-                    .iter()
-                    .filter(|f| f.document_id == Some(doc.id))
-                    .map(|f| f.check_id.as_str())
-                    .collect();
-
-                let passed_weight: f64 = domain_rules
-                    .iter()
-                    .filter(|r| !failed_ids.contains(r.id.as_str()))
-                    .map(|r| r.weight)
-                    .sum();
-
-                let doc_score = if total_weight > 0.0 {
-                    (passed_weight / total_weight) * 100.0
-                } else {
-                    100.0
-                };
-                doc_scores.push(doc_score);
-            }
-
+            // rollup: average over documents present (matches calculation/
+            // deterministic/section.yaml's declared rollup method — real
+            // per-section rollup within one document is a separate,
+            // not-yet-built piece; this averages per-document scores across
+            // the domain instead, an existing simplification kept as-is).
             let section_score = if doc_scores.is_empty() {
                 100.0
             } else {
@@ -261,31 +307,46 @@ impl AuditFramework {
             }
         };
 
-        // Final score: weighted sum of buckets (default 25/25/25/25).
-        let final_inputs: Vec<(&str, f64)> = scoring
-            .calculation_inputs
-            .iter()
-            .map(|ci| (ci.name.as_str(), ci.weight))
-            .collect();
-
-        let total_weight: f64 = final_inputs.iter().map(|(_, w)| w).sum();
-        let overall = if total_weight > 0.0 {
-            final_inputs
-                .iter()
-                .map(|(name, weight)| {
-                    let bucket_score = bucket_scores.get(*name).copied().unwrap_or(100.0);
-                    (bucket_score / 100.0) * weight
-                })
-                .sum::<f64>()
-        } else {
-            100.0
+        // Final score: weighted sum of buckets, per calculation_inputs
+        // (default 25/25/25/25 when a standard has none loaded).
+        if let Some(final_rule) = crate::calculation::find_bucket(&scoring.calculation_rules, "summary_final_score") {
+            if final_rule.calculation_method != "weighted_sum" {
+                tracing::warn!(
+                    "Standard declares calculation_method '{}' for summary_final_score, \
+                     but only 'weighted_sum' is implemented — falling back to it anyway.",
+                    final_rule.calculation_method
+                );
+            }
+        }
+        // calculation_inputs names bare bucket keys (e.g. "deterministic_whole"
+        // — see calculation/summary/final_score.yaml, which is written to
+        // score one domain, not the whole standard at once), but every entry
+        // in bucket_scores above is domain-prefixed ("infrastructure_
+        // deterministic_whole"). Looking `calculation_inputs` up directly
+        // against `bucket_scores` therefore never matched anything and
+        // `overall` silently defaulted to 100 regardless of any actual
+        // finding — true for every audit before this fix, not new behavior
+        // introduced here, caught by an end-to-end check against real data
+        // instead of a synthetic all-pass fixture. Scoped to the audited
+        // domain when one was given, by stripping that domain's prefix back
+        // off before the lookup; a whole-standard (domain: None) audit has
+        // no single prefix to strip and keeps the prior (still-100-default)
+        // behavior — computing a real cross-domain final score is a
+        // different, not-yet-built piece (see Phase 3a's team/session
+        // decision in docs/crates-refactor-proposal.md).
+        let scoped_bucket_scores: HashMap<String, f64> = match domain {
+            Some(d) => {
+                let prefix = format!("{}_", d);
+                bucket_scores
+                    .iter()
+                    .filter_map(|(k, v)| k.strip_prefix(prefix.as_str()).map(|bare| (bare.to_string(), *v)))
+                    .collect()
+            }
+            None => bucket_scores.clone(),
         };
+        let overall = crate::calculation::weighted_sum(&scoring.calculation_inputs, &scoped_bucket_scores);
 
-        let rating = scoring
-            .score_bands
-            .iter()
-            .find(|band| overall >= band.min_score && overall <= band.max_score)
-            .map(|band| band.rating.clone())
+        let rating = crate::calculation::threshold_lookup(overall, &scoring.score_bands)
             .unwrap_or_else(|| "Unknown".to_string());
 
         let readiness = if overall >= 90.0 && error_count == 0 {
@@ -382,4 +443,96 @@ fn unix_now() -> String {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default();
     format!("{}", dur.as_secs())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use schemas::standard::{AuditRuleDef, StandardDefinition};
+
+    fn rule(id: &str) -> AuditRuleDef {
+        AuditRuleDef {
+            id: id.into(),
+            name: id.into(),
+            description: String::new(),
+            severity: "warning".into(),
+            evidence_type: "file_presence".into(),
+            scope: String::new(),
+            weight: 1.0,
+            mandatory: false,
+            params: HashMap::new(),
+        }
+    }
+
+    fn finding(check_id: &str) -> AuditFinding {
+        AuditFinding {
+            check_id: check_id.into(),
+            severity: Severity::Warning,
+            message: String::new(),
+            location: None,
+            document_id: None, // file_presence/glob_match findings never reference a Document
+            provider: "deterministic".into(),
+            stage: None,
+            section_id: None,
+            confidence: None,
+            evidence: None,
+            status: None,
+            strategy: None,
+        }
+    }
+
+    /// Regression test: a domain whose rules produce findings with no
+    /// document_id (file_presence/glob_match — python_hackathon's shape)
+    /// must not silently score 100 regardless of those findings, which is
+    /// what happened before this test existed (any domain with zero
+    /// Document objects short-circuited straight to a 100.0 default).
+    fn framework_with_domain(domain: &str, rules: Vec<AuditRuleDef>, findings: Vec<AuditFinding>) -> AuditFramework {
+        let mut registry = StandardRegistry::new();
+        registry.register(StandardDefinition {
+            id: domain.into(),
+            name: domain.into(),
+            version: "1.0.0".into(),
+            domain: domain.into(),
+            description: String::new(),
+            required_sections: vec![],
+            prohibited_content: vec![],
+            relationships: vec![],
+            audit_rules: rules,
+            semantic_rules: vec![],
+            profiles: vec![],
+            tier: None,
+        });
+        let mut framework = AuditFramework::new(Arc::new(registry));
+        framework.register_provider("deterministic", Arc::new(move |_docs, _rules, _standard| findings.clone()));
+        framework
+    }
+
+    #[test]
+    fn domain_with_no_documents_scores_from_findings_not_a_hardcoded_100() {
+        let framework = framework_with_domain(
+            "infrastructure",
+            vec![rule("inf-001"), rule("inf-002")],
+            vec![finding("inf-001")], // 1 of 2 rules failed
+        );
+        let report = framework.execute(Some("infrastructure"), &[], &["deterministic".to_string()]).unwrap();
+        assert_eq!(report.score.categories.get("infrastructure"), Some(&50.0));
+    }
+
+    #[test]
+    fn domain_with_no_findings_and_no_documents_scores_100() {
+        let framework = framework_with_domain(
+            "infrastructure",
+            vec![rule("inf-001"), rule("inf-002")],
+            vec![],
+        );
+        let report = framework.execute(Some("infrastructure"), &[], &["deterministic".to_string()]).unwrap();
+        assert_eq!(report.score.categories.get("infrastructure"), Some(&100.0));
+    }
+
+    #[test]
+    fn domain_with_no_rules_still_defaults_to_100() {
+        let framework = framework_with_domain("empty-domain", vec![], vec![]);
+        let report = framework.execute(Some("empty-domain"), &[], &["deterministic".to_string()]).unwrap();
+        assert_eq!(report.score.categories.get("empty-domain"), Some(&100.0));
+    }
 }

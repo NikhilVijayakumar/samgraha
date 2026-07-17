@@ -17,6 +17,7 @@ pub mod search;
 pub mod standard;
 pub mod test_run;
 pub mod urn;
+pub mod yaml_pipeline;
 
 pub use audit::*;
 pub use compilation::*;
@@ -34,5 +35,6 @@ pub use search::*;
 pub use standard::*;
 pub use test_run::*;
 pub use urn::*;
+pub use yaml_pipeline::*;
 pub mod knowledge_system;
 pub use knowledge_system::*;
