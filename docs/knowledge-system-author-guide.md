@@ -281,37 +281,31 @@ idempotency (§7.4 of the architecture proposal):
 }
 ```
 
-#### `plan-generation` — Determine what needs generating
+#### `plan-generation` — Render the plan document (§7.2 stage 2 only)
 
-**Input** (`--in`): Plan template, workflow definition, semantic input.
+A document-rendering capability, same family as `report` (§8.2) — **not**
+a capability that returns a "can-proceed/blocked" determination itself.
+Blocking is handled entirely by samgraha's dispatch layer, before your
+script even runs (§8.6, and §8.3 below) — by the time `plan-generation`'s
+script executes, its dependencies are already known-satisfied.
 
-**Output** (`--out`): Standard envelope. Additional fields in `output_json`:
+**Input** (`--in`): Plan template + workflow definition + the semantic
+plan-input a prior `semantic`-kind phase already wrote to DB.
+
+**Output** (`--out`): Standard envelope, `written` naming the rendered
+plan file — nothing else:
 ```json
 {
   "status": "ok",
-  "determination": "can-proceed",
-  "blocked_reasons": [],
-  "tasks": [
-    {
-      "domain": "vision",
-      "action": "scaffold",
-      "target_path": "docs/vision.md"
-    }
-  ]
+  "written": ["docs/plan/PLAN.md"],
+  "message": null
 }
 ```
-
-Or if blocked:
-```json
-{
-  "status": "ok",
-  "determination": "blocked",
-  "blocked_reasons": [
-    "Vision document has not been generated yet"
-  ],
-  "tasks": []
-}
-```
+If you see `"determination"`/`"blocked_reasons"` in an older draft of this
+guide or an example elsewhere, that's stale — it never matched what
+samgraha's dispatch code actually returns. The real blocked response (which
+your script never produces — samgraha does, and only before dispatch) looks
+like §8.3 below.
 
 #### `init` — Self-description (§8.4)
 
@@ -511,7 +505,27 @@ first. samgraha checks `script_runs` before allowing execution (§8.6).
 ```
 
 If `vision-plan-render` hasn't run (or its output expired), samgraha
-returns a blocked response telling the caller what to run first.
+returns a blocked response telling the caller what to run first — this
+comes from samgraha's dispatch code (`crates/mcp/src/adapter.rs`), not from
+any script you write:
+```json
+{
+  "blocked": true,
+  "reason": "missing_precondition",
+  "system": "rust_dev",
+  "phase_id": "vision-plan-render",
+  "phase_kind": "script",
+  "message": "Phase 'vision-plan-render' has not been run yet for this repo.",
+  "how_to_run": {
+    "tool": "run_system_script",
+    "args": { "capability": "plan-generation", "phase_id": "vision-plan-render" }
+  }
+}
+```
+`reason` is `"missing_precondition"` (never ran) or `"expired_precondition"`
+(ran, but its `expiry` rule says it's stale now) — same shape either way.
+Your script is never invoked when this happens; there's nothing for it to
+return in this case.
 
 ### 8.4 Expiry rules
 
@@ -711,6 +725,103 @@ def calculate_score(input_data):
 if __name__ == "__main__":
     main()
 ```
+
+---
+
+## 11A. Worked Example: `base_dev`'s Real Structure
+
+§11's `rust_dev` example uses invented domain names to keep things short.
+This section maps the same mechanism onto `base_dev` (Kriti's actual,
+already-authored dev-class system) — the point being that **none of this
+is new authoring**: `base_dev` already has every piece of data this
+architecture needs, just not yet shaped as a §8.4 plan. Writing `init.py`
+is a transform of existing files, not new design.
+
+### 11A.1 What already exists, unchanged
+
+| Already in `base_dev`, today | Maps to |
+|---|---|
+| `documentation-standards/{01..16}-*-standards.md` (16 files) | 16 domains |
+| `audit/deterministic/{document,section}/{domain}*.yaml` | `validate` script's rule source, per domain, per scope |
+| `audit/semantic/{document,section}/{domain}*.md` | `semantic`-kind phases' judgment criteria, per domain, per scope |
+| `templates/audit/summary/{domain}-report.md` | `report` script's template source, per domain |
+| `plan/core/tiers.yaml` | The domain→tier assignment **and** the dependency edges (`derives`/`guides`/`requires`/...), each already tagged `tier-gating: strict` or `none` |
+| `plan/core/loop.yaml`'s `within_tier_ordering` | The strict exceptions *within* a tier (e.g. tier 2's `external-context` before `engineering`) |
+| `plan/usecase/{repo_new,repo_existing}/{case_1,case_2}/tier_N/{01-generation,02-audit,03-fix}.md` | The 4 `use_cases`, each with one 3-phase group per tier |
+
+### 11A.2 The transform: tiers.yaml → an `init` plan
+
+`tiers.yaml` says tier 1 is `[vision, philosophy]`, tier 2 is `[security,
+feature, architecture, design, engineering, external-context]`, etc., with
+`derives`/`guides` edges marked `tier-gating: strict` between tiers and
+`soft_aligns_with`/`informs`/`references` marked `none` (cross-tier, never
+gates). `init.py` reads this once and emits, per use case, one generate/
+audit/fix phase group per tier, with `depends_on` set mechanically:
+
+```json
+{
+  "system": "base_dev",
+  "use_cases": [
+    {
+      "id": "repo_new-case_1_no_documentation",
+      "label": "New repo, no documentation",
+      "phases": [
+        { "id": "tier1-generate", "kind": "semantic", "depends_on": [] },
+        { "id": "tier1-audit", "kind": "script", "script": "scripts/validate.py",
+          "depends_on": ["tier1-generate"] },
+        { "id": "tier1-fix", "kind": "semantic", "depends_on": ["tier1-audit"] },
+
+        { "id": "tier2-generate", "kind": "semantic", "depends_on": ["tier1-fix"] },
+        { "id": "tier2-audit", "kind": "script", "script": "scripts/validate.py",
+          "depends_on": ["tier2-generate"] },
+        { "id": "tier2-fix", "kind": "semantic", "depends_on": ["tier2-audit"] }
+      ]
+    }
+  ]
+}
+```
+
+Tier N's `generate` phase depends on tier N-1's `fix` phase — that's the
+strict, cross-tier gate `tiers.yaml`'s `derives`/`guides` edges already
+express. *Within* a tier, domains generate in parallel by default (no
+inter-domain `depends_on` needed) unless `loop.yaml`'s
+`within_tier_ordering` names an exception (tier 2's `external-context` →
+`engineering`), which becomes one extra phase-level dependency, not a
+different mechanism.
+
+This is exactly the pattern you described: samgraha never sees "tier,"
+"derives," or "vision" — it only ever sees phase IDs and a `depends_on`
+list. The domain vocabulary and dependency rules are 100% `base_dev`'s, and
+the same transform applies unchanged to a system with a completely
+different domain vocabulary — a `film_production` system's `init.py` would
+read whatever *its* dependency data looks like and emit the identical
+`{"id", "kind", "depends_on"}` shape. samgraha's dispatch code doesn't
+change either way.
+
+### 11A.3 Per-domain audit script: also a transform, not new logic
+
+`audit/deterministic/document/01-vision.yaml` and
+`audit/deterministic/section/01-vision/*.yaml` already contain the rule
+definitions currently interpreted by samgraha's `yaml_runner.rs`. Your
+`validate.py` doesn't need to reimplement rule evaluation from scratch —
+it can read the same YAML files and either (a) port the evaluation logic
+you need out of `yaml_runner.rs`'s approach into your own script, or (b)
+for a transition period, shell out to samgraha's existing
+`script_checks`-based evaluation for checks that are already
+script-backed, and only hand-roll the checks that aren't. Either way, the
+16 YAML files stay exactly as they are — nothing about them needs to
+change for this architecture.
+
+### 11A.4 Report ownership: archive, HTML, whatever else
+
+`templates/audit/summary/{domain}-report.md` is `report.py`'s input
+template. Everything downstream of "render this template with this
+domain's audit data" — moving the previous "latest" report to an archive
+location, converting the rendered Markdown to HTML with embedded graphs,
+adding a short semantic commentary blurb — is `report.py`'s own logic,
+entirely `base_dev`'s to define (§7.7/§14 of the architecture proposal).
+samgraha stores whatever `written` paths the script reports and never
+asks what happened inside them.
 
 ---
 
