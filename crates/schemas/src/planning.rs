@@ -90,9 +90,9 @@ pub enum ProjectCase {
     ImplTestAudit,
     BuildAudit,
     /// Generate/audit/fix phases sourced from a registered standard's own
-    /// `plan_scenarios` (tier x repo_state x doc_state x step content),
-    /// instead of the fixed `DOC_DOMAINS`/`IMPL_DOMAINS` const arrays the
-    /// other 4 cases use — see `StandardWorkflowPlanner`.
+    /// `plan_scenarios` (tier x repo_state x doc_state x step content).
+    /// All cases now route to `StandardWorkflowPlanner` — the legacy
+    /// hardcoded planners have been removed.
     Standard,
 }
 

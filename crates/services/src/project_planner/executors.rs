@@ -238,11 +238,11 @@ impl PhaseExecutor for VerifyPhaseExecutor {
         let mut results = Vec::new();
         let mut all_passed = true;
 
-        // Planners now always set explicit pipeline_ids on Verify phases;
-        // this is a defensive fallback only, sharing the same canonical
-        // ordering as the planners instead of a second hand-typed list.
+        // When pipeline_ids is empty, fall back to the phase's own domains.
+        // StandardWorkflowPlanner sets pipeline_ids to empty and relies on
+        // runtime.audit(domain) per phase.domains entry.
         let pipelines: Vec<String> = if phase.pipeline_ids.is_empty() {
-            super::planners::all_pipelines().into_iter().map(String::from).collect()
+            phase.domains.clone()
         } else {
             phase.pipeline_ids.clone()
         };
