@@ -1,275 +1,1074 @@
-# Proposal: Standard-Driven Workflow Engine (Generation + Audit + Script)
+# System-Class Inheritance Proposal
 
-**Created:** 2026-07-17
-**Status:** Proposal — pending review
-**Supersedes:** the JSON-report-output section previously in this file (folded in below as Phase 5 — still valid, now scoped as one piece of the larger design)
+**Scope**: samgraha's knowledge-hub loader (`register_standard`, `sync_standards`,
+the knowledge-hub loader schema, and the Rust `StandardRegistry`) — adding a
+data-driven inheritance model so systems can declare a base and override-by-exception,
+eliminating copy-paste drift across system trees.
+
+**Source**: `E:\Python\Kriti\docs\limitation\mcp\01-system-class-inheritance.md` (LIM-001)
+
+**Status**: PROPOSED — not implemented
 
 ---
 
-## Correction: The Ingestion Pipeline Already Exists
+## 1. Problem Statement
 
-Before writing Phase 1/2 below, checked whether `register_standard` already does what those phases were about to propose building. It does. `crates/mcp/src/adapter.rs::handle_register_standard` doesn't parse YAML in Rust at all — it shells out to `schema/knowledge-hub/knowledge-hub-loader.py` (resolved via `services::knowledge_publish::resolve_knowledge_hub_loader`), a ~1400-line, already-generic (`--layout` override), already-working 8-pass loader that reads a standard's authoring files and writes `standards.db`:
+Every knowledge-hub system (`base_dev`, `electron_dev`, `fastapi_dev`, `react_dev`,
+`rust_dev`, `python_hackathon`, `eswa_journal`, `pcems_2026`) is authored as a
+fully independent tree. There is no mechanism to declare "this system inherits from
+that system." This causes:
 
-| Pass | Reads | Writes |
-|---|---|---|
-| 1 | `00-domain-relationships.md` (embedded YAML: tiers + relationships) + `plan/core/loop.yaml`'s `within_tier_ordering` | `domains`, `relationship_types`, `domain_relationships` |
-| 5 | `audit/deterministic/**/*.yaml`, `audit/semantic/**/*.{yaml,md}` | `rules`, `rule_evidence_params` |
+### 1.1 Byte-for-byte duplication
+
+All 5 dev-class systems have identical `plan/core/loop.yaml` (77 lines each).
+At least 4 files under `calculation/` are also identical across all dev systems.
+Changing `base_dev` requires manually patching 4 other files with no drift detection.
+
+### 1.2 Wrong-class copy-paste
+
+`eswa_journal` and `pcems_2026` originally shipped with `python_hackathon`'s
+`loop.yaml` — competitive leaderboard logic, `relative`/`competition` scoring,
+a `cap: 20` normalization — none of which applies to academic-paper workflows.
+Only caught by manual review.
+
+### 1.3 No expressible relationship
+
+Nothing in the tooling records that `electron_dev` extends `base_dev`, or that
+`rust_dev` is a dev-class system with a reduced domain set. Cross-system
+consistency is a manual audit, not a tool-checked invariant.
+
+---
+
+## 2. Current Architecture
+
+### 2.1 Loader pipeline (Python)
+
+`schema/knowledge-hub/knowledge-hub-loader.py` reads a directory tree of
+YAML/Markdown files and writes a SQLite `standards.db` via 11 passes:
+
+| Pass | Input | Output (DB tables) |
+|------|-------|-------------------|
+| 0 | system name | `systems`, `standards` |
+| 1 | `00-domain-relationships.md`, `plan/core/loop.yaml` | `domains`, `relationship_types`, `domain_relationships` |
+| 2 | `templates/generation/document/*.md`, `audit/` trees | `section_catalog` |
+| 3 | `documentation-standards/*.md` | `standard_docs` |
+| 4 | `script/schema/*.manifest.yaml` | `script_checks`, `script_check_dependencies` |
+| 5 | `audit/deterministic/**/*.yaml`, `audit/semantic/**/*.md` | `rules`, `rule_evidence_params` |
+| 6 | `templates/` | `templates` |
 | 7 | `calculation/**/*.yaml` | `calculation_rules`, `calculation_inputs`, `score_bands` |
-| 8 | `plan/core/loop.yaml`, `plan/usecase/**` | `plan_settings`, `plan_scenarios` |
-| 2, 3, 4, 6 | templates, script schemas, documentation-standards | `section_catalog`, `script_checks`, `standard_docs`, `templates` |
+| 8 | `plan/core/loop.yaml` (settings) | `plan_settings`, `plan_scenarios` |
+| 9 | `calculation/validation/*.yaml` | `validation_rules` |
+| 10 | `plan/core/loop.yaml` (stages) | `workflow_stages` |
 
-Every layout key the loader looks for (`audit_deterministic`, `audit_semantic`, `calculation_root`, `plan_loop`, `plan_usecase`, `domain_relationships`) matches the real directory names in both `python_hackathon` and `base_dev` exactly — this wasn't built against a guess. `db_reader.rs` already reads all of it back out into `StandardRegistry` (`AuditRuleDef`, `ScoringConfig{ calculation_rules, calculation_inputs, score_bands }`, `PlanSetting`, `PlanScenario`, `ScriptCheck` — all real Rust structs, all populated by real SQL SELECTs, not stubs).
+### 2.2 Rust consumption
 
-So: **"no hardcode rules, everything in YAML, schema-defined, saved in DB" is already true for audit rules, calculation formulas, domain/tier/relationship graphs, and generate/audit/fix tier content.** Nothing in this proposal needs to rebuild that. What's actually missing, now correctly scoped:
+`crates/standards/src/db_reader.rs:from_standards_db()` opens `.samgraha/standards.db`,
+projects all tables into `StandardDefinition` structs via SQL queries, and populates
+a `StandardRegistry`. Schema version validated via `PRAGMA user_version` (must match
+`EXPECTED_SCHEMA_VERSION = 1`).
 
-1. **Never verified end-to-end against these two standards.** Has anyone actually run `register_standard` against `python_hackathon`/`base_dev` and confirmed the row counts land right? Needs doing before anything downstream is trusted.
-2. **Nothing consumes what's already loaded.** `StandardRegistry.audit_rules`/`.scoring`/`.plan_scenarios` are populated (once #1 is confirmed) but no audit pipeline reads `audit_rules` to actually run checks, no calculation code reads `.scoring.calculation_rules` to actually compute a score, and no execution engine reads `.plan_scenarios`/`.plan_settings` to actually run a generate→audit→fix loop. This is genuinely new Rust work — but it's *consumption* of already-modeled data, not a new parser.
-3. **Genuinely new, not covered by any of the 8 passes:** `python_hackathon/plan/core/loop.yaml`'s `stages:` sequence itself (Phase 3a — small, one file), and the script runtime matrix gap (Phase 4a — `.py` isn't invokable today). Team/session/leaderboard are explicitly not samgraha's concern (see Phase 3a) — not a gap, a decision.
+### 2.3 Entry points
 
-Phase 1 and Phase 2 below are rewritten accordingly — from "build a loader" to "wire the audit engine to `StandardRegistry`, already populated by a pipeline that exists."
+- **MCP `register_standard`** (`crates/mcp/src/adapter.rs:1609`): invokes Python loader
+  with `--db <path>/standards.db --system <name> --knowledge-hub <dir>`
+- **CLI `knowledge publish`** (`crates/cli/src/commands.rs:1436`): same invocation
+- **MCP `sync_standards`**: copies `standards.db` from global store to repo's `.samgraha/`
 
-## Problem
+### 2.4 No inheritance mechanism
 
-Verified against two real standards — `python_hackathon` (Kriti hackathon judging) and `base_dev` (general repo documentation) — neither runs on samgraha today. As of the correction above, the gap is narrower than originally scoped: it's not ingestion, it's execution.
+- Systems table has no `extends` or `parent_id` column
+- Python loader has no merge/delta logic
+- `db_reader.rs` has no base-system resolution
+- The `knowledge-hub-loader.py` layout system (`DEFAULT_LAYOUT` + `--layout` overrides)
+  allows directory renaming but not tree composition
 
-Both standards use the same **distributed structure**:
+---
 
-```
-standard/
-├── audit/
-│   ├── deterministic/{document,section}/*.yaml
-│   └── semantic/{document,section}/*.{yaml,md}
-├── calculation/
-│   ├── deterministic/{document,section}/*.yaml
-│   ├── semantic/{document,section,ensemble}/*.yaml
-│   ├── aggregation/domain/*.yaml
-│   ├── summary/{final_score,score_bands,trend}.yaml
-│   ├── validation/scoring_validation.yaml
-│   └── weights.yaml
-├── plan/
-│   ├── core/{loop.yaml,tiers.yaml}
-│   └── usecase/**
-├── templates/{audit,generation,reports}/**
-└── script/*.py
-```
+## 3. Proposed Design
 
-`docs/raw/proposal.md`'s "Model A" (one monolithic `audit/pipelines/*.yaml` file) is real, works, and is now implemented (`crates/audit/src/yaml_runner.rs`, `pipeline_factory.rs::load_yaml_pipelines_for_standard`) — but zero files under either standard use it. It's a viable authoring shortcut for a standard with one or two simple domains; it is not what `python_hackathon` or `base_dev` need. Everything from here on is about the distributed structure ("Model B"), because that's what's actually sitting on disk.
-
-Three things are missing, confirmed by reading the standards directly rather than by guessing at their shape:
-
-1. **No loader for the distributed audit-rule files.** `audit/deterministic/document/01-infrastructure.yaml` and its semantic counterpart are never read by anything in `crates/`.
-2. **No calculation interpreter.** `calculation/**/*.yaml` files declare a `calculation:` method name (`weighted_pass_rate`, `weighted_merge`, `reliability_aware_ensemble`, `weighted_sum`, `threshold_lookup`, `trend_comparison`, ...) and a `formula:` — nothing executes them. `docs/raw/proposal.md` §5 already catalogs all the methods that appear in both standards; this proposal treats that catalog as ground truth (verified against the real `calculation/` directories while writing this).
-3. **No workflow engine for `plan/core/loop.yaml`.** Both standards ship one, and they are *not* the same workflow: `python_hackathon/plan/core/loop.yaml` is a flat competition loop (audit → ensemble → aggregate → relative-to-competition scoring → cap at 20 → report); `base_dev/plan/core/loop.yaml` is a completely different generate-or-audit-then-fix-loop keyed off `tiers.yaml`'s domain tiers and relationship graph. Nothing in samgraha reads either file. This is also where **generation** lives — `base_dev`'s loop has an explicit `path_selection: generate | audit` branch per domain, so generation and audit are two outcomes of the *same* workflow engine, not two separate systems.
-
-## Core Principle (unchanged from `docs/raw/proposal.md`, restated because it's the test every design decision below has to pass)
-
-**samgraha has zero opinion about what a standard's workflow, domains, scoring, or generation look like.** Every fact in the problem statement above — the tier list, the domain relationships, the scoring formula, the workflow shape, the leaderboard math — is data the standard owns. samgraha's job is to be a generic executor: read the standard's YAML, run the stages it declares, hand off to the standard's own scripts where it says to.
-
-Concretely, this rules out:
-- A Rust `enum` or hardcoded `match` for domain names, tier structure, or workflow shape (this is the mistake `PipelineKind` already made for the 22 built-in pipelines — not repeating it for standards).
-- A Rust implementation of any standard-specific scoring/ranking formula. `crates/mcp` shipped a `standard_audit_runs` archive table with a SQL leaderboard query earlier this session — the leaderboard was removed after checking `python_hackathon/script/leaderboard.py` and finding it does z-score + semantic-agreement-bonus math no fixed SQL query can replicate. The archive (raw facts: standard/domain/model/score/report) stays; the ranking logic stays in the standard's own script, invoked through the *existing* `run_check`/`list_script_checks` mechanism (`ScriptCheck` is already data-driven — this is proof the principle already works elsewhere in the codebase).
-
-## Architecture
+### 3.1 Taxonomy
 
 ```
-plan/core/loop.yaml (repository scope) + plan_scenarios (tier scope, already in DB, Phase 3a)
-  │
-  ▼
-StandardWorkflowPlanner (new ProjectPlanner impl, Phase 3)
-  — generates ProjectPhase[] from tiers.yaml + a workflow file instead of
-    resolve_planner()'s hardcoded DOC_DOMAINS/IMPL_DOMAINS const arrays
-  │
-  ▼
-PlanOrchestrator (EXISTING — services::project_planner, unchanged)
-  — same create_plan/execute_phase/get_plan machinery DocAuditPlanner etc.
-    already use; project_plan_execute/status/abort MCP tools already wired
-  │
-  ├─ PhaseType::Generate → existing compile_repository (already data-driven
-  │                         over StandardRegistry.domain), + standard-scoped
-  │                         template lookup (new — see Phase 3)
-  ├─ PhaseType::Audit    → NEW distributed loader (Phase 1) → existing
-  │                         deterministic/semantic evidence executors
-  │                         (yaml_runner.rs already has these, built for
-  │                         Model A — Phase 1 reuses them against Model B
-  │                         rule files instead of writing new evidence code)
-  ├─ PhaseType::Fix      → existing fix-plan machinery (audit_fix_plan/apply/
-  │                         accept/reject — already generic, already wired)
-  ├─ "calculate"/"aggregate"/"validate" stages → NEW calculation interpreter
-  │                         (Phase 2), invoked between phases, not itself a
-  │                         PhaseType — a workflow-file concept, not a plan one
-  ├─ "report" stages     → existing render_report_from_pipeline (already
-  │                         generic over PipelineReport) + standard_audit_runs
-  │                         archive (already built)
-  └─ "script" stages     → existing run_check / ScriptCheck for check-shaped
-                            scripts, new workflow-script contract for
-                            pipeline-shaped scripts like leaderboard.py
-                            (Phase 4/4a) — two contracts, one dispatch layer
+CLASS → optional SUBCLASS → BASE SYSTEM → CONCRETE SYSTEM
 ```
 
-The real reframe from the previous version of this proposal: this is not a new engine to build, it's `resolve_planner()`'s closed 4-case match getting a 5th, data-fed arm. Every other box above already exists — the work is wiring, not invention. That's deliberate: the fastest way to violate the core principle is to write a bespoke Rust handler per stage instead of routing through the one generic mechanism that already handles that concern.
+- **Class**: `dev`, `hackathon`, `academic` (matches 3 informal classes already observed)
+- **Subclass**: optional per class. `dev` → `frontend`/`backend`/`fullstack`;
+  `academic` → `paper`/`journal`. Classes without meaningful subclass split skip this.
+- **Base system**: a `documentation-standards`/`audit`/`calculation`/`plan`/
+  `templates`/`script` tree that is the shared starting point for every concrete
+  system under it. `base_dev` is the existing de facto example.
+- **Concrete system**: declares which base it inherits from and supplies only its
+  *delta* — files it overrides plus anything it adds. Anything not overridden is
+  resolved from the base at compile/register time.
 
-`tiers.yaml` is read alongside a workflow file, not instead of it — it supplies the domain list, tier ordering, and relationship graph that `path_selection`/`tier_gate` stages (or `StandardWorkflowPlanner`'s dependency-graph construction) reference by name. Both files are per-standard data; a hackathon standard's tiers (`infrastructure, security, engineering, ...`) and a doc-standard's tiers (`vision, philosophy, architecture, ...`) are equally valid, equally unknown to Rust.
+**Depth is per-branch, not fixed at 4.** The diagram above shows the
+*minimum* chain (a concrete system needs at least a base to extend); it is
+not a depth cap. `extends:` names one system, and any system — including a
+"subclass" node — is just another `system.yaml` with its own `extends:` and
+`abstract: true`. Nothing about `class`/`subclass` is a structural level;
+they're informational labels a node in the chain can carry. So the chain can
+be as short as `base_dev → rust_dev` (1 hop, no subclass node needed) or as
+long as `base_dev → frontend_dev → js_dev → react_dev` (3 hops, two abstract
+intermediates) in the same tree, simultaneously, with other branches at
+different depths. Inserting a new intermediate level later (e.g. splitting
+`js_dev` out from under `frontend_dev` once more JS-family systems exist) is
+a metadata edit — point the new node's `extends:` at `frontend_dev`, repoint
+`react_dev`'s `extends:` at the new node — not a code or schema change. This
+falls directly out of §5.2's `resolve_system()` being recursive on
+`meta.extends` with no depth argument, and §5.3's `_chain` set having no
+size limit — the mechanism is depth-agnostic from Phase 1, see §13.7.
 
-## Phase 1 — Wire Audit Execution to `StandardRegistry.audit_rules` (Done)
+### 3.2 Compile-time behavior (unchanged)
 
-**Not a new loader.** `AuditRuleDef` (`schemas/src/standard.rs:51`) already has `id`, `description`, `severity`, `evidence_type`, `scope`, `weight`, `mandatory` — one row per rule from `rules`/`rule_evidence_params`, already populated by loader Pass 5 from the exact real files (`audit/deterministic/document/01-infrastructure.yaml`'s `evidence: {type, target}` / `check: {file_globs}` forms, semantic document YAML, semantic section markdown rubrics). `StandardRegistry.standards[name].audit_rules: Vec<AuditRuleDef>` is where it already lands.
+The base system is never compiled standalone. When a concrete system is compiled,
+the loader first assembles an in-memory tree (base content + concrete overlay,
+override-wins on path conflict), then runs the same 11-pass compile. Output
+(`standards.db` rows) is identical in shape to a fully-standalone system. Only the
+*source assembly step* changes.
 
-What's new: a `crates/audit` execution path that, given a standard name + domain, pulls `audit_rules` for that (standard, domain) out of `StandardRegistry` and runs each one through the evidence executors `yaml_runner.rs` already has (`file_presence`, `content_check`, `llm_judgment`, ...) — dispatching on `AuditRuleDef.evidence_type` (a plain string, e.g. `"file_presence"`, `"script_result"`, `"llm_judgment"` — the DB's `evidence_type` column and Model A's `EvidenceDef` enum tag overlap almost 1:1, so this is a string-to-enum-variant match, not new evidence logic). `rule_evidence_params` (already loaded as key/value pairs per rule) supplies each evidence type's variable-shape config (e.g. `content_check`'s `keywords`, `keyword_absence`'s `categories`).
+### 3.3 Data-driven constraint
 
-**Non-goal:** re-parsing `audit/**/*.yaml` files at request time. The loader already turned them into rows once at `register_standard` time; re-parsing them per-audit-call would be the DB doing nothing.
+Inheritance is managed in YAML metadata files, not by adding class-aware logic
+into the Python loader. The merge is generic and class-agnostic — the code reads
+`extends:` and layers directories. Adding a new class means a new base directory
+and systems pointing `extends:` at it; nothing in samgraha's source changes.
 
-## Phase 2 — Wire Scoring to `StandardRegistry.scoring` (Done, Narrower Than First Scoped)
+---
 
-**Shipped:** `crates/audit/src/calculation.rs` — `weighted_pass_rate`, `weighted_sum`, `threshold_lookup`, `find_bucket` (bucket-name lookup into `ScoringConfig.calculation_rules`, no hardcoded bucket list). Wired into `framework.rs`'s existing scoring loop, replacing inline math that used to run unconditionally with a real lookup: before computing a bucket's score, `find_bucket(&scoring.calculation_rules, "deterministic_document")` checks what method the standard actually declared, and logs a warning (doesn't silently misapply) if it's ever anything other than `weighted_pass_rate`. Same pattern for `summary_final_score` → `weighted_sum`. Both real standards declare exactly these methods for these buckets today, so behavior is unchanged for `python_hackathon`/`base_dev` — the difference is that it's now checked, not assumed.
+## 4. YAML Metadata Schema
 
-**Deliberately not built — no real data path exists yet, would be guessing:**
-- `sum_capped_at_100`, `reliability_aware_ensemble` — need semantic-rule execution. Checked while implementing this: `StandardDefinition.audit_rules` only loads `kind = 'deterministic'` rows (`db_reader.rs`'s rules query has `WHERE r.kind = 'deterministic'` — confirmed, not assumed) — semantic rules from `standards.db` aren't loaded into anything today. The `"semantic"` provider registered in `runtime.rs` exists but has no semantic rules to receive. This is a real, separate, bigger gap (loading `kind = 'semantic'` rows, executing them via LLM judgment) than "add a calculation method" — flagged, not attempted here.
-- `weighted_merge` (domain aggregation of deterministic+semantic) — same blocker, needs both halves to exist first.
-- `trend_comparison` — needs historical score tracking. `CalculationRule` (the Rust struct) doesn't even carry the DB's `tolerance_*`/`min_samples`/`fallback_*` columns yet (`db_reader.rs`'s SELECT only pulls `bucket, calculation_method, formula` — confirmed while checking this). `standard_audit_runs` (built earlier) is the natural history source once this is built, but wiring that up is its own unit of work.
+### 4.1 Location
 
-None of these are stubbed with fake logic — a function with no real caller and no real test data would just be a guess wearing a type signature. They stay as open items, same as the proposal already flagged.
+Each system directory gets a `system.yaml` alongside its existing files:
 
-`calculation/validation/scoring_validation.yaml` (weight-sum == 100, score bounds, domain count) isn't in the loader's 8 passes yet — a real gap, not a correction. Small: same shape as `calculation_rules`, `rule:` instead of `formula:`, boolean result instead of a score. Worth a new loader pass + a `validation_rules` table mirroring `calculation_rules`, rather than special-casing it in Rust. (Numbered as Pass 9 below alongside Phase 3a's workflow pass — the two are independent additions, not sequential.)
+```
+samgraha/system/{name}/system.yaml    # NEW — inheritance metadata
+samgraha/system/{name}/plan/core/loop.yaml  # existing
+samgraha/system/{name}/audit/         # existing
+...
+```
 
-## Phase 3 — Workflow Engine: Generalize `ProjectPlan` (Done)
+For base systems, the same file declares the class and optional `abstract` flag.
 
-Correction that held up: samgraha already had a phase-execution engine of exactly this shape (`PhaseType::{Generate,Audit,Fix,Verify}`, `ProjectPhase`, `PlanOrchestrator`, already-wired `project_plan_execute`/`status`/`abort` MCP tools) — the gap was only what fed it. Shipped:
+### 4.2 Schema
 
-- **`ProjectCase::Standard`** (`schemas/src/planning.rs`) — a 5th variant alongside the 4 fixed built-in cases, `Display`/`from_str` round-trip `"standard"`. `resolve_planner()`'s match is exhaustive, so this was the one enum the compiler forced every call site to handle — all found and updated (just the one match arm; `ProjectCase` round-trips through `registry/store.rs` as a string already, no change needed there).
-- **`StandardWorkflowPlanner`** (`services/src/project_planner/planners.rs`) — builds phases from `ctx.standard.plan_scenarios`, grouped by tier (ascending), steps within a tier in `generation → audit → fix` order, cross-tier dependency chain (tier N's first phase depends on tier N-1's last). `PhaseType` comes directly from `plan_scenarios.step`'s own values — no new vocabulary.
-- **`StandardWorkflowContext`** (`services/src/project_planner/context.rs`) — carries `plan_scenarios`/`plan_settings`/`domains_by_tier`, threaded through a new `ProjectContext::detect_with_registry()` (old `detect()` kept, delegates with `None`). `repo_state` ("existing" vs "new") is a new detection: presence of `.samgraha/manifest.json`.
-- **Fixed a real gap found while building this**: `domains.tier` (the DB column) was queried but never selected by `db_reader.rs` (`SELECT id, key, name, description FROM domains` — no `tier`), so `StandardDefinition` had nowhere to carry it. Added `tier: Option<i32>` to `StandardDefinition`, extended the query, updated all 4 struct-literal construction sites. Without this, `StandardWorkflowPlanner`-generated phases would have empty `domains` — technically a plan, but not an executable one.
-- **`AuditPhaseExecutor`** (`executors.rs`) — the phase-execution side had the same problem Phase 1 found in `handle_audit`: keyed by `PhaseType` (generic-looking) but hardcoded to `PipelineKind::from_str` underneath (not generic). Added a fallback: when `phase.pipeline_ids` is empty, iterate `phase.domains` through `runtime.audit(domain, ...)` instead — gated on `pipeline_ids.is_empty()` specifically so the other 4 planners (which populate both fields with the same built-in names) never double-run.
-
-**Verified against real data** (Python loader → `standards.db` → `StandardRegistry` → `ProjectContext` → `StandardWorkflowPlanner`, not synthetic fixtures): `python_hackathon`'s 10 domains across 4 tiers produced exactly 12 phases (4 tiers x 3 steps), correct domain grouping per tier, correct dependency chain across tier boundaries.
-
-**Explicitly not built — flagged, not guessed at:** `FixPhaseExecutor` has no domain-audit fallback. `apply_finding_fix(finding, domain, report_id: i64, ...)` expects a numeric id from the `pipeline_reports`-style storage `run_pipeline_with_id` returns; `runtime.audit()`'s `AuditReport` has a `String` id from a different storage path with no equivalent number to pass through. Guessing one (e.g. `0`) would silently misattribute a fix session rather than fail loudly, so a `StandardWorkflowPlanner`-generated Fix phase currently just no-ops (empty `pipeline_ids`, the existing loop never iterates) instead of doing something wrong. Real follow-up work, not this session's to guess at.
-
-`domain_relationships`' `enforce_order`/`mutual` and `relationship_types.tier_gating` (populated by Pass 1) are **not yet wired into phase generation** — the shipped version approximates tier-gating as one linear chain (tier N's first phase waits on tier N-1's last), not the finer per-domain dependency graph those columns encode. Noted as a known simplification, not silently pretended away.
-
-### Phase 3a — `repository` and `tier` Scope Only; Team/Session/Leaderboard Explicitly Out of Scope
-
-**Decision:** samgraha has no concept of "team," "session," or "leaderboard," and doesn't get one. Its job stops at: run an audit, store the result (`standard_audit_runs`, already built), expose it as structured JSON (`audit_runs`, Phase 5). Any standard that wants team rollups or a competition leaderboard writes its own script against that JSON — `python_hackathon/script/score_aggregator.py` and `leaderboard.py` already do exactly this, already outside samgraha, and stay that way. Reached through the workflow-script contract (Phase 4), not through a samgraha-native `team`/`session` workflow scope. This removes the earlier version of this section's `workflows`/`workflow_stages` tables and the `team`/`session` rows from the scope table below entirely — not deferred, not phased later, just not samgraha's concern.
-
-What's left, both already have a home:
-
-| `scope` | Runs against | Home |
-|---|---|---|
-| `tier` | one domain/tier within one repo | already `plan_scenarios` (Pass 8) — no new file, no new table, Phase 3's `StandardWorkflowPlanner` reads it as-is |
-| `repository` | one whole repo | `python_hackathon`'s `plan/core/loop.yaml` `stages:` list — **the one real gap left here.** Pass 1 only reads the file's `within_tier_ordering`, Pass 8 only reads its `threshold`/`max_iterations`/`fallback` header; the actual `stages:` sequence (`repository → audit → calculate → aggregate → ... → report`) lands nowhere in the DB today. Small, contained fix: one more loader pass + one small table (`workflow_stages`: standard_id, sort_order, stage_type, stage_params) for this one file shape — not the multi-workflow system the earlier version proposed, just closing the gap on the file that already exists. |
-
-## Phase 4 — Script Execution: Two Contracts, Not One (Done)
-
-`run_check`/`ScriptCheck`/the 5-tier resolution chain reused as-is, not rebuilt — confirmed still true after building this. Both contracts:
-
-1. **Check-script contract** (existing, `check_runner.rs`, unchanged) — fixed protocol: `--repo-root/--repo-fingerprint/--out` in, `{status, evidence, metrics}` JSON out.
-2. **Workflow-script contract** (new, shipped) — `common::env::run_workflow_script(script_path, cwd, args, env, timeout_secs) -> WorkflowScriptOutput{ exit_code, stdout, stderr }`. Caller-supplied args/env, no fixed flags, reuses `script_command`'s interpreter dispatch (Phase 4a) via a `run_with_optional_timeout` helper extracted out of `run_check_script` so both contracts share one spawn/poll/kill implementation instead of two. This is the "engine's job is just process invocation" primitive the proposal called for — it does not itself parse a workflow YAML `script` stage or decide what output file to read back; that's the not-yet-built workflow-stage executor's job (Phase 3a's `repository`-scope `workflow_stages` table, still open).
-
-**Found and fixed a real bug while testing this**, not something introduced by the new code: `run_with_optional_timeout`'s `spawn()` path never set piped stdio, so `wait_with_output()` always returned empty stdout/stderr on the timeout-tracking path — meaning `run_check_script`'s own "script did not write an output file; stderr: ... stdout: ..." error message has always printed nothing there, silently, since before this session. Fixed by setting `Stdio::piped()` before `spawn()`. Only caught because a new test asserted on actual captured output instead of just exit status — a real illustration of why the verification habit in this document matters.
-
-**When scripts run:** wherever a `script`-typed stage sits in a workflow's (linear) stage list — no separate hook/trigger mechanism, confirmed against both real `loop.yaml`s having no conditional branching or lifecycle callbacks. Not building hook infrastructure until a standard actually needs `on_failure: notify.py`.
-
-### Phase 4a — Script Runtime Matrix (Done)
-
-`.py`/`.js` support added to both `common::env::script_command` (interpreter dispatch: `python3`/`python` via the already-existing `python_command()`, `node` via new `node_command()`) and `check_runner.rs::probe_script` (extension probing). `.rs`/compiled languages still explicitly not supported — same reasoning as before, neither real standard ships one.
-
-**Found and fixed a second real bug while wiring this up**: `probe_script(dir, name)` always treated `name` as a bare check name and appended `.sh`/`.ps1` — but `python_hackathon`'s real `rule_evidence_params` rows store the `script` param as `"script/audit_testing.py"` (a relative path, already carrying its own extension), not a bare name. Appending `.sh` to that built a nonsense path (`script/audit_testing.py.sh`) that could never exist. Fixed: `probe_script` now checks whether `name` already has a recognized extension and, if so, resolves it as a direct `dir.join(name)` path instead of running it through the bare-name+extension-append convention at all.
-
-**Flagged, not fixed — genuinely separate question**: even with both fixes, `python_hackathon`'s own `script/*.py` files still aren't *discoverable* by `run_check`/`resolve_check`'s 4 real tiers (`check_overrides`, repo `scripts/`, `.samgraha/scripts/`, `mcp_dir()/scripts/`) — none of them point at a *registered standard's own* script directory. `sync` (`services::init`) copies `mcp_dir/scripts/` → `.samgraha/scripts/`, but nothing copies a standard's `script/` directory into `mcp_dir/scripts/` (or anywhere else `resolve_check` looks) during `register_standard`. This is a script-*distribution* gap, distinct from the extension-*dispatch* gap Phase 4a was scoped to close — real, but a different piece of work, not guessed at here.
-
-8 new tests across `common::env` and `audit::check_runner` (dispatch, path-vs-bare-name resolution, a real subprocess run with captured stdout/exit-code/env, timeout kill). Full workspace build and test suite green.
-
-## Workflow & Rule File Schemas
-
-Formalizing the shapes this proposal has been describing by example, as the actual contract implementation targets:
-
-**Workflow file** (`plan/core/loop.yaml` — `repository` scope only; `tier` scope is `plan_scenarios`, already in the DB, no file-level schema needed):
 ```yaml
-id: string                  # unique within the standard
-version: string
-scope: repository            # Phase 3a — tier scope doesn't use this file shape at all
-stages:
-  - type: repository | generate | audit | calculate | aggregate | validate | report | script
-    # generate/audit: domain + template/rule source implied by stage type + tiers.yaml
-    # calculate/aggregate/validate: source: path to a calculation/*.yaml file (Phase 2)
-    # script: name, args: [...], env: {...}, expects: [output file paths] (Phase 4)
+# samgraha/system/{name}/system.yaml
+
+# Required: class taxonomy
+class: dev                    # dev | hackathon | academic | (future classes)
+
+# Optional: subclass within the class
+subclass: backend             # frontend | backend | fullstack | paper | journal | ...
+
+# Required for concrete systems: which base to inherit from
+extends: base_dev             # system name (directory under samgraha/system/)
+
+# Optional: explicit list of paths this system overrides from the base.
+# If omitted, the loader auto-detects by comparing the concrete tree against
+# the base (any file present in concrete that also exists in base = override).
+# Explicit list is preferred for documentation intent.
+overrides:
+  - documentation-standards/06-design-standards.md
+  - documentation-standards/11-prototype-standards.md
+  - audit/deterministic/document/design.yaml
+  - audit/semantic/document/design.md
+
+# Optional: paths to DROP from the base (not override, but remove entirely).
+# The concrete system does not carry these files; they simply don't exist
+# in the resolved tree. Use when a concrete system intentionally excludes
+# a base domain or section.
+drops:
+  - documentation-standards/06-design-standards.md
+  - audit/deterministic/document/design.yaml
+
+# Optional: whether this system is abstract (base-only, not registrable standalone)
+abstract: false               # default: false
+
+# Optional: human-readable note about inheritance choices
+note: |
+  electron_dev extends base_dev but drops design/feature-design/prototype
+  domains. loop.yaml and calculation/ inherited unchanged.
 ```
 
-**Audit rule file** (`audit/deterministic/document/{domain}.yaml`, verified against real files, Phase 1):
-```yaml
-system_id: string
-domain: string
-scope: document | section
-kind: deterministic
-rules:
-  - id: string
-    description: string
-    severity: error | warning
-    weight: number
-    mandatory: bool
-    evidence: { type: string, target: string }   # OR:
-    check: { file_globs: [string] }               # both forms are real, both accepted
+### 4.3 Format justification
+
+YAML chosen over JSON because:
+1. **Comments**: inline `#` and `note:` fields record *why* a value is what it is —
+   a convention the entire `samgraha/system/` tree relies on (`loop.yaml`,
+   `tiers.yaml`, `weights.yaml`, every `calculation/*.yaml`).
+2. **Zero new parsing surface**: `knowledge-hub-loader.py` already calls
+   `yaml.safe_load()` throughout (passes 1, 7, 8, 10) and never imports `json`.
+
+### 4.4 Closed format inventory
+
+| Format | Role | Existing in codebase |
+|--------|------|---------------------|
+| Markdown | All system content (documentation-standards, audit, templates) | Yes |
+| YAML | New per-system metadata + all existing config files | Yes |
+| TOML | `samgraha.toml` repo-level manifest | Yes |
+
+No new formats introduced.
+
+---
+
+## 5. Preprocessor Merge Module
+
+### 5.1 Design
+
+A new Python module (`schema/knowledge-hub/system_merger.py`) that runs as a
+preprocessing step *before* the existing `knowledge-hub-loader.py`. It:
+
+1. Reads `system.yaml` from the target system directory
+2. Resolves the inheritance chain (base → concrete, possibly multi-level)
+3. Assembles a merged directory tree in a temp location (or in-memory via
+   a virtual filesystem layer)
+4. Hands the merged tree to the existing loader — which sees exactly the same
+   directory shape it sees today
+
+### 5.2 Merge algorithm
+
+```python
+def resolve_system(system_dir: Path) -> Path:
+    """Resolve inheritance for a system, returning a merged directory tree.
+    
+    If the system has no system.yaml or no extends field, returns the
+    original system_dir unchanged (backward compatible).
+    """
+    meta = load_system_metadata(system_dir)
+    if not meta.extends:
+        return system_dir  # no inheritance, pass through
+    
+    # Resolve base recursively (supports multi-level inheritance)
+    base_dir = find_system_dir(meta.extends)
+    base_merged = resolve_system(base_dir)  # recursive
+    
+    # Build merged tree: base first, then overlay concrete
+    merged = tempfile.mkdtemp(prefix=f"samgraha-merge-{system_dir.name}-")
+    
+    # 1. Copy base tree into merged dir
+    shutil.copytree(base_merged, merged, dirs_exist_ok=True)
+    
+    # 2. Overlay concrete system's files (override-wins)
+    for item in system_dir.iterdir():
+        if item.name == "system.yaml":
+            continue  # metadata not part of the content tree
+        dest = Path(merged) / item.name
+        if item.is_dir():
+            shutil.copytree(item, dest, dirs_exist_ok=True)
+        else:
+            shutil.copy2(item, dest)
+    
+    # 3. Apply drops (remove paths declared in drops[])
+    for drop_path in meta.drops:
+        target = Path(merged) / drop_path
+        if target.exists():
+            if target.is_dir():
+                shutil.rmtree(target)
+            else:
+                target.unlink()
+    
+    return Path(merged)
 ```
 
-**Semantic rule file** (`audit/semantic/document/{domain}.yaml`):
-```yaml
-system_id: string
-domain: string
-scope: document
-kind: semantic
-metadata_fields: [string]
-ensemble: { required_models: [string] }   # optional
-prompt_template: string
-evidence_requirements: [{ type: string, schema: object }]
+### 5.3 Circular dependency detection
+
+```python
+def resolve_system(system_dir: Path, _chain: set[str] = None) -> Path:
+    meta = load_system_metadata(system_dir)
+    if meta.extends:
+        if _chain and meta.extends in _chain:
+            raise CircularInheritanceError(meta.extends, _chain)
+        chain = (_chain or set()) | {system_dir.name}
+        # ... resolve base ...
 ```
 
-**Calculation file** (`calculation/**/*.yaml`, Phase 2): `id`, `calculation` (method name from the Phase 2 table), `scope`, `inputs`, `formula` (prose description of the method — the method name is what's executed, `formula` is documentation for a human reading the file, same relationship `condition` has to `evidence` in rule files).
+### 5.4 In-memory merge (preferred over temp dirs)
 
-## Phase 5 — JSON Alongside Markdown Reports (Already Done — Predates This Proposal)
+For production use, the merge should operate on a virtual path mapping rather
+than copying files to a temp directory. The loader's passes already accept
+`Path` objects via the `layout` dict — the merger can return a custom `Path`
+implementation that transparently resolves `base_content / override_content`
+without materializing on disk.
 
-Checked before building anything, per this document's own established habit: **every piece of this phase already exists in the codebase**, not from this session — `ReportOutput { markdown, json }` (`reporting.rs:12`), `render_report()` and `render_report_from_pipeline()` both already return it (`reporting.rs:3488`, `:3699`), the CLI already writes `report.json` next to `report.md` for both `latest/` and `archive/`, gated by `config.report.json` (`cli/src/commands.rs:832`), and MCP's `report_generate` already returns `{ markdown, json }` (`adapter.rs:1276`). This phase's own earlier text ("Status: Proposal — pending review") was stale — the design it describes was already shipped; the doc just never got marked done. Nothing to build here. Feeds a `script` stage (Phase 4) an audit's structured output without markdown-parsing, and is what `standard_audit_runs` already archives as `report` (`serde_json::to_string(report)`).
+Alternative (simpler, acceptable for Phase 1): use `tempfile.mkdtemp()`,
+clean up after loader finishes. The loader runs in a single transaction
+(Pass 0-10), so cleanup is straightforward.
 
-## What's Already Done
+---
 
-- Model A monolithic loader (`yaml_runner.rs`, `pipeline_factory.rs`) — works, unused by either real standard, kept as a lightweight option for simple standards.
-- `standard`/`domain` dispatch fix in `handle_audit` — was matching pipeline name against standard name (silently broken for any standard with >1 domain); now resolves the standard's directory first, then the domain within it.
-- `standard_audit_runs` archive table + `audit_runs` MCP tool — raw facts only (standard/domain/model/score/report), self-reported `model` param, no aggregation opinion.
-- **Found, not yet wired:** `ProjectPlan`/`ProjectPhase`/`PlanOrchestrator` (`services::project_planner`) already implements generate→audit→fix phase execution with dependency tracking, status tracking (`Pending/InProgress/Completed/Failed/Blocked`), and MCP tools (`project_plan_execute`/`status`/`abort`) — built for samgraha's own 4 built-in cases (`NewProject/DocAudit/ImplTestAudit/BuildAudit`), matches `base_dev/plan_scenarios`' `{generation,audit,fix}` shape closely enough that Phase 3 is now "add a 5th data-fed planner," not "build a workflow engine."
-- **Found, not yet wired (the big one):** `schema/knowledge-hub/knowledge-hub-loader.py`, already wired to `register_standard`, already ingests `audit/**`, `calculation/**`, `00-domain-relationships.md`, and `plan/core/loop.yaml` + `plan/usecase/**` into `standards.db` (`rules`, `rule_evidence_params`, `calculation_rules`, `calculation_inputs`, `score_bands`, `domains`, `domain_relationships`, `plan_settings`, `plan_scenarios`), and `db_reader.rs` already reads every one of those tables back into typed `StandardRegistry` fields. Phases 1 and 2 above were rewritten from "build a loader" to "consume what's already loaded" after finding this — the biggest correction in this document's history.
+## 6. Loader Integration
 
-## Post-Phase Gap Fixes
+### 6.1 Preprocessing hook in `knowledge-hub-loader.py`
 
-Closed after all 5 phases, working through the backlog those phases had flagged:
+The merge happens at the top of `main()`, before any pass runs:
 
-- **`handle_audit`'s `standard` param now reaches the DB-backed path** (`handle_db_backed_standard_audit`, new) — was previously only routed to Model A (`audit/pipelines/*.yaml`), so `standard: "python_hackathon"` had no way to reach Phase 1/2's actual work at all. Now: Model A if the standard shipped one, else builds a fresh `StandardRegistry`/`AuditFramework` scoped to that standard name specifically (not `self.runtime`'s, which is scoped to whatever `system_name` `samgraha.toml` configured).
-- **3 real correctness bugs found and fixed while verifying the above end-to-end** (real `python_hackathon` data, not fixtures — same discipline as every phase before this):
-  1. `AuditFramework::execute`'s scoring loop defaulted every domain to a 100.0 score whenever it had zero `Document` objects — true for `python_hackathon`'s entire rule set (`file_presence`/`glob_match` act on the filesystem, no `Document` ever gets created), so a domain audit with real findings still silently reported "no findings." Fixed: domain-wide `weighted_pass_rate` over all findings when there's no document to average over, preserving the existing per-document-average path unchanged for `base_dev`-shaped standards.
-  2. `report.score.overall` (feeds `rating`/`readiness`) has *always* defaulted to 100 for every standard, not just the new path — `calculation_inputs` names bare bucket keys (`"deterministic_whole"`) but `bucket_scores` only ever held domain-prefixed keys (`"infrastructure_deterministic_whole"`), so the lookup never matched anything. Fixed: strip the audited domain's prefix before the `weighted_sum` lookup when one domain is being audited; whole-standard (`domain: None`) audits keep the prior behavior (no single prefix to strip — a real cross-domain final score is Phase 3a's already-declined team/session territory, not rebuilt here).
-  3. Introduced by this session's own earlier Pass 7 fix (deriving bucket names from file paths instead of a hardcoded list) and caught by the same end-to-end check: `db_reader.rs`'s `calculation_inputs` query still had `WHERE cr.bucket = 'final_score'` — a literal string that stopped matching the moment bucket naming stopped being a fixed hardcoded set (the bucket is now named `summary_final_score`). Fixed: filter by `calculation_method = 'weighted_sum'` instead — the semantic property that actually matters, not a name a standard happens to spell one particular way.
-- **Script distribution** (gap #3) — `register_standard` now copies a standard's `script/` directory into `.samgraha/scripts/` (immediate, this repo) and `mcp_dir()/scripts/` (global, so a future `sync` elsewhere picks it up too) — the same dual-write pattern already used for `standards.db` itself. Closes the "scripts are referenced by rules but never physically copied anywhere `run_check` looks" gap Phase 4a flagged.
+```python
+def main():
+    args = parse_args()
+    
+    # NEW: resolve inheritance before loading
+    from system_merger import resolve_system, load_system_metadata
+    meta = load_system_metadata(Path(args.knowledge_hub))
+    if meta and meta.extends:
+        merged_dir = resolve_system(Path(args.knowledge_hub))
+        args.knowledge_hub = str(merged_dir)
+        # ... cleanup merged_dir after passes complete ...
+    
+    # ... existing pass 0-10 logic unchanged ...
+```
 
-Verified end-to-end against real `python_hackathon` data throughout (not synthetic fixtures): a scratch repo with only `uv.lock` present scored `infrastructure` at 40.0 (matches hand-computed `weighted_pass_rate` against the real rule weights: 1.0 passed / 2.5 total) and an overall `70.0` (40×0.25 det_whole + 40×0.25 det_section + 100×0.25 + 100×0.25 semantic-not-yet-built default). 8 new tests across `audit::framework` and `mcp::adapter`. Full workspace build and test suite green.
+### 6.2 CLI integration
 
-- **`calculation/validation/scoring_validation.yaml` loader pass** (gap #7) — new `validation_rules` table + loader Pass 9, mirroring `calculation_rules`'s shape exactly (one row per check, `rule` is prose same as `condition` is on audit rules — not an expression this or any Rust code evaluates, loaded and exposed via `ScoringConfig.validation_rules`, not enforced). Verified against real data: `python_hackathon` → 12 rows (`val-001`..`val-012`), `base_dev` → 0 rows, no error (it has no `calculation/validation/` directory at all — same "optional, not missing" convention Pass 7 already uses).
-- **`domain_relationships.enforce_order` wired into `StandardWorkflowPlanner`** (gap #6) — a tier's domains now split into topological layers (Kahn's algorithm, cycle-safe) only when an `enforce_order` edge exists between two domains *within that tier*; a tier with no such edge stays exactly the single flat group it was before (true for every tier in both real standards but one). `StandardRelationship` gained `enforce_order`/`tier_gating_strict` fields — `db_reader.rs` was querying `domain_relationships`/`relationship_types` already but never selected those two columns. Verified against `base_dev`'s one real documented exception (External Context before Engineering, both tier 2): the generated plan splits tier 2 into `[architecture, design, external-context, feature, security]` then `[engineering]`, with the second layer's phases correctly depending on the first's.
-- **`FixPhaseExecutor` domain-audit gap (gap #1) — investigated deeper, correctly left unbuilt, not force-closed.** The original blocker (a numeric `report_id`) turned out not to be real: `fix_sessions.report_id` has no FK constraint (`registry/src/migration.rs` V28) — pure bookkeeping. The actual blocker is upstream of that: `resolve_finding_path` requires `finding.document_id` or `finding.location`; `file_presence`/`glob_match` findings (python_hackathon's real shape — "Dockerfile missing") have neither, because they're about a file's *absence*, not content inside some document. Even with a path, every `FixPlanner` variant generates edits to *existing* content — none can scaffold a missing file from nothing. Building that is new judgment-requiring capability (what should a generated Dockerfile contain?), not a plumbing gap to close here. Left explicitly documented in `executors.rs`, not silently no-op'd.
-- **Semantic-rule execution wired end-to-end (gap #4) — bigger than first scoped.** `StandardDefinition` gained a `semantic_rules` field (`kind = 'semantic'` rows, previously not loaded into anything — `db_reader.rs`'s rules query filtered them out entirely); `AuditFramework::execute` now feeds `semantic_rules` to the `"semantic"` provider specifically instead of the deterministic `audit_rules` both providers previously received; `SemanticAuditProvider` (previously ignored its `rules` param completely — hardcoded heuristics only, e.g. word-count/vague-language checks, unrelated to any standard's own rules) now additionally turns each semantic rule into a review-task-eligible finding per document (or one repo-wide finding when there's no document at all — python_hackathon's shape), letting the existing `semantic_review` bundling pick them up unchanged. **Checked deeper and found the loader itself had a gap**: Pass 5b only globs `audit/semantic/**/*.md` (base_dev's per-criterion markdown-table rubric shape) — `python_hackathon`'s entire semantic layer is `audit/semantic/document/*.yaml` (one `prompt_template`/`ensemble.required_models` prompt per domain, a structurally different shape), which Pass 5b's glob never even saw. Added Pass 5b2 for that shape. Verified end-to-end against real data: `python_hackathon`'s `rules` count went from 32 (deterministic only) to 42 (10 real semantic rules added, one per domain), and a full `AuditFramework` run against `infrastructure` returned the real `prompt_template` text as a `provider: "semantic"` finding.
-- **`plan/core/loop.yaml`'s `stages:` list ingested (gap #5)** — new `workflow_stages` table (one row per stage, `params_json` for that stage's own flat param dict — no per-param child table, unlike `rule_evidence_params`, since no real stage has a multi-value param) + loader Pass 10, exposed via `StandardRegistry.workflow_stages()`. `python_hackathon` → 10 stages, in order, matching the real file exactly (`repository → audit(deterministic) → audit(semantic) → calculate(deterministic) → calculate(semantic/ensemble) → aggregate(domain) → calculate(relative/competition) → normalize(final,cap:20) → validate(scoring) → report(generation)`); `base_dev` → 0 (no flat `stages:` list in its own, structurally different loop.yaml — correctly empty, not an error). Data availability only, per Phase 3a's original scoping ("closing the gap on the file that already exists," not a new execution engine) — nothing yet reads `workflow_stages()` to actually drive a `repository`-scope run; that's the next real piece once something needs it.
+```
+# Existing (unchanged):
+samgraha knowledge publish --path samgraha/system/rust_dev
 
-## Explicit Non-Goals
+# With inheritance (transparent):
+# Same command — loader detects system.yaml, resolves inheritance automatically
+samgraha knowledge publish --path samgraha/system/rust_dev
+```
 
-- No hardcoded leaderboard/ensemble-ranking formula in Rust, ever — that's `script/leaderboard.py`'s job, reached via Phase 4's workflow-script contract.
-- No second phase-execution/DAG engine — `ProjectPlan`/`ProjectPhase`/`PlanOrchestrator` already exists and already does dependency-tracked, status-tracked phase execution; Phase 3 feeds it standard data instead of replacing it. Model A's DAG-conditions code (from the earlier monolithic-pipeline work) also already exists and stays unused until a standard's workflow file actually needs conditional branching — building a third mechanism for the same concern would be the same mistake three times.
-- No new template-authoring format — `templates/generation/**` and `templates/audit/**` are Tera markdown, same as `docs/raw/report-templates/` already uses.
-- No hook/callback system (`on_success`/`on_failure` per stage) — a `script` stage runs where the workflow file puts it in sequence; that's the whole answer to "when do scripts run," confirmed against both real `loop.yaml` files having no conditional stages at all.
-- No second YAML→DB ingestion pipeline in Rust — `knowledge-hub-loader.py` already owns that job for rules/calculation/domains/plan-scenarios; new schema (Phase 3a, Phase 2's validation pass) extends it with new passes in the same file, not a parallel Rust parser.
-- No calculation-method free-text expression language (parsing `formula:`'s prose into an executable AST). `calculation_method` is already a plain DB string dispatched by a small fixed match (Phase 2's table) — extending the *vocabulary* by adding a row + a match arm satisfies "no hardcode" without needing a general-purpose formula parser nothing in either real standard actually requires.
+No new CLI flags needed. Inheritance is transparent to the caller.
 
-## Open Questions
+### 6.3 MCP integration
 
-1. Semantic section rubrics are markdown prose (Phase 1) — is a rubric-per-section-file the right long-term shape, or should `base_dev` eventually move these into the same structured YAML as document-scope semantic rules? Not blocking Phase 1 (loader treats them as opaque text either way), but worth deciding before a third standard copies whichever pattern exists first.
-2. `reliability_aware_ensemble` (Phase 2) needs real scores from `ensemble.required_models` to average — today nothing in samgraha calls out to multiple LLM providers concurrently. Until that exists, the interpreter can compute the formula against whatever scores are supplied (e.g., one score per `audit` call, tagged by `model`, pulled from `standard_audit_runs`), leaving true concurrent multi-provider orchestration as a separate, later decision.
-3. Phase 3's template fallback tier — repo override beats standard default, but should a *user's* `.samgraha/standards/{name}/templates/` override (if they've locally customized a registered standard) sit between those two tiers, same as the script chain's `.samgraha/scripts/` tier does?
-4. `ProjectCase`'s exact extension shape (Phase 3) — a new variant carrying `{standard, workflow}` vs. some other mechanism for selecting `StandardWorkflowPlanner` alongside the 4 fixed built-in cases. Needs a look at every existing `match case` site before picking, since `ProjectCase` is matched in more places than just `resolve_planner()`.
-5. ~~Phase 3a's workflow composition~~ — moot, team/session dropped from scope entirely.
-6. ~~Has `register_standard` ever actually been run against `python_hackathon`/`base_dev`?~~ **Resolved.** Ran `knowledge-hub-loader.py --dry-run` directly against both while writing this update. Both load cleanly, zero errors: `python_hackathon` — 10 domains, 32 rules, 6 calculation_rules, 24 plan_scenarios (`script_checks`/`templates` correctly 0 — its scripts aren't check-shaped, see Phase 4). `base_dev` — 16 domains, 1165 rules, 6 calculation_rules, 96 plan_scenarios, 18 script_checks, 233 templates. Nothing blocking Phase 1/2 consumption work.
+`register_standard` (`crates/mcp/src/adapter.rs:1609`) passes `--knowledge-hub`
+to the Python loader. The Python loader handles inheritance internally. No Rust
+changes needed for the basic case.
+
+---
+
+## 7. Rust-Side Schema Changes
+
+### 7.1 Database schema additions
+
+The `systems` table gains two columns to record inheritance metadata (for
+querying/auditing, not for resolution — resolution happens at Python loader time):
+
+```sql
+-- Migration: add inheritance columns to systems table
+ALTER TABLE systems ADD COLUMN parent_system_id INTEGER
+    REFERENCES systems(id) ON DELETE SET NULL;
+ALTER TABLE systems ADD COLUMN class_name TEXT;
+ALTER TABLE systems ADD COLUMN subclass_name TEXT;
+ALTER TABLE systems ADD COLUMN is_abstract INTEGER NOT NULL DEFAULT 0;
+```
+
+`parent_system_id` stores the resolved base system's ID (set during Pass 0 when
+the loader processes inheritance). `class_name` and `subclass_name` are informational.
+`is_abstract` prevents standalone registration.
+
+### 7.2 `db_reader.rs` changes
+
+Minimal — the existing queries work unchanged because inheritance is resolved
+before the loader runs. The `parent_system_id` column is loaded for metadata
+purposes but does not affect `StandardDefinition` projection.
+
+Optional enhancement: add `parent_system_id` to the `systems` table display
+in `list_standards` output so users can see inheritance relationships.
+
+### 7.3 `register_standard` validation
+
+Add a check in the Python loader's Pass 0:
+
+```python
+if meta and meta.is_abstract and not parent_of_some_concrete:
+    # This is an abstract-only system being registered standalone
+    raise RegistrationError(
+        f"System '{system_name}' is marked abstract and cannot be "
+        f"registered standalone. Register a concrete system that extends it."
+    )
+```
+
+For Phase 1, abstract validation is soft (warning). Phase 3 makes it hard (error).
+
+### 7.4 `SCHEMA_VERSION` bump — rebuild, not migrate
+
+`standards.db` is a rebuildable cache, not a source of truth (source of truth
+is each system's own tree under the knowledge-hub). No `ALTER TABLE` /
+incremental migration needed or wanted — confirmed by the existing code that
+`init_schema()` (`knowledge-hub-loader.py:39-56`) has no migration path at
+all: it either no-ops (tables exist) or runs the numbered `.sql` files fresh
+after `00-reset.sql` (`--reset` flag). No caller (`knowledge_publish.rs`)
+ever passes `--reset` today. This is fine under the cache model — the
+process for this bump is:
+
+1. Add the 4 columns directly to `01-systems.sql`'s `CREATE TABLE` (not an
+   `ALTER TABLE` migration file).
+2. Bump `SCHEMA_VERSION` (loader) and `EXPECTED_SCHEMA_VERSION`
+   (`db_reader.rs:10`) from `1` to `2`.
+3. Every system must be **re-registered from scratch** against a
+   `--reset` (or fresh) db — there is no in-place upgrade of an existing v1
+   `standards.db`. Document this as an explicit rollout step: run
+   `register_standard`/`knowledge publish` for all 8 systems in one
+   coordinated session, not incrementally.
+4. `db_reader.rs`'s hard version-mismatch check already makes a stale v1 db
+   fail loudly rather than silently — acceptable, since rebuilding is cheap
+   and the check exists precisely to force the rebuild instead of a confusing
+   downstream query error.
+
+---
+
+## 8. Migration of Existing Systems
+
+### 8.1 dev class
+
+Current state: 5 standalone systems, `loop.yaml` byte-identical across all.
+
+Target state:
+
+```
+samgraha/system/
+  base_dev/
+    system.yaml          # class: dev, abstract: true
+    plan/core/loop.yaml  # canonical loop
+    calculation/          # canonical calculation rules
+    audit/                # canonical audit rules
+    documentation-standards/  # full 16-domain set
+    templates/            # full template set
+    script/               # canonical scripts
+  
+  frontend_dev/            # OPTIONAL abstract intermediate — not required,
+    system.yaml            # shown here to prove variable depth per branch
+    # class: dev, subclass: frontend, abstract: true, extends: base_dev
+    documentation-standards/
+      06-design-standards.md          # override: frontend-specific design doc
+    # everything else inherited from base_dev unchanged
+
+  js_dev/                  # a SECOND abstract intermediate, nested under
+    system.yaml            # frontend_dev — proves depth isn't capped at 1
+    # class: dev, subclass: frontend, abstract: true, extends: frontend_dev
+    documentation-standards/
+      09-feature-design-standards.md  # override: JS-ecosystem-specific
+
+  electron_dev/
+    system.yaml          # class: dev, subclass: frontend, extends: js_dev
+    # 3 hops: base_dev -> frontend_dev -> js_dev -> electron_dev
+    documentation-standards/
+      11-prototype-standards.md       # omitted (dropped)
+    # audit/, calculation/, templates/, script/ inherited unchanged
+
+  react_dev/
+    system.yaml          # class: dev, subclass: frontend, extends: js_dev
+    # 3 hops, same intermediate chain as electron_dev, different leaf delta
+    documentation-standards/
+      # Only file that DIFFERS from js_dev:
+      11-prototype-standards.md       # omitted
+
+  fastapi_dev/
+    system.yaml          # class: dev, subclass: backend, extends: base_dev
+    # 1 hop — no backend intermediate needed yet; add one later (e.g.
+    # backend_dev) by repointing extends: without touching this file's content
+    documentation-standards/
+      # Only files that DIFFER:
+      06-design-standards.md          # omitted
+      09-feature-design-standards.md  # omitted
+      11-prototype-standards.md       # omitted
+  
+  rust_dev/
+    system.yaml          # class: dev, subclass: backend, extends: base_dev
+    # 1 hop, same depth choice as fastapi_dev today
+    documentation-standards/
+      # Only files that DIFFER:
+      06-design-standards.md          # omitted
+      09-feature-design-standards.md  # omitted
+      11-prototype-standards.md       # omitted
+```
+
+`electron_dev`/`react_dev` resolve through 3 hops (`base_dev → frontend_dev →
+js_dev → leaf`); `fastapi_dev`/`rust_dev` resolve through 1 (`base_dev →
+leaf`) — same mechanism, same merge code, different chain length per branch.
+If a `backend_dev` intermediate becomes useful later, it's inserted the same
+way `frontend_dev`/`js_dev` were: a new abstract `system.yaml`, and
+`fastapi_dev`/`rust_dev`'s `extends:` repointed at it.
+
+### 8.2 academic class
+
+```
+samgraha/system/
+  base_academic/
+    system.yaml          # class: academic, abstract: true
+    plan/core/loop.yaml  # canonical academic loop (semantic-only, no deterministic)
+    calculation/          # semantic-only calculation rules
+    audit/                # semantic-only audit
+    documentation-standards/  # base academic domain set
+    templates/            # academic templates
+  
+  eswa_journal/
+    system.yaml          # class: academic, subclass: journal, extends: base_academic
+    plan/core/loop.yaml  # OVERRIDE: eswa-specific within_tier_ordering
+    documentation-standards/  # OVERRIDE: eswa-specific domain files
+    audit/semantic/document/  # OVERRIDE: eswa-specific rubrics
+  
+  pcems_2026/
+    system.yaml          # class: academic, subclass: journal, extends: base_academic
+    plan/core/loop.yaml  # OVERRIDE: pcems-specific within_tier_ordering
+    documentation-standards/  # OVERRIDE: pcems-specific domain files
+    audit/semantic/document/  # OVERRIDE: pcems-specific rubrics
+```
+
+### 8.3 hackathon class
+
+No migration needed — `python_hackathon` is the sole system in its class.
+Optionally create `base_hackathon` as an abstract base for future hackathon systems.
+
+### 8.4 Migration verification
+
+After migration, re-register each system and compare the resulting `standards.db`
+against the pre-migration version. The merge must produce identical rows for every
+table. A diff script compares:
+- `SELECT * FROM domains WHERE standard_id = ? ORDER BY key`
+- `SELECT * FROM rules WHERE standard_id = ? ORDER BY rule_key`
+- `SELECT * FROM section_catalog WHERE domain_id IN (SELECT id FROM domains WHERE standard_id = ?)`
+- (etc. for all 15+ tables)
+
+---
+
+## 9. Abstract Base Support
+
+### 9.1 The gap
+
+Under the current architecture, every directory under `samgraha/system/` must be
+independently complete enough to pass all 10 loader passes. `base_dev` works as a
+normal, if generic, system today. Making bases genuinely non-standalone requires
+the `abstract: true` flag.
+
+### 9.2 Implementation
+
+- `abstract: true` in `system.yaml` means: this system is valid only as an
+  inheritance source, never as a standalone registration target.
+- The Python loader's Pass 0 checks `abstract` and refuses to compile/register
+  if the system is being registered directly (not as a resolved base).
+- `register_standard` MCP tool returns an error if given an abstract system path.
+- `knowledge publish` CLI returns an error for the same case.
+
+### 9.3 Phasing
+
+Phase 1: `abstract` field parsed and stored, soft warning if registered standalone.
+Phase 3: hard error on standalone registration of abstract systems.
+
+---
+
+## 10. Phase-Wise Implementation Plan
+
+Reordered against §13/§14: a new Phase 0 runs first — it fixes a live,
+independent bug (§13.1/§14.1) rather than building inheritance, and every
+later phase re-registers systems repeatedly during testing, so the earlier
+this lands the fewer times the bug can bite during this project's own
+development. Phase 1 now also absorbs the two LOW-complexity items that
+belong in the files it's already creating (§14.5's drops-check belongs in
+the new `system_merger.py`; §9.3's abstract check is clarified to not need
+the Phase-3 DB column). Phase 3 is reworded from "migration" to "rebuild"
+per §7.4, and absorbs §14.2/§14.4. Phase 4 absorbs §14.6.
+
+### Phase 0: Push-Safety Prerequisites (before Week 1) — NEW
+
+**Goal**: Fix the confirmed skip-sync clobber (§13.1) before inheritance
+work begins generating more `register_standard` calls to test with. None of
+this depends on inheritance — it's an existing-code fix, independent of
+everything else in this plan, and cheap enough to not delay Phase 1 by more
+than a couple days.
+
+**Files to create/modify**:
+
+| File | Action | Description |
+|------|--------|-------------|
+| `crates/services/src/knowledge_publish.rs` | MODIFY | Add `check_push_safe(local_db, global_db)` (§14.1): diff `systems.name` sets, refuse if global has names local doesn't |
+| `crates/mcp/src/adapter.rs` | MODIFY | Call `check_push_safe` before both `std::fs::copy` sites (`handle_register_standard`, `handle_push_standards`) |
+| `crates/mcp/Cargo.toml` | MODIFY | Add `serde_yaml.workspace = true` (already a workspace dep via `audit`/`schemas`, just not direct in `mcp` yet) — needed by Phase 1's abstract check too, added here so it's available from the start |
+
+**Verification**:
+- Push with global containing a system missing from local → refused, clear error naming the missing system(s)
+- Push with local a superset of global (normal case) → succeeds unchanged
+- Existing `register_standard`/`push_standards` tests still pass
+
+**Deliverables**:
+- Skip-sync clobber can no longer happen silently
+- `serde_yaml` wired into `mcp` crate for Phase 1's Rust-side abstract check
+
+---
+
+### Phase 1: Metadata Schema + Preprocessor (Week 1-2)
+
+**Goal**: Inheritance works for the dev class. No Rust *schema* changes (the
+Phase-0 Cargo.toml wiring already landed). No loader-pass changes — only
+the new preprocessing step.
+
+**Files to create/modify**:
+
+| File | Action | Description |
+|------|--------|-------------|
+| `schema/knowledge-hub/system_merger.py` | CREATE | Merge module: `load_system_metadata()`, `resolve_system()`, circular detection (§5.2/5.3) |
+| `schema/knowledge-hub/system_merger.py` | CREATE (same file) | Post-merge validation (§14.5): cross-check `00-domain-relationships.md` edges against domains still present after `drops:` — fail with a clear error instead of letting Pass 1 hit a dangling `enforce_order` edge |
+| `schema/knowledge-hub/system_merger.py` | CREATE (same file) | Track every tempdir `resolve_system()` creates across recursion levels, not just the leaf (§14.8) — a list/`ExitStack` threaded through the recursive calls, not a fresh `mkdtemp()` untracked at each level |
+| `schema/knowledge-hub/knowledge-hub-loader.py` | MODIFY | Add preprocessing hook in `main()` to call `resolve_system()` before Pass 0, wrapped in `try/finally` so every tracked tempdir is cleaned up whether the passes succeed or crash (§14.8); Pass 0 soft-warns on `abstract: true` registered standalone (§9.3 — no DB column needed yet, this is a load-time check only, the column lands in Phase 3) |
+| `crates/mcp/src/adapter.rs` | MODIFY | `handle_register_standard`: read `system.yaml` (via the `serde_yaml` dep Phase 0 added) and **warn** (not block, matching Python's Phase-1 soft policy below) when `abstract: true` — Phase 3 upgrades this to a hard refuse in lockstep with Python's Pass 0 (§14.3/13.6) |
+| `samgraha/system/base_dev/system.yaml` | CREATE | `class: dev, abstract: true` |
+| `samgraha/system/electron_dev/system.yaml` | CREATE | `class: dev, extends: base_dev, drops: [...]` |
+| `samgraha/system/fastapi_dev/system.yaml` | CREATE | `class: dev, extends: base_dev, drops: [...]` |
+| `samgraha/system/react_dev/system.yaml` | CREATE | `class: dev, extends: base_dev, drops: [...]` |
+| `samgraha/system/rust_dev/system.yaml` | CREATE | `class: dev, extends: base_dev, drops: [...]` |
+
+**Verification**:
+- `python knowledge-hub-loader.py --db test.db --system rust_dev --knowledge-hub samgraha/system/rust_dev --dry-run` succeeds
+- Output identical to pre-inheritance `rust_dev` registration
+- Remove `electron_dev/plan/core/loop.yaml` — inheritance resolves it from `base_dev`
+- Change `base_dev/plan/core/loop.yaml` — `electron_dev` picks up the change automatically
+- A `drops:` entry that leaves a dangling `domain_relationships` edge fails the merge with a clear message, not Pass 1's opaque error
+- `register_standard` on `base_dev`'s path still succeeds (Phase 1 is soft) but the response includes a warning, surfaced before the Python subprocess even runs
+- A 3-level chain leaves zero tempdirs behind after a successful run, and zero after a forced failure mid-pass (kill a pass partway, check the OS temp dir)
+
+**Deliverables**:
+- Working merge module with circular detection + drops referential-integrity check
+- 5 YAML metadata files for dev class
+- Loader preprocessing hook with guaranteed tempdir cleanup across all recursion levels, success or failure
+- Rust-side + Python-side abstract soft-warning (both upgrade to hard refuse together in Phase 3)
+- Merge verification test (diff old vs new `standards.db`)
+
+---
+
+### Phase 2: Academic + Hackathon Classes (Week 2-3)
+
+**Goal**: Migrate `eswa_journal`, `pcems_2026`, `python_hackathon` to inheritance.
+
+**Files to create/modify**:
+
+| File | Action | Description |
+|------|--------|-------------|
+| `samgraha/system/base_academic/system.yaml` | CREATE | `class: academic, abstract: true` |
+| `samgraha/system/eswa_journal/system.yaml` | CREATE | `class: academic, extends: base_academic` |
+| `samgraha/system/pcems_2026/system.yaml` | CREATE | `class: academic, extends: base_academic` |
+| `samgraha/system/python_hackathon/system.yaml` | CREATE | `class: hackathon` (no extends — sole system) |
+| `samgraha/system/base_academic/` | CREATE | Extract shared academic content from eswa/pcems |
+
+**Verification**:
+- Academic systems resolve correctly with semantic-only audit (no deterministic)
+- Each system's `loop.yaml` override produces correct `within_tier_ordering`
+- `python_hackathon` unchanged (no inheritance, standalone)
+- Re-register all 3, diff against pre-migration DBs
+
+**Deliverables**:
+- `base_academic` abstract base with shared academic content
+- 3 YAML metadata files for academic + hackathon classes
+- Academic system verification tests
+
+---
+
+### Phase 3: Schema Rebuild + Rust Integration (Week 3-4)
+
+**Goal**: Inheritance metadata visible in DB and Rust-side. Per §7.4, this is
+a **rebuild, not a migration** — `standards.db` is a cache, so the 5 new
+columns go straight into `01-systems.sql`'s `CREATE TABLE`, `SCHEMA_VERSION`
+bumps, and every system gets re-registered from scratch in one coordinated
+session. No `ALTER TABLE`, no in-place upgrade path.
+
+**Files to create/modify**:
+
+| File | Action | Description |
+|------|--------|-------------|
+| `schema/knowledge-hub/01-systems.sql` | MODIFY | Add `parent_system_id`, `class_name`, `subclass_name`, `is_abstract` (inheritance, §7.1) **and** `last_registered_by` (name-collision provenance, §14.2) to the `CREATE TABLE` directly — one rebuild event covers both |
+| `schema/knowledge-hub/knowledge-hub-loader.py` | MODIFY | `SCHEMA_VERSION` 1→2; Pass 0 populates the new columns from `system.yaml`; Pass 0's abstract check upgraded from soft warning to hard error |
+| `crates/standards/src/db_reader.rs` | MODIFY | Bump `EXPECTED_SCHEMA_VERSION` to 2 (line 10); load new columns |
+| `crates/schemas/src/standard.rs` | MODIFY | Add the new fields to `SystemDefinition` (or equivalent) |
+| `crates/mcp/src/adapter.rs` | MODIFY | `handle_register_standard`'s Phase-1 warning upgraded to a hard refuse (in lockstep with Python); stamp `last_registered_by` after a successful push; `list_standards`: display inheritance info + surface a name-collision warning when `check_push_safe` (Phase 0) finds a shared name with a different `last_registered_by` |
+
+**Rollout steps** (order matters, since bases must exist before concretes
+re-register against them):
+1. `--reset` (or fresh) DB, load the updated schema
+2. Re-register `base_dev` and `base_academic` **first**, with `abstract: true`
+   — confirms `is_abstract` lands correctly for the bases before anything
+   extends them (§13.4/14.4, closes the retrofit gap — no separate migration
+   step needed beyond ordering)
+3. Re-register all concrete systems (dev, academic, hackathon classes)
+4. Row-diff against the pre-rebuild DB (§8.4) to confirm the rebuild is lossless
+
+**Verification**:
+- `list_standards` shows `parent_system_id` and `class_name` for all migrated systems
+- `register_standard` on an abstract system returns a hard error, both
+  Rust-side (fast) and Python-side (authoritative)
+- Two systems pushed with the same name from different `last_registered_by`
+  values surfaces a warning
+- Schema version check passes (DB version 2, `EXPECTED_SCHEMA_VERSION` = 2)
+- All existing tests pass with new schema
+
+**Deliverables**:
+- Schema rebuilt with inheritance + provenance columns (no migration tooling built — deliberately not needed)
+- Rust schema changes
+- Abstract registration guard, hard in both layers
+- Name-collision warning wired to Phase 0's push-safety check
+- Updated `SCHEMA_VERSION` / `EXPECTED_SCHEMA_VERSION`
+
+---
+
+### Phase 4: Multi-Level Inheritance + Edge Cases (Week 4-5)
+
+**Goal**: Harden the multi-level resolution that already exists since Phase 1
+(`resolve_system()` is recursive on `extends:` with no depth limit — see
+§3.1, §8.1's `frontend_dev`/`js_dev` example) and cover its edge cases.
+Nothing here is "add support for N levels" — that mechanism ships in Phase 1.
+This phase adds the safety net around it.
+
+**Features**:
+- Diamond inheritance detection (A extends B, A extends C, B extends C) —
+  the one shape the recursive resolver does *not* reject on its own
+- Override validation: warn if a concrete system overrides a file not present in base
+- Drop validation: warn if a concrete system drops a path not present in base
+- `--dry-run` flag on loader to show resolved tree without writing
+- **Class-shape validation (§13.3/14.6)**: a small `class_shapes.yaml`
+  (per `class`, allowed `stages:` names and `calculate.scope` values) checked
+  against the *resolved* `loop.yaml` post-merge. Deliberately class-aware
+  logic — §3.3's "class-agnostic" constraint is scoped to the merge
+  mechanism, not to this validation pass. This is the direct fix for the
+  root cause the limitation doc named for the `eswa_journal`/`pcems_2026`
+  incident, as defense-in-depth on top of what inheritance already prevents
+  at the source.
+
+**Files to create/modify**:
+
+| File | Action | Description |
+|------|--------|-------------|
+| `schema/knowledge-hub/system_merger.py` | MODIFY | Multi-level resolution hardening, diamond detection, validation warnings |
+| `schema/knowledge-hub/class_shapes.yaml` | CREATE | Per-class allowed `stages:`/`calculate.scope` shape table |
+| `schema/knowledge-hub/knowledge-hub-loader.py` | MODIFY | `--dry-run` shows resolved inheritance tree; class-shape check runs post-merge, pre-Pass-0 |
+| Tests | CREATE | Multi-level, circular, diamond, override-validation, class-shape-mismatch tests |
+
+**Verification**:
+- 3-level inheritance chain resolves correctly
+- Diamond inheritance detected and rejected with clear error
+- Override/drop of non-existent paths produces warnings (not errors)
+- `--dry-run` output shows which files came from base vs override
+- A system declaring `class: academic` whose resolved `loop.yaml` has
+  `calculate.scope: competition` fails with a clear class-mismatch error
+  (the exact shape of the original `eswa_journal`/`pcems_2026` incident)
+
+**Deliverables**:
+- Multi-level resolution hardening
+- Diamond detection
+- Override/drop validation warnings
+- Class-shape validation
+- `--dry-run` inheritance display
+
+---
+
+### Phase 5: Cleanup + Documentation (Week 5-6)
+
+**Goal**: Remove duplicated files from concrete systems, document the system.
+
+**Actions**:
+- Remove `loop.yaml` from `electron_dev`, `fastapi_dev`, `react_dev`, `rust_dev`
+  (inherited from `base_dev`)
+- Remove identical `calculation/` files from concrete dev systems
+- Remove inherited `script/` directories where unchanged
+- Update `README.md` with inheritance documentation
+- Update `docs/proposal.md` or create `docs/inheritance.md`
+- Add inheritance section to knowledge-hub system authoring guide, covering:
+  creating new systems, choosing a base, overrides, drops, class shapes
+  (§4/8's how-to) **and** the multi-repo push-safety behavior from Phase 0
+  (what `check_push_safe` blocks, what a name-collision warning means,
+  when to run `sync_standards` first) — this is existing behavior once
+  Phase 0 ships, not new to this phase, but undocumented until now
+
+**Verification**:
+- All concrete systems register correctly with reduced file sets
+- No functional regressions (full test suite passes)
+- Documentation covers: creating new systems, choosing base, overrides, drops
+
+**Deliverables**:
+- Cleaned-up system directories (reduced duplication)
+- Inheritance documentation
+- Updated authoring guide
+
+---
+
+## 11. Risks and Mitigations
+
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| `register_standard` push overwrites shared store when caller skipped `sync_standards` first | HIGH — confirmed live bug (§13.1), not hypothetical | `check_push_safe` guard, Phase 0, before any inheritance work starts |
+| Two repos register a same-named system with different content | MEDIUM — silent overwrite, no ownership tracking today | `last_registered_by` column + collision warning, Phase 3 (§14.2) |
+| Merge produces different DB than standalone | HIGH — silent data loss | Diff verification in Phase 1-2; compare every table row |
+| Circular inheritance | HIGH — infinite loop | `_chain` set tracking in `resolve_system()`; clear error |
+| Diamond inheritance | MEDIUM — ambiguous resolution | Detect and reject in Phase 4; require linear chains |
+| Temp dir disk usage | LOW — dirs cleaned after loader | Deferred until measured (§14.7/13.5) — Phase 1 copytree cost isn't a known bottleneck yet |
+| Schema rebuild loses existing systems if rollout order is wrong | MEDIUM — re-registration required regardless (§7.4), but abstract bases must go first | Explicit rollout order in Phase 3 (bases before concretes); row-diff verification |
+| `abstract` base accidentally registered | LOW — produces valid but generic system | Soft warning both layers Phase 1; hard refuse both layers Phase 3 |
+| Override intent unclear (which files differ?) | MEDIUM — maintenance confusion | Explicit `overrides:` list in `system.yaml`; `--dry-run` display |
+| Dropped domain leaves a dangling `domain_relationships` edge | MEDIUM — opaque Pass 1 error instead of a clear one | Post-merge referential check in `system_merger.py`, Phase 1 (§14.5) |
+| Hand-edited override reintroduces wrong-class shape (e.g. `scope: competition` in an academic system) | MEDIUM — same failure mode as the original eswa/pcems incident, just via override instead of copy-paste | Class-shape validation, Phase 4 (§14.6) |
+
+---
+
+## 12. Success Criteria
+
+1. Changing `base_dev/plan/core/loop.yaml` once propagates to all 4 child dev systems
+   without manual copy-paste
+2. Creating a new dev system requires only `system.yaml` + override files
+3. `register_standard` on an abstract system returns a clear error
+4. All 8 existing systems produce identical `standards.db` output after the
+   Phase 3 rebuild (verified by row-level diff), with bases re-registered
+   before concretes so `is_abstract` is correct from the first rebuild
+5. No changes to the 11-pass loader logic — inheritance is purely a preprocessing step
+6. The merge module is class-agnostic — adding a future `ml_ops` class requires only
+   a new base directory + metadata files, no code changes
+7. `register_standard` refuses to push when the shared store has systems
+   missing from the caller's local db (§14.1) — the skip-sync clobber can no
+   longer happen silently
+8. A hand-edited override that reintroduces the wrong class's `loop.yaml`
+   shape (the original eswa/pcems failure mode) is caught by class-shape
+   validation (§14.6), not just by inheritance removing the copy-paste path
+
+---
+
+## 13. Gaps Against LIM-001/LIM-002 (checked against current implementation)
+
+Verified against `E:\Python\Kriti\docs\limitation\mcp\01-system-class-inheritance.md`
+and the current code (`schema/knowledge-hub/knowledge-hub-loader.py`,
+`crates/standards/src/db_reader.rs`). Six gaps not covered above.
+
+### 13.1 LIM-002 confirmed as a live bug, not a hypothesis — `register_standard` clobbers the shared store
+
+Traced the actual push path: `handle_register_standard`
+(`crates/mcp/src/adapter.rs:1609-1668`) runs the Python loader against
+*repo-local* `.samgraha/standards.db`, then does `std::fs::copy(&local_db,
+&global_db)` — a full-file overwrite of the shared store, not a merge.
+`register_standard` never requires (or triggers) a prior `sync_standards`
+pull. So: repo A registers `rust_dev` and pushes → global has `rust_dev`.
+Repo B, never having synced, registers `react_dev` on its own empty local db
+and pushes → global now has *only* `react_dev`; `rust_dev` is gone. This is
+LIM-002's "second repo" concern, confirmed in code, independent of this
+proposal — but §7's schema bump increases the blast radius, since a
+freshly-`--reset`, v2-only local db pushed by whichever repo migrates first
+wipes every other repo's still-v1 systems in one call.
+
+The "standards.db is a rebuildable cache" framing (§7.4) means this isn't
+*data-loss* in the durable-state sense — everything can be re-registered from
+source. But it's still a correctness bug for day-to-day multi-repo use
+(outside of a migration event), and worth fixing before or alongside this
+proposal rather than after: either (a) `register_standard`'s push step
+refuses to overwrite `global_db` if `global_db` already has systems missing
+from `local_db` (a name-set comparison, cheap), or (b) push writes/updates
+only this system's rows into `global_db` directly (attach + `INSERT OR
+REPLACE` across the two files) instead of a whole-file copy.
+
+**Scoped per user decision**: concurrent-push races (two repos pushing at
+the same moment) are out of scope for now — user-managed today, one push at
+a time over stdio; enforce later if it becomes a real problem. What still
+needs the fix above is the **skip-sync clobber**, which needs no concurrency
+at all — a single repo pushing without syncing first overwrites the shared
+store on its own, sequentially, every time. That's the one worth guarding
+before/alongside this proposal; the race case can wait.
+
+---
+
+### 13.2 `drops[]` has no referential-integrity check against `domain_relationships`
+
+`pass_1` (`knowledge-hub-loader.py:300-313`) raises a hard error if
+`enforce_order` is set on a relationship edge with no matching
+`domain_relationships` row. `00-domain-relationships.md` declares edges
+between domain keys; if a concrete system's `drops:` removes a domain file
+(e.g. `06-design-standards.md`) but the inherited `00-domain-relationships.md`
+still references that domain key, the merged tree fails Pass 1 with an
+opaque error, not a clear "you dropped a domain still referenced by an edge"
+message. §5.2's merge algorithm and §8.1's dev-class drop list don't mention
+this — the merger needs to either reject drops that leave dangling
+relationship edges, or auto-strip matching edges, with a clear error either way.
+
+### 13.3 No class-shape validation — only file-identity inheritance
+
+The limitation doc's evidence section names the actual fix for the
+`eswa_journal`/`pcems_2026` incident: "even just a `class:` field the loader
+could validate the `stages:`/`path_selection:` shape against." This proposal's
+`system.yaml` carries `class`/`subclass` (§4.2) but no pass ever checks that
+a system's `loop.yaml` stage shape or scoring type actually matches its
+declared class. Inheritance alone only prevents *re-copying* the wrong file;
+it doesn't stop a `system.yaml` that says `class: academic` while `extends:`
+points at a `hackathon`-shaped base, or a hand-written override that
+reintroduces `scope: competition` into an academic system. Add a lint pass
+(Phase 3 or 4) that checks resolved `stages:`/`calculate.scope` against a
+known shape table per class.
+
+### 13.4 Migration section doesn't retire the already-registered standalone `base_dev`
+
+`base_dev` is confirmed (per the limitation doc) already registered today as
+an ordinary, directly-registrable system — `is_abstract` doesn't exist yet.
+§8's migration steps create `system.yaml` files but never call out
+re-registering the bases with `abstract: true` so the *existing* `systems`
+row flips from standalone to abstract, nor whether any existing consumer that
+picked `base_dev` directly needs a deprecation notice. Add this as an
+explicit migration step, and add `is_abstract` transition (0→1) to the §8.4
+row-diff verification.
+
+### 13.5 Merge cost is unoptimized for the common case (base unchanged)
+
+§5.1-5.2's Phase 1 merge does a full `shutil.copytree` of the resolved base
+tree into a fresh tempdir on *every* `register_standard`/`knowledge publish`
+call, even when the base hasn't changed since the last call — likely to be
+the majority of calls during iterative authoring of a single concrete
+system. §5.4 already names the fix (virtual-path layer, no materialization)
+as "preferred" but defers it past Phase 1. Given how often `register_standard`
+gets called during normal authoring (confirmed by this repo's own MCP tool
+list — `register_standard`, `sync_standards`, `compile` are all separate,
+frequently-invoked calls), recommend pulling a cheap version forward: hash the
+base tree once, cache the resolved merge keyed by that hash, invalidate only
+when the base's content hash changes.
+
+### 13.6 Abstract check should exist Rust-side too, not just in the Python loader
+
+§9.2 puts the `abstract` standalone-registration guard only in the Python
+loader's Pass 0. `register_standard` (`crates/mcp/src/adapter.rs:1609`) and
+`knowledge publish` (`crates/cli/src/commands.rs:1436`) both shell out to the
+Python loader regardless — meaning an abstract-system registration attempt
+still pays the full subprocess spawn + partial-pass cost before failing.
+Since `system.yaml` is a plain YAML file, the Rust side can cheaply check
+`abstract: true` before invoking Python and fail fast with the same error
+message, matching the two-layer pattern the codebase already uses for other
+guards (e.g. schema-version check happens Rust-side before DB use).
+
+### 13.7 N-level nesting: mechanism is depth-agnostic, doc's examples weren't
+
+Confirmed the design doesn't cap chain depth or force uniform depth across
+branches — `resolve_system()` (§5.2) recurses on `meta.extends` with no depth
+parameter, and `_chain` (§5.3) is a set with no size limit, so a 1-hop branch
+(`fastapi_dev extends base_dev`) and a 3-hop branch
+(`react_dev extends js_dev extends frontend_dev extends base_dev`) resolve
+through the identical code path. §3.1 and §8.1 were updated to say this
+explicitly and show a mixed-depth example — previously the taxonomy diagram
+and every migration example showed exactly one hop, which reads as a depth
+cap even though the underlying mechanism never had one. Practical
+consequence: adding, removing, or re-slotting an intermediate abstract level
+later (e.g. splitting `js_dev` out from `frontend_dev` once more
+JS-ecosystem systems exist) is purely a `system.yaml` edit — new abstract
+node, repoint the affected leaves' `extends:` — no loader or schema change,
+consistent with §3.3's data-driven constraint.
+
+### 13.8 Temp-dir cleanup is missing on the happy path for multi-level chains, not just on error
+
+User-flagged, confirmed against §5.2's actual pseudocode and sharper than
+first framed. `resolve_system()` is recursive and calls
+`tempfile.mkdtemp()` at *every* level of the chain that itself has an
+`extends:`, but only the leaf-most call's path is returned up the stack.
+For a 3-hop chain (`base_dev → frontend_dev → js_dev → react_dev`),
+resolving `react_dev` creates a tempdir for `frontend_dev`'s merge and
+another for `js_dev`'s merge — both get copied into the next level and then
+never referenced again by anything outside that stack frame. Those two leak
+**every time**, success or failure, not just on a mid-pass crash. On top of
+that, §6.1's `main()` sketch shows only a comment
+(`# ... cleanup merged_dir after passes complete ...`) where cleanup code
+should be — as literally written, there's no cleanup at all yet, happy path
+included. The error-path gap (no `try/finally` around the loader passes) is
+real too, just the smaller half of this.
+
+---
+
+## 14. Recommended Fixes, Ranked by Implementation Complexity
+
+Checked each open item (§13) against what's actually in this codebase today
+(workspace deps, existing helper locations, existing patterns) rather than
+proposing in the abstract. §10's phase plan already incorporates all seven
+of these — this section is the complexity rationale behind that placement.
+
+### 14.1 LOW — skip-sync clobber (§13.1) — do this one, Phase 0
+
+Add one shared helper, `services::knowledge_publish::check_push_safe(local_db,
+global_db) -> Result<()>`, next to the existing `resolve_knowledge_hub_loader`.
+Opens both DBs (if `global_db` exists), `SELECT name FROM systems` on each,
+diffs the sets. If `global_db` has a name `local_db` doesn't, refuse with
+"global has systems {…} missing from your local db — run sync_standards
+before pushing." Call it right before both existing `std::fs::copy` sites
+(`adapter.rs:1668` in `handle_register_standard`, `adapter.rs:1707` in
+`handle_push_standards` — same copy logic already duplicated between the
+two, worth collapsing into one call to the new helper from both). ~30 lines,
+one new function, two call-site edits, one test with a fixture global/local
+pair. No new dependency, no schema change.
+
+### 14.2 LOW — name collision across repos (found, not yet in §13), Phase 3
+
+Piggyback on 14.1's helper: for names present in *both* sets, nothing today
+records who last registered a given system, so a same-named-different-content
+collision can't even be detected, only guessed at. Since §7.1 already has a
+rebuild-from-scratch schema change queued for the inheritance columns, add
+one more nullable column to the same `01-systems.sql` `CREATE TABLE` pass —
+`last_registered_by TEXT` (hostname + repo path, populated by
+`handle_register_standard` at Pass 0 time isn't possible since Pass 0 is
+Python-side; simplest is the Rust push step stamping it via a plain
+`UPDATE systems SET last_registered_by = ? WHERE name = ?` right after the
+copy). 14.1's diff then reports "same name, different `last_registered_by`
+last time" as a warning, not a hard block (avoids false positives when one
+repo legitimately re-registers its own system). Bundled into the same
+rebuild event as §7.1 — no second migration window.
+
+### 14.3 LOW — Rust-side abstract fast-fail (§13.6), Phase 1 (soft) → Phase 3 (hard)
+
+`serde_yaml` is already a workspace dependency (`crates/audit/Cargo.toml`,
+`crates/schemas/Cargo.toml`), and `crates/mcp` already depends on both
+`audit` and `schemas` (`crates/mcp/Cargo.toml:8,11`) — just not `serde_yaml`
+directly yet. Add `serde_yaml.workspace = true` to `crates/mcp/Cargo.toml`
+(one line, no new dependency to vet, already locked at the workspace level),
+then in `handle_register_standard` read `path.join("system.yaml")` if it
+exists and check `abstract: true` before invoking the Python loader at all.
+Real YAML parse, not a regex guess — cheap given the dependency is already
+in the graph. Phase 1 makes this a warning (matching Python's soft phase);
+Phase 3 upgrades both to a hard refuse together.
+
+### 14.4 LOW/none — abstract retrofit for `base_dev` (§13.4), Phase 3
+
+Not code — collapses into a rollout checklist item once §7.4's "rebuild, not
+migrate" decision is in effect. Re-register `base_dev` (and `base_academic`
+once created) with `abstract: true` as the *first* step of the coordinated
+re-registration pass, before any concrete system. `is_abstract` lands
+correctly for free because it's read from `system.yaml` the same way every
+other field is. Zero new code.
+
+### 14.5 MEDIUM — `drops[]` referential check against `domain_relationships` (§13.2), Phase 1
+
+Don't try to auto-edit `00-domain-relationships.md` text to strip dangling
+edges — text surgery on a hand-authored Markdown+YAML file is fragile and
+hides real modeling mistakes. Instead, add a validation step in
+`system_merger.py`, after the merge and before handing the tree to the
+loader: parse the merged `00-domain-relationships.md`'s YAML block (reuse
+the same `extract_yaml_block`/regex approach `pass_1` already uses,
+`knowledge-hub-loader.py:161-192`) and cross-check every edge's domain keys
+against the domain files actually present post-drop. Fail with a clear
+"drop of `domain X` leaves edge `X→Y` dangling" instead of letting Pass 1's
+existing opaque error (`knowledge-hub-loader.py:300-313`) surface later.
+New function (~40 lines) in the already-new `system_merger.py`, no changes
+to the loader itself.
+
+### 14.6 MEDIUM, deferred — class-shape validation (§13.3), Phase 4
+
+Genuinely new logic, and deliberately class-aware (the one place that's
+fine — §3.3's "class-agnostic" constraint is scoped to the *merge*
+mechanism, not to every validation pass). Needs a small shape table (e.g.
+`class_shapes.yaml`: per class, allowed `stages:` names and
+`calculate.scope` values) plus a comparison function against the resolved
+`loop.yaml`. Not a Phase 1 blocker — inheritance itself already closes most
+of this hole at the source (a system that extends the right base can no
+longer accidentally copy-paste the wrong `loop.yaml`); this is
+defense-in-depth for hand-written overrides, not a prerequisite.
+
+### 14.7 NONE for now — merge caching (§13.5), not scheduled
+
+Ponytail call: skip it. Phase 1's `copytree` over a few MB of docs/YAML is
+low-hundreds-of-ms, not a measured bottleneck — building a content-hash
+cache now is optimizing a number nobody's collected yet. Revisit only if
+real iterative-authoring use shows `register_standard` latency actually
+hurts; the fix (hash base tree, cache resolved merge dir keyed by hash)
+is still the right one *if* that day comes, just not today. Deliberately
+absent from §10 for this reason.
+
+### 14.8 LOW — temp-dir cleanup for all recursion levels, not just the leaf (§13.8), Phase 1
+
+Thread a mutable list (or `contextlib.ExitStack`) through `resolve_system()`'s
+recursive calls — every `tempfile.mkdtemp()` call anywhere in the chain
+appends its path to the same list, passed by the caller, not created fresh
+per call. `main()` wraps the top-level `resolve_system()` call and the
+subsequent loader passes in `try/finally`, and the `finally` block
+`shutil.rmtree()`s every path in that list, in reverse order (child before
+parent, though order doesn't actually matter once nothing points into a
+child from outside it). Fixes both halves of §13.8 at once — the same
+`finally` block that guarantees cleanup on a mid-pass crash also guarantees
+every intermediate level gets cleaned on success, not just the final one.
+~15-20 lines in `system_merger.py` + `main()`, no new dependency
+(`contextlib` is stdlib).

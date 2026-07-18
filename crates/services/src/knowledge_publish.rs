@@ -1,4 +1,5 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 /// Locates `knowledge-hub-loader.py`: `SAMGRAHA_KNOWLEDGE_HUB_LOADER` env var
@@ -50,6 +51,51 @@ pub fn run_knowledge_hub_loader(
         anyhow::bail!("Loader failed: {}", stderr);
     }
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+/// Guard against the skip-sync clobber: refuse to push `local_db` over
+/// `global_db` when the global store already contains systems that the
+/// local db doesn't have. Without this, a repo that never ran
+/// `sync_standards` first silently wipes every other repo's systems.
+///
+/// Returns `Ok(())` when the push is safe (local is a superset of global,
+/// or global doesn't exist yet). Returns `Err` with a message listing the
+/// systems that would be lost.
+pub fn check_push_safe(local_db: &Path, global_db: &Path) -> Result<()> {
+    if !global_db.exists() {
+        return Ok(()); // no global store yet, nothing to lose
+    }
+
+    let global_conn = rusqlite::Connection::open(global_db)?;
+    let local_conn = rusqlite::Connection::open(local_db)?;
+
+    let global_names: HashSet<String> = {
+        let mut stmt = global_conn.prepare("SELECT name FROM systems")?;
+        let rows: Vec<String> = stmt.query_map([], |row| row.get(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        rows.into_iter().collect()
+    };
+
+    let local_names: HashSet<String> = {
+        let mut stmt = local_conn.prepare("SELECT name FROM systems")?;
+        let rows: Vec<String> = stmt.query_map([], |row| row.get(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        rows.into_iter().collect()
+    };
+
+    let missing: Vec<&str> = global_names.difference(&local_names)
+        .map(|s| s.as_str())
+        .collect();
+
+    if missing.is_empty() {
+        Ok(())
+    } else {
+        bail!(
+            "Push refused: the global standards.db contains systems not in your \
+             local db: {}. Run sync_standards first to pull them before pushing.",
+            missing.join(", ")
+        )
+    }
 }
 
 #[cfg(test)]

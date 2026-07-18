@@ -7,6 +7,7 @@ use schemas::compilation::{CompilationRequest, CompilationScope};
 use schemas::manifest::CachedRepoMetadata;
 use schemas::search::{RetrievalLevel, SearchQuery, SectionQuery};
 use services::compilation::PipelineFactory;
+use services::knowledge_publish;
 use services::planner::write_meta_file;
 use services::project_planner::PlanOrchestrator;
 use services::registry_client::{FileRegistryClient, RegistryClient};
@@ -1624,6 +1625,26 @@ impl McpAdapter {
         let system = req.params.get("system").and_then(|v| v.as_str());
         let layout = req.params.get("layout").and_then(|v| v.as_str()).map(std::path::Path::new);
         let dry_run = req.params.get("dry_run").and_then(|v| v.as_bool()).unwrap_or(false);
+
+        // Soft-warning: abstract systems should not be registered standalone.
+        if let Some(sys_name) = system {
+            let system_yaml = path.join("system.yaml");
+            if system_yaml.is_file() {
+                if let Ok(contents) = std::fs::read_to_string(&system_yaml) {
+                    if let Ok(doc) = serde_yaml::from_str::<serde_yaml::Value>(&contents) {
+                        if doc.get("abstract").and_then(|v| v.as_bool()).unwrap_or(false) {
+                            tracing::warn!(
+                                "System '{}' is marked abstract — it provides the base domain set \
+                                 and should not be registered standalone. Register a concrete \
+                                 system (e.g. electron_dev, fastapi_dev) that extends '{}'.",
+                                sys_name, sys_name
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
         let loader_output = services::knowledge_publish::run_knowledge_hub_loader(
             &loader, &local_db, &path, system, layout, dry_run,
         )?;
@@ -1665,6 +1686,7 @@ impl McpAdapter {
                 }
                 standards::check_schema_version(&check_conn)?;
             }
+            knowledge_publish::check_push_safe(&local_db, &global_db)?;
             std::fs::copy(&local_db, &global_db)?;
         }
 
@@ -1704,6 +1726,7 @@ impl McpAdapter {
             }
             standards::check_schema_version(&check_conn)?;
         }
+        knowledge_publish::check_push_safe(&local_db, &global_db)?;
         std::fs::copy(&local_db, &global_db)?;
         Ok(serde_json::json!({
             "success": true,

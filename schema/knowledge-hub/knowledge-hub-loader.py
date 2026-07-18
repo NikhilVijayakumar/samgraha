@@ -18,6 +18,7 @@ updates existing rows via upsert, never duplicates.
 import argparse
 import json
 import re
+import shutil
 import sqlite3
 import sys
 from pathlib import Path
@@ -1517,6 +1518,35 @@ def main() -> int:
         print(f"Error: schema directory not found at {schema_dir}", file=sys.stderr)
         return 1
 
+    # --- Inheritance resolution (Phase 1) ---
+    # If the target system has a system.yaml with an extends field, resolve
+    # the inheritance chain (base + overlay) into a merged temp directory.
+    # The loader then processes the merged tree exactly as it would a
+    # standalone system — no pass logic changes needed.
+    merged_dir = None
+    from system_merger import (
+        load_system_metadata, resolve_system, validate_merged_system,
+        CircularInheritanceError, DanglingEdgeError,
+    )
+    meta = load_system_metadata(kh_dir)
+    if meta and meta.extends:
+        try:
+            merged_dir = resolve_system(kh_dir)
+            validate_merged_system(merged_dir, meta)
+            kh_dir = merged_dir
+            print(f"Inheritance resolved: {args.system or kh_dir.name} extends "
+                  f"'{meta.extends}' -> merged tree at {merged_dir}")
+        except CircularInheritanceError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            return 1
+        except DanglingEdgeError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            return 1
+    elif meta and meta.abstract:
+        print(f"Warning: system '{kh_dir.name}' is marked abstract — "
+              f"it should only be used as a base for inheritance, not "
+              f"registered standalone.", file=sys.stderr)
+
     layout_overrides: dict[str, str] = {}
     layout_source = Path(args.layout) if args.layout else (kh_dir / "layout.json")
     if layout_source.is_file():
@@ -1564,6 +1594,9 @@ def main() -> int:
         raise
     finally:
         conn.close()
+        # Clean up merged temp directory if one was created
+        if merged_dir is not None:
+            shutil.rmtree(merged_dir, ignore_errors=True)
 
     return 0
 
