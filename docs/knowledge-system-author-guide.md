@@ -848,8 +848,10 @@ produce an error, but with a less helpful message.
 
 **Q: Can my scripts access the database?**
 A: Yes — open `.samgraha/knowledge.db` directly with `sqlite3`. Your
-scripts can read `script_runs`, `system_plans`, `plan_generation_inputs`,
-and any other table. Don't modify tables you don't own.
+scripts can read `script_runs`, `workflow_use_cases`/`workflow_phases`/
+`workflow_phase_dependencies` (the normalized init-plan tables —
+`system_plans` no longer exists), `plan_generation_inputs`, and any other
+table. Don't modify tables you don't own.
 
 **Q: How do I test my system before registering it?**
 A: Run each script manually:

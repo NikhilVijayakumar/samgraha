@@ -8,9 +8,9 @@ Rule-based audit checks that run locally with no external dependencies.
 
 ### Overview
 
-The deterministic audit checks documents against rules defined in each standard. In the new architecture, these checks are provided by system `validate` scripts via capability dispatch. For domains with a working system script, the script performs all checks. For domains without a system script, the built-in deterministic engine serves as a fallback.
+The deterministic audit checks documents against rules defined in each standard. In the new architecture, these checks are provided by system `validate` scripts via capability dispatch — the script performs all checks for domains it owns. There is no built-in fallback: a domain with no working `validate` script fails clearly instead of running a built-in deterministic engine.
 
-Checks are fast, reliable, and always available.
+Checks are fast and reliable once a system provides a script — but availability depends on that script existing, not on a permanent built-in engine.
 
 ### Check Types
 
@@ -23,20 +23,27 @@ Checks are fast, reliable, and always available.
 
 ### How Rules Are Defined
 
-For built-in fallback, rules are defined in the standard definition:
+Two mechanisms coexist, not a primary path plus a fallback:
 
-```rust
-AuditRuleDef {
-    id: "feat-001",
-    name: "Has purpose",
-    description: "Feature must document its purpose",
-    severity: "error",
-    check_type: "has_section",
-    scope: "Purpose",
-}
-```
-
-For system-provided `validate` scripts, rules are defined inside the system's script and are not visible to samgraha's source code.
+- **The `Doc`-kind path** (`audit()`, not capability dispatch) — rules are
+  declarative `AuditRuleDef` rows loaded from the registered standard's
+  own data, interpreted generically by `DeterministicAuditProvider`
+  (no domain knowledge in samgraha's source, just row interpretation):
+  ```rust
+  AuditRuleDef {
+      id: "feat-001",
+      name: "Has purpose",
+      description: "Feature must document its purpose",
+      severity: "error",
+      check_type: "has_section",
+      scope: "Purpose",
+  }
+  ```
+- **Named-domain capability dispatch** (`validate` scripts) — rules live
+  entirely inside the system's own script and are never visible to
+  samgraha's source code. A named domain (e.g. `architecture`,
+  `vision`, ...) with no `validate` script has no way to run this kind of
+  check at all — the `Doc`-kind path is not a fallback for it.
 
 ### Running Deterministic Audit
 

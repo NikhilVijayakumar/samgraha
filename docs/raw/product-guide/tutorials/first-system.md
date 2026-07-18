@@ -19,27 +19,17 @@ mkdir -p my-system/templates
 
 ## Step 2: Create system.yaml
 
+The real, complete field set — no `capabilities:` or `domains:` block.
+Scripts are discovered by filename in `scripts/` (Step 3-4 below), not
+declared here:
+
 ```yaml
-id: my-system
-name: "My Knowledge System"
-version: "0.1.0"
+name: my-system
 description: "Custom validation for my project documentation"
-
-capabilities:
-  validate:
-    script: scripts/validate.py
-    async: false
-  report:
-    script: scripts/report.py
-    async: false
-  scaffold:
-    script: scripts/scaffold.py
-    async: false
-
-domains:
-  - feature
-  - architecture
 ```
+(`extends`/`drops`/`abstract` are also available, for inheriting from
+another system — see [System Inheritance](../concepts/inheritance.md) —
+but aren't needed for a standalone system like this one.)
 
 ## Step 3: Write the Validate Script
 
@@ -146,15 +136,17 @@ if __name__ == "__main__":
 ## Step 5: Register the System
 
 ```bash
-samgraha standards register --path ./my-system
+samgraha knowledge publish --path ./my-system --system my-system
 ```
+Or via MCP: the `register_standard` tool, with `path` set to the system's
+directory.
 
 ## Step 6: Test the System
 
 ```bash
 # Run validation via MCP
 # (through samgraha's MCP interface)
-run_system_validate(system_id="my-system", domain="feature")
+run_system_validate(system_name="my-system", input_json="/path/to/input.json")
 ```
 
 ## Step 7: Verify Scripts Work
@@ -175,14 +167,14 @@ cat /tmp/test-output.json
 
 - Knowledge systems are directories with `system.yaml` and scripts
 - Scripts follow the `--repo-root`, `--in`, `--out` contract
-- Systems are registered with `samgraha standards register`
-- Samgraha discovers and invokes system scripts via capability dispatch
+- Systems are registered with `samgraha knowledge publish` (or the `register_standard` MCP tool)
+- Samgraha discovers and invokes system scripts by filesystem probing, via capability dispatch — no built-in fallback
 
 ## Next Steps
 
-- Add more capabilities (calculate, scaffold, plan_generation)
+- Add more capabilities (`calculate`, `scaffold`, `plan-generation`)
 - Define documentation standards for your domains
-- Set up init plans for project workflows
+- Write an `init` script (`scripts/init.py`) that returns your system's phase-wise plan — see [Workflows](../concepts/workflows.md)
 - See the [Knowledge System Author Guide](../../../knowledge-system-author-guide.md) for complete reference
 
 ## Related

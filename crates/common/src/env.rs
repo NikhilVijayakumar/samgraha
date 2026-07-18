@@ -42,10 +42,12 @@ pub fn home_dir() -> std::path::PathBuf {
 }
 
 /// Compute a stable fingerprint for a repo root path. Used as the
-/// `repo_fingerprint` column in script_runs / system_plans — same
-/// convention check_runner uses (`{name}-{repo_root.display()}`), but
-/// here the name is omitted because the fingerprint is repo-scoped, not
-/// check-scoped.
+/// `repo_fingerprint` column in `script_runs` / `plan_generation_inputs`
+/// (`system_plans` is gone — replaced by `workflow_use_cases`/
+/// `workflow_phases`, neither of which carries a `repo_fingerprint`; an
+/// init plan is per-system, not per-repo) — same convention check_runner
+/// uses (`{name}-{repo_root.display()}`), but here the name is omitted
+/// because the fingerprint is repo-scoped, not check-scoped.
 pub fn repo_fingerprint(repo_root: &std::path::Path) -> String {
     repo_root.display().to_string()
 }

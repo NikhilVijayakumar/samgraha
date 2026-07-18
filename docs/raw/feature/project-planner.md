@@ -33,7 +33,7 @@ The planner shall execute a project plan one phase at a time.
 
 Each phase calls existing infrastructure:
 - `Generate` → `compile()`
-- `Audit` → system `validate` scripts (via capability dispatch) or Rust pipeline fallback
+- `Audit` → system `validate` scripts via capability dispatch — no fallback; a domain with no working script fails clearly rather than falling back to built-in logic
 - `Fix` → `apply_finding_fix()` / `generate_fix_plan()` per finding
 - `Verify` → re-run validation, compare score against threshold (recommended: score >= 70)
 

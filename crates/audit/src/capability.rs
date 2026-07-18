@@ -79,8 +79,11 @@ pub enum CapabilityStatus {
     Error,
 }
 
-/// Where the capability script was found — same 5-tier resolution as
-/// `CheckSource`, just named for capabilities.
+/// Where the capability script was found — the same first 4 tiers as
+/// `CheckSource`, just named for capabilities. Deliberately has no 5th
+/// `RustNative` counterpart: capabilities have no built-in fallback at
+/// all, unlike `check_runner`'s placeholder tier (which still exists there,
+/// unused) — see `runtime.rs`'s "no Rust-native fallback" comments.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CapabilitySource {
     /// `check_overrides` in samgraha.toml (reuses the same override map
@@ -105,9 +108,10 @@ impl CapabilitySource {
     }
 }
 
-/// Resolve the implementation of a capability through the 5-tier discovery
-/// chain. Reuses the same tiers as `check_runner::resolve_check`, just
-/// scoped to a capability name instead of a check name.
+/// Resolve the implementation of a capability through the 4-tier discovery
+/// chain. Reuses `check_runner`'s first 4 tiers, just scoped to a
+/// capability name instead of a check name — no 5th tier, see
+/// `CapabilitySource`'s doc comment.
 ///
 /// Returns `None` if no script is found at any tier.
 pub fn resolve_capability(
@@ -271,7 +275,12 @@ pub struct PlanUseCase {
     pub phases: Vec<PlanPhase>,
 }
 
-/// The full init plan output (§8.4). Stored as-is in system_plans.plan_json.
+/// The full init plan output (§8.4) — the wire format `init` scripts return
+/// and `store_system_plan` accepts. No longer stored as-is: `store_system_plan`
+/// splits it into `workflow_use_cases`/`workflow_phases`/
+/// `workflow_phase_dependencies` (real rows, not a JSON blob column —
+/// schema-redesign-proposal.md §2.1); `get_system_plan` reconstructs this
+/// same shape by querying those tables back.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct InitPlan {

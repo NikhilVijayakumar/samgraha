@@ -9,12 +9,16 @@ StandardWorkflowPlanner (all ProjectCase variants)
   reads plan_scenarios from registered documentation standard
   produces ProjectPlan with tier-ordered, dependency-aware phases
 
-ProjectPlan (persisted in system_plans table)
+ProjectPlan (persisted in project_plans/project_phases — registry.db,
+             see the "SQLite Schema" section below; not to be confused
+             with a system's init plan, which lives in
+             workflow_use_cases/workflow_phases/workflow_phase_dependencies
+             in standards.db — two different mechanisms, same-sounding names)
   └── ProjectPhase[] (ordered, dependency-aware)
 
 PhaseExecutor
   ├── GeneratePhaseExecutor   — calls compile()
-  ├── AuditPhaseExecutor      — calls validate scripts via capability dispatch, with Rust pipeline fallback
+  ├── AuditPhaseExecutor      — calls validate scripts via capability dispatch — no fallback; a domain with no working script fails clearly
   ├── FixPhaseExecutor        — creates fix sessions via audit-fix pipeline
   └── VerifyPhaseExecutor     — re-runs validation, checks score threshold
 
@@ -146,7 +150,7 @@ Derived from the standard's tier definitions, not hardcoded. Typical ordering:
 | Phase Type | What It Calls |
 |-----------|---------------|
 | `Generate` | `KnowledgeRuntime::compile()` |
-| `Audit` | System `validate` scripts via `capability::resolve_capability()`, with Rust pipeline fallback for domains without a working script |
+| `Audit` | System `validate` scripts via `capability::resolve_capability()` — no fallback; a domain with no working script fails clearly |
 | `Fix` | `apply_finding_fix()` / `generate_fix_plan()` per finding |
 | `Verify` | Re-runs validation via capability scripts, score compared against threshold (>= 70) |
 
@@ -157,7 +161,7 @@ Derived from the standard's tier definitions, not hardcoded. Typical ordering:
 | Plan generation for all 4 cases via StandardWorkflowPlanner | Yes |
 | Phasewise execution with dependency tracking | Yes |
 | Progress tracking + status queries | Yes |
-| Auto-execute audit phase (capability dispatch + fallback) | Yes |
+| Auto-execute audit phase (capability dispatch, no fallback) | Yes |
 | Auto-generate fix sessions from findings | Yes |
 | Verify phase (re-audit + gate check) | Yes |
 
