@@ -1,7 +1,5 @@
 # Audit-Fix Pipeline — Feature Technical Design
 
-This section details the Audit-Fix Pipeline — Feature Technical Design.
-
 ## Purpose
 
 This document describes the architectural realization of the Audit-Fix Pipeline feature.
@@ -21,8 +19,6 @@ This document applies the architectural principles defined in Component Model an
 
 ## Participating Components
 
-This section details the Participating Components.
-
 ### Fix Orchestrator
 
 The Fix Orchestrator composes the four-stage pipeline: PlanningContextBuilder → FixPlanner → Executor → Verifier. It manages the ≤3 attempt verification loop and feeds verification feedback back to the planner.
@@ -41,15 +37,11 @@ Executor implementations apply FixPlan steps. DocExecutor and ConfigExecutor aut
 
 ### Verifier
 
-The Verifier re-runs the failed check plus dependent checks after a fix attempt. Dependency edges are keyed by `(domain, check_id)` pairs to avoid cross-domain collisions. Returns a Verdict with per-check scores.
+The Verifier re-runs the failed check plus dependent checks after a fix attempt. Verification dispatches through the capability script system: the Verifier calls the system's `validate` script for the relevant domain, passing the target file path and check IDs to re-evaluate. Dependency edges are keyed by `(domain, check_id)` pairs to avoid cross-domain collisions. Returns a Verdict with per-check scores.
 
-### Audit Framework
+### Capability Dispatch
 
-The Audit Framework produces the reports and findings that the Fix Pipeline consumes. The pipeline reads finding data from existing reports and does not re-audit the full domain.
-
-### Knowledge Runtime
-
-The Knowledge Runtime exposes `run_single_check()` — net-new functionality that extracts a single check from a pipeline and executes it independently, returning the check's score. Also exposes `apply_finding_fix()` and `generate_fix_plan()` as public methods.
+The Capability Dispatch system provides the `validate` scripts that the Verifier calls to re-evaluate checks after a fix attempt. The pipeline uses `capability::resolve_capability(&Capability::Validate, domain)` to find the appropriate system script, then invokes it with the target file and check IDs.
 
 ### Template Engine
 
@@ -69,9 +61,8 @@ The SQLite Registry stores fix sessions, attempts, plans, and plan steps in four
 | PlanningContextBuilder | Resolve context chain, domain→file lookup, cache with invalidation |
 | FixPlanner | Produce FixPlan from PlanningContext + Intent |
 | Executor | Apply FixPlan (auto-write doc/config, serialize plan for others) |
-| Verifier | Re-run failed + dependent checks, return Verdict |
-| Audit Framework | Source of reports and findings |
-| Knowledge Runtime | Expose `run_single_check()`, `apply_finding_fix()`, `generate_fix_plan()` |
+| Verifier | Re-run failed + dependent checks via validate scripts, return Verdict |
+| Capability Dispatch | Provide system validate scripts for re-audit verification |
 | Template Engine | Render FixPlan to markdown via per-type template |
 | SQLite Registry | Persist sessions, attempts, plans, steps |
 
@@ -99,7 +90,7 @@ Fix Orchestrator
     │       └── PlanExecutor (serialize to SQLite → render template)
     │
     └── Verifier
-            ├── KnowledgeRuntime.run_single_check()
+            ├── capability::resolve_capability(Validate, domain) → system validate script
             └── Dependency graph (domain-qualified check IDs)
 ```
 
@@ -111,7 +102,7 @@ Fix Orchestrator
 4. Intent is derived from the finding (`RestoreCompliance`).
 5. FixPlanner produces a FixPlan with ordered steps.
 6. Executor applies the plan (auto-write or plan record + render).
-7. Verifier re-runs the failed check + dependents via `run_single_check()`.
+7. Verifier re-runs the failed check + dependents via system validate script.
 8. If score ≥ 9, session marked passed, finding marked Fixed.
 9. If score < 9 and attempts < 3, feedback enriches PlanningContext, repeat from step 5.
 10. If score < 9 and attempts ≥ 3, session marked needs_human_review.
@@ -119,8 +110,6 @@ Fix Orchestrator
 ---
 
 ## Runtime Behavior
-
-This section details the Runtime Behavior.
 
 ### Fix Session Lifecycle
 
@@ -138,7 +127,7 @@ Plan Rendered → returned to caller as markdown
     │
     ▼
 [Auto-apply path]
-    Executor writes target → Verifier runs checks
+    Executor writes target → Verifier runs checks via validate script
     │
     ▼
 [Phasewise path]
@@ -161,8 +150,6 @@ PlanningContextBuilder caches parsed context by domain within a session. When Do
 
 ## Communication Paths
 
-This section details the Communication Paths.
-
 ### MCP → Fix Orchestrator
 
 MCP tools invoke the FixOrchestrator with finding parameters. The orchestrator returns session IDs, plan markdown, step verification results, and final verdicts.
@@ -179,9 +166,9 @@ The planner reads the assembled context to understand the compliance target, the
 
 DocExecutor and ConfigExecutor read and write the target file directly (auto-apply). PlanExecutor writes to SQLite only (no file mutation).
 
-### Verifier → KnowledgeRuntime
+### Verifier → Capability Dispatch
 
-The verifier calls `KnowledgeRuntime.run_single_check(domain, check_id)` for the failed check and each dependent check. KnowledgeRuntime dispatches to the appropriate pipeline and returns the single check's score.
+The verifier calls `capability::resolve_capability(&Capability::Validate, domain)` to find the system's validate script, then invokes it with the target file path and the check IDs that need re-evaluation. The script returns per-check scores.
 
 ---
 
@@ -204,8 +191,6 @@ The verifier calls `KnowledgeRuntime.run_single_check(domain, check_id)` for the
 
 ## Integration Points
 
-This section details the Integration Points.
-
 ### Audit Framework
 
 The pipeline reads existing audit reports and findings. No modification to the audit framework itself is required.
@@ -214,9 +199,9 @@ The pipeline reads existing audit reports and findings. No modification to the a
 
 The pipeline reads audit specs, audit standards, and document standards to build planning context. Standards are the authoritative definition of what "fixed" means.
 
-### Knowledge Runtime
+### Capability Dispatch
 
-The pipeline requires `run_single_check()` — a new method that extracts and runs a single check from a pipeline. Also adds `apply_finding_fix()` and `generate_fix_plan()` as public entry points.
+The pipeline requires the capability dispatch system to re-evaluate checks after fixes. The system's `validate` script is called via `run_capability_for(&Capability::Validate, ...)` with the target file and check IDs.
 
 ### Template Engine
 
@@ -270,7 +255,7 @@ New dependencies (crate-level):
 - Maximum 3 fix attempts per session.
 - Auto-write is limited to `.md`, `.toml`, `.yaml`, `.json` files.
 - Phasewise plans require manual step-by-step execution by the user.
-- Verification re-runs the failed check + its transitive dependents.
+- Verification re-runs the failed check + its transitive dependents via validate scripts.
 - Dependency graph resolution is bounded by the audit spec's cross-reference section.
 
 ---
@@ -297,7 +282,7 @@ New dependencies (crate-level):
 ## Performance Considerations
 
 - Context caching avoids redundant file I/O across findings in the same session.
-- `run_single_check()` is significantly cheaper than full pipeline re-execution.
+- Validate script invocation is significantly cheaper than full pipeline re-execution.
 - Cache invalidation is keyed by target file path, not domain — narrow scope avoids unnecessary re-parsing.
 - Plan rendering through the template engine is sub-millisecond for typical plan sizes.
 
@@ -310,7 +295,7 @@ New dependencies (crate-level):
 | Context file missing (audit spec / audit standard / doc standard) | Report error per missing file, abort session |
 | Target file not found | Report error, abort session |
 | Auto-write target outside repo root | Reject with security error, abort |
-| `run_single_check()` fails (pipeline not found / check not found) | Report error, abort current attempt |
+| Validate script not found / not installed | Report error, abort current attempt |
 | Verdict score < 9 after 3 attempts | Mark session `needs_human_review`, leave finding Open |
 | Step verification fails (phasewise plan) | Mark step failed, pause plan, allow `audit_fix_plan_update` or retry |
 | Registry write failure | Return error to caller, session state lost |
@@ -318,8 +303,6 @@ New dependencies (crate-level):
 ---
 
 ## Extension Points
-
-This section details the Extension Points.
 
 ### FixPlanner Implementations
 

@@ -1,4 +1,4 @@
-# Deterministic Audit Provider
+# Deterministic Audit
 
 ## Purpose
 
@@ -8,7 +8,9 @@ Rule-based audit checks that run locally with no external dependencies.
 
 ### Overview
 
-The deterministic provider checks documents against hardcoded rules defined in each standard. These checks are fast, reliable, and always available.
+The deterministic audit checks documents against rules defined in each standard. In the new architecture, these checks are provided by system `validate` scripts via capability dispatch. For domains with a working system script, the script performs all checks. For domains without a system script, the built-in deterministic engine serves as a fallback.
+
+Checks are fast, reliable, and always available.
 
 ### Check Types
 
@@ -21,7 +23,7 @@ The deterministic provider checks documents against hardcoded rules defined in e
 
 ### How Rules Are Defined
 
-Rules are defined in the standard definition (Rust code for built-in standards):
+For built-in fallback, rules are defined in the standard definition:
 
 ```rust
 AuditRuleDef {
@@ -34,14 +36,16 @@ AuditRuleDef {
 }
 ```
 
+For system-provided `validate` scripts, rules are defined inside the system's script and are not visible to samgraha's source code.
+
 ### Running Deterministic Audit
 
 ```bash
-# Default provider is deterministic
+# Default — dispatches to system validate scripts where available
 samgraha audit
 
-# Explicitly specify deterministic
-samgraha audit --provider deterministic
+# Explicitly specify a domain
+samgraha audit --domain feature
 ```
 
 ## Related

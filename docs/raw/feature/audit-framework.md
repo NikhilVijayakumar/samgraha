@@ -39,7 +39,7 @@ Supported providers may include:
 * AI-Assisted Audit Provider
 * Custom Audit Providers
 
-The audit pipeline shall remain provider-independent.
+The audit system shall remain script-independent.
 
 ---
 

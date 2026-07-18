@@ -2,26 +2,26 @@
 
 ## Architecture
 
-The Project Planner follows the same layered architecture as the rest of Samgraha:
+The Project Planner follows a single-planner architecture:
 
 ```
-ProjectPlanner (trait)
-  ├── NewProjectPlanner    — full lifecycle (8 phases)
-  ├── DocAuditPlanner      — docs only (audit + fix + verify)
-  ├── ImplTestAuditPlanner — impl + security + runtime (audit + fix + verify)
-  └── BuildAuditPlanner    — build only (audit + fix + verify)
+StandardWorkflowPlanner (all ProjectCase variants)
+  reads plan_scenarios from registered documentation standard
+  produces ProjectPlan with tier-ordered, dependency-aware phases
 
-ProjectPlan (persisted)
+ProjectPlan (persisted in system_plans table)
   └── ProjectPhase[] (ordered, dependency-aware)
 
 PhaseExecutor
   ├── GeneratePhaseExecutor   — calls compile()
-  ├── AuditPhaseExecutor      — calls run_pipeline() per domain
+  ├── AuditPhaseExecutor      — calls validate scripts via capability dispatch, with Rust pipeline fallback
   ├── FixPhaseExecutor        — creates fix sessions via audit-fix pipeline
-  └── VerifyPhaseExecutor     — re-runs pipelines, checks score threshold
+  └── VerifyPhaseExecutor     — re-runs validation, checks score threshold
 
 PlanOrchestrator — loads plan, finds pending phase, executes, updates status
 ```
+
+The legacy hardcoded planners (`NewProjectPlanner`, `DocAuditPlanner`, `ImplTestAuditPlanner`, `BuildAuditPlanner`) have been removed. All four `ProjectCase` variants now route to `StandardWorkflowPlanner` via `resolve_planner()`.
 
 ## Data Structures
 
@@ -71,7 +71,7 @@ pub enum PhaseStatus { Pending, InProgress, Completed, Failed, Blocked }
 
 ## SQLite Schema — V29
 
-Two new tables in `knowledge.db`:
+Two tables in `knowledge.db`:
 
 ```sql
 CREATE TABLE project_plans (
@@ -101,39 +101,20 @@ CREATE TABLE project_phases (
 );
 ```
 
-## Phase Generation Logic
+## Phase Generation Logic — StandardWorkflowPlanner
 
-### NewProjectPlanner
-1. Detect what docs exist (vs blank project)
-2. If blank: Phase 1 = Generate (compile all domains)
-3. Phase 2 = Audit (all doc domains)
-4. Phase 3 = Fix (doc findings, one phase per domain if many)
-5. Phase 4 = Audit (implementation, deterministic-runtime, security)
-6. Phase 5 = Fix (impl+security findings)
-7. Phase 6 = Audit (build)
-8. Phase 7 = Fix (build findings)
-9. Phase 8 = Verify (re-run critical pipelines + check gates)
+`StandardWorkflowPlanner` reads `plan_scenarios` from the registered documentation standard. Each scenario specifies tier ordering, domain grouping, dependency edges, and per-step content (audit/fix/verify directives).
 
-### DocAuditPlanner
-1. Run all doc-domain pipelines → collect findings
-2. Group findings by domain
-3. Generate one fix phase per domain with findings
-4. Order by dependency (architecture before feature)
-5. Add verify phase at end
-
-### ImplTestAuditPlanner
-1. Find all implementation, security, deterministic-runtime findings
-2. Generate fix phases per domain
-3. Add verify phase
-
-### BuildAuditPlanner
-1. Run build pipeline
-2. Generate fix phase for build findings
-3. Add verify phase
+1. Load `plan_scenarios` for the requested `ProjectCase`
+2. Determine tier ordering from standard's `domains_by_tier`
+3. Generate one phase per tier × step combination
+4. Apply `depends_on` edges between phases
+5. Apply `enforce_order` within a tier to split into sequential sub-phases
+6. Set `pipeline_ids` to empty (Audit/Verify phases dispatch via capability scripts, not hardcoded pipeline lists)
 
 ## Domain Ordering
 
-Doc domains ordered to minimize cascading rework:
+Derived from the standard's tier definitions, not hardcoded. Typical ordering:
 
 1. Vision
 2. Architecture
@@ -165,28 +146,18 @@ Doc domains ordered to minimize cascading rework:
 | Phase Type | What It Calls |
 |-----------|---------------|
 | `Generate` | `KnowledgeRuntime::compile()` |
-| `Audit` | `KnowledgeRuntime::run_pipeline()` per domain |
+| `Audit` | System `validate` scripts via `capability::resolve_capability()`, with Rust pipeline fallback for domains without a working script |
 | `Fix` | `apply_finding_fix()` / `generate_fix_plan()` per finding |
-| `Verify` | `run_pipeline()`, score compared against threshold (>= 70) |
-
-## Prerequisite Fixes
-
-Three changes required in existing code before Phase 3 (execution) works:
-
-1. **`run_pipeline()` must return `report_id`** — currently discards it after storing. Change return type to `(PipelineReport, i64)`.
-
-2. **Finding→target_path resolver** — needed for FixPhaseExecutor to derive file paths from findings automatically. Resolve `finding.document_id` via `registry.get_document(id)?.path`, fallback to `finding.location`.
-
-3. **Verify threshold** — Verify phase compares `PipelineReport.score` against >= 70.0 (matches the "Acceptable" rating band in `reporting.rs`).
+| `Verify` | Re-runs validation via capability scripts, score compared against threshold (>= 70) |
 
 ## V1 Scope
 
 | Capability | v1 |
 |-----------|-----|
-| Plan generation for all 4 cases | Yes |
+| Plan generation for all 4 cases via StandardWorkflowPlanner | Yes |
 | Phasewise execution with dependency tracking | Yes |
 | Progress tracking + status queries | Yes |
-| Auto-execute audit phase (run pipelines) | Yes |
+| Auto-execute audit phase (capability dispatch + fallback) | Yes |
 | Auto-generate fix sessions from findings | Yes |
 | Verify phase (re-audit + gate check) | Yes |
 

@@ -33,7 +33,7 @@ Documentation Standards define the audit rules that the framework executes. Each
 
 ### Audit Providers
 
-Audit Providers implement specific audit logic. Examples include the Deterministic Audit Provider and the Semantic Audit Provider. Providers register with the framework through a common interface.
+Audit Providers implement specific audit logic. In the new architecture, providers dispatch to system-provided `validate` scripts via capability dispatch. The deterministic core remains as a fallback for domains without a working system script. Providers register with the framework through a common interface.
 
 ### Knowledge Registry
 
@@ -134,7 +134,7 @@ Return Results
 
 ### Deterministic Core
 
-The Deterministic Audit Provider operates without AI or network access. It verifies document existence, metadata, structure, required sections, cross-references, mappings, links, and ownership.
+The deterministic audit core operates without AI or network access. It verifies document existence, metadata, structure, required sections, cross-references, mappings, links, and ownership. This core serves as a fallback when no system `validate` script is available for a domain.
 
 ### Optional Semantic Extension
 

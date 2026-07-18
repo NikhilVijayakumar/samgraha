@@ -18,13 +18,13 @@ Four goals are supported:
 - `impl-test-audit` — audit and fix implementation, security, and runtime issues
 - `build-audit` — audit and fix build configuration
 
-The planner reads project state from persisted artifacts (existing docs, previous reports) to determine the phase sequence. No separate runtime state is maintained.
+All four goals now route through `StandardWorkflowPlanner`, which reads plan scenarios from the registered documentation standard's `plan_scenarios` table. The planner determines phase sequence from the standard's tier definitions, domain ordering, and dependency rules. No separate runtime state is maintained.
 
 ### Acceptance Criteria
 
 - `project_plan({ case: "docs-audit" })` returns a plan with audit, fix, and verify phases
-- `project_plan({ case: "new-project" })` returns an 8-phase plan (generate → audit doc → fix doc → audit impl → fix impl → audit build → fix build → verify)
-- Plan includes dependency-aware phase ordering
+- `project_plan({ case: "new-project" })` returns a multi-phase plan (generate → audit doc → fix doc → audit impl → fix impl → audit build → fix build → verify)
+- Plan includes dependency-aware phase ordering derived from the standard's `plan_scenarios`
 - Plan is persisted and retrievable via `project_plan_get`
 
 ## FR2. Phasewise Execution
@@ -33,9 +33,9 @@ The planner shall execute a project plan one phase at a time.
 
 Each phase calls existing infrastructure:
 - `Generate` → `compile()`
-- `Audit` → `run_pipeline()` per domain
+- `Audit` → system `validate` scripts (via capability dispatch) or Rust pipeline fallback
 - `Fix` → `apply_finding_fix()` / `generate_fix_plan()` per finding
-- `Verify` → re-run pipeline, compare score against threshold (recommended: score >= 70)
+- `Verify` → re-run validation, compare score against threshold (recommended: score >= 70)
 
 Execution is sequential within a plan. No parallel phase execution in v1.
 

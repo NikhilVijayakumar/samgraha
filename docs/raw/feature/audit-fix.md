@@ -1,10 +1,8 @@
 # Audit-Fix Pipeline
 
-This section details the Audit-Fix Pipeline.
-
 ## Purpose
 
-The Audit-Fix Pipeline closes the remediation loop between audit findings and verified fixes. Each finding carries a three-layer context chain (Audit Spec → Audit Standard → Document Standard) that defines what "fixed" means. The pipeline consumes this chain to produce structured fix plans and, for documentation and configuration domains, auto-apply fixes with verification.
+The Audit-Fix Pipeline closes the remediation loop between audit findings and verified fixes. Each finding carries a three-layer context chain (Audit Spec → Audit Standard → Document Standard) that defines what "fixed" means. The pipeline consumes this chain to produce structured fix plans and, for documentation and configuration domains, auto-applies fixes with verification.
 
 Fix is verified by re-audit, not by assumption.
 
@@ -59,6 +57,8 @@ For Implementation, Build, Security, and Test plan types, the pipeline shall pro
 
 After a fix attempt, the pipeline shall re-run the failed check plus any dependent checks. If score ≥ 9/10, mark Fixed. If score < 9 and attempts < 3, feed verification details back to the planner and retry. If score < 9 and attempts ≥ 3, mark for human review.
 
+Verification dispatches through the capability script system: the pipeline calls the system's `validate` script for the relevant domain, passing the target file path and check IDs to re-evaluate.
+
 ---
 
 ## FR7. Dependent Check Re-Run
@@ -110,7 +110,7 @@ FixPlanner → produces FixPlan
 Executor → applies FixPlan (doc/config auto-write; others render plan)
     │
     ▼
-Verifier → re-runs failed check + dependents
+Verifier → re-runs failed check + dependents via capability::validate script
     ├─ score ≥ 9 → mark Fixed
     ├─ score < 9, attempts < 3 → feedback → FixPlanner refines
     └─ score < 9, attempts ≥ 3 → needs_human_review
@@ -167,7 +167,7 @@ The Audit-Fix Pipeline depends upon:
 - Audit Framework (reports, findings, scoring)
 - Documentation Standards (defines the compliance target)
 - Audit Specs (defines checks and procedures)
-- KnowledgeRuntime (`run_single_check()` — net-new)
+- Capability Dispatch (`validate` scripts for re-audit verification)
 - SQLite Registry (`fix_sessions`, `fix_attempts`, `fix_plans`, `fix_plan_steps` tables)
 - MCP Runtime (tool registration and dispatch)
 - Template engine (reporting.rs — plan rendering)
