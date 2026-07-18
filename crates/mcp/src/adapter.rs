@@ -190,6 +190,8 @@ impl McpAdapter {
         caps.methods.push("run_system_plan_generation".to_string());
         caps.methods.push("store_system_plan".to_string());
         caps.methods.push("get_system_plan".to_string());
+        caps.methods.push("store_plan_generation_input".to_string());
+        caps.methods.push("get_plan_generation_input".to_string());
         let orchestrator = PlanOrchestrator::new(
             Arc::clone(&runtime),
             Arc::clone(&runtime.registry),
@@ -388,6 +390,8 @@ impl McpAdapter {
             // System plan storage (§8.4)
             "store_system_plan"          => self.handle_store_system_plan(&req),
             "get_system_plan"            => self.handle_get_system_plan(&req),
+            "store_plan_generation_input" => self.handle_store_plan_generation_input(&req),
+            "get_plan_generation_input"  => self.handle_get_plan_generation_input(&req),
             _                         => Err(anyhow::anyhow!("Unknown method: {}", req.method)),
         };
 
@@ -1996,47 +2000,47 @@ impl McpAdapter {
             resolve_standard_id(&runtime.registry.conn, system_name).ok();
 
         // ── Prerequisite gate (§8.6) ───────────────────────────────────
-        // `gated_phase` carries the resolved phase's expiry rule forward to
+        // `gated_expiry` carries the resolved phase's expiry rule forward to
         // the run-tracking write below, so a successful run records the
         // rule its own plan declared, not a guess.
-        let mut gated_phase: Option<audit::capability::PlanPhase> = None;
+        let mut gated_expiry: Option<audit::capability::ExpiryRule> = None;
         if let (Some(pid), Some(sid)) = (phase_id, standard_id) {
-            // Look up the system's stored init plan.
-            let plan_json: Option<String> = runtime.registry.conn.query_row(
-                "SELECT plan_json FROM system_plans
-                 WHERE standard_id = ?1 AND repo_fingerprint = ?2",
-                rusqlite::params![sid, repo_fp],
-                |row| row.get(0),
+            // Look up the phase from the normalized workflow tables.
+            let phase_info: Option<(String, Option<String>)> = runtime.registry.conn.query_row(
+                "SELECT wp.kind, wp.expiry_rule_json FROM workflow_phases wp
+                 JOIN workflow_use_cases wuc ON wp.use_case_id = wuc.id
+                 WHERE wuc.standard_id = ?1 AND wp.phase_id = ?2",
+                rusqlite::params![sid, pid],
+                |row| Ok((row.get(0)?, row.get(1)?)),
             ).ok();
 
-            if let Some(json_str) = plan_json {
-                if let Ok(plan) = serde_json::from_str::<audit::capability::InitPlan>(&json_str) {
-                    if let Some(phase) = plan.find_phase(pid) {
-                        let check = audit::capability::check_phase_prerequisites(
-                            &runtime.registry.conn,
-                            sid,
-                            &repo_fp,
-                            phase,
-                            current_head.as_deref(),
-                        );
-                        if check.blocked {
-                            return Ok(serde_json::json!({
-                                "blocked": true,
-                                "reason": check.reason,
-                                "system": plan.system,
-                                "phase_id": check.phase_id,
-                                "phase_kind": phase.kind,
-                                "message": check.message,
-                                "how_to_run": {
-                                    "tool": "run_system_script",
-                                    "args": {
-                                        "capability": capability.to_string(),
-                                        "phase_id": pid,
-                                    }
-                                }
-                            }));
+            if let Some((kind, expiry_json)) = phase_info {
+                let check = audit::capability::check_phase_prerequisites(
+                    &runtime.registry.conn,
+                    sid,
+                    &repo_fp,
+                    pid,
+                    current_head.as_deref(),
+                );
+                if check.blocked {
+                    return Ok(serde_json::json!({
+                        "blocked": true,
+                        "reason": check.reason,
+                        "phase_id": check.phase_id,
+                        "phase_kind": kind,
+                        "message": check.message,
+                        "how_to_run": {
+                            "tool": "run_system_script",
+                            "args": {
+                                "capability": capability.to_string(),
+                                "phase_id": pid,
+                            }
                         }
-                        gated_phase = Some(phase.clone());
+                    }));
+                }
+                if let Some(ej) = expiry_json {
+                    if let Ok(rule) = serde_json::from_str::<audit::capability::ExpiryRule>(&ej) {
+                        gated_expiry = Some(rule);
                     }
                 }
             }
@@ -2084,7 +2088,7 @@ impl McpAdapter {
                     if let Some(sid) = standard_id {
                         let cap_name = capability.to_string();
                         let key = phase_id.unwrap_or(cap_name.as_str());
-                        let expiry = gated_phase.as_ref().and_then(|p| p.expiry.as_ref());
+                        let expiry = gated_expiry.as_ref();
                         if let Err(e) = audit::capability::record_script_run(
                             &runtime.registry.conn,
                             sid,
@@ -2117,14 +2121,15 @@ impl McpAdapter {
         }
     }
 
-    /// Store a system's init plan output (§8.4). Upserts by standard+repo+system.
+    /// Store a system's init plan output (§8.4) into normalized tables.
+    /// Replaces the old JSON-blob approach: one row per use case, one row
+    /// per phase, real edges for dependencies (§2.1).
     fn handle_store_system_plan(&self, req: &McpRequest) -> Result<serde_json::Value> {
         let system_name = parse_string(req, "system_name")?;
         let plan_json_str = parse_string(req, "plan_json")?;
 
-        // Validate that plan_json is valid JSON and conforms to §8.4 shape.
         let plan: audit::capability::InitPlan = serde_json::from_str(&plan_json_str)
-            .with_context(|| format!("plan_json is not valid §8.4 InitPlan JSON"))?;
+            .with_context(|| "plan_json is not valid §8.4 InitPlan JSON")?;
 
         if plan.system != system_name {
             anyhow::bail!(
@@ -2135,56 +2140,293 @@ impl McpAdapter {
         }
 
         let runtime = self.runtime_for(req)?;
-        let repo_fingerprint = common::env::repo_fingerprint(&runtime.context.repository_root);
         let standard_id = resolve_standard_id(&runtime.registry.conn, Some(&system_name))?;
-
         let db = &runtime.registry.conn;
+
+        // Clear old data for this standard (system-level, not per-repo).
         db.execute(
-            "INSERT INTO system_plans (standard_id, repo_fingerprint, system_name, plan_json, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, datetime('now'), datetime('now'))
-             ON CONFLICT(standard_id, repo_fingerprint, system_name)
-             DO UPDATE SET plan_json = excluded.plan_json, updated_at = datetime('now')",
-            rusqlite::params![standard_id, repo_fingerprint, system_name, plan_json_str],
+            "DELETE FROM workflow_phase_dependencies WHERE phase_id IN (
+                SELECT id FROM workflow_phases WHERE use_case_id IN (
+                    SELECT id FROM workflow_use_cases WHERE standard_id = ?1
+                )
+            )",
+            rusqlite::params![standard_id],
         )?;
+        db.execute(
+            "DELETE FROM workflow_phases WHERE use_case_id IN (
+                SELECT id FROM workflow_use_cases WHERE standard_id = ?1
+            )",
+            rusqlite::params![standard_id],
+        )?;
+        db.execute(
+            "DELETE FROM workflow_use_cases WHERE standard_id = ?1",
+            rusqlite::params![standard_id],
+        )?;
+
+        let mut total_phases = 0usize;
+
+        // First pass: insert use cases and phases.
+        for (_uc_idx, use_case) in plan.use_cases.iter().enumerate() {
+            db.execute(
+                "INSERT INTO workflow_use_cases (standard_id, use_case_id, label)
+                 VALUES (?1, ?2, ?3)",
+                rusqlite::params![standard_id, use_case.id, use_case.label],
+            )?;
+
+            let uc_row_id: i64 = db.query_row(
+                "SELECT id FROM workflow_use_cases WHERE standard_id = ?1 AND use_case_id = ?2",
+                rusqlite::params![standard_id, use_case.id],
+                |row| row.get(0),
+            )?;
+
+            for (phase_idx, phase) in use_case.phases.iter().enumerate() {
+                let expiry_json = phase.expiry.as_ref()
+                    .map(|e| serde_json::to_string(e).unwrap_or_default());
+
+                db.execute(
+                    "INSERT INTO workflow_phases
+                        (use_case_id, phase_id, sort_order, kind, description,
+                         script_path, pre_script, post_script, expiry_rule_json)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                    rusqlite::params![
+                        uc_row_id, phase.id, phase_idx as i64, phase.kind,
+                        phase.description, phase.script, phase.pre_script,
+                        phase.post_script, expiry_json
+                    ],
+                )?;
+                total_phases += 1;
+            }
+        }
+
+        // Second pass: insert dependency edges.
+        for use_case in &plan.use_cases {
+            let uc_row_id: i64 = db.query_row(
+                "SELECT id FROM workflow_use_cases WHERE standard_id = ?1 AND use_case_id = ?2",
+                rusqlite::params![standard_id, use_case.id],
+                |row| row.get(0),
+            )?;
+
+            for phase in &use_case.phases {
+                let phase_row_id: i64 = db.query_row(
+                    "SELECT id FROM workflow_phases WHERE use_case_id = ?1 AND phase_id = ?2",
+                    rusqlite::params![uc_row_id, phase.id],
+                    |row| row.get(0),
+                )?;
+
+                for dep_id in &phase.depends_on {
+                    let dep_row_id: Option<i64> = db.query_row(
+                        "SELECT wp.id FROM workflow_phases wp
+                         JOIN workflow_use_cases wuc ON wp.use_case_id = wuc.id
+                         WHERE wuc.standard_id = ?1 AND wp.phase_id = ?2",
+                        rusqlite::params![standard_id, dep_id],
+                        |row| row.get(0),
+                    ).ok();
+
+                    if let Some(dep_rid) = dep_row_id {
+                        db.execute(
+                            "INSERT INTO workflow_phase_dependencies
+                                (phase_id, depends_on_phase_id)
+                             VALUES (?1, ?2)
+                             ON CONFLICT(phase_id, depends_on_phase_id) DO NOTHING",
+                            rusqlite::params![phase_row_id, dep_rid],
+                        )?;
+                    }
+                }
+            }
+        }
 
         Ok(serde_json::json!({
             "stored": true,
             "system_name": system_name,
             "use_cases": plan.use_cases.len(),
-            "total_phases": plan.use_cases.iter().map(|uc| uc.phases.len()).sum::<usize>(),
+            "total_phases": total_phases,
         }))
     }
 
-    /// Retrieve a stored init plan for a system+repo (§8.4).
+    /// Retrieve a stored init plan for a system, reconstructed from the
+    /// normalized workflow_use_cases / workflow_phases /
+    /// workflow_phase_dependencies tables.
     fn handle_get_system_plan(&self, req: &McpRequest) -> Result<serde_json::Value> {
         let system_name = parse_string(req, "system_name")?;
         let runtime = self.runtime_for(req)?;
-        let repo_fingerprint = common::env::repo_fingerprint(&runtime.context.repository_root);
-        // Graceful, not `?`: querying for a plan before its system is even
-        // registered is a legitimate "does one exist yet" check, same
-        // shape as the plain "no row found" case below.
         let standard_id = resolve_standard_id(&runtime.registry.conn, Some(&system_name)).ok();
 
-        let db = &runtime.registry.conn;
-        let result: Option<String> = standard_id.and_then(|sid| db.query_row(
-            "SELECT plan_json FROM system_plans
-             WHERE standard_id = ?1 AND repo_fingerprint = ?2 AND system_name = ?3",
-            rusqlite::params![sid, repo_fingerprint, system_name],
-            |row| row.get(0),
-        ).ok());
-
-        match result {
-            Some(json_str) => {
-                let plan: serde_json::Value = serde_json::from_str(&json_str)?;
-                Ok(serde_json::json!({
-                    "system_name": system_name,
-                    "plan": plan,
-                }))
-            }
-            None => Ok(serde_json::json!({
+        let standard_id = match standard_id {
+            Some(sid) => sid,
+            None => return Ok(serde_json::json!({
                 "system_name": system_name,
                 "plan": null,
             })),
+        };
+
+        let db = &runtime.registry.conn;
+
+        // Check if any use cases exist.
+        let uc_count: i64 = db.query_row(
+            "SELECT COUNT(*) FROM workflow_use_cases WHERE standard_id = ?1",
+            rusqlite::params![standard_id],
+            |row| row.get(0),
+        ).unwrap_or(0);
+
+        if uc_count == 0 {
+            return Ok(serde_json::json!({
+                "system_name": system_name,
+                "plan": null,
+            }));
+        }
+
+        // Reconstruct InitPlan from normalized tables.
+        let mut use_cases_json = Vec::new();
+
+        let mut uc_stmt = db.prepare(
+            "SELECT id, use_case_id, label FROM workflow_use_cases
+             WHERE standard_id = ?1"
+        )?;
+        let uc_rows = uc_stmt.query_map(rusqlite::params![standard_id], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?))
+        })?;
+
+        for uc_row in uc_rows {
+            let (uc_db_id, use_case_id, label) = uc_row?;
+
+            let mut phase_stmt = db.prepare(
+                "SELECT id, phase_id, kind, description, script_path,
+                        pre_script, post_script, expiry_rule_json
+                 FROM workflow_phases
+                 WHERE use_case_id = ?1
+                 ORDER BY sort_order"
+            )?;
+            let phase_rows = phase_stmt.query_map(rusqlite::params![uc_db_id], |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, Option<String>>(3)?,
+                    row.get::<_, Option<String>>(4)?,
+                    row.get::<_, Option<String>>(5)?,
+                    row.get::<_, Option<String>>(6)?,
+                    row.get::<_, Option<String>>(7)?,
+                ))
+            })?;
+
+            let mut phases_json = Vec::new();
+            for pr in phase_rows {
+                let (phase_db_id, phase_id, kind, desc, script, pre, post, expiry_json) = pr?;
+
+                // Get dependency phase IDs (string IDs, not integer PKs).
+                let mut deps = Vec::new();
+                let mut dep_stmt = db.prepare(
+                    "SELECT wp.phase_id FROM workflow_phase_dependencies wpd
+                     JOIN workflow_phases wp ON wpd.depends_on_phase_id = wp.id
+                     WHERE wpd.phase_id = ?1"
+                )?;
+                let dep_rows = dep_stmt.query_map(rusqlite::params![phase_db_id], |row| {
+                    row.get::<_, String>(0)
+                })?;
+                for dr in dep_rows {
+                    deps.push(dr?);
+                }
+
+                let mut phase_obj = serde_json::json!({
+                    "id": phase_id,
+                    "kind": kind,
+                    "depends_on": deps,
+                });
+                if let Some(d) = desc { phase_obj["description"] = serde_json::json!(d); }
+                if let Some(s) = script { phase_obj["script"] = serde_json::json!(s); }
+                if let Some(p) = pre { phase_obj["pre_script"] = serde_json::json!(p); }
+                if let Some(p) = post { phase_obj["post_script"] = serde_json::json!(p); }
+                if let Some(e) = expiry_json {
+                    if let Ok(val) = serde_json::from_str::<serde_json::Value>(&e) {
+                        phase_obj["expiry"] = val;
+                    }
+                }
+
+                phases_json.push(phase_obj);
+            }
+
+            use_cases_json.push(serde_json::json!({
+                "id": use_case_id,
+                "label": label,
+                "phases": phases_json,
+            }));
+        }
+
+        Ok(serde_json::json!({
+            "system_name": system_name,
+            "plan": {
+                "system": system_name,
+                "use_cases": use_cases_json,
+            },
+        }))
+    }
+
+    /// Store a plan-generation semantic input (§8.3). Upserts by
+    /// standard+repo+workflow+domain+instance using COALESCE virtual
+    /// columns to handle NULL keys correctly (§3.0).
+    fn handle_store_plan_generation_input(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let system_name = parse_string(req, "system_name")?;
+        let workflow_id = parse_string(req, "workflow_id")?;
+        let input_json = parse_string(req, "input_json")?;
+        let domain_key: Option<String> = req.params.get("domain_key").and_then(|v| v.as_str()).map(String::from);
+        let instance_key: Option<String> = req.params.get("instance_key").and_then(|v| v.as_str()).map(String::from);
+
+        let runtime = self.runtime_for(req)?;
+        let repo_fingerprint = common::env::repo_fingerprint(&runtime.context.repository_root);
+        let standard_id = resolve_standard_id(&runtime.registry.conn, Some(&system_name))?;
+        let db = &runtime.registry.conn;
+
+        db.execute(
+            "INSERT INTO plan_generation_inputs
+                (standard_id, repo_fingerprint, workflow_id, domain_key,
+                 instance_key, input_json, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, datetime('now'))
+             ON CONFLICT(standard_id, repo_fingerprint, workflow_id,
+                         domain_key_key, instance_key_key)
+             DO UPDATE SET previous_input_json = plan_generation_inputs.input_json,
+                           input_json = excluded.input_json,
+                           created_at = excluded.created_at",
+            rusqlite::params![standard_id, repo_fingerprint, workflow_id, domain_key, instance_key, input_json],
+        )?;
+
+        Ok(serde_json::json!({
+            "stored": true,
+            "system_name": system_name,
+            "workflow_id": workflow_id,
+        }))
+    }
+
+    /// Retrieve a stored plan-generation semantic input (§8.3).
+    fn handle_get_plan_generation_input(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let system_name = parse_string(req, "system_name")?;
+        let workflow_id = parse_string(req, "workflow_id")?;
+        let domain_key: Option<String> = req.params.get("domain_key").and_then(|v| v.as_str()).map(String::from);
+        let instance_key: Option<String> = req.params.get("instance_key").and_then(|v| v.as_str()).map(String::from);
+
+        let runtime = self.runtime_for(req)?;
+        let repo_fingerprint = common::env::repo_fingerprint(&runtime.context.repository_root);
+        let standard_id = match resolve_standard_id(&runtime.registry.conn, Some(&system_name)) {
+            Ok(sid) => sid,
+            Err(_) => return Ok(serde_json::json!({ "input": null })),
+        };
+
+        let db = &runtime.registry.conn;
+        let result: Option<(String, Option<String>)> = db.query_row(
+            "SELECT input_json, previous_input_json FROM plan_generation_inputs
+             WHERE standard_id = ?1 AND repo_fingerprint = ?2
+               AND workflow_id = ?3
+               AND domain_key_key = COALESCE(?4, '')
+               AND instance_key_key = COALESCE(?5, '')",
+            rusqlite::params![standard_id, repo_fingerprint, workflow_id, domain_key, instance_key],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        ).ok();
+
+        match result {
+            Some((input, previous)) => Ok(serde_json::json!({
+                "input_json": input,
+                "previous_input_json": previous,
+            })),
+            None => Ok(serde_json::json!({ "input": null })),
         }
     }
 }
@@ -2347,7 +2589,7 @@ mod repository_matrix_tests {
     fn setup_mock_global_store(dir: &Path, system_name: &str, version: &str) {
         let conn = rusqlite::Connection::open(dir.join("standards.db")).unwrap();
         conn.execute_batch(&format!(
-            "PRAGMA user_version = 1;
+            "PRAGMA user_version = 2;
              CREATE TABLE IF NOT EXISTS systems (
                  id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE,
                  description TEXT, is_default INTEGER NOT NULL DEFAULT 1

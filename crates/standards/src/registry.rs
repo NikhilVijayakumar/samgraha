@@ -1,7 +1,7 @@
 use crate::loader::StandardLoader;
 use anyhow::{Context, Result};
 use schemas::audit::ScoringConfig;
-use schemas::standard::{AuditRuleDef, StandardDeclaration, StandardDefinition, StandardDoc, PlanSetting, PlanScenario, ScriptCheck, WorkflowStage};
+use schemas::standard::{AuditRuleDef, StandardDeclaration, StandardDefinition, StandardDoc, PlanSetting, PlanScenario, ScriptCheck};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -14,7 +14,6 @@ pub struct StandardRegistry {
     plan_scenarios: Vec<PlanScenario>,
     script_checks: Vec<ScriptCheck>,
     standard_docs: HashMap<String, StandardDoc>,
-    workflow_stages: Vec<WorkflowStage>,
 }
 
 impl StandardRegistry {
@@ -27,7 +26,6 @@ impl StandardRegistry {
             plan_scenarios: Vec::new(),
             script_checks: Vec::new(),
             standard_docs: HashMap::new(),
-            workflow_stages: Vec::new(),
         }
     }
 
@@ -222,18 +220,6 @@ impl StandardRegistry {
     }
 
     /// A standard's `plan/core/loop.yaml` `stages:` list, in declared order
-    /// — `python_hackathon`'s repository-scope competition loop
-    /// (repository -> audit -> calculate -> ... -> report). Empty for a
-    /// standard whose workflow model is tier/plan_scenarios-based instead
-    /// (`base_dev` has no flat `stages:` list at all).
-    pub fn workflow_stages(&self) -> &[WorkflowStage] {
-        &self.workflow_stages
-    }
-
-    pub fn set_workflow_stages(&mut self, stages: Vec<WorkflowStage>) {
-        self.workflow_stages = stages;
-    }
-
     pub fn script_checks(&self) -> &[ScriptCheck] {
         &self.script_checks
     }

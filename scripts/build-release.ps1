@@ -123,11 +123,15 @@ print(r'  -> $knowledgeDb (empty schema)')
 "@
 }
 
-# Ship schema + loader for Knowledge System registration
+# Ship schema + loader (+ its helper modules, e.g. system_merger.py for
+# inheritance/system.yaml merging) for Knowledge System registration.
+# *.py, not just knowledge-hub-loader.py by name -- a loader import
+# (ModuleNotFoundError) is otherwise silent here and only surfaces later,
+# at register_standard time, in a packaged release.
 New-Item -ItemType Directory -Force "$pkgDir\schema\knowledge-hub" | Out-Null
 Copy-Item "$schemaDir\*.sql" "$pkgDir\schema\knowledge-hub\" -Force
-Copy-Item "$schemaDir\knowledge-hub-loader.py" "$pkgDir\schema\knowledge-hub\" -Force
-Write-Host "  -> schema/knowledge-hub/ (loader + schema files)" -ForegroundColor Cyan
+Copy-Item "$schemaDir\*.py" "$pkgDir\schema\knowledge-hub\" -Force
+Write-Host "  -> schema/knowledge-hub/ (loader + helper modules + schema files)" -ForegroundColor Cyan
 
 # Launcher scripts
 $runCmdLines = @(

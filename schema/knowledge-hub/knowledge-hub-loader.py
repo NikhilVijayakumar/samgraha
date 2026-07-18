@@ -30,7 +30,7 @@ import yaml
 # extra table needed. `register`/`sync` on the Rust side reject a source DB
 # whose version doesn't match, instead of a confusing downstream SQL error
 # when a query expects a table/column an older or newer DB doesn't have.
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 # ---------------------------------------------------------------------------
@@ -540,7 +540,6 @@ def pass_3(conn: sqlite3.Connection, standard_id: int, layout: dict[str, Path]) 
 def pass_4(conn: sqlite3.Connection, standard_id: int, layout: dict[str, Path]) -> None:
     schema_dir = layout["script_schema"]
     check_name_to_id: dict[str, int] = {}
-    manifest_data: list[dict] = []  # defer dependency insertion
 
     for manifest_file in sorted(schema_dir.rglob("*.manifest.yaml")):
         domain_folder = manifest_file.parent.name
@@ -601,33 +600,11 @@ def pass_4(conn: sqlite3.Connection, standard_id: int, layout: dict[str, Path]) 
         ).fetchone()
         check_name_to_id[check_name] = row[0]
 
-        # Collect dependencies for second pass
-        for dep_name in manifest.get("depends_on", []):
-            manifest_data.append({"check_name": check_name, "depends_on": dep_name})
-
-    # Second pass: resolve dependencies by name → id
-    dep_count = 0
-    for dep in manifest_data:
-        check_id = check_name_to_id.get(dep["check_name"])
-        dep_id = check_name_to_id.get(dep["depends_on"])
-        if check_id is None:
-            raise ValueError(f"Unknown check in dependency: {dep['check_name']}")
-        if dep_id is None:
-            raise ValueError(
-                f"Unknown dependency target: {dep['depends_on']} "
-                f"(referenced by {dep['check_name']})"
-            )
-        conn.execute(
-            """INSERT INTO script_check_dependencies
-                  (script_check_id, depends_on_check_id)
-               VALUES (?, ?)
-               ON CONFLICT (script_check_id, depends_on_check_id) DO NOTHING""",
-            (check_id, dep_id),
-        )
-        dep_count += 1
-
+    # script_check_dependencies was dropped (schema-redesign-proposal.md §4.2
+    # — zero Rust consumers, confirmed by usage audit) — a manifest's own
+    # `depends_on` list stays in script/schema/*.manifest.yaml on disk;
+    # nothing here needs to duplicate it into rows anymore.
     print(f"  script_checks: {len(check_name_to_id)}")
-    print(f"  script_check_dependencies: {dep_count}")
 
 
 # ---------------------------------------------------------------------------
@@ -1405,36 +1382,11 @@ def pass_9(conn: sqlite3.Connection, standard_id: int, layout: dict[str, Path]) 
 
 
 # ---------------------------------------------------------------------------
-# Pass 10 — workflow_stages
+# Pass 10 — removed. workflow_stages was dropped (schema-redesign-proposal.md
+# §4.1 — query ran every startup, result never consumed by any Rust caller;
+# superseded by plan_scenarios and, going forward, workflow_phases). No
+# replacement pass needed here — nothing reads a stage list from the DB.
 # ---------------------------------------------------------------------------
-
-@register_pass
-def pass_10(conn: sqlite3.Connection, standard_id: int, layout: dict[str, Path]) -> None:
-    """plan/core/loop.yaml's `stages:` list -> workflow_stages, one row per
-    stage in order. Reuses the same file Pass 1 already reads for
-    within_tier_ordering and Pass 8 already reads for its threshold header —
-    this pass is the one piece of that file (the stage sequence itself)
-    neither of those touches."""
-    loop_path = layout["plan_loop"]
-    loop_data = yaml.safe_load(loop_path.read_text(encoding="utf-8"))
-    stages = loop_data.get("stages", [])
-
-    conn.execute("DELETE FROM workflow_stages WHERE standard_id = ?", (standard_id,))
-    stage_count = 0
-    for i, stage in enumerate(stages):
-        if not isinstance(stage, dict) or len(stage) != 1:
-            print(f"  WARNING: stage #{i} in {loop_path} is not a single-key dict, skipping: {stage!r}")
-            continue
-        ((stage_type, params),) = stage.items()
-        params = params or {}
-        conn.execute(
-            """INSERT INTO workflow_stages (standard_id, sort_order, stage_type, params_json)
-               VALUES (?, ?, ?, ?)""",
-            (standard_id, i, stage_type, json.dumps(params)),
-        )
-        stage_count += 1
-
-    print(f"  workflow_stages: {stage_count}")
 
 
 # ---------------------------------------------------------------------------

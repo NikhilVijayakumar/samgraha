@@ -5,6 +5,12 @@
 -- Re-running the semantic-determination step upserts (ON CONFLICT):
 -- the current input_json shifts into previous_input_json before
 -- overwriting, giving a one-generation-back hedge for iteration.
+--
+-- domain_key/instance_key are nullable (NULL = plan-level, not
+-- domain-specific). SQLite's UNIQUE treats NULL != NULL, so raw nullable
+-- columns in the constraint would never catch plan-level duplicates.
+-- Fixed with COALESCE virtual columns matching the precedent in
+-- rules.sql and templates.sql (§3.0 of schema-redesign-proposal.md).
 
 CREATE TABLE plan_generation_inputs (
     id               INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -16,7 +22,9 @@ CREATE TABLE plan_generation_inputs (
     input_json       TEXT    NOT NULL,  -- the semantic determination's own output, opaque to samgraha
     previous_input_json TEXT,           -- prior input_json, shifted here by the upsert
     created_at       TEXT    NOT NULL DEFAULT (datetime('now')),  -- ISO8601
-    UNIQUE(standard_id, repo_fingerprint, workflow_id, domain_key, instance_key)
+    domain_key_key    TEXT GENERATED ALWAYS AS (COALESCE(domain_key, '')) VIRTUAL,
+    instance_key_key  TEXT GENERATED ALWAYS AS (COALESCE(instance_key, '')) VIRTUAL,
+    UNIQUE(standard_id, repo_fingerprint, workflow_id, domain_key_key, instance_key_key)
 );
 
 CREATE INDEX idx_plan_gen_inputs_lookup ON plan_generation_inputs(standard_id, repo_fingerprint, workflow_id);

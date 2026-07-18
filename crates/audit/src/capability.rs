@@ -279,16 +279,6 @@ pub struct InitPlan {
     pub use_cases: Vec<PlanUseCase>,
 }
 
-impl InitPlan {
-    /// Find a phase by its id across all use cases.
-    pub fn find_phase(&self, phase_id: &str) -> Option<&PlanPhase> {
-        self.use_cases
-            .iter()
-            .flat_map(|uc| &uc.phases)
-            .find(|p| p.id == phase_id)
-    }
-}
-
 /// Result of checking whether a phase's prerequisites are met (§8.6).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PrerequisiteCheck {
@@ -303,10 +293,11 @@ pub struct PrerequisiteCheck {
 
 // ── Prerequisite checking (§8.6) ─────────────────────────────────────────
 
-/// Check whether a phase's `depends_on` entries are all satisfied.
+/// Check whether a phase's dependencies are all satisfied.
 ///
-/// For each dependency phase, looks up `script_runs` for a matching row
-/// and evaluates its validity:
+/// Queries `workflow_phase_dependencies` to find the phase's dependency
+/// phase IDs, then for each dependency looks up `script_runs` for a
+/// matching row and evaluates its validity:
 /// - No row → `reason: "missing_precondition"`
 /// - Row exists but expired → `reason: "expired_precondition"`
 /// - Row exists and valid → continue to next dep
@@ -316,10 +307,44 @@ pub fn check_phase_prerequisites(
     conn: &rusqlite::Connection,
     standard_id: i64,
     repo_fingerprint: &str,
-    phase: &PlanPhase,
+    phase_id: &str,
     current_head: Option<&str>,
 ) -> PrerequisiteCheck {
-    for dep_id in &phase.depends_on {
+    // Resolve the phase's workflow_phases.id from its string phase_id.
+    let phase_row_id: Option<i64> = conn.query_row(
+        "SELECT wp.id FROM workflow_phases wp
+         JOIN workflow_use_cases wuc ON wp.use_case_id = wuc.id
+         WHERE wuc.standard_id = ?1 AND wp.phase_id = ?2",
+        rusqlite::params![standard_id, phase_id],
+        |row| row.get(0),
+    ).ok();
+
+    let phase_row_id = match phase_row_id {
+        Some(id) => id,
+        None => {
+            // Phase not in the plan at all — nothing to gate on.
+            return PrerequisiteCheck {
+                blocked: false,
+                reason: None,
+                phase_id: None,
+                message: None,
+            };
+        }
+    };
+
+    // Get dependency phase IDs (string IDs) from the normalized edges.
+    let mut dep_stmt = conn.prepare(
+        "SELECT wp2.phase_id FROM workflow_phase_dependencies wpd
+         JOIN workflow_phases wp2 ON wpd.depends_on_phase_id = wp2.id
+         WHERE wpd.phase_id = ?1"
+    ).expect("failed to prepare dependency query");
+    let dep_ids: Vec<String> = dep_stmt
+        .query_map(rusqlite::params![phase_row_id], |row| row.get(0))
+        .expect("failed to query dependencies")
+        .filter_map(|r| r.ok())
+        .collect();
+
+    for dep_id in &dep_ids {
         // Look up the dependency's last run.
         let row: Option<(String, Option<String>, Option<String>, Option<String>)> = conn
             .query_row(
@@ -505,6 +530,32 @@ mod tests {
         let conn = rusqlite::Connection::open_in_memory().unwrap();
         conn.execute_batch(
             "CREATE TABLE standards (id INTEGER PRIMARY KEY);
+             CREATE TABLE workflow_use_cases (
+                 id INTEGER PRIMARY KEY,
+                 standard_id INTEGER NOT NULL,
+                 use_case_id TEXT NOT NULL,
+                 label TEXT NOT NULL,
+                 UNIQUE(standard_id, use_case_id)
+             );
+             CREATE TABLE workflow_phases (
+                 id INTEGER PRIMARY KEY,
+                 use_case_id INTEGER NOT NULL,
+                 phase_id TEXT NOT NULL,
+                 sort_order INTEGER NOT NULL DEFAULT 0,
+                 kind TEXT NOT NULL,
+                 description TEXT,
+                 script_path TEXT,
+                 pre_script TEXT,
+                 post_script TEXT,
+                 expiry_rule_json TEXT,
+                 UNIQUE(use_case_id, phase_id)
+             );
+             CREATE TABLE workflow_phase_dependencies (
+                 id INTEGER PRIMARY KEY,
+                 phase_id INTEGER NOT NULL,
+                 depends_on_phase_id INTEGER NOT NULL,
+                 UNIQUE(phase_id, depends_on_phase_id)
+             );
              CREATE TABLE script_runs (
                  id INTEGER PRIMARY KEY AUTOINCREMENT,
                  standard_id INTEGER NOT NULL,
@@ -517,30 +568,24 @@ mod tests {
                  head_commit_at_run TEXT,
                  UNIQUE(standard_id, repo_fingerprint, capability, phase_or_check_key)
              );
-             INSERT INTO standards (id) VALUES (1);",
+             INSERT INTO standards (id) VALUES (1);
+             INSERT INTO workflow_use_cases (id, standard_id, use_case_id, label)
+                 VALUES (1, 1, 'test-uc', 'Test UC');
+             INSERT INTO workflow_phases (id, use_case_id, phase_id, sort_order, kind)
+                 VALUES (1, 1, 'consumer', 0, 'script');
+             INSERT INTO workflow_phases (id, use_case_id, phase_id, sort_order, kind)
+                 VALUES (2, 1, 'producer', 1, 'script');
+             INSERT INTO workflow_phase_dependencies (phase_id, depends_on_phase_id)
+                 VALUES (1, 2);",
         )
         .unwrap();
         conn
     }
 
-    fn phase_depending_on(dep: &str, expiry: Option<ExpiryRule>) -> PlanPhase {
-        PlanPhase {
-            id: "consumer".to_string(),
-            kind: "script".to_string(),
-            description: String::new(),
-            depends_on: vec![dep.to_string()],
-            script: None,
-            pre_script: None,
-            post_script: None,
-            expiry,
-        }
-    }
-
     #[test]
     fn no_run_recorded_blocks_with_missing_precondition() {
         let conn = test_db();
-        let phase = phase_depending_on("producer", None);
-        let check = check_phase_prerequisites(&conn, 1, "repo-a", &phase, None);
+        let check = check_phase_prerequisites(&conn, 1, "repo-a", "consumer", None);
         assert!(check.blocked);
         assert_eq!(check.reason.as_deref(), Some("missing_precondition"));
         assert_eq!(check.phase_id.as_deref(), Some("producer"));
@@ -560,8 +605,7 @@ mod tests {
         )
         .unwrap();
 
-        let phase = phase_depending_on("producer", None);
-        let check = check_phase_prerequisites(&conn, 1, "repo-a", &phase, None);
+        let check = check_phase_prerequisites(&conn, 1, "repo-a", "consumer", None);
         assert!(!check.blocked, "expected unblocked, got {:?}", check);
     }
 
@@ -585,8 +629,7 @@ mod tests {
         // so "now" at check-time is strictly after it.
         std::thread::sleep(std::time::Duration::from_millis(10));
 
-        let phase = phase_depending_on("producer", None);
-        let check = check_phase_prerequisites(&conn, 1, "repo-a", &phase, None);
+        let check = check_phase_prerequisites(&conn, 1, "repo-a", "consumer", None);
         assert!(check.blocked);
         assert_eq!(check.reason.as_deref(), Some("expired_precondition"));
     }

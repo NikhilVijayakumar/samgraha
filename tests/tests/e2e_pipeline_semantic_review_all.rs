@@ -12,58 +12,57 @@ fn workspace_root() -> std::path::PathBuf {
         .to_path_buf()
 }
 
-/// Phase 5 (docs/proposal.md §8): `build_pipeline_semantic_review` itself is
-/// pipeline-agnostic (spec file path from `PipelineKind::as_str()`, parsing
-/// from `audit_crate::spec_parser`, evidence from `get_documents_by_domain`)
-/// — nothing pipeline-specific was needed for Phase 3-4 to already work on
-/// all 20 real pipelines (every `PipelineKind` variant except the `Doc`
-/// sentinel). This test proves that generality against every real
-/// pipeline's real spec file in one pass, instead of one bespoke test per
-/// pipeline.
+/// Originally proved `build_pipeline_semantic_review`'s generality against
+/// every real pipeline's real `docs/raw/audit/{pipeline}-audit.md` spec file,
+/// with per-pipeline task counts cross-checked against
+/// `audit_crate::spec_parser`'s own regression test.
 ///
-/// Expected counts are cross-checked against `audit_crate::spec_parser`'s own
-/// regression test (same source file, same counts) — `help` has no
-/// `docs/raw/audit/help-audit.md` at all (confirmed: no such file exists),
-/// so it's the one legitimate 0.
+/// `docs/raw/audit/` no longer exists (documentation-cleanup-proposal.md —
+/// spec content is the owning system's concern now, not samgraha's). Every
+/// pipeline's expected count is now 0, same as `help`'s always was (it
+/// never had a spec file either) — this test now proves the *graceful*
+/// half of that generality claim: no spec anywhere means zero tasks
+/// everywhere, consistently, not an error for some pipelines and a crash
+/// for others. Real per-pipeline task-count parsing no longer has
+/// anything to test against.
 #[test]
-fn every_pipeline_produces_a_semantic_review_bundle_without_erroring() {
+fn every_pipeline_produces_an_empty_semantic_review_bundle_without_erroring() {
     let root = workspace_root();
     let runtime = KnowledgeRuntime::new(&root, SamgrahaConfig::default()).unwrap();
 
-    let expectations: &[(PipelineKind, usize)] = &[
-        (PipelineKind::Architecture, 13),
-        (PipelineKind::Build, 22),
-        (PipelineKind::Security, 23),
-        (PipelineKind::Consistency, 12),
-        (PipelineKind::Coverage, 15),
-        (PipelineKind::Dependency, 8),
-        (PipelineKind::Design, 12),
-        (PipelineKind::Readme, 12),
-        (PipelineKind::Prototype, 15),
-        (PipelineKind::ExternalContext, 12),
-        (PipelineKind::Engineering, 12),
-        (PipelineKind::Feature, 14),
-        (PipelineKind::FeatureTechnical, 15),
-        (PipelineKind::FeatureDesign, 15),
-        (PipelineKind::DeterministicRuntime, 12),
-        (PipelineKind::ExternalContextOwnership, 12),
-        (PipelineKind::Implementation, 15),
-        (PipelineKind::DocumentationStructure, 45),
-        (PipelineKind::Vision, 12),
-        // No docs/raw/audit/help-audit.md exists — legitimately 0 tasks,
-        // not an error. See docs/proposal.md's Known gaps.
-        (PipelineKind::Help, 0),
+    let kinds: &[PipelineKind] = &[
+        PipelineKind::Architecture,
+        PipelineKind::Build,
+        PipelineKind::Security,
+        PipelineKind::Consistency,
+        PipelineKind::Coverage,
+        PipelineKind::Dependency,
+        PipelineKind::Design,
+        PipelineKind::Readme,
+        PipelineKind::Prototype,
+        PipelineKind::ExternalContext,
+        PipelineKind::Engineering,
+        PipelineKind::Feature,
+        PipelineKind::FeatureTechnical,
+        PipelineKind::FeatureDesign,
+        PipelineKind::DeterministicRuntime,
+        PipelineKind::ExternalContextOwnership,
+        PipelineKind::Implementation,
+        PipelineKind::DocumentationStructure,
+        PipelineKind::Vision,
+        PipelineKind::Help,
     ];
-    assert_eq!(expectations.len(), 20, "expected every PipelineKind except Doc");
+    assert_eq!(kinds.len(), 20, "expected every PipelineKind except Doc");
 
-    for (kind, expected_task_count) in expectations {
+    for kind in kinds {
+        let expected_task_count = 0usize;
         let bundle = runtime
             .build_pipeline_semantic_review(kind)
             .unwrap_or_else(|e| panic!("{:?} failed: {e}", kind));
 
         assert_eq!(
             bundle.tasks.len(),
-            *expected_task_count,
+            expected_task_count,
             "{:?}: expected {expected_task_count} tasks, got {} ({:?})",
             kind,
             bundle.tasks.len(),

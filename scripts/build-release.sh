@@ -125,11 +125,15 @@ print('  -> $KNOWLEDGE_DB (empty schema)')
 "
 fi
 
-# Ship schema + loader for Knowledge System registration
+# Ship schema + loader (+ its helper modules, e.g. system_merger.py for
+# inheritance/system.yaml merging) for Knowledge System registration.
+# *.py, not just knowledge-hub-loader.py by name -- a loader import
+# (ModuleNotFoundError) is otherwise silent here and only surfaces later,
+# at register_standard time, in a packaged release.
 mkdir -p "$PKG_DIR/schema/knowledge-hub"
 cp "$SCHEMA_DIR"/*.sql "$PKG_DIR/schema/knowledge-hub/"
-cp "$SCHEMA_DIR/knowledge-hub-loader.py" "$PKG_DIR/schema/knowledge-hub/"
-echo "  -> schema/knowledge-hub/ (loader + schema files)"
+cp "$SCHEMA_DIR"/*.py "$PKG_DIR/schema/knowledge-hub/"
+echo "  -> schema/knowledge-hub/ (loader + helper modules + schema files)"
 
 # Launcher scripts (Linux build: binaries have no .exe)
 cat > "$PKG_DIR/run-mcp.sh" <<SHEOF

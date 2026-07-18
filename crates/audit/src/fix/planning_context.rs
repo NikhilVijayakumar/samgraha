@@ -71,16 +71,20 @@ impl PlanningContextBuilder {
 
         let audit_spec_path = self.audit_spec_path(domain);
 
+        // Degrade gracefully instead of hard-failing on a missing spec.
+        // `docs/raw/audit/*.md` used to be samgraha's own copy of each
+        // check's requirement text; per the documentation-cleanup pass,
+        // that content is now the owning system's concern, not something
+        // samgraha ships. A missing/empty spec means planner.rs's per-step
+        // `rationale` falls back to its own generic wording (see
+        // planner.rs's `unwrap_or_else` fallbacks) instead of quoting the
+        // check's specific requirement — a plan still gets generated, just
+        // a less specific one. Matches `read_file_optional`'s own already-
+        // tolerant design (empty string, not an error, for a missing file);
+        // this function used to immediately undo that tolerance by bailing
+        // right after.
         let audit_spec_raw = read_file_optional(&audit_spec_path)
             .context(format!("Missing audit spec for domain '{}'", domain))?;
-        if audit_spec_raw.trim().is_empty() {
-            anyhow::bail!(
-                "Audit spec for domain '{}' is missing or empty at {} — the fix pipeline \
-                 cannot plan a fix without knowing what the check requires",
-                domain,
-                audit_spec_path.display()
-            );
-        }
 
         let files = CachedFiles {
             audit_spec_raw,

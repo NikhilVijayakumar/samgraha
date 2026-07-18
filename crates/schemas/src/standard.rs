@@ -184,20 +184,6 @@ pub struct PlanScenario {
     pub content: String,
 }
 
-/// One stage of a standard's `plan/core/loop.yaml` `stages:` list (e.g.
-/// `python_hackathon`'s repository -> audit -> calculate -> aggregate ->
-/// normalize -> validate -> report sequence), in declared order. No fixed
-/// `stage_type` vocabulary — a standard's own workflow shape, not
-/// samgraha's to enumerate; `params` is whatever that stage's own YAML dict
-/// held (`type`, `scope`, `parallel`, `source`, `on_failure`, ...), each
-/// value serialized to its own string.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct WorkflowStage {
-    pub sort_order: i32,
-    pub stage_type: String,
-    pub params: std::collections::HashMap<String, String>,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ScriptCheck {
     pub check_name: String,

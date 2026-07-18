@@ -34,11 +34,15 @@ pub struct ProjectContext {
     pub compiled_domains: Vec<String>,
     /// Audit pipelines that have been run, mapped to their latest score.
     pub existing_scores: HashMap<String, f64>,
-    /// Populated only for `ProjectCase::Standard` (when a registry was
-    /// supplied to `detect()`) — `plan_scenarios` is keyed by
-    /// (repo_state, doc_state, tier, step), so picking the right subset
-    /// needs `has_docs` (doc_state) and repo_state (existing vs new,
-    /// detected below) alongside it.
+    /// Populated whenever a registry was supplied to `detect()`, for any
+    /// `ProjectCase` — every case routes through `StandardWorkflowPlanner`
+    /// now (the hardcoded per-case planners it replaced are gone, see
+    /// `planners.rs`'s doc comment), so every case needs this, not just
+    /// `Standard` (a stale restriction from before that cleanup — this used
+    /// to gate correctly when `Standard` was the only case reading it).
+    /// `plan_scenarios` is keyed by (repo_state, doc_state, tier, step), so
+    /// picking the right subset needs `has_docs` (doc_state) and
+    /// repo_state (existing vs new, detected below) alongside it.
     pub standard: Option<StandardWorkflowContext>,
     /// "existing" if this repo already has samgraha state (`.samgraha/manifest.json`),
     /// "new" otherwise — mirrors `plan_scenarios.repo_state`'s two values.
@@ -64,8 +68,8 @@ impl ProjectContext {
         }
         .to_string();
 
-        let standard = match (case, standard_registry) {
-            (ProjectCase::Standard, Some(registry)) => {
+        let standard = match standard_registry {
+            Some(registry) => {
                 let mut domains_by_tier: HashMap<i32, Vec<String>> = HashMap::new();
                 let mut relationships: Vec<StandardRelationship> = Vec::new();
                 for std in registry.all() {
@@ -81,7 +85,7 @@ impl ProjectContext {
                     relationships,
                 })
             }
-            _ => None,
+            None => None,
         };
 
         Ok(Self {

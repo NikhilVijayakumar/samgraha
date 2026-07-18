@@ -1116,6 +1116,40 @@ fn tool_definitions() -> Vec<serde_json::Value> {
                 "required": ["system_name"]
             }
         }),
+        // ── Plan generation input storage (§8.3) ─────────────────────────
+        serde_json::json!({
+            "name": "store_plan_generation_input",
+            "description": "Store a plan-generation semantic determination input (§8.3). Upserts by standard+repo+workflow+domain+instance. On re-run, the current input shifts into previous_input_json.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "system_name": { "type": "string", "description": "System name (e.g. 'rust_dev')" },
+                    "workflow_id": { "type": "string", "description": "Workflow ID from the init plan (§8.4)" },
+                    "domain_key":  { "type": "string", "description": "Domain key (NULL = plan-level, not domain-specific)" },
+                    "instance_key": { "type": "string", "description": "Instance key (NULL unless domain is multi-instance)" },
+                    "input_json":  { "type": "string", "description": "The semantic determination's own output, opaque to samgraha" },
+                    "repo_root":   { "type": "string", "description": "Repository root (defaults to session root)" },
+                    "repo_path":   { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["system_name", "workflow_id", "input_json"]
+            }
+        }),
+        serde_json::json!({
+            "name": "get_plan_generation_input",
+            "description": "Retrieve a stored plan-generation semantic determination input (§8.3). Returns {input_json, previous_input_json} or {input: null} if not found.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "system_name": { "type": "string", "description": "System name (e.g. 'rust_dev')" },
+                    "workflow_id": { "type": "string", "description": "Workflow ID from the init plan (§8.4)" },
+                    "domain_key":  { "type": "string", "description": "Domain key (NULL = plan-level)" },
+                    "instance_key": { "type": "string", "description": "Instance key (NULL unless multi-instance)" },
+                    "repo_root":   { "type": "string", "description": "Repository root (defaults to session root)" },
+                    "repo_path":   { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["system_name", "workflow_id"]
+            }
+        }),
     ]
 }
 

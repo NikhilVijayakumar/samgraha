@@ -831,7 +831,7 @@ mod tests {
     fn setup_mock_global_store(dir: &Path, system_name: &str, version: &str) {
         let conn = rusqlite::Connection::open(dir.join("standards.db")).unwrap();
         conn.execute_batch(&format!(
-            "PRAGMA user_version = 1;
+            "PRAGMA user_version = 2;
              CREATE TABLE IF NOT EXISTS systems (
                  id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE,
                  description TEXT, is_default INTEGER NOT NULL DEFAULT 1

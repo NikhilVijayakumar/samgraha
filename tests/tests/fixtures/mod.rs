@@ -146,7 +146,8 @@ pub fn create_test_standards_db() -> PathBuf {
         CREATE TABLE relationship_types (
             id INTEGER PRIMARY KEY,
             name TEXT NOT NULL UNIQUE,
-            description TEXT
+            description TEXT,
+            tier_gating TEXT NOT NULL CHECK (tier_gating IN ('strict','none'))
         );
 
         CREATE TABLE domain_relationships (
@@ -327,17 +328,17 @@ pub fn create_test_standards_db() -> PathBuf {
 
     // Relationship types.
     conn.execute(
-        "INSERT INTO relationship_types (name, description) VALUES ('derives', 'Derived from')",
+        "INSERT INTO relationship_types (name, description, tier_gating) VALUES ('derives', 'Derived from', 'none')",
         [],
     )
     .unwrap();
     conn.execute(
-        "INSERT INTO relationship_types (name, description) VALUES ('guides', 'Guides')",
+        "INSERT INTO relationship_types (name, description, tier_gating) VALUES ('guides', 'Guides', 'none')",
         [],
     )
     .unwrap();
     conn.execute(
-        "INSERT INTO relationship_types (name, description) VALUES ('implements', 'Implements')",
+        "INSERT INTO relationship_types (name, description, tier_gating) VALUES ('implements', 'Implements', 'none')",
         [],
     )
     .unwrap();

@@ -2,12 +2,12 @@ use crate::StandardRegistry;
 use anyhow::{bail, Context, Result};
 use rusqlite::Connection;
 use schemas::audit::{CalculationInput, CalculationRule, ScoreBand, ScoringConfig, ValidationRule};
-use schemas::standard::{AuditRuleDef, SectionDefinition, StandardDefinition, StandardDoc, StandardRelationship, PlanSetting, PlanScenario, ScriptCheck, WorkflowStage};
+use schemas::standard::{AuditRuleDef, SectionDefinition, StandardDefinition, StandardDoc, StandardRelationship, PlanSetting, PlanScenario, ScriptCheck};
 use std::collections::HashMap;
 
 /// Must match `SCHEMA_VERSION` in `schema/knowledge-hub/knowledge-hub-loader.py`.
 /// Bump both together whenever a table is added/removed/changes shape.
-pub const EXPECTED_SCHEMA_VERSION: i64 = 1;
+pub const EXPECTED_SCHEMA_VERSION: i64 = 2;
 
 /// Reject a standards.db whose `PRAGMA user_version` doesn't match what this
 /// build of samgraha understands — a version mismatch means the DB was
@@ -185,39 +185,6 @@ pub fn load_plan_scenarios(conn: &Connection, standard_id: i64) -> Result<Vec<Pl
         scenarios.push(row?);
     }
     Ok(scenarios)
-}
-
-pub fn load_workflow_stages(conn: &Connection, standard_id: i64) -> Result<Vec<WorkflowStage>> {
-    let mut stages = Vec::new();
-    let mut stmt = conn.prepare(
-        "SELECT sort_order, stage_type, params_json FROM workflow_stages WHERE standard_id = ? ORDER BY sort_order"
-    )?;
-    let rows = stmt.query_map([standard_id], |row| {
-        let sort_order: i32 = row.get(0)?;
-        let stage_type: String = row.get(1)?;
-        let params_json: String = row.get(2)?;
-        Ok((sort_order, stage_type, params_json))
-    })?;
-    for row in rows {
-        let (sort_order, stage_type, params_json) = row?;
-        // Each stage's params are a flat scalar dict in the DB — deserialize
-        // to a string map directly rather than serde_json::Value, since
-        // every consumer wants strings the same way rule params already are.
-        let raw: std::collections::HashMap<String, serde_json::Value> =
-            serde_json::from_str(&params_json).unwrap_or_default();
-        let params = raw
-            .into_iter()
-            .map(|(k, v)| {
-                let s = match v {
-                    serde_json::Value::String(s) => s,
-                    other => other.to_string(),
-                };
-                (k, s)
-            })
-            .collect();
-        stages.push(WorkflowStage { sort_order, stage_type, params });
-    }
-    Ok(stages)
 }
 
 /// Load the `standard_docs` table — the human-readable documentation-standards
@@ -587,15 +554,6 @@ pub fn from_standards_db(conn: &Connection, system_name: Option<&str>) -> Result
             tracing::info!("Loaded {} plan scenarios", count);
         }
         Err(e) => tracing::warn!("Failed to load plan scenarios: {}", e),
-    }
-
-    match load_workflow_stages(conn, standard_id) {
-        Ok(stages) => {
-            let count = stages.len();
-            registry.set_workflow_stages(stages);
-            tracing::info!("Loaded {} workflow stages", count);
-        }
-        Err(e) => tracing::warn!("Failed to load workflow stages: {}", e),
     }
 
     match load_script_checks(conn, standard_id) {
