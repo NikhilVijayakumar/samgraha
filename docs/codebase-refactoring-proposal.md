@@ -17,11 +17,11 @@ refactor, and what to keep.
 The current codebase has ~14,000 lines of domain-specific logic baked into
 samgraha's Rust crates:
 
-- 22 pipeline modules (10,202 lines, verified via `wc -l` — corrected from
+- 22 pipeline modules (9,617 lines, verified via `wc -l` — corrected from
   an earlier ~8,500 estimate that wasn't checked against the filesystem)
-  that hardcode check IDs, heading names, scoring weights, and domain
+  that hardcode check IDs, heading names, scoring weights, domain
   vocabulary for the documentation-audit domain
-- A reporting module (~4,500 lines) with 14 domain-specific template
+- A reporting module (5,058 lines) with 14 domain-specific template
   contexts, 10 audit-standard const arrays, and 10 section-type const
   arrays
 - A project planner (~200 lines) with hardcoded domain lists and 4
@@ -95,7 +95,7 @@ this proposal" rather than "the actual thing this proposal needs to change."
 
 ## 3. What Gets Removed
 
-### 3.1 `crates/audit/src/pipelines/` — DELETE entire module (10,202 lines, verified)
+### 3.1 `crates/audit/src/pipelines/` — DELETE entire module (9,617 lines, verified)
 
 22 domain-specific pipeline modules. Every one hardcodes check IDs,
 heading names, percentage weights, domain vocabulary, and scoring rubrics
@@ -104,28 +104,28 @@ against the actual files, not estimated.
 
 | File | Lines | Domain |
 |------|-------|--------|
-| `documentation_structure.rs` | 1,480 | Doc structure (largest) |
-| `help.rs` | 1,007 | Help/product guide |
-| `implementation.rs` | 616 | Implementation docs |
-| `architecture.rs` | 484 | Architecture documents |
-| `dependency.rs` | 475 | Dependency documentation |
-| `feature_technical.rs` | 446 | Feature technical design |
-| `feature_design.rs` | 439 | Feature design |
-| `vision.rs` | 426 | Vision documents |
-| `coverage.rs` | 423 | Documentation coverage |
-| `feature.rs` | 412 | Feature specs |
-| `external_context_ownership.rs` | 399 | External context ownership |
-| `design.rs` | 390 | Design docs |
-| `external_context.rs` | 381 | External context |
-| `prototype.rs` | 381 | Prototypes |
-| `build.rs` | 379 | Build pipeline |
-| `engineering.rs` | 360 | Engineering docs |
-| `deterministic_runtime.rs` | 348 | Runtime checks |
-| `readme.rs` | 308 | README files |
-| `security.rs` | 283 | Security docs |
-| `philosophy.rs` | 261 | Project philosophy |
-| `knowledge_system.rs` | 248 | Knowledge system |
-| `consistency.rs` | 234 | Cross-document consistency |
+| `documentation_structure.rs` | 1,353 | Doc structure (largest) |
+| `help.rs` | 903 | Help/product guide |
+| `implementation.rs` | 552 | Implementation docs |
+| `architecture.rs` | 435 | Architecture documents |
+| `dependency.rs` | 421 | Dependency documentation |
+| `feature_technical.rs` | 395 | Feature technical design |
+| `feature_design.rs` | 389 | Feature design |
+| `vision.rs` | 378 | Vision documents |
+| `coverage.rs` | 377 | Documentation coverage |
+| `feature.rs` | 363 | Feature specs |
+| `external_context_ownership.rs` | 352 | External context ownership |
+| `design.rs` | 346 | Design docs |
+| `build.rs` | 342 | Build pipeline |
+| `external_context.rs` | 335 | External context |
+| `prototype.rs` | 331 | Prototypes |
+| `engineering.rs` | 316 | Engineering docs |
+| `deterministic_runtime.rs` | 303 | Runtime checks |
+| `readme.rs` | 266 | README files |
+| `security.rs` | 256 | Security docs |
+| `philosophy.rs` | 226 | Project philosophy |
+| `knowledge_system.rs` | 220 | Knowledge system |
+| `consistency.rs` | 205 | Cross-document consistency |
 | `mod.rs` | 22 | Module declarations |
 
 **Replacement — corrected**: NOT `DeterministicAuditProvider` (it never
@@ -143,7 +143,7 @@ the module breaks the `audit` tool's real per-domain usage outright, not
 incrementally — this is not the same "already-decoupled, safe to remove"
 situation §2's table implies.
 
-### 3.2 `crates/services/src/reporting.rs` — STRIP domain-specific portions (~4,500 lines)
+### 3.2 `crates/services/src/reporting.rs` — STRIP domain-specific portions (5,058 lines total, ~4,100 removed)
 
 Remove:
 - 10 `*_AUDIT_STANDARDS` const arrays (~800 lines)
@@ -371,7 +371,7 @@ After full migration (every `PipelineKind` has a working script):
 
 | Category | Lines |
 |----------|-------|
-| Removed (domain-specific) | ~14,900 (10,202 pipelines, verified + ~4,500 reporting + ~200 planners) |
+| Removed (domain-specific) | ~13,917 (9,617 pipelines, verified + ~4,100 reporting + ~200 planners) |
 | Kept (generic infrastructure) | ~15,000+ |
 | Net result | samgraha shrinks by roughly half while becoming more capable — **conditional on §4.1's `run_pipeline()` rewrite landing first**, not a side effect of deleting `pipelines/` on its own |
 
