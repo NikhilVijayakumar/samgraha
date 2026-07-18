@@ -542,38 +542,67 @@ fallback until every PipelineKind has a working system script.
 
 ---
 
-### Phase 4: Remove pipeline modules (requires system scripts)
+### Phase 4: Remove pipeline modules — DONE
 
-**Prerequisite**: Every `PipelineKind` variant must have a working
-`validate` system script proven against real repo state. Until then, the
-Rust pipeline modules are the fallback and must stay.
+**Prerequisite dropped by explicit decision, not by proof-per-domain.**
+The original prerequisite ("every `PipelineKind` needs a proven script
+first") assumed MCP needed a working result to fall back on. Settled
+instead: MCP keeps its role of *executing system-provided capability
+scripts* (`capability::execute_capability` — unchanged, still a real
+subprocess spawn, that's the sanctioned generic dispatch mechanism), but
+carries **no Rust-native fallback at all**. A domain with no script yet
+now visibly fails ("no validate script found ... register one, see
+`knowledge-system-author-guide.md`") instead of silently running
+duplicate in-process Rust logic. That's the intended signal, not a
+regression to avoid — per this session's explicit call: if the data side
+isn't done yet, it should break so the gap is visible, not papered over.
 
-**What changes**:
-- `crates/audit/src/pipelines/`: delete all 22 module files + `mod.rs`
-  (~9,617 lines)
-- `crates/audit/src/lib.rs`: remove `pub mod pipelines;` (1 line)
-- `crates/services/src/runtime/runtime.rs`: remove fallback match arms
-  (once every kind has a script, the fallback is dead code)
+**What changed**:
+- `crates/audit/src/pipelines/`: deleted, all 22 module files + `mod.rs`
+  (10,202 lines, `git rm -r`)
+- `crates/audit/src/lib.rs`: removed `pub mod pipelines;`
+- `crates/services/src/runtime/runtime.rs`: both `run_pipeline()` and
+  `run_pipeline_with_id()` collapsed to capability-dispatch-only — no
+  match-arm fallback, no `PipelineContext`/`AuditFramework`-style Rust
+  execution path left. `Doc` kind still routes to `audit()` as before.
+- **Fixed in the process, not just deleted around**: the existing
+  capability-dispatch block (from Phase 1) was silently dropping
+  `inspect_artifact`/`runtime_mode`/`execute`/`dry_run` — building the
+  script's `--in` payload with only `{"target": kind}`. Once the Rust
+  fallback was gone, a `build`-kind script would have had no way to know
+  whether `execute`/`dry_run` was requested (adapter.rs's "execute/dry_run
+  only apply to the build pipeline" check still gates the call, but the
+  flag never reached the script). Now merged into the input payload
+  alongside `target`.
 
 **Files affected**:
-- `crates/audit/src/pipelines/` (23 files, ~9,617 lines deleted)
-- `crates/audit/src/lib.rs` (1 line removed)
-- `crates/services/src/runtime/runtime.rs` (~50 lines — remove fallback
-  arms, simplify to capability-only dispatch)
+- `crates/audit/src/pipelines/` — 23 files deleted, 10,202 lines
+- `crates/audit/src/lib.rs` — 1 line removed
+- `crates/services/src/runtime/runtime.rs` — both functions rewritten,
+  net ~120 lines removed (21-arm match ×2, `PipelineContext` import/setup)
 
-**Verification**:
-- [ ] `cargo check -p audit` clean
-- [ ] `cargo check -p services` clean
-- [ ] `cargo check -p mcp` clean
-- [ ] `cargo test -p audit` passes (minus deleted pipeline tests)
-- [ ] `cargo test -p mcp` passes
-- [ ] For every `PipelineKind` variant, `run_system_script --domain <kind>
-  --capability validate` returns valid output with a system script
-  installed
-- [ ] No remaining references to pipeline module types:
-  `grep -r "VisionPipeline\|ArchitecturePipeline\|BuildPipeline" crates/`
-  returns zero hits
-- [ ] `crates/audit/src/pipelines/` directory no longer exists
+**Verification — done**:
+- [x] `cargo build --workspace` clean
+- [x] `cargo test -p audit` — 109 passed (down from 264; the 155-test drop
+  is exactly the 22 deleted pipeline modules' own tests, expected)
+- [x] `cargo test -p services` — 53 passed
+- [x] `cargo test -p mcp` — 8 passed (5 lib + 3 bin)
+- [x] No remaining references to pipeline module types — confirmed 0 hits
+  for `VisionPipeline|ArchitecturePipeline|BuildPipeline|...` (all 22)
+  across `crates/`
+- [x] `crates/audit/src/pipelines/` directory confirmed gone
+
+**Follow-up — done, on request.** `crates/audit/src/pipeline.rs`'s dead
+code (flagged above, then explicitly requested as a follow-up) removed:
+`make_report`/`finding`, `strip_code_fences`/`NEGATION_CUES`/
+`find_unnegated_keywords`/`has_word_boundaries`, and the
+`text_scan_tests` module that tested them. `load_test_report` and its own
+test module (`load_test_report_tests`) kept — still has real callers.
+Also trimmed the now-unused `AuditFinding`/`Severity` imports (re-added
+`PipelineReport`, which the `Pipeline` trait's `run()` still needs — first
+pass over-trimmed and would have broken the build). `cargo build
+--workspace`: zero warnings. `cargo test -p audit`: 100 passed (down from
+109 — exactly the 9 deleted tests).
 
 ---
 
@@ -585,4 +614,4 @@ Rust pipeline modules are the fallback and must stay.
 | Phase 1: Rewire run_pipeline() | Done | ✓ — re-verified this session: `run_pipeline()` tries `resolve_capability`/`execute_capability` first, validates the script's JSON actually deserializes as `PipelineReport`, falls back to the Rust match arm on failure or shape mismatch |
 | Phase 2: Strip reporting | Not started | - |
 | Phase 3: Remove planners | **Done** | ✓ — `NewProjectPlanner`/`DocAuditPlanner`/`ImplTestAuditPlanner`/`BuildAuditPlanner`/`DOC_DOMAINS`/`IMPL_DOMAINS`/`all_pipelines()` all confirmed removed; `resolve_planner()` routes all 5 `ProjectCase` variants to `StandardWorkflowPlanner`; 53 services + 8 mcp tests pass |
-| Phase 4: Remove pipelines | Blocked (needs system scripts) | - |
+| Phase 4: Remove pipelines | **Done** | ✓ — prerequisite dropped by decision (no Rust fallback, ever, by design — see §10 Phase 4), not by per-domain proof. All 22 modules + `mod.rs` deleted (10,202 lines), `run_pipeline()`/`run_pipeline_with_id()` collapsed to capability-dispatch-only, a real gap (execute/dry_run/inspect_artifact/runtime_mode silently dropped) fixed in the process. 109 audit + 53 services + 8 mcp tests pass, `cargo build --workspace` clean |

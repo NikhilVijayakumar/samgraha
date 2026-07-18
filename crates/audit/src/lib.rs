@@ -6,7 +6,6 @@ pub mod fix;
 pub mod framework;
 pub mod pipeline;
 pub mod pipeline_factory;
-pub mod pipelines;
 pub mod providers;
 pub mod spec_parser;
 pub mod yaml_runner;

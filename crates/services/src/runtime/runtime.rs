@@ -14,9 +14,7 @@ use audit_crate::fix::planner::{BuildPlanner, ConfigPlanner, DocPlanner, FixPlan
 use audit_crate::fix::planning_context::PlanningContextBuilder;
 use audit_crate::fix::types::{FixPlan, FixSession, PlanType, SessionStatus};
 use audit_crate::fix::verifier::Verifier;
-use audit_crate::pipeline::PipelineContext;
 use uuid::Uuid;
-use audit_crate::pipelines::{architecture::ArchitecturePipeline, build::BuildPipeline, consistency::ConsistencyPipeline, coverage::CoveragePipeline, dependency::DependencyPipeline, design::DesignPipeline, deterministic_runtime::DeterministicRuntimePipeline, documentation_structure::DocumentationStructurePipeline, engineering::EngineeringPipeline, external_context::ExternalContextPipeline, external_context_ownership::ExternalContextOwnershipPipeline, feature::FeaturePipeline, feature_design::FeatureDesignPipeline, feature_technical::FeatureTechnicalPipeline, help::HelpPipeline, implementation::ImplementationPipeline, knowledge_system::KnowledgeSystemPipeline, philosophy::PhilosophyPipeline, prototype::PrototypePipeline, readme::ReadmePipeline, security::SecurityPipeline, vision::VisionPipeline};
 use audit_crate::AuditFramework;
 use common::config::SamgrahaConfig;
 use registry::RegistryStore;
@@ -160,101 +158,84 @@ impl KnowledgeRuntime {
         execute: bool,
         dry_run: bool,
     ) -> Result<PipelineReport> {
-        let ctx = PipelineContext::new(
-            self.context.repository_root.clone(),
-            self.context.config.clone(),
-        )
-        .with_inspect_artifact(inspect_artifact)
-        .with_runtime(runtime_mode)
-        .with_execute(execute)
-        .with_dry_run(dry_run)
-        .with_repository_metadata(self.registry.get_repository_metadata().unwrap_or_default());
+        if matches!(kind, PipelineKind::Doc) {
+            anyhow::bail!("Use the standard audit() method for Documentation Audit");
+        }
 
-        // ── Capability-first dispatch (Phase 1 of codebase refactoring) ──
-        // Try the system's own `validate` script before falling back to the
-        // hardcoded Rust pipeline.  The script receives `target` = pipeline
-        // kind name and must return JSON matching `PipelineReport` shape.
+        // Capability dispatch only (codebase-refactoring-proposal.md §10
+        // Phase 4) — no Rust-native fallback. The hardcoded pipeline
+        // modules are removed; a domain with no system-provided `validate`
+        // script yet has no way to run this pipeline kind. That's the
+        // intended, visible signal to write one
+        // (docs/knowledge-system-author-guide.md), not something to paper
+        // over with an in-process Rust implementation.
         let repo_root = &self.context.repository_root;
-        if let Some(source) = audit_crate::capability::resolve_capability(
+        let source = audit_crate::capability::resolve_capability(
             &audit_crate::capability::Capability::Validate,
             repo_root,
             Some(&self.context.config),
-        ) {
-            let kind_name = kind.as_str().to_string();
-            let input_payload = serde_json::json!({ "target": &kind_name });
-            let input_path = {
-                let p = std::env::temp_dir()
-                    .join(format!("samgraha-pipeline-input-{}.json", Uuid::new_v4()));
-                std::fs::write(&p, serde_json::to_string(&input_payload)?)
-                    .with_context(|| format!("Failed to write temp input JSON to {}", p.display()))?;
-                p
-            };
-            let result = audit_crate::capability::execute_capability(
-                &source,
-                &audit_crate::capability::Capability::Validate,
-                repo_root,
-                &input_path,
-                None,
-            );
-            let _ = std::fs::remove_file(&input_path);
+        )
+        .with_context(|| {
+            format!(
+                "No validate script found for pipeline kind '{}'. Register a system-provided \
+                 validate script (see docs/knowledge-system-author-guide.md) — the hardcoded \
+                 Rust pipeline was removed.",
+                kind.as_str()
+            )
+        })?;
 
-            if result.status == audit_crate::capability::CapabilityStatus::Ok {
-                if let Some(ref output_json) = result.output_json {
-                    if let Ok(report) = serde_json::from_value::<PipelineReport>(output_json.clone()) {
-                        let session_id = Uuid::new_v4().to_string();
-                        if let Err(e) = self.store_pipeline_to_db(kind, &report, &session_id) {
-                            tracing::warn!("Failed to store pipeline report: {}", e);
-                        }
-                        return Ok(report);
-                    }
-                    tracing::debug!(
-                        "validate script for '{}' returned JSON that doesn't match PipelineReport — falling back to Rust pipeline",
-                        kind_name
-                    );
-                }
-            }
-            tracing::debug!(
-                "validate script for '{}' failed ({}), falling back to Rust pipeline",
+        let kind_name = kind.as_str().to_string();
+        // inspect_artifact/runtime_mode/execute/dry_run were previously
+        // consumed by PipelineContext, which only the deleted Rust
+        // pipelines read. Pass them through in the script's input instead
+        // of dropping them silently — a `build`-kind validate script still
+        // needs `execute`/`dry_run` to know whether to actually run build
+        // steps (adapter.rs's "execute/dry_run only apply to the build
+        // pipeline" check, still enforced by the caller).
+        let input_payload = serde_json::json!({
+            "target": &kind_name,
+            "inspect_artifact": inspect_artifact,
+            "runtime_mode": runtime_mode,
+            "execute": execute,
+            "dry_run": dry_run,
+        });
+        let input_path = {
+            let p = std::env::temp_dir()
+                .join(format!("samgraha-pipeline-input-{}.json", Uuid::new_v4()));
+            std::fs::write(&p, serde_json::to_string(&input_payload)?)
+                .with_context(|| format!("Failed to write temp input JSON to {}", p.display()))?;
+            p
+        };
+        let result = audit_crate::capability::execute_capability(
+            &source,
+            &audit_crate::capability::Capability::Validate,
+            repo_root,
+            &input_path,
+            None,
+        );
+        let _ = std::fs::remove_file(&input_path);
+
+        if result.status != audit_crate::capability::CapabilityStatus::Ok {
+            anyhow::bail!(
+                "validate script for '{}' failed: {}",
                 kind_name,
                 result.message.unwrap_or_default()
             );
         }
+        let output_json = result.output_json.ok_or_else(|| {
+            anyhow::anyhow!("validate script for '{}' returned no output", kind_name)
+        })?;
+        let report: PipelineReport = serde_json::from_value(output_json).with_context(|| {
+            format!(
+                "validate script for '{}' returned JSON that doesn't match PipelineReport",
+                kind_name
+            )
+        })?;
 
-        // ── Fallback: hardcoded Rust pipeline ──────────────────────────────
-        let report = match kind {
-            PipelineKind::Build => AuditService::run_pipeline(&BuildPipeline, &ctx),
-            PipelineKind::Security => AuditService::run_pipeline(&SecurityPipeline, &ctx),
-            PipelineKind::Consistency => AuditService::run_pipeline(&ConsistencyPipeline, &ctx),
-            PipelineKind::Coverage => AuditService::run_pipeline(&CoveragePipeline, &ctx),
-            PipelineKind::Architecture => AuditService::run_pipeline(&ArchitecturePipeline, &ctx),
-            PipelineKind::Vision => AuditService::run_pipeline(&VisionPipeline, &ctx),
-            PipelineKind::Design => AuditService::run_pipeline(&DesignPipeline, &ctx),
-            PipelineKind::Readme => AuditService::run_pipeline(&ReadmePipeline, &ctx),
-            PipelineKind::Prototype => AuditService::run_pipeline(&PrototypePipeline, &ctx),
-            PipelineKind::ExternalContext => AuditService::run_pipeline(&ExternalContextPipeline, &ctx),
-            PipelineKind::Engineering => AuditService::run_pipeline(&EngineeringPipeline, &ctx),
-            PipelineKind::Feature => AuditService::run_pipeline(&FeaturePipeline, &ctx),
-            PipelineKind::FeatureTechnical => AuditService::run_pipeline(&FeatureTechnicalPipeline, &ctx),
-            PipelineKind::FeatureDesign => AuditService::run_pipeline(&FeatureDesignPipeline, &ctx),
-            PipelineKind::DeterministicRuntime => AuditService::run_pipeline(&DeterministicRuntimePipeline, &ctx),
-            PipelineKind::ExternalContextOwnership => AuditService::run_pipeline(&ExternalContextOwnershipPipeline, &ctx),
-            PipelineKind::Implementation => AuditService::run_pipeline(&ImplementationPipeline, &ctx),
-            PipelineKind::DocumentationStructure => AuditService::run_pipeline(&DocumentationStructurePipeline, &ctx),
-            PipelineKind::Dependency => AuditService::run_pipeline(&DependencyPipeline, &ctx),
-            PipelineKind::Help => AuditService::run_pipeline(&HelpPipeline, &ctx),
-            PipelineKind::KnowledgeSystem => AuditService::run_pipeline(&KnowledgeSystemPipeline, &ctx),
-            PipelineKind::Philosophy => AuditService::run_pipeline(&PhilosophyPipeline, &ctx),
-            PipelineKind::Doc => {
-                anyhow::bail!("Use the standard audit() method for Documentation Audit");
-            }
-        };
-
-        // Auto-store pipeline results to SQLite (Phase 8: per-audit storage)
         let session_id = Uuid::new_v4().to_string();
         if let Err(e) = self.store_pipeline_to_db(kind, &report, &session_id) {
             tracing::warn!("Failed to store pipeline report: {}", e);
         }
-
         Ok(report)
     }
 
@@ -269,89 +250,67 @@ impl KnowledgeRuntime {
         execute: bool,
         dry_run: bool,
     ) -> Result<(PipelineReport, i64)> {
-        let ctx = PipelineContext::new(
-            self.context.repository_root.clone(),
-            self.context.config.clone(),
-        )
-        .with_inspect_artifact(inspect_artifact)
-        .with_runtime(runtime_mode)
-        .with_execute(execute)
-        .with_dry_run(dry_run)
-        .with_repository_metadata(self.registry.get_repository_metadata().unwrap_or_default());
+        if matches!(kind, PipelineKind::Doc) {
+            anyhow::bail!("Use the standard audit() method for Documentation Audit");
+        }
 
-        // ── Capability-first dispatch (Phase 1 of codebase refactoring) ──
+        // Capability dispatch only — see `run_pipeline()`'s comment above,
+        // same reasoning applies here (no Rust-native fallback).
         let repo_root = &self.context.repository_root;
-        if let Some(source) = audit_crate::capability::resolve_capability(
+        let source = audit_crate::capability::resolve_capability(
             &audit_crate::capability::Capability::Validate,
             repo_root,
             Some(&self.context.config),
-        ) {
-            let kind_name = kind.as_str().to_string();
-            let input_payload = serde_json::json!({ "target": &kind_name });
-            let input_path = {
-                let p = std::env::temp_dir()
-                    .join(format!("samgraha-pipeline-input-{}.json", Uuid::new_v4()));
-                std::fs::write(&p, serde_json::to_string(&input_payload)?)
-                    .with_context(|| format!("Failed to write temp input JSON to {}", p.display()))?;
-                p
-            };
-            let result = audit_crate::capability::execute_capability(
-                &source,
-                &audit_crate::capability::Capability::Validate,
-                repo_root,
-                &input_path,
-                None,
-            );
-            let _ = std::fs::remove_file(&input_path);
+        )
+        .with_context(|| {
+            format!(
+                "No validate script found for pipeline kind '{}'. Register a system-provided \
+                 validate script (see docs/knowledge-system-author-guide.md) — the hardcoded \
+                 Rust pipeline was removed.",
+                kind.as_str()
+            )
+        })?;
 
-            if result.status == audit_crate::capability::CapabilityStatus::Ok {
-                if let Some(ref output_json) = result.output_json {
-                    if let Ok(report) = serde_json::from_value::<PipelineReport>(output_json.clone()) {
-                        let session_id = Uuid::new_v4().to_string();
-                        let report_id = self.store_pipeline_to_db(kind, &report, &session_id)?;
-                        return Ok((report, report_id));
-                    }
-                    tracing::debug!(
-                        "validate script for '{}' returned JSON that doesn't match PipelineReport — falling back to Rust pipeline",
-                        kind_name
-                    );
-                }
-            }
-            tracing::debug!(
-                "validate script for '{}' failed ({}), falling back to Rust pipeline",
+        let kind_name = kind.as_str().to_string();
+        let input_payload = serde_json::json!({
+            "target": &kind_name,
+            "inspect_artifact": inspect_artifact,
+            "runtime_mode": runtime_mode,
+            "execute": execute,
+            "dry_run": dry_run,
+        });
+        let input_path = {
+            let p = std::env::temp_dir()
+                .join(format!("samgraha-pipeline-input-{}.json", Uuid::new_v4()));
+            std::fs::write(&p, serde_json::to_string(&input_payload)?)
+                .with_context(|| format!("Failed to write temp input JSON to {}", p.display()))?;
+            p
+        };
+        let result = audit_crate::capability::execute_capability(
+            &source,
+            &audit_crate::capability::Capability::Validate,
+            repo_root,
+            &input_path,
+            None,
+        );
+        let _ = std::fs::remove_file(&input_path);
+
+        if result.status != audit_crate::capability::CapabilityStatus::Ok {
+            anyhow::bail!(
+                "validate script for '{}' failed: {}",
                 kind_name,
                 result.message.unwrap_or_default()
             );
         }
-
-        // ── Fallback: hardcoded Rust pipeline ──────────────────────────────
-        let report = match kind {
-            PipelineKind::Build => AuditService::run_pipeline(&BuildPipeline, &ctx),
-            PipelineKind::Security => AuditService::run_pipeline(&SecurityPipeline, &ctx),
-            PipelineKind::Consistency => AuditService::run_pipeline(&ConsistencyPipeline, &ctx),
-            PipelineKind::Coverage => AuditService::run_pipeline(&CoveragePipeline, &ctx),
-            PipelineKind::Architecture => AuditService::run_pipeline(&ArchitecturePipeline, &ctx),
-            PipelineKind::Vision => AuditService::run_pipeline(&VisionPipeline, &ctx),
-            PipelineKind::Design => AuditService::run_pipeline(&DesignPipeline, &ctx),
-            PipelineKind::Readme => AuditService::run_pipeline(&ReadmePipeline, &ctx),
-            PipelineKind::Prototype => AuditService::run_pipeline(&PrototypePipeline, &ctx),
-            PipelineKind::ExternalContext => AuditService::run_pipeline(&ExternalContextPipeline, &ctx),
-            PipelineKind::Engineering => AuditService::run_pipeline(&EngineeringPipeline, &ctx),
-            PipelineKind::Feature => AuditService::run_pipeline(&FeaturePipeline, &ctx),
-            PipelineKind::FeatureTechnical => AuditService::run_pipeline(&FeatureTechnicalPipeline, &ctx),
-            PipelineKind::FeatureDesign => AuditService::run_pipeline(&FeatureDesignPipeline, &ctx),
-            PipelineKind::DeterministicRuntime => AuditService::run_pipeline(&DeterministicRuntimePipeline, &ctx),
-            PipelineKind::ExternalContextOwnership => AuditService::run_pipeline(&ExternalContextOwnershipPipeline, &ctx),
-            PipelineKind::Implementation => AuditService::run_pipeline(&ImplementationPipeline, &ctx),
-            PipelineKind::DocumentationStructure => AuditService::run_pipeline(&DocumentationStructurePipeline, &ctx),
-            PipelineKind::Dependency => AuditService::run_pipeline(&DependencyPipeline, &ctx),
-            PipelineKind::Help => AuditService::run_pipeline(&HelpPipeline, &ctx),
-            PipelineKind::KnowledgeSystem => AuditService::run_pipeline(&KnowledgeSystemPipeline, &ctx),
-            PipelineKind::Philosophy => AuditService::run_pipeline(&PhilosophyPipeline, &ctx),
-            PipelineKind::Doc => {
-                anyhow::bail!("Use the standard audit() method for Documentation Audit");
-            }
-        };
+        let output_json = result.output_json.ok_or_else(|| {
+            anyhow::anyhow!("validate script for '{}' returned no output", kind_name)
+        })?;
+        let report: PipelineReport = serde_json::from_value(output_json).with_context(|| {
+            format!(
+                "validate script for '{}' returned JSON that doesn't match PipelineReport",
+                kind_name
+            )
+        })?;
 
         let session_id = Uuid::new_v4().to_string();
         let report_id = self.store_pipeline_to_db(kind, &report, &session_id)?;
