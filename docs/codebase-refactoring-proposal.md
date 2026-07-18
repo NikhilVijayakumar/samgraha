@@ -14,12 +14,13 @@ refactor, and what to keep.
 
 ## 1. Problem Statement
 
-The current codebase has ~13,000 lines of domain-specific logic baked into
+The current codebase has ~14,000 lines of domain-specific logic baked into
 samgraha's Rust crates:
 
-- 22 pipeline modules (~8,500 lines) that hardcode check IDs, heading
-  names, scoring weights, and domain vocabulary for the documentation-audit
-  domain
+- 22 pipeline modules (10,202 lines, verified via `wc -l` — corrected from
+  an earlier ~8,500 estimate that wasn't checked against the filesystem)
+  that hardcode check IDs, heading names, scoring weights, and domain
+  vocabulary for the documentation-audit domain
 - A reporting module (~4,500 lines) with 14 domain-specific template
   contexts, 10 audit-standard const arrays, and 10 section-type const
   arrays
@@ -31,15 +32,42 @@ should contain **zero domain-shape knowledge**. A system for a different
 domain (film-production tracking, game-design docs) would mean changing
 samgraha's source code, not just adding data. That's backwards.
 
+**Corrected dependency finding (this section didn't exist in the original
+draft — added after checking the removal plan against the actual call
+graph, not just the module boundaries):** the 22 pipelines are not a
+redundant, already-bypassable path. `crates/audit/src/providers.rs`'s
+`DeterministicAuditProvider::execute()` — the function §4.1 originally
+described as calling into `pipelines::*` — is already fully data-driven; it
+never touches `pipelines::` at all. The 22 pipelines are wired up
+separately, in `crates/services/src/runtime/runtime.rs`, via a
+`PipelineKind` enum (`crates/schemas/src/audit.rs:6-30` — `Doc` plus 22
+named variants). The `audit` MCP tool (`crates/mcp/src/adapter.rs:710-722`)
+and the CLI (`crates/cli/src/commands.rs:786,897`) both check: if
+`pipeline_kind != Doc`, call `run_pipeline()` **directly**, bypassing
+`AuditFramework`/`DeterministicAuditProvider` entirely. The DB-driven path
+this proposal treats as "the real audit mechanism" only ever backs the
+generic `Doc` catch-all — every one of the 22 named domains (vision,
+architecture, feature, security, ...) runs through the hardcoded Rust
+pipeline, exclusively, today. This changes what "removal" actually requires
+— see §3.1 and §5.
+
 ---
 
 ## 2. What Stays (Generic Infrastructure)
 
 Everything below is genuinely domain-agnostic and should be kept as-is:
 
+**Not in this table** (checked, doesn't belong here):
+`crates/services/src/runtime/runtime.rs` (2,089 lines) — this is where the
+22 hardcoded `PipelineKind` dispatch arms actually live (§1, §4.1). It's
+not domain-agnostic as-is and isn't staying untouched; it's the file §4.1's
+refactor targets. Omitting it from "what stays" was correct in spirit, but
+the original draft never mentioned it anywhere, which reads as "not part of
+this proposal" rather than "the actual thing this proposal needs to change."
+
 | Area | Lines | Why it stays |
 |------|-------|-------------|
-| `crates/audit/src/capability.rs` | ~400 | Capability enum, 5-tier discovery, prerequisite checking — all generic |
+| `crates/audit/src/capability.rs` | 618 (verified — grown from an earlier ~400 estimate after last session's phase-gating/run-tracking work) | Capability enum, 4-tier discovery, prerequisite checking, run-tracking — all generic |
 | `crates/audit/src/calculation.rs` | ~260 | Math-only primitives (weighted_pass_rate, weighted_sum, threshold_lookup) — no domain knowledge |
 | `crates/audit/src/framework.rs` | ~390 | AuditFramework provider registry, execution loop — generic |
 | `crates/audit/src/pipeline.rs` | ~490 | Pipeline trait + shared helpers (scan_markdown, extract_headings, find_keywords) — utilities |
@@ -67,41 +95,53 @@ Everything below is genuinely domain-agnostic and should be kept as-is:
 
 ## 3. What Gets Removed
 
-### 3.1 `crates/audit/src/pipelines/` — DELETE entire module (~8,521 lines)
+### 3.1 `crates/audit/src/pipelines/` — DELETE entire module (10,202 lines, verified)
 
 22 domain-specific pipeline modules. Every one hardcodes check IDs,
 heading names, percentage weights, domain vocabulary, and scoring rubrics
-for the documentation-audit domain.
+for the documentation-audit domain. Line counts below are from `wc -l`
+against the actual files, not estimated.
 
 | File | Lines | Domain |
 |------|-------|--------|
-| `vision.rs` | 378 | Vision documents |
-| `architecture.rs` | 435 | Architecture documents |
-| `engineering.rs` | 316 | Engineering docs |
-| `feature.rs` | 363 | Feature specs |
-| `feature_design.rs` | 389 | Feature design |
-| `feature_technical.rs` | 395 | Feature technical design |
-| `philosophy.rs` | 226 | Project philosophy |
-| `prototype.rs` | 331 | Prototypes |
-| `readme.rs` | 266 | README files |
-| `security.rs` | 256 | Security docs |
-| `help.rs` | 903 | Help/product guide |
-| `consistency.rs` | 205 | Cross-document consistency |
-| `coverage.rs` | 377 | Documentation coverage |
-| `dependency.rs` | 421 | Dependency documentation |
-| `design.rs` | 346 | Design docs |
-| `documentation_structure.rs` | 1,353 | Doc structure (largest) |
-| `external_context.rs` | 335 | External context |
-| `external_context_ownership.rs` | 352 | External context ownership |
-| `implementation.rs` | 552 | Implementation docs |
-| `knowledge_system.rs` | 220 | Knowledge system |
-| `build.rs` | 342 | Build pipeline |
-| `deterministic_runtime.rs` | 303 | Runtime checks |
+| `documentation_structure.rs` | 1,480 | Doc structure (largest) |
+| `help.rs` | 1,007 | Help/product guide |
+| `implementation.rs` | 616 | Implementation docs |
+| `architecture.rs` | 484 | Architecture documents |
+| `dependency.rs` | 475 | Dependency documentation |
+| `feature_technical.rs` | 446 | Feature technical design |
+| `feature_design.rs` | 439 | Feature design |
+| `vision.rs` | 426 | Vision documents |
+| `coverage.rs` | 423 | Documentation coverage |
+| `feature.rs` | 412 | Feature specs |
+| `external_context_ownership.rs` | 399 | External context ownership |
+| `design.rs` | 390 | Design docs |
+| `external_context.rs` | 381 | External context |
+| `prototype.rs` | 381 | Prototypes |
+| `build.rs` | 379 | Build pipeline |
+| `engineering.rs` | 360 | Engineering docs |
+| `deterministic_runtime.rs` | 348 | Runtime checks |
+| `readme.rs` | 308 | README files |
+| `security.rs` | 283 | Security docs |
+| `philosophy.rs` | 261 | Project philosophy |
+| `knowledge_system.rs` | 248 | Knowledge system |
+| `consistency.rs` | 234 | Cross-document consistency |
+| `mod.rs` | 22 | Module declarations |
 
-**Replacement**: Each system provides its own `validate` script that
-implements these checks externally. The `DeterministicAuditProvider`
-(currently calls these pipelines) becomes a thin dispatcher that runs the
-system's `validate` script via `capability::execute_capability()`.
+**Replacement — corrected**: NOT `DeterministicAuditProvider` (it never
+called these pipelines — see §1's correction). The actual call sites are
+`crates/services/src/runtime/runtime.rs`'s `run_pipeline()`/
+`run_pipeline_with_id()`, which dispatch by `PipelineKind` directly to
+these 22 structs, invoked from `adapter.rs:710-740` (the `audit` MCP tool,
+whenever `pipeline_kind != Doc`) and `cli/commands.rs:786,897`. Deleting
+`pipelines/` requires `run_pipeline()` itself to be rewritten to check for
+a system-provided `validate` script first (via
+`capability::resolve_capability()`/`execute_capability()`) and only fall
+back to a Rust pipeline — or fail clearly — when none exists. Until every
+one of the 22 `PipelineKind` variants has a working system script, deleting
+the module breaks the `audit` tool's real per-domain usage outright, not
+incrementally — this is not the same "already-decoupled, safe to remove"
+situation §2's table implies.
 
 ### 3.2 `crates/services/src/reporting.rs` — STRIP domain-specific portions (~4,500 lines)
 
@@ -149,35 +189,51 @@ become unnecessary when systems provide their own plans.
 
 ## 4. What Gets Refactored
 
-### 4.1 `DeterministicAuditProvider` — redirect to system scripts
+### 4.1 `run_pipeline()` — redirect to system scripts (corrected target)
 
-Currently (`crates/audit/src/providers.rs`):
+**`DeterministicAuditProvider` needs no change** — checked
+`crates/audit/src/providers.rs`, it's already fully data-driven off
+`rules: &[AuditRuleDef]` loaded from DB and never imports `pipelines::` at
+all. The real coupling is in `crates/services/src/runtime/runtime.rs`.
+
+Currently (`runtime.rs`, `run_pipeline()`/`run_pipeline_with_id()`):
 ```rust
-pub fn execute(docs, rules, standard, ...) -> Vec<AuditFinding> {
-    // Calls into pipeline modules directly
-    let findings = pipeline::run(docs, rules);
-    findings
+pub fn run_pipeline(&self, kind: &PipelineKind, ...) -> Result<PipelineReport> {
+    match kind {
+        PipelineKind::Vision => AuditService::run_pipeline(&VisionPipeline, &ctx),
+        PipelineKind::Architecture => AuditService::run_pipeline(&ArchitecturePipeline, &ctx),
+        // ...20 more hardcoded arms, one per PipelineKind variant
+        PipelineKind::Doc => { /* only this arm is DB-driven today */ }
+    }
 }
 ```
 
 Refactored:
 ```rust
-pub fn execute(docs, rules, standard, ...) -> Vec<AuditFinding> {
-    // Dispatches to system's validate script
+pub fn run_pipeline(&self, kind: &PipelineKind, ...) -> Result<PipelineReport> {
+    // Try the system's own script first, for every kind (not just Doc).
     let source = capability::resolve_capability(&Capability::Validate, repo_root, config);
     match source {
         Some(src) => {
             let result = capability::execute_capability(&src, &Capability::Validate, ...);
-            // Parse result.output_json into AuditFinding
+            // Parse result.output_json into a PipelineReport
         }
         None => {
-            // Fallback: run YAML-driven pipelines if system has no validate script
-            let findings = yaml_runner::run(docs, rules);
-            findings
+            // No script yet for this system — fall back to the Rust
+            // pipeline for this specific kind (kept, not deleted, until
+            // every kind has a working replacement script — see §5).
+            match kind {
+                PipelineKind::Vision => AuditService::run_pipeline(&VisionPipeline, &ctx),
+                // ...
+            }
         }
     }
 }
 ```
+This is the actual refactor `pipelines/`'s eventual removal depends on —
+not a change to `providers.rs` at all. `capability::resolve_capability()`/
+`execute_capability()` already exist (`crates/audit/src/capability.rs`) and
+need no changes; only `run_pipeline()`'s dispatch needs rewriting.
 
 ### 4.2 `report_generate` MCP tool — redirect to system scripts
 
@@ -202,18 +258,33 @@ Refactored: reads system's init plan from `system_plans` table, uses
 The removal should be phased to avoid breaking the existing system while
 new systems are being built:
 
-**Phase 1: Decouple pipelines from audit framework**
-- Make `DeterministicAuditProvider` fall through to YAML runner when no
-  Rust pipeline exists for a domain
-- This lets us remove pipeline modules one at a time without breaking
-  the framework
+**Phase 1: Rewire the real dispatch point (corrected — `DeterministicAuditProvider` was the wrong target)**
+- `DeterministicAuditProvider` needs no change — verified it never imports
+  `pipelines::` and is already fully data-driven (§1, §4.1)
+- The actual coupling is `crates/services/src/runtime/runtime.rs`'s
+  `run_pipeline()`/`run_pipeline_with_id()`, which match on `PipelineKind`
+  and call a hardcoded Rust struct per variant — this is what the `audit`
+  MCP tool and CLI call directly (`adapter.rs:710-740`,
+  `cli/commands.rs:786,897`) for all 22 named domains, bypassing
+  `AuditFramework` entirely
+- Rewrite `run_pipeline()` to try `capability::resolve_capability()` /
+  `execute_capability()` first, per kind, falling back to the existing
+  Rust struct only when no system script exists yet — this is the real
+  "decouple before removing" step, and it's the one that lets pipeline
+  modules be removed one at a time (per `PipelineKind`) without breaking
+  the tool for kinds that haven't migrated
 
-**Phase 2: Remove pipeline modules**
-- Delete `crates/audit/src/pipelines/` entirely
-- The YAML runner (`yaml_runner.rs`) + `pipeline_factory.rs` handle
-  YAML-driven checks that systems still need
-- Any system that was using Rust-native pipelines now uses the YAML runner
-  or its own `validate` script
+**Phase 2: Remove pipeline modules — one `PipelineKind` at a time, not all at once**
+- Delete an individual pipeline module (e.g. `vision.rs`) only once its
+  system has a working `validate` script proven against real repo state
+  (mirrors the sibling proposal's own piloting discipline — prove one
+  before committing to all 22)
+- Only delete `crates/audit/src/pipelines/` entirely once every
+  `PipelineKind` variant has a working replacement — until then it's the
+  Phase 1 fallback, not dead code
+- The YAML runner (`yaml_runner.rs`) + `pipeline_factory.rs` continue to
+  handle YAML-driven checks systems already use via the `Doc` kind — this
+  was never blocked on any of the above
 
 **Phase 3: Strip reporting domain knowledge**
 - Remove `*_AUDIT_STANDARDS`, `*_SECTION_TYPES`, `*TeraContext` structs
@@ -230,14 +301,20 @@ new systems are being built:
 During migration:
 - YAML-driven audit pipelines (`audit/{standard}/audit/pipelines/*.yaml`)
   continue to work — they're data, not code
+- **Corrected**: per-`PipelineKind` Rust fallback continues to work for any
+  domain that hasn't gotten a system script yet (§5.1 Phase 1's rewrite) —
+  not "must provide a script or lose the feature." Nothing forces a system
+  to migrate on any particular schedule; each domain's Rust pipeline stays
+  live until its own replacement is proven, same as `report_generate`'s and
+  `project_plan`'s existing fallback behavior below
 - The `report_generate` tool falls back to generic template rendering
   when no system script exists
 - The `project_plan` tool falls back to `StandardWorkflowPlanner` when
   no system plan is stored
 
-After migration:
-- Systems that haven't migrated to scripts will need to provide at least
-  a `validate` script (can delegate to YAML pipelines internally)
+After full migration (every `PipelineKind` has a working script):
+- `crates/audit/src/pipelines/` can be deleted — until then it's a live
+  fallback, not legacy code scheduled for removal on a fixed date
 - Systems that haven't migrated `report` will get a minimal generic report
 
 ---
@@ -246,12 +323,12 @@ After migration:
 
 | File | Action | Lines affected |
 |------|--------|---------------|
-| `crates/audit/src/pipelines/` (22 files) | DELETE | ~8,521 |
-| `crates/audit/src/pipelines/mod.rs` | DELETE | 22 |
+| `crates/audit/src/pipelines/` (22 files + mod.rs) | DELETE, **only after `runtime.rs` rewrite lands and every `PipelineKind` has a working script** | 10,202 (verified `wc -l`) |
 | `crates/audit/src/lib.rs` | REMOVE `pub mod pipelines;` | 1 |
+| `crates/services/src/runtime/runtime.rs` | **REFACTOR `run_pipeline()`/`run_pipeline_with_id()` to try `capability::execute_capability()` first, per `PipelineKind`, falling back to the Rust struct — the actual prerequisite for deleting `pipelines/`, missing from the original plan entirely** | ~200 changed (22-arm match + fallback logic) |
 | `crates/services/src/reporting.rs` | STRIP domain-specific | ~4,500 removed |
 | `crates/services/src/project_planner/planners.rs` | STRIP domain-specific | ~200 removed |
-| `crates/audit/src/providers.rs` | REFACTOR to dispatch to scripts | ~50 changed |
+| `crates/audit/src/providers.rs` | **No change** — already data-driven, doesn't import `pipelines::` (corrected from original plan, which had this refactor targeting the wrong file) | 0 |
 | `crates/mcp/src/adapter.rs` | REFACTOR report_generate handler | ~30 changed |
 
 ---
@@ -260,8 +337,19 @@ After migration:
 
 ### 7.1 What breaks
 
-- Any code that directly imports from `pipelines::*` (check pipeline
-  module imports in `lib.rs`, `pipeline_factory.rs`, `providers.rs`)
+- **The `audit` MCP tool's per-domain usage, immediately, for every
+  currently registered system** — corrected from the original draft, which
+  missed this entirely. Verified: `adapter.rs:710-722` dispatches to
+  `run_pipeline()` directly whenever `pipeline_kind != Doc` (i.e. whenever
+  the caller names any of the 22 domains — vision, architecture, feature,
+  security, ...), bypassing `AuditFramework` entirely. `cli/commands.rs`
+  (lines 786, 897) does the same for the CLI. Deleting `pipelines/` before
+  `run_pipeline()` is rewritten (§4.1) removes the *only* implementation
+  for 22 of 23 audit domains, not a redundant one.
+- Any code that directly imports from `pipelines::*` — confirmed the real
+  import site is `crates/services/src/runtime/runtime.rs:19` (not `lib.rs`/
+  `pipeline_factory.rs`/`providers.rs` as originally listed — none of those
+  three reference `pipelines::` at all)
 - Tests that assert on specific pipeline check IDs (e.g.
   `assert_eq!(finding.check_id, "V1")`)
 - The `report_generate` tool's domain-specific rendering paths
@@ -270,8 +358,10 @@ After migration:
 
 - YAML-driven audit pipelines (`audit/{standard}/audit/pipelines/*.yaml`)
   — these go through `yaml_runner.rs`, not the Rust pipelines
-- The `audit` tool itself — it calls `AuditFramework::run()` which calls
-  providers, which will be refactored to dispatch to scripts
+- The `audit` tool's `Doc`-kind path (the generic catch-all) — it's the
+  *only* pipeline kind that already goes through `AuditFramework`/
+  `DeterministicAuditProvider`/providers. Every other kind is §7.1's
+  breaking case, not this one.
 - The `compile` tool — generic compilation, no domain knowledge
 - The `search` tool — generic search, no domain knowledge
 - The `sync` tool — generic sync, no domain knowledge
@@ -281,9 +371,9 @@ After migration:
 
 | Category | Lines |
 |----------|-------|
-| Removed (domain-specific) | ~13,221 |
+| Removed (domain-specific) | ~14,900 (10,202 pipelines, verified + ~4,500 reporting + ~200 planners) |
 | Kept (generic infrastructure) | ~15,000+ |
-| Net result | samgraha shrinks by ~47% while becoming more capable |
+| Net result | samgraha shrinks by roughly half while becoming more capable — **conditional on §4.1's `run_pipeline()` rewrite landing first**, not a side effect of deleting `pipelines/` on its own |
 
 ---
 
@@ -295,6 +385,13 @@ After each phase:
 - `cargo test -p mcp` passes
 - Manual test: `audit` tool still works against a registered standard
 - Manual test: `report_generate` still produces output (generic fallback)
+- **Added, specific to §4.1/§5.1's corrected Phase 1**: for every
+  `PipelineKind` variant, run `audit --pipeline <kind>` against a real repo
+  both *before* and *after* the `run_pipeline()` rewrite, with no system
+  script present yet — output must be identical (proves the fallback
+  actually falls back, not just that it compiles). Only after this passes
+  for a given kind does that kind become eligible for its Rust pipeline to
+  be deleted (§5.1 Phase 2) once a real replacement script exists.
 
 ---
 
@@ -305,3 +402,176 @@ After each phase:
 | `generic-script-architecture-proposal.md` | This refactoring implements that proposal's §2.1 ("zero domain-shape knowledge") |
 | `knowledge-system-author-guide.md` | Systems built per that guide will replace the removed domain logic |
 | `crates-refactor-proposal.md` | Phases 0-1 (system.yaml, inheritance) are kept; Phase 2+ is superseded |
+
+---
+
+## 10. Phased Implementation Plan
+
+Each phase is independently committable and verifiable. Phases 1-3 can
+ship today (no system scripts required). Phase 4 requires system scripts
+to exist for each PipelineKind variant.
+
+### Phase 0: Document corrections
+
+Correct line counts in this document to match actual `wc -l` output.
+
+**Changes**:
+- §1: pipelines = 9,617 lines (not 10,202), reporting = 5,058 lines
+  (not ~4,500)
+- §3.1: fix per-file counts (e.g. `documentation_structure.rs` = 1,353,
+  `help.rs` = 903, `implementation.rs` = 552)
+- §7.3: total removed = ~14,875 (not ~14,900)
+
+**Files**: `docs/codebase-refactoring-proposal.md` only
+
+**Verification**:
+- [ ] Every per-file line count matches `wc -l` output
+- [ ] Totals in §1, §3.1, §7.3 are arithmetically consistent
+
+---
+
+### Phase 1: Rewire `run_pipeline()` to try capability scripts first
+
+This is the critical prerequisite for everything else. Without it,
+deleting `pipelines/` breaks the `audit` MCP tool for all 22 named
+domains.
+
+**What changes**:
+- `crates/services/src/runtime/runtime.rs`: both `run_pipeline()` and
+  `run_pipeline_with_id()` get a capability-first dispatch: call
+  `capability::resolve_capability(&Capability::Validate, repo_root, config)`
+  first; if a script exists, execute it and parse the JSON output into a
+  `PipelineReport`; if not, fall back to the existing Rust pipeline struct.
+- `crates/services/src/runtime/runtime.rs`: remove the `use
+  audit_crate::pipelines::*` import — it becomes dead code once the match
+  arms are replaced with the capability dispatch + fallback.
+
+**Files affected**:
+- `crates/services/src/runtime/runtime.rs` (~200 lines changed in
+  `run_pipeline()` + `run_pipeline_with_id()`)
+
+**NOT changed yet**: `crates/audit/src/pipelines/` stays — it's the
+fallback until every PipelineKind has a working system script.
+
+**Verification**:
+- [ ] `cargo check -p services` clean
+- [ ] `cargo check -p mcp` clean
+- [ ] `cargo test -p audit` passes
+- [ ] `cargo test -p mcp` passes
+- [ ] Manual: `run_system_script --domain vision --capability validate`
+  with no system script installed → falls back to VisionPipeline, returns
+  same output as before
+- [ ] Manual: `run_system_script --domain vision --capability validate`
+  with a system script installed → runs the script, returns its output
+
+---
+
+### Phase 2: Strip reporting domain-specific content
+
+**What changes**:
+- `crates/services/src/reporting.rs`: delete ~4,100 lines of
+  domain-specific code:
+  - 10 `*_AUDIT_STANDARDS` const arrays (~800 lines, starting line 657)
+  - 10 `*_SECTION_TYPES` const arrays (~300 lines, starting line 640)
+  - 14 `*TeraContext` structs (~2,800 lines, starting line 607)
+  - 14 `build_*_context()` functions (~400 lines)
+  - 14 `render_*_template()` functions (~200 lines)
+- Keep generic infrastructure (~950 lines):
+  - `ReportOutput`, `write_report()`, `write_report_file()` (lines 12-120)
+  - `TemplateContext`, `TemplateFinding`, `TemplateComment` (generic types)
+  - `render_from_template()`, `render_score_bar()`, `render_categories()`
+  - `render_finding_table()`, `render_fix_plan()`
+  - `SqliteReportRow`, `regenerate_from_sqlite()`
+  - `build_report_path()`
+  - `DEFAULT_TEMPLATE` + template engine
+
+**Files affected**:
+- `crates/services/src/reporting.rs` (~4,100 lines removed)
+
+**Verification**:
+- [ ] `cargo check -p services` clean
+- [ ] `cargo test -p services` passes
+- [ ] `cargo test -p mcp` passes
+- [ ] `report_generate` MCP tool still works (generic template fallback)
+- [ ] No remaining references to deleted types in the codebase:
+  `grep -r "ArchitectureTeraContext\|VisionTeraContext\|build_architecture_context" crates/`
+
+---
+
+### Phase 3: Remove hardcoded planners
+
+**What changes**:
+- `crates/services/src/project_planner/planners.rs`: delete ~200 lines:
+  - `DOC_DOMAINS` const (line 67)
+  - `DOC_PIPELINES` const (line 73)
+  - `IMPL_DOMAINS` const (line 75)
+  - `IMPL_PIPELINES` const (line 79)
+  - `all_pipelines()` function (line 84)
+  - `NewProjectPlanner` struct + impl (lines 90-123)
+  - `DocAuditPlanner` struct + impl (lines 127-142)
+  - `ImplTestAuditPlanner` struct + impl (lines 146-167)
+  - `BuildAuditPlanner` struct + impl (lines 171-186)
+- Keep: `StandardWorkflowPlanner`, `make_phase()`, `topological_layers()`
+- Update `crates/services/src/project_planner/mod.rs` or `orchestrator.rs`
+  to remove references to deleted planners (if any exist outside
+  `planners.rs`).
+
+**Files affected**:
+- `crates/services/src/project_planner/planners.rs` (~200 lines removed)
+- `crates/services/src/project_planner/orchestrator.rs` (update dispatch)
+
+**Verification**:
+- [ ] `cargo check -p services` clean
+- [ ] `cargo test -p services` passes
+- [ ] `cargo test -p mcp` passes
+- [ ] `project_plan` MCP tool still works (falls back to
+  `StandardWorkflowPlanner`)
+- [ ] No remaining references to deleted types:
+  `grep -r "NewProjectPlanner\|DocAuditPlanner\|ImplTestAuditPlanner\|BuildAuditPlanner" crates/`
+
+---
+
+### Phase 4: Remove pipeline modules (requires system scripts)
+
+**Prerequisite**: Every `PipelineKind` variant must have a working
+`validate` system script proven against real repo state. Until then, the
+Rust pipeline modules are the fallback and must stay.
+
+**What changes**:
+- `crates/audit/src/pipelines/`: delete all 22 module files + `mod.rs`
+  (~9,617 lines)
+- `crates/audit/src/lib.rs`: remove `pub mod pipelines;` (1 line)
+- `crates/services/src/runtime/runtime.rs`: remove fallback match arms
+  (once every kind has a script, the fallback is dead code)
+
+**Files affected**:
+- `crates/audit/src/pipelines/` (23 files, ~9,617 lines deleted)
+- `crates/audit/src/lib.rs` (1 line removed)
+- `crates/services/src/runtime/runtime.rs` (~50 lines — remove fallback
+  arms, simplify to capability-only dispatch)
+
+**Verification**:
+- [ ] `cargo check -p audit` clean
+- [ ] `cargo check -p services` clean
+- [ ] `cargo check -p mcp` clean
+- [ ] `cargo test -p audit` passes (minus deleted pipeline tests)
+- [ ] `cargo test -p mcp` passes
+- [ ] For every `PipelineKind` variant, `run_system_script --domain <kind>
+  --capability validate` returns valid output with a system script
+  installed
+- [ ] No remaining references to pipeline module types:
+  `grep -r "VisionPipeline\|ArchitecturePipeline\|BuildPipeline" crates/`
+  returns zero hits
+- [ ] `crates/audit/src/pipelines/` directory no longer exists
+
+---
+
+## 11. Verification Summary
+
+| Phase | Status | Verified |
+|-------|--------|----------|
+| Phase 0: Document corrections | Not started | - |
+| Phase 1: Rewire run_pipeline() | Not started | - |
+| Phase 2: Strip reporting | Not started | - |
+| Phase 3: Remove planners | Not started | - |
+| Phase 4: Remove pipelines | Blocked (needs system scripts) | - |
