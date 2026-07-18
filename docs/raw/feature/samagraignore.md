@@ -69,7 +69,7 @@ There is no precedence conflict between sources. A pattern in one source does no
 
 ## FR4. Remove Hardcoded Exclusions
 
-`pipeline.rs` and `discovery.rs` shall contain no hardcoded exclusion lists.
+`discovery.rs` shall contain no hardcoded exclusion lists.
 
 All exclusions shall flow through `IgnoreConfig`, which is populated from config-based patterns, file-based patterns, and built-in defaults.
 
@@ -175,7 +175,7 @@ SamagraIgnore depends upon:
 
 * `config.rs` — `IgnoreConfig` struct and deserialization from `samgraha.toml`
 * `discovery.rs` — DiscoveryEngine that applies `IgnoreConfig` during file collection
-* `pipeline.rs` — CompilationPipeline that receives the filtered file set from discovery
+* `compilation.rs` — CompilationService that receives the filtered file set from discovery
 
 ---
 
@@ -210,7 +210,7 @@ The feature is successful when:
 * removing hardcoded exclusions does not break `audit-standards` exclusion, which moves to `IgnoreConfig` defaults
 * discovery correctly handles glob patterns matching at any path depth
 * an absent `.samagraignore` produces no error and no change in behavior
-* `pipeline.rs` and `discovery.rs` contain no hardcoded exclusion strings
+* `discovery.rs` contains no hardcoded exclusion strings
 
 ---
 

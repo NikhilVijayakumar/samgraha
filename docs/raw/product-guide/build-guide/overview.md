@@ -47,7 +47,7 @@ This script:
 1. Builds `cli.exe` and `mcp.exe` in release mode.
 2. Packages them into `<OUTPUT_DIR>/samgraha/` along with config, universal docs (`standards`, `audit`, `audit-standards`), and an empty `.samgraha/`.
 3. Compiles `docs/raw/product-guide` into `help.db` using the just-packaged `cli.exe`.
-4. Creates an empty `knowledge.db` (schema only) and copies the knowledge-hub loader + schema files for Knowledge System registration.
+4. Creates an empty `knowledge.db` (schema only) and copies the system scripts for Knowledge System registration.
 5. Writes `run-mcp.cmd`/`run-mcp.sh` launchers and a `SHA256SUMS` file.
 
 `.env` at the repo root (`SAMGRAHA_EXPIRY_DAYS`, `SAMGRAHA_EXPIRY_HOURS`, `OUTPUT_DIR`) is the single source of truth for these settings — there are no CLI override flags. The script stops on any build/compile failure; a missing `docs/raw/product-guide` source directory just skips that step with a warning.

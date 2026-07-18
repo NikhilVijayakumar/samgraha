@@ -35,9 +35,9 @@ Responsible for walking the repository tree and collecting markdown files for co
 
 Currently passes a hardcoded exclude list to DiscoveryEngine. After this phase it reads patterns from config, merges with `.samagraignore` patterns, and passes the merged result to DiscoveryEngine. The hardcoded list is removed.
 
-### Compilation Service (compilation.rs:84)
+### Compilation Service (compilation.rs)
 
-Contains a secondary `audit-standards` guard applied after discovery. After this phase this guard is removed — `audit-standards` is excluded at discovery time via IgnoreConfig defaults.
+Previously contained a hardcoded `audit-standards` guard applied after discovery. That guard is removed — `audit-standards` is excluded at discovery time via IgnoreConfig defaults.
 
 ### SamagraIgnore Parser (new — samagraignore.rs)
 
@@ -91,18 +91,10 @@ CompilationService::execute(root, config, ...)
 ### Current State (what changes)
 
 ```rust
-// pipeline.rs:37-44 — hardcoded exclude list (to remove)
-DiscoveryEngine::discover(root, &[], &[
-    "node_modules".to_string(),
-    "target".to_string(),
-    ".git".to_string(),
-    "audit-standards".to_string(),
-])
-
-// discovery.rs:107 — substring match against directory name only (to upgrade)
+// discovery.rs — substring match against directory name only (to upgrade)
 exclude.iter().any(|p| name.contains(p.trim_matches('*')))
 
-// compilation.rs:84 — secondary guard after discovery (to remove)
+// compilation.rs — secondary guard after discovery (to remove)
 if !abs.exists() || rel.contains("audit-standards") {
     registry.delete_document(stored.id)?;
 }
@@ -111,7 +103,7 @@ if !abs.exists() || rel.contains("audit-standards") {
 ### Target State
 
 ```rust
-// pipeline.rs — read from config, no hardcoded list
+// compilation.rs — read from config, no hardcoded list
 let ignore_patterns = merge_ignore_patterns(root, config);
 DiscoveryEngine::discover(root, &[], &ignore_patterns)
 
@@ -225,7 +217,7 @@ A new per-repository file. Absent by default. Format: one pattern per line. Line
 
 ### DiscoveryEngine
 
-`collect_markdown_files` receives the merged pattern list via the existing parameter. The call site in `pipeline.rs` changes; the DiscoveryEngine function signature does not need to change.
+`collect_markdown_files` receives the merged pattern list via the existing parameter. The call site in `compilation.rs` changes; the DiscoveryEngine function signature does not need to change.
 
 ---
 
@@ -246,7 +238,6 @@ No new dependencies. `std::fs::read_to_string` handles `.samagraignore` parsing.
 
 ## Architectural Constraints
 
-- No hardcoded exclude lists may remain in `pipeline.rs` after this phase.
 - No secondary post-discovery guards for specific directory names may remain in `compilation.rs`.
 - `audit-standards` exclusion must be covered by `IgnoreConfig::default()`, not by pipeline or service code.
 - The DiscoveryEngine interface must not be widened — pattern list is passed as `&[String]`, consistent with current usage.

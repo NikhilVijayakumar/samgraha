@@ -33,7 +33,7 @@ Evidence Collection → Verification → Findings → Report
 
 | Audit | What it verifies |
 |---|---|
-| Documentation Audit | Docs against standards (15 domains) |
+| Documentation Audit | Docs against standards (dynamic domain count) |
 | Implementation Audit | Docs against source code |
 | Build Audit | Build docs vs config vs artifacts |
 | Security Audit | Security docs vs config vs code vs runtime |

@@ -159,7 +159,7 @@ Deterministic execution is mandatory.
 
 The compiler shall support additional documentation processors.
 
-Future source formats should integrate through compiler extensions without changing the compilation pipeline.
+Future source formats should integrate through compiler extensions without changing the compilation service.
 
 ---
 

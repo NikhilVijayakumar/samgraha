@@ -21,7 +21,7 @@ samgraha/
 ├── run-mcp.cmd / run-mcp.sh   # launcher scripts — the recommended way to start mcp.exe
 ├── knowledge.db                # empty schema — users register their Knowledge System
 ├── help.db                     # compiled built-in product help
-├── schema/knowledge-hub/       # loader + SQL files for Knowledge System registration
+├── knowledge-system-scripts/    # system scripts for Knowledge System registration
 └── SHA256SUMS                  # checksums for cli.exe and mcp.exe
 ```
 

@@ -8,7 +8,7 @@ Step-by-step: declare a `[pipelines.test]` contract so Coverage Audit (CV6) and 
 
 ### What's Configurable Today
 
-`[pipelines.test]` in `samgraha.toml` has the same shape as `[pipelines.build]`: a `command` the repository owns, plus `artifacts` — paths MCP checks afterward. For the test contract specifically, the first declared artifact is where your script must write a JSON results file. MCP defines that JSON's shape (full reference: [Test Report Schema](../../../knowledge-hub/audit/semantic/document/test-report-schema.md)); the repository supplies the script that produces it, in whatever tooling fits its own stack (`cargo test` + `tarpaulin`/`llvm-cov`, `pytest` + `coverage.py`, `jest` + `nyc`, ...).
+`[pipelines.test]` in `samgraha.toml` has the same shape as `[pipelines.build]`: a `command` the repository owns, plus `artifacts` — paths MCP checks afterward. For the test contract specifically, the first declared artifact is where your script must write a JSON results file. The repository supplies the script that produces it, in whatever tooling fits its own stack (`cargo test` + `tarpaulin`/`llvm-cov`, `pytest` + `coverage.py`, `jest` + `nyc`, ...).
 
 This repo's own contract (`scripts/test-coverage.ps1` / `.sh`) is a worked example — a single `cargo llvm-cov --workspace --json` run covers both `--lib` unit tests and the `tests` crate's `e2e_*.rs` integration tests, split by parsing cargo's own "Running unittests" vs "Running tests\<file>.rs" log headers.
 
@@ -64,7 +64,4 @@ samgraha audit --pipeline implementation --execute
 
 ## Related
 
-- [Test Report Schema](../../../knowledge-hub/audit/semantic/document/test-report-schema.md)
-- [Coverage Audit Spec](../../../knowledge-hub/audit/semantic/document/coverage-audit.md)
-- [Implementation Audit Spec](../../../knowledge-hub/audit/semantic/document/implementation-audit.md)
 - [Custom Standard Tutorial](custom-standard.md)

@@ -39,7 +39,7 @@ Supported provider types may include:
 * OpenAI-compatible API providers
 * Future enrichment providers
 
-The enrichment pipeline shall remain provider-independent.
+The enrichment system shall remain provider-independent.
 
 ---
 
