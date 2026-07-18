@@ -170,6 +170,57 @@ impl KnowledgeRuntime {
         .with_dry_run(dry_run)
         .with_repository_metadata(self.registry.get_repository_metadata().unwrap_or_default());
 
+        // ── Capability-first dispatch (Phase 1 of codebase refactoring) ──
+        // Try the system's own `validate` script before falling back to the
+        // hardcoded Rust pipeline.  The script receives `target` = pipeline
+        // kind name and must return JSON matching `PipelineReport` shape.
+        let repo_root = &self.context.repository_root;
+        if let Some(source) = audit_crate::capability::resolve_capability(
+            &audit_crate::capability::Capability::Validate,
+            repo_root,
+            Some(&self.context.config),
+        ) {
+            let kind_name = kind.as_str().to_string();
+            let input_payload = serde_json::json!({ "target": &kind_name });
+            let input_path = {
+                let p = std::env::temp_dir()
+                    .join(format!("samgraha-pipeline-input-{}.json", Uuid::new_v4()));
+                std::fs::write(&p, serde_json::to_string(&input_payload)?)
+                    .with_context(|| format!("Failed to write temp input JSON to {}", p.display()))?;
+                p
+            };
+            let result = audit_crate::capability::execute_capability(
+                &source,
+                &audit_crate::capability::Capability::Validate,
+                repo_root,
+                &input_path,
+                None,
+            );
+            let _ = std::fs::remove_file(&input_path);
+
+            if result.status == audit_crate::capability::CapabilityStatus::Ok {
+                if let Some(ref output_json) = result.output_json {
+                    if let Ok(report) = serde_json::from_value::<PipelineReport>(output_json.clone()) {
+                        let session_id = Uuid::new_v4().to_string();
+                        if let Err(e) = self.store_pipeline_to_db(kind, &report, &session_id) {
+                            tracing::warn!("Failed to store pipeline report: {}", e);
+                        }
+                        return Ok(report);
+                    }
+                    tracing::debug!(
+                        "validate script for '{}' returned JSON that doesn't match PipelineReport — falling back to Rust pipeline",
+                        kind_name
+                    );
+                }
+            }
+            tracing::debug!(
+                "validate script for '{}' failed ({}), falling back to Rust pipeline",
+                kind_name,
+                result.message.unwrap_or_default()
+            );
+        }
+
+        // ── Fallback: hardcoded Rust pipeline ──────────────────────────────
         let report = match kind {
             PipelineKind::Build => AuditService::run_pipeline(&BuildPipeline, &ctx),
             PipelineKind::Security => AuditService::run_pipeline(&SecurityPipeline, &ctx),
@@ -228,6 +279,52 @@ impl KnowledgeRuntime {
         .with_dry_run(dry_run)
         .with_repository_metadata(self.registry.get_repository_metadata().unwrap_or_default());
 
+        // ── Capability-first dispatch (Phase 1 of codebase refactoring) ──
+        let repo_root = &self.context.repository_root;
+        if let Some(source) = audit_crate::capability::resolve_capability(
+            &audit_crate::capability::Capability::Validate,
+            repo_root,
+            Some(&self.context.config),
+        ) {
+            let kind_name = kind.as_str().to_string();
+            let input_payload = serde_json::json!({ "target": &kind_name });
+            let input_path = {
+                let p = std::env::temp_dir()
+                    .join(format!("samgraha-pipeline-input-{}.json", Uuid::new_v4()));
+                std::fs::write(&p, serde_json::to_string(&input_payload)?)
+                    .with_context(|| format!("Failed to write temp input JSON to {}", p.display()))?;
+                p
+            };
+            let result = audit_crate::capability::execute_capability(
+                &source,
+                &audit_crate::capability::Capability::Validate,
+                repo_root,
+                &input_path,
+                None,
+            );
+            let _ = std::fs::remove_file(&input_path);
+
+            if result.status == audit_crate::capability::CapabilityStatus::Ok {
+                if let Some(ref output_json) = result.output_json {
+                    if let Ok(report) = serde_json::from_value::<PipelineReport>(output_json.clone()) {
+                        let session_id = Uuid::new_v4().to_string();
+                        let report_id = self.store_pipeline_to_db(kind, &report, &session_id)?;
+                        return Ok((report, report_id));
+                    }
+                    tracing::debug!(
+                        "validate script for '{}' returned JSON that doesn't match PipelineReport — falling back to Rust pipeline",
+                        kind_name
+                    );
+                }
+            }
+            tracing::debug!(
+                "validate script for '{}' failed ({}), falling back to Rust pipeline",
+                kind_name,
+                result.message.unwrap_or_default()
+            );
+        }
+
+        // ── Fallback: hardcoded Rust pipeline ──────────────────────────────
         let report = match kind {
             PipelineKind::Build => AuditService::run_pipeline(&BuildPipeline, &ctx),
             PipelineKind::Security => AuditService::run_pipeline(&SecurityPipeline, &ctx),

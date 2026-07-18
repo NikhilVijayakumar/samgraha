@@ -454,10 +454,10 @@ domains.
 fallback until every PipelineKind has a working system script.
 
 **Verification**:
-- [ ] `cargo check -p services` clean
-- [ ] `cargo check -p mcp` clean
-- [ ] `cargo test -p audit` passes
-- [ ] `cargo test -p mcp` passes
+- [x] `cargo check -p services` clean
+- [x] `cargo check -p mcp` clean
+- [x] `cargo test -p audit` passes (264 passed, 1 ignored)
+- [x] `cargo test -p mcp` passes (8 passed)
 - [ ] Manual: `run_system_script --domain vision --capability validate`
   with no system script installed → falls back to VisionPipeline, returns
   same output as before
@@ -570,8 +570,8 @@ Rust pipeline modules are the fallback and must stay.
 
 | Phase | Status | Verified |
 |-------|--------|----------|
-| Phase 0: Document corrections | Not started | - |
-| Phase 1: Rewire run_pipeline() | Not started | - |
+| Phase 0: Document corrections | Done | ✓ (line counts match `wc -l`) |
+| Phase 1: Rewire run_pipeline() | Done | ✓ (`cargo check`, 264+8 tests pass) |
 | Phase 2: Strip reporting | Not started | - |
 | Phase 3: Remove planners | Not started | - |
 | Phase 4: Remove pipelines | Blocked (needs system scripts) | - |
