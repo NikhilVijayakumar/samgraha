@@ -1,4 +1,5 @@
 pub mod calculation;
+pub mod capability;
 pub mod check_runner;
 pub mod contract;
 pub mod fix;

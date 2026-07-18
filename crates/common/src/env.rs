@@ -41,6 +41,33 @@ pub fn home_dir() -> std::path::PathBuf {
         .unwrap_or_else(|_| std::path::PathBuf::from("."))
 }
 
+/// Compute a stable fingerprint for a repo root path. Used as the
+/// `repo_fingerprint` column in script_runs / system_plans — same
+/// convention check_runner uses (`{name}-{repo_root.display()}`), but
+/// here the name is omitted because the fingerprint is repo-scoped, not
+/// check-scoped.
+pub fn repo_fingerprint(repo_root: &std::path::Path) -> String {
+    repo_root.display().to_string()
+}
+
+/// Current git HEAD commit sha for a repo, or `None` if the repo has no
+/// commits yet, isn't a git repo, or `git` isn't on PATH. Used to evaluate
+/// `head_commit`-type expiry rules (§8.5) — a rule is expired when this
+/// differs from the sha recorded at the time a phase last ran.
+pub fn current_head_sha(repo_root: &std::path::Path) -> Option<String> {
+    let output = std::process::Command::new("git")
+        .arg("rev-parse")
+        .arg("HEAD")
+        .current_dir(repo_root)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let sha = String::from_utf8(output.stdout).ok()?.trim().to_string();
+    if sha.is_empty() { None } else { Some(sha) }
+}
+
 /// Directory the running binary (mcp.exe / cli.exe) lives in — where
 /// `standards.db` (knowledge-hub schema, multi-system) and `help.db`
 /// (registry schema, `domain = 'help'` documents) ship alongside the build.
@@ -354,6 +381,69 @@ fn run_with_optional_timeout(
             }
         }
     })
+}
+
+/// Run a script with the capability contract: `--repo-root`, `--in`,
+/// `--out` — same structure as check scripts but without the fingerprint
+/// argument (capabilities don't cache by fingerprint). The script must
+/// write a JSON envelope to `--out`:
+///
+/// ```json
+/// { "status": "ok"|"error", "message": "...", "written": [...] }
+/// ```
+///
+/// Returns the parsed JSON envelope on success. If the script fails to
+/// write the output file (e.g. non-zero exit), returns a descriptive
+/// error with stderr content.
+pub fn run_capability_script(
+    script_path: &Path,
+    repo_root: &Path,
+    input_json_path: &Path,
+    timeout_secs: Option<u64>,
+) -> anyhow::Result<serde_json::Value> {
+    let out_file = std::env::temp_dir().join(format!("samgraha-cap-{}.json", uuid::Uuid::new_v4()));
+    let repo_root_str = repo_root.display().to_string();
+    let in_str = input_json_path.display().to_string();
+    let out_str = out_file.display().to_string();
+
+    let is_ps1 = script_path.extension().and_then(|e| e.to_str()) == Some("ps1");
+    let args: Vec<String> = if is_ps1 {
+        vec![
+            "-RepoRoot".into(), repo_root_str,
+            "-In".into(), in_str,
+            "-Out".into(), out_str.clone(),
+        ]
+    } else {
+        vec![
+            "--repo-root".into(), repo_root_str,
+            "--in".into(), in_str,
+            "--out".into(), out_str.clone(),
+        ]
+    };
+    let arg_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+
+    let mut cmd = script_command(script_path, &arg_refs);
+    cmd.current_dir(repo_root);
+
+    let output = run_with_optional_timeout(cmd, timeout_secs)
+        .context("Failed to execute capability script")?;
+    let content = std::fs::read_to_string(&out_file);
+    let _ = std::fs::remove_file(&out_file);
+
+    match content {
+        Ok(text) => serde_json::from_str(text.trim_start_matches('\u{FEFF}'))
+            .with_context(|| format!("Script wrote invalid JSON to {}", out_file.display())),
+        Err(_) => {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            anyhow::bail!(
+                "Capability script did not write an output file (exit {:?}); stderr: {} stdout: {}",
+                output.status.code(),
+                stderr.trim(),
+                stdout.trim()
+            )
+        }
+    }
 }
 
 /// Result of a workflow-script run — raw process output, no interpretation.

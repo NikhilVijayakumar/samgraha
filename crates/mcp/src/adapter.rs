@@ -66,6 +66,34 @@ fn parse_i64(req: &McpRequest, name: &str) -> Result<i64> {
         .ok_or_else(|| anyhow::anyhow!("Missing or invalid '{}' parameter", name))
 }
 
+/// Resolve a `standards.id` from a system name, same query
+/// `standards::db_reader::from_standards_db` already uses to pick which
+/// standard a repo loads. `None` falls back to whichever system has
+/// `is_default = 1` — same fallback `from_standards_db` uses for
+/// `samgraha.toml`'s `standard_system` being unset.
+fn resolve_standard_id(conn: &rusqlite::Connection, system_name: Option<&str>) -> Result<i64> {
+    match system_name {
+        Some(name) => conn.query_row(
+            "SELECT s.id FROM standards s
+             JOIN systems sys ON s.system_id = sys.id
+             WHERE sys.name = ?1 AND s.name = 'documentation-standards'
+             LIMIT 1",
+            [name],
+            |row| row.get(0),
+        )
+        .with_context(|| format!("No documentation-standards found for system '{}'", name)),
+        None => conn.query_row(
+            "SELECT s.id FROM standards s
+             JOIN systems sys ON s.system_id = sys.id
+             WHERE sys.is_default = 1 AND s.name = 'documentation-standards'
+             LIMIT 1",
+            [],
+            |row| row.get(0),
+        )
+        .context("No default documentation-standards found in DB"),
+    }
+}
+
 /// Copy every file directly under `source_dir` (a standard's own `script/`
 /// directory) into `dest_dir`, so `resolve_check`'s existing
 /// `.samgraha/scripts/`/`mcp_dir()/scripts/` tiers can find them — same
@@ -154,6 +182,14 @@ impl McpAdapter {
         caps.methods.push("get_plan_scenarios".to_string());
         caps.methods.push("list_script_checks".to_string());
         caps.methods.push("run_check".to_string());
+        caps.methods.push("run_system_script".to_string());
+        caps.methods.push("run_system_validate".to_string());
+        caps.methods.push("run_system_calculate".to_string());
+        caps.methods.push("run_system_report".to_string());
+        caps.methods.push("run_system_scaffold".to_string());
+        caps.methods.push("run_system_plan_generation".to_string());
+        caps.methods.push("store_system_plan".to_string());
+        caps.methods.push("get_system_plan".to_string());
         let orchestrator = PlanOrchestrator::new(
             Arc::clone(&runtime),
             Arc::clone(&runtime.registry),
@@ -343,6 +379,15 @@ impl McpAdapter {
             "get_plan_scenarios"      => self.handle_get_plan_scenarios(&req),
             "list_script_checks"      => self.handle_list_script_checks(&req),
             "run_check"               => self.handle_run_check(&req),
+            "run_system_script"       => self.handle_run_system_script(&req),
+            "run_system_validate"     => self.handle_run_system_script_with_capability(&req, audit::capability::Capability::Validate),
+            "run_system_calculate"    => self.handle_run_system_script_with_capability(&req, audit::capability::Capability::Calculate),
+            "run_system_report"       => self.handle_run_system_script_with_capability(&req, audit::capability::Capability::Report),
+            "run_system_scaffold"     => self.handle_run_system_script_with_capability(&req, audit::capability::Capability::Scaffold),
+            "run_system_plan_generation" => self.handle_run_system_script_with_capability(&req, audit::capability::Capability::PlanGeneration),
+            // System plan storage (§8.4)
+            "store_system_plan"          => self.handle_store_system_plan(&req),
+            "get_system_plan"            => self.handle_get_system_plan(&req),
             _                         => Err(anyhow::anyhow!("Unknown method: {}", req.method)),
         };
 
@@ -1897,6 +1942,249 @@ impl McpAdapter {
                 },
                 "source": null,
             }))
+        }
+    }
+
+    /// Generic capability runner — accepts a `capability` param and dispatches
+    /// through the 5-tier discovery chain. Shared core for the 6 dedicated tools.
+    fn handle_run_system_script(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let cap_name = parse_string(req, "capability")?;
+        let capability = audit::capability::Capability::from_name(&cap_name)
+            .ok_or_else(|| anyhow::anyhow!("Unknown capability '{}' — valid names: validate, calculate, report, scaffold, plan-generation, init", cap_name))?;
+        self.run_capability_for(req, &capability)
+    }
+
+    /// Dedicated tool handler: capability is baked in by the tool name.
+    fn handle_run_system_script_with_capability(
+        &self,
+        req: &McpRequest,
+        capability: audit::capability::Capability,
+    ) -> Result<serde_json::Value> {
+        self.run_capability_for(req, &capability)
+    }
+
+    /// Shared implementation for all capability dispatch tools.
+    fn run_capability_for(
+        &self,
+        req: &McpRequest,
+        capability: &audit::capability::Capability,
+    ) -> Result<serde_json::Value> {
+        let repo_root = req.params.get("repo_root")
+            .and_then(|v| v.as_str())
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| self.runtime.context.repository_root.clone());
+
+        let config = load_repo_config(&repo_root);
+
+        let timeout_secs = req.params.get("timeout_secs")
+            .and_then(|v| v.as_u64());
+
+        // Optional phase_id: when provided, check prerequisites before
+        // executing (§8.6). When omitted, skip the check (backward-compat).
+        let phase_id = req.params.get("phase_id").and_then(|v| v.as_str());
+        let system_name = req.params.get("system_name").and_then(|v| v.as_str());
+
+        let runtime = self.runtime_for(req)?;
+        let repo_fp = common::env::repo_fingerprint(&repo_root);
+        let current_head = common::env::current_head_sha(&repo_root);
+        // Best-effort: a repo with no standard registered yet can still run
+        // a capability script purely off `resolve_capability`'s file-based
+        // discovery (pre-existing behavior for `validate`) — only phase
+        // gating and run-tracking need a resolved standard, so failure here
+        // isn't fatal to the capability call itself.
+        let standard_id: Option<i64> =
+            resolve_standard_id(&runtime.registry.conn, system_name).ok();
+
+        // ── Prerequisite gate (§8.6) ───────────────────────────────────
+        // `gated_phase` carries the resolved phase's expiry rule forward to
+        // the run-tracking write below, so a successful run records the
+        // rule its own plan declared, not a guess.
+        let mut gated_phase: Option<audit::capability::PlanPhase> = None;
+        if let (Some(pid), Some(sid)) = (phase_id, standard_id) {
+            // Look up the system's stored init plan.
+            let plan_json: Option<String> = runtime.registry.conn.query_row(
+                "SELECT plan_json FROM system_plans
+                 WHERE standard_id = ?1 AND repo_fingerprint = ?2",
+                rusqlite::params![sid, repo_fp],
+                |row| row.get(0),
+            ).ok();
+
+            if let Some(json_str) = plan_json {
+                if let Ok(plan) = serde_json::from_str::<audit::capability::InitPlan>(&json_str) {
+                    if let Some(phase) = plan.find_phase(pid) {
+                        let check = audit::capability::check_phase_prerequisites(
+                            &runtime.registry.conn,
+                            sid,
+                            &repo_fp,
+                            phase,
+                            current_head.as_deref(),
+                        );
+                        if check.blocked {
+                            return Ok(serde_json::json!({
+                                "blocked": true,
+                                "reason": check.reason,
+                                "system": plan.system,
+                                "phase_id": check.phase_id,
+                                "phase_kind": phase.kind,
+                                "message": check.message,
+                                "how_to_run": {
+                                    "tool": "run_system_script",
+                                    "args": {
+                                        "capability": capability.to_string(),
+                                        "phase_id": pid,
+                                    }
+                                }
+                            }));
+                        }
+                        gated_phase = Some(phase.clone());
+                    }
+                }
+            }
+        }
+
+        // ── Build input JSON payload ───────────────────────────────────
+        let target_val = req.params.get("target").and_then(|v| v.as_str());
+        let mut input_payload: serde_json::Value =
+            match req.params.get("input_json").and_then(|v| v.as_str()) {
+                Some(p) => {
+                    let raw = std::fs::read_to_string(p)
+                        .with_context(|| format!("Failed to read input_json at '{}'", p))?;
+                    serde_json::from_str(&raw)
+                        .with_context(|| format!("input_json at '{}' is not valid JSON", p))?
+                }
+                None => serde_json::json!({}),
+            };
+        if let Some(t) = target_val {
+            input_payload["target"] = serde_json::Value::String(t.to_string());
+        }
+
+        let input_path = {
+            let p = std::env::temp_dir()
+                .join(format!("samgraha-cap-input-{}.json", uuid::Uuid::new_v4()));
+            std::fs::write(&p, serde_json::to_string(&input_payload)?)
+                .with_context(|| format!("Failed to write temp input JSON to {}", p.display()))?;
+            p
+        };
+
+        match audit::capability::resolve_capability(capability, &repo_root, Some(&config)) {
+            Some(source) => {
+                let result = audit::capability::execute_capability(
+                    &source,
+                    capability,
+                    &repo_root,
+                    &input_path,
+                    timeout_secs,
+                );
+
+                // ── Record the run (§8.5) ──────────────────────────────
+                // Only on success — a failed run must not satisfy a
+                // downstream phase's `depends_on`. Only when a standard
+                // resolved — nothing to attribute the run to otherwise.
+                if result.status == audit::capability::CapabilityStatus::Ok {
+                    if let Some(sid) = standard_id {
+                        let cap_name = capability.to_string();
+                        let key = phase_id.unwrap_or(cap_name.as_str());
+                        let expiry = gated_phase.as_ref().and_then(|p| p.expiry.as_ref());
+                        if let Err(e) = audit::capability::record_script_run(
+                            &runtime.registry.conn,
+                            sid,
+                            &repo_fp,
+                            capability,
+                            key,
+                            expiry,
+                            current_head.as_deref(),
+                        ) {
+                            tracing::warn!("Failed to record script_runs row for '{}': {}", key, e);
+                        }
+                    }
+                }
+
+                Ok(serde_json::json!({
+                    "result": result,
+                    "source": format!("{:?}", source),
+                }))
+            }
+            None => Ok(serde_json::json!({
+                "result": {
+                    "capability": capability.to_string(),
+                    "status": "error",
+                    "message": format!("No {} script found — searched: repo scripts/, .samgraha/scripts/, mcp global scripts/", capability),
+                    "written": [],
+                    "duration_ms": 0,
+                },
+                "source": null,
+            })),
+        }
+    }
+
+    /// Store a system's init plan output (§8.4). Upserts by standard+repo+system.
+    fn handle_store_system_plan(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let system_name = parse_string(req, "system_name")?;
+        let plan_json_str = parse_string(req, "plan_json")?;
+
+        // Validate that plan_json is valid JSON and conforms to §8.4 shape.
+        let plan: audit::capability::InitPlan = serde_json::from_str(&plan_json_str)
+            .with_context(|| format!("plan_json is not valid §8.4 InitPlan JSON"))?;
+
+        if plan.system != system_name {
+            anyhow::bail!(
+                "plan_json.system '{}' does not match system_name '{}'",
+                plan.system,
+                system_name
+            );
+        }
+
+        let runtime = self.runtime_for(req)?;
+        let repo_fingerprint = common::env::repo_fingerprint(&runtime.context.repository_root);
+        let standard_id = resolve_standard_id(&runtime.registry.conn, Some(&system_name))?;
+
+        let db = &runtime.registry.conn;
+        db.execute(
+            "INSERT INTO system_plans (standard_id, repo_fingerprint, system_name, plan_json, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, datetime('now'), datetime('now'))
+             ON CONFLICT(standard_id, repo_fingerprint, system_name)
+             DO UPDATE SET plan_json = excluded.plan_json, updated_at = datetime('now')",
+            rusqlite::params![standard_id, repo_fingerprint, system_name, plan_json_str],
+        )?;
+
+        Ok(serde_json::json!({
+            "stored": true,
+            "system_name": system_name,
+            "use_cases": plan.use_cases.len(),
+            "total_phases": plan.use_cases.iter().map(|uc| uc.phases.len()).sum::<usize>(),
+        }))
+    }
+
+    /// Retrieve a stored init plan for a system+repo (§8.4).
+    fn handle_get_system_plan(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let system_name = parse_string(req, "system_name")?;
+        let runtime = self.runtime_for(req)?;
+        let repo_fingerprint = common::env::repo_fingerprint(&runtime.context.repository_root);
+        // Graceful, not `?`: querying for a plan before its system is even
+        // registered is a legitimate "does one exist yet" check, same
+        // shape as the plain "no row found" case below.
+        let standard_id = resolve_standard_id(&runtime.registry.conn, Some(&system_name)).ok();
+
+        let db = &runtime.registry.conn;
+        let result: Option<String> = standard_id.and_then(|sid| db.query_row(
+            "SELECT plan_json FROM system_plans
+             WHERE standard_id = ?1 AND repo_fingerprint = ?2 AND system_name = ?3",
+            rusqlite::params![sid, repo_fingerprint, system_name],
+            |row| row.get(0),
+        ).ok());
+
+        match result {
+            Some(json_str) => {
+                let plan: serde_json::Value = serde_json::from_str(&json_str)?;
+                Ok(serde_json::json!({
+                    "system_name": system_name,
+                    "plan": plan,
+                }))
+            }
+            None => Ok(serde_json::json!({
+                "system_name": system_name,
+                "plan": null,
+            })),
         }
     }
 }

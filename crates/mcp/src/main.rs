@@ -989,6 +989,133 @@ fn tool_definitions() -> Vec<serde_json::Value> {
                 }
             }
         }),
+        // ── Capability dispatch tools ────────────────────────────────────
+        serde_json::json!({
+            "name": "run_system_script",
+            "description": "Run any system capability script by name (validate|calculate|report|scaffold|plan-generation|init). Resolves through the 4-tier discovery chain: check_overrides → repo scripts/ → .samgraha/scripts/ → mcp global scripts/. Writes JSON result to a temp file and returns the envelope. Pass phase_id to enable prerequisite gating (§8.6); a blocked response is returned instead of running the script.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "capability": { "type": "string", "description": "Capability name: validate, calculate, report, scaffold, plan-generation, or init" },
+                    "system_name": { "type": "string", "description": "Which registered system's standard to attribute this run to (for phase gating and run-tracking). Defaults to whichever system is is_default." },
+                    "repo_root":  { "type": "string", "description": "Repository root (defaults to session root)" },
+                    "input_json": { "type": "string", "description": "Path to an input JSON file to pass via --in (e.g. a section JSON). Omit for no input." },
+                    "phase_id":   { "type": "string", "description": "Phase id from the system's init plan (§8.4). When provided, samgraha checks depends_on prerequisites before executing (§8.6), and a successful run is recorded under this key for future gating." },
+                    "timeout_secs": { "type": "integer", "description": "Seconds before the script is killed (default: no timeout)" },
+                    "repo_path":  { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["capability"]
+            }
+        }),
+        serde_json::json!({
+            "name": "run_system_validate",
+            "description": "Shorthand for run_system_script with capability='validate'. Runs the system's validation script against a section/document/domain and returns pass/fail status.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "system_name": { "type": "string", "description": "Which registered system's standard to attribute this run to. Defaults to whichever system is is_default." },
+                    "repo_root":  { "type": "string", "description": "Repository root (defaults to session root)" },
+                    "input_json": { "type": "string", "description": "Path to an input JSON file to pass via --in" },
+                    "phase_id":   { "type": "string", "description": "Phase id from the system's init plan (§8.4), for prerequisite gating (§8.6)" },
+                    "timeout_secs": { "type": "integer", "description": "Seconds before the script is killed" },
+                    "repo_path":  { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": []
+            }
+        }),
+        serde_json::json!({
+            "name": "run_system_calculate",
+            "description": "Shorthand for run_system_script with capability='calculate'. Runs the system's calculation script and returns the computed result in output_json (final_score, band, breakdown — per §8.1).",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "system_name": { "type": "string", "description": "Which registered system's standard to attribute this run to. Defaults to whichever system is is_default." },
+                    "repo_root":  { "type": "string", "description": "Repository root (defaults to session root)" },
+                    "input_json": { "type": "string", "description": "Path to an input JSON file to pass via --in" },
+                    "phase_id":   { "type": "string", "description": "Phase id from the system's init plan (§8.4), for prerequisite gating (§8.6)" },
+                    "timeout_secs": { "type": "integer", "description": "Seconds before the script is killed" },
+                    "repo_path":  { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": []
+            }
+        }),
+        serde_json::json!({
+            "name": "run_system_report",
+            "description": "Shorthand for run_system_script with capability='report'. Runs the system's report-generation script and returns a status envelope naming the file(s) it wrote (per §8.2's `written` field) — the rendered document itself goes to the path the script's own `--target` arg names, not into the MCP response.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "system_name": { "type": "string", "description": "Which registered system's standard to attribute this run to. Defaults to whichever system is is_default." },
+                    "repo_root":  { "type": "string", "description": "Repository root (defaults to session root)" },
+                    "input_json": { "type": "string", "description": "Path to an input JSON file to pass via --in" },
+                    "target":     { "type": "string", "description": "Render target: 'document' (default), 'checklist', 'spec'" },
+                    "phase_id":   { "type": "string", "description": "Phase id from the system's init plan (§8.4), for prerequisite gating (§8.6)" },
+                    "timeout_secs": { "type": "integer", "description": "Seconds before the script is killed" },
+                    "repo_path":  { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": []
+            }
+        }),
+        serde_json::json!({
+            "name": "run_system_scaffold",
+            "description": "Shorthand for run_system_script with capability='scaffold'. Runs the system's section-scaffolding script and returns a status envelope listing files created vs. already-present-and-skipped (per §8.1).",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "system_name": { "type": "string", "description": "Which registered system's standard to attribute this run to. Defaults to whichever system is is_default." },
+                    "repo_root":  { "type": "string", "description": "Repository root (defaults to session root)" },
+                    "input_json": { "type": "string", "description": "Path to an input JSON file to pass via --in" },
+                    "phase_id":   { "type": "string", "description": "Phase id from the system's init plan (§8.4), for prerequisite gating (§8.6)" },
+                    "timeout_secs": { "type": "integer", "description": "Seconds before the script is killed" },
+                    "repo_path":  { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": []
+            }
+        }),
+        serde_json::json!({
+            "name": "run_system_plan_generation",
+            "description": "Shorthand for run_system_script with capability='plan-generation'. Runs the system's plan-rendering script (§7.2 stage 2 only — stage 1's semantic determination is an MCP-mediated LLM step, not a script) and returns the same status envelope as `report` (§8.2). If phase_id is passed and its prerequisites aren't met, a `{\"blocked\": true, ...}` response (§8.6) is returned instead of running the script — that's the only 'blocked' shape this tool produces, not a field in the script's own output.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "system_name": { "type": "string", "description": "Which registered system's standard to attribute this run to. Defaults to whichever system is is_default." },
+                    "repo_root":  { "type": "string", "description": "Repository root (defaults to session root)" },
+                    "input_json": { "type": "string", "description": "Path to an input JSON file to pass via --in" },
+                    "phase_id":   { "type": "string", "description": "Phase id from the system's init plan (§8.4). Recommended for this capability specifically, since plan-generation phases are the primary use of §8.6 gating." },
+                    "timeout_secs": { "type": "integer", "description": "Seconds before the script is killed" },
+                    "repo_path":  { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": []
+            }
+        }),
+        // ── System plan storage (§8.4) ──────────────────────────────────
+        serde_json::json!({
+            "name": "store_system_plan",
+            "description": "Store a system's init plan output (§8.4). Upserts by standard+repo+system. The plan JSON follows the §8.4 shape: {system, use_cases[{id, label, phases[{id, kind, depends_on, script, expiry}]}]}.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "system_name": { "type": "string", "description": "System name (e.g. 'rust_dev')" },
+                    "plan_json":   { "type": "string", "description": "Full init plan JSON string (§8.4 shape)" },
+                    "repo_root":   { "type": "string", "description": "Repository root (defaults to session root)" },
+                    "repo_path":   { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["system_name", "plan_json"]
+            }
+        }),
+        serde_json::json!({
+            "name": "get_system_plan",
+            "description": "Retrieve a stored init plan for a system+repo. Returns the full §8.4 plan JSON, or null if no plan has been stored yet.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "system_name": { "type": "string", "description": "System name (e.g. 'rust_dev')" },
+                    "repo_root":   { "type": "string", "description": "Repository root (defaults to session root)" },
+                    "repo_path":   { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["system_name"]
+            }
+        }),
     ]
 }
 

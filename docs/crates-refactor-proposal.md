@@ -7,7 +7,17 @@ eliminating copy-paste drift across system trees.
 
 **Source**: `E:\Python\Kriti\docs\limitation\mcp\01-system-class-inheritance.md` (LIM-001)
 
-**Status**: PROPOSED — not implemented
+**Status**: PARTIALLY SUPERSEDED — see
+`docs/generic-script-architecture-proposal.md`. Phase 0 (push-safety guard)
+and Phase 1 (`system.yaml`/`extends`/`drops` for the dev class) are
+**shipped and kept** — real fixes, still correct under the new direction.
+Phases 2-4 (`base_academic`, DB schema columns for class/subclass/
+`parent_system_id`, class-shape validation) are **dropped**: comparing
+`eswa_journal`/`pcems_2026` file-by-file showed academic-class systems share
+almost no content (2 files out of 9+), and baking a class taxonomy into
+samgraha's own schema is exactly the domain-coupling problem the new
+proposal moves away from. See that doc's §7 for the full per-phase
+disposition.
 
 ---
 
