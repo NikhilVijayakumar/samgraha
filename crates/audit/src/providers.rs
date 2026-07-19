@@ -606,6 +606,7 @@ mod tests {
                 aliases: vec![],
                 required: true,
                 description: String::new(),
+                section_catalog_id: None,
             }],
             prohibited_content: vec![],
             relationships: vec![],
@@ -613,6 +614,9 @@ mod tests {
             semantic_rules: vec![],
             profiles: vec![],
             tier: None,
+            content_kind: "documentation".to_string(),
+            generation_granularity: "section".to_string(),
+            section_dependencies: vec![],
         }
     }
 

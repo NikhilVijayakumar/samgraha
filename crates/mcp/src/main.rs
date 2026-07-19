@@ -996,7 +996,7 @@ fn tool_definitions() -> Vec<serde_json::Value> {
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "capability": { "type": "string", "description": "Capability name: validate, calculate, report, scaffold, plan-generation, or init" },
+                    "capability": { "type": "string", "description": "Capability name: validate, calculate, report, scaffold, plan-generation, init, or assemble" },
                     "system_name": { "type": "string", "description": "Which registered system's standard to attribute this run to (for phase gating and run-tracking). Defaults to whichever system is is_default." },
                     "repo_root":  { "type": "string", "description": "Repository root (defaults to session root)" },
                     "input_json": { "type": "string", "description": "Path to an input JSON file to pass via --in (e.g. a section JSON). Omit for no input." },
@@ -1148,6 +1148,53 @@ fn tool_definitions() -> Vec<serde_json::Value> {
                     "repo_path":   { "type": "string", "description": "Absolute path to a different local repository to target" }
                 },
                 "required": ["system_name", "workflow_id"]
+            }
+        }),
+        // ── Content generation tools ───────────────────────────────────
+        serde_json::json!({
+            "name": "generate",
+            "description": "Build a content-generation task list for a domain. Mode is resolved from the standard's generation_granularity (document|section|hybrid), never caller-supplied. Returns generation_review.tasks[] with target, template_content, upstream_context, and instruction for each section to generate. Sections already generated are skipped. Code domains return an empty task list with instructions to use scaffold instead.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "standard": { "type": "string", "description": "Domain key to generate content for (e.g. 'vision', 'architecture')" },
+                    "repo_root": { "type": "string", "description": "Repository root (defaults to session root)" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["standard"]
+            }
+        }),
+        serde_json::json!({
+            "name": "store_generated_content",
+            "description": "Accept generated content and persist it to knowledge.db's documents/document_sections. Mirrors store_section_report's pattern for audit findings. Validates section against section_catalog, checks section dependencies (rejects with dependency_unmet if upstream sections aren't generated yet), and writes to the generated document. For document mode, omit section to store full-document content.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "domain": { "type": "string", "description": "Domain key (e.g. 'vision')" },
+                    "section": { "type": "string", "description": "Section semantic_type to store (omit for full-document mode)" },
+                    "content": { "type": "string", "description": "The generated content to store" },
+                    "document_id": { "type": "integer", "description": "Existing document ID to append to (omit to create new or use domain's generated doc)" },
+                    "git_revision": { "type": "string", "description": "Git revision at time of generation (for provenance)" },
+                    "repo_root": { "type": "string", "description": "Repository root (defaults to session root)" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["domain", "content"]
+            }
+        }),
+        serde_json::json!({
+            "name": "run_system_assemble",
+            "description": "Shorthand for run_system_script with capability='assemble'. Runs the system's assembly script to join document_sections from knowledge.db into a final file. Reads sections ordered by section_order plus the document template's structural shell, writes the assembled output.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "system_name": { "type": "string", "description": "Which registered system's standard to attribute this run to. Defaults to whichever system is is_default." },
+                    "repo_root": { "type": "string", "description": "Repository root (defaults to session root)" },
+                    "input_json": { "type": "string", "description": "Path to an input JSON file to pass via --in" },
+                    "phase_id": { "type": "string", "description": "Phase id from the system's init plan (§8.4), for prerequisite gating (§8.6)" },
+                    "timeout_secs": { "type": "integer", "description": "Seconds before the script is killed" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": []
             }
         }),
     ]

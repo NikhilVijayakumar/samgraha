@@ -97,6 +97,7 @@ pub fn create_test_standards_db() -> PathBuf {
             name TEXT NOT NULL,
             version TEXT NOT NULL,
             description TEXT,
+            generation_granularity TEXT NOT NULL DEFAULT 'section',
             UNIQUE(system_id, name, version)
         );
 
@@ -108,6 +109,7 @@ pub fn create_test_standards_db() -> PathBuf {
             tier INTEGER NOT NULL,
             sort_order INTEGER NOT NULL DEFAULT 0,
             description TEXT,
+            content_kind TEXT NOT NULL DEFAULT 'documentation',
             UNIQUE(standard_id, key)
         );
 
@@ -205,6 +207,15 @@ pub fn create_test_standards_db() -> PathBuf {
             max_score    REAL NOT NULL,
             sort_order   INTEGER NOT NULL DEFAULT 0,
             UNIQUE(standard_id, rating)
+        );
+
+        CREATE TABLE section_dependencies (
+            id INTEGER PRIMARY KEY,
+            standard_id INTEGER NOT NULL,
+            domain_id INTEGER NOT NULL,
+            section_catalog_id INTEGER NOT NULL,
+            depends_on_section_id INTEGER NOT NULL,
+            UNIQUE(standard_id, section_catalog_id, depends_on_section_id)
         );",
     )
     .unwrap();

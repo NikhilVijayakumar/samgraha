@@ -30,7 +30,7 @@ import yaml
 # extra table needed. `register`/`sync` on the Rust side reject a source DB
 # whose version doesn't match, instead of a confusing downstream SQL error
 # when a query expects a table/column an older or newer DB doesn't have.
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 # ---------------------------------------------------------------------------

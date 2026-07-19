@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use crate::check_runner;
 use common::config::SamgrahaConfig;
 
-/// The five capability types a system can provide scripts for, plus
+/// The seven capability types a system can provide scripts for, plus
 /// a catch-all for future capabilities.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
@@ -15,6 +15,7 @@ pub enum Capability {
     Scaffold,
     PlanGeneration,
     Init,
+    Assemble,
 }
 
 impl std::fmt::Display for Capability {
@@ -26,6 +27,7 @@ impl std::fmt::Display for Capability {
             Self::Scaffold => write!(f, "scaffold"),
             Self::PlanGeneration => write!(f, "plan-generation"),
             Self::Init => write!(f, "init"),
+            Self::Assemble => write!(f, "assemble"),
         }
     }
 }
@@ -40,6 +42,7 @@ impl Capability {
             "scaffold" => Some(Self::Scaffold),
             "plan-generation" => Some(Self::PlanGeneration),
             "init" => Some(Self::Init),
+            "assemble" => Some(Self::Assemble),
             _ => None,
         }
     }
@@ -54,6 +57,7 @@ impl Capability {
             Self::Scaffold => "scaffold",
             Self::PlanGeneration => "plan-generation",
             Self::Init => "init",
+            Self::Assemble => "assemble",
         }
     }
 }
@@ -666,5 +670,6 @@ mod tests {
         assert_eq!(Capability::Scaffold.script_name(), "scaffold");
         assert_eq!(Capability::PlanGeneration.script_name(), "plan-generation");
         assert_eq!(Capability::Init.script_name(), "init");
+        assert_eq!(Capability::Assemble.script_name(), "assemble");
     }
 }

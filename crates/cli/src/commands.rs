@@ -1746,7 +1746,7 @@ mod knowledge_action_tests {
     fn setup_mock_global_store(dir: &std::path::Path, system_name: &str, version: &str) {
         let conn = rusqlite::Connection::open(dir.join("standards.db")).unwrap();
         conn.execute_batch(&format!(
-            "PRAGMA user_version = 2;
+            "PRAGMA user_version = 3;
              CREATE TABLE IF NOT EXISTS systems (
                  id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE,
                  description TEXT, is_default INTEGER NOT NULL DEFAULT 1
@@ -1754,6 +1754,7 @@ mod knowledge_action_tests {
              CREATE TABLE IF NOT EXISTS standards (
                  id INTEGER PRIMARY KEY, system_id INTEGER NOT NULL,
                  name TEXT NOT NULL, version TEXT NOT NULL, description TEXT,
+                 generation_granularity TEXT NOT NULL DEFAULT 'section',
                  UNIQUE(system_id, name, version)
              );
              DELETE FROM systems;

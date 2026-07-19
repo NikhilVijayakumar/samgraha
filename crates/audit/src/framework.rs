@@ -501,6 +501,9 @@ mod tests {
             semantic_rules: vec![],
             profiles: vec![],
             tier: None,
+            content_kind: "documentation".to_string(),
+            generation_granularity: "section".to_string(),
+            section_dependencies: vec![],
         });
         let mut framework = AuditFramework::new(Arc::new(registry));
         framework.register_provider("deterministic", Arc::new(move |_docs, _rules, _standard| findings.clone()));

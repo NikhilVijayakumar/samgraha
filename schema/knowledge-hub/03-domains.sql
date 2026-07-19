@@ -11,5 +11,6 @@ CREATE TABLE domains (
     tier         INTEGER NOT NULL,
     sort_order   INTEGER NOT NULL DEFAULT 0,
     description  TEXT,
+    content_kind TEXT NOT NULL DEFAULT 'documentation',
     UNIQUE(standard_id, key)
 );

@@ -188,6 +188,9 @@ impl McpAdapter {
         caps.methods.push("run_system_report".to_string());
         caps.methods.push("run_system_scaffold".to_string());
         caps.methods.push("run_system_plan_generation".to_string());
+        caps.methods.push("run_system_assemble".to_string());
+        caps.methods.push("generate".to_string());
+        caps.methods.push("store_generated_content".to_string());
         caps.methods.push("store_system_plan".to_string());
         caps.methods.push("get_system_plan".to_string());
         caps.methods.push("store_plan_generation_input".to_string());
@@ -387,6 +390,10 @@ impl McpAdapter {
             "run_system_report"       => self.handle_run_system_script_with_capability(&req, audit::capability::Capability::Report),
             "run_system_scaffold"     => self.handle_run_system_script_with_capability(&req, audit::capability::Capability::Scaffold),
             "run_system_plan_generation" => self.handle_run_system_script_with_capability(&req, audit::capability::Capability::PlanGeneration),
+            "run_system_assemble"     => self.handle_run_system_script_with_capability(&req, audit::capability::Capability::Assemble),
+            // Content generation handlers
+            "generate"                => self.handle_generate(&req),
+            "store_generated_content" => self.handle_store_generated_content(&req),
             // System plan storage (§8.4)
             "store_system_plan"          => self.handle_store_system_plan(&req),
             "get_system_plan"            => self.handle_get_system_plan(&req),
@@ -1284,6 +1291,369 @@ impl McpAdapter {
 
         let result = self.runtime_for(req)?.check_gate(stage, document_id)?;
         Ok(serde_json::to_value(&result)?)
+    }
+
+    // ── Content Generation MCP Methods ──────────────────────────────────
+
+    /// Build a content-generation task list mirroring `build_semantic_review`'s
+    /// pattern. Mode is resolved from the standard's `generation_granularity`,
+    /// never caller-supplied (same principle as domain cardinality).
+    fn handle_generate(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let domain_key = req.params.get("standard")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'standard' parameter (domain key)"))?;
+        let runtime = self.runtime_for(req)?;
+
+        // Look up the StandardDefinition for this domain.
+        let std_def = runtime.standard_registry.get_by_domain(domain_key)
+            .ok_or_else(|| anyhow::anyhow!("Unknown domain '{}'", domain_key))?;
+
+        let mode = std_def.generation_granularity.clone();
+        let content_kind = std_def.content_kind.clone();
+
+        if content_kind == "code" {
+            // Code domains skip the generate→store→assemble pipeline entirely.
+            // scaffold creates folder structure; caller writes files directly.
+            return Ok(serde_json::json!({
+                "mode": "code",
+                "instruction": "This domain generates code, not documentation. \
+                    Use run_system_scaffold to create the folder structure, \
+                    then write files directly. store_generated_content and \
+                    assemble are not used for code domains.",
+                "tasks": [],
+            }));
+        }
+
+        // Collect already-generated section semantic_types from knowledge.db
+        // to skip sections that have content stored already.
+        let generated_sections: std::collections::HashSet<String> = {
+            let mut set = std::collections::HashSet::new();
+            if let Ok(Some(doc)) = runtime.registry.get_document_by_path(
+                &format!(".samgraha/generated/{}", domain_key)
+            ) {
+                if let Ok(sections) = runtime.registry.get_all_sections_for_document(doc.id) {
+                    for sec in sections {
+                        set.insert(sec.semantic_type);
+                    }
+                }
+            }
+            set
+        };
+
+        // Build section tasks: one per required_sections entry not yet generated.
+        let mut tasks: Vec<serde_json::Value> = Vec::new();
+
+        // Build mapping: section_catalog_id → semantic_type for resolving
+        // section_dependencies edges (which use DB IDs) to semantic_type strings.
+        let catalog_id_to_type: std::collections::HashMap<i64, String> = std_def.required_sections.iter()
+            .filter_map(|s| s.section_catalog_id.map(|id| (id, s.semantic_type.clone())))
+            .collect();
+        // Inverse: semantic_type → section_catalog_id (used by store handler)
+        let _type_to_catalog_id: std::collections::HashMap<String, i64> = std_def.required_sections.iter()
+            .filter_map(|s| s.section_catalog_id.map(|id| (s.semantic_type.clone(), id)))
+            .collect();
+        // Build dependency edges: section_semantic_type → Vec<dependency_semantic_type>
+        let deps_by_type: std::collections::HashMap<String, Vec<String>> = {
+            let mut map: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+            for &(sec_id, dep_id) in &std_def.section_dependencies {
+                if let (Some(sec_type), Some(dep_type)) = (catalog_id_to_type.get(&sec_id), catalog_id_to_type.get(&dep_id)) {
+                    map.entry(sec_type.clone()).or_default().push(dep_type.clone());
+                }
+            }
+            map
+        };
+
+        for (idx, sec_def) in std_def.required_sections.iter().enumerate() {
+            if generated_sections.contains(&sec_def.semantic_type) {
+                continue;
+            }
+
+            // For section mode: defer sections whose upstream dependencies
+            // haven't been generated yet — using explicit section_dependencies
+            // edges, not sort_order position.
+            if mode == "section" || mode == "hybrid" {
+                if let Some(deps) = deps_by_type.get(&sec_def.semantic_type) {
+                    let deps_met = deps.iter()
+                        .all(|dep| generated_sections.contains(dep));
+                    if !deps_met {
+                        continue; // defer to later call
+                    }
+                }
+            }
+
+            let instruction = format!(
+                "Generate content for the '{}' section of domain '{}'. \
+                 Use the template content and upstream context provided. \
+                 When done, call store_generated_content with the result.",
+                sec_def.canonical_name, domain_key
+            );
+
+            tasks.push(serde_json::json!({
+                "target": {
+                    "domain": domain_key,
+                    "section": sec_def.semantic_type,
+                },
+                "template_content": null, // templates loaded from standards.db by caller
+                "upstream_context": null, // populated by caller from already-generated domains
+                "instruction": instruction,
+                "section_index": idx,
+                "total_sections": std_def.required_sections.len(),
+            }));
+        }
+
+        let overall_instruction = format!(
+            "Generate documentation content for domain '{}'. \
+             Mode: {}. Complete each task by generating content and calling \
+             store_generated_content. Sections already generated are skipped.",
+            domain_key, mode
+        );
+
+        Ok(serde_json::json!({
+            "mode": mode,
+            "domain": domain_key,
+            "content_kind": content_kind,
+            "instruction": overall_instruction,
+            "tasks": tasks,
+            "tasks_count": tasks.len(),
+        }))
+    }
+
+    /// Accept generated content back and persist it to knowledge.db's
+    /// `documents`/`document_sections` — mirrors `store_section_report`'s
+    /// pattern for audit findings.
+    fn handle_store_generated_content(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let domain_key = req.params.get("domain")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'domain' parameter"))?;
+        let content = req.params.get("content")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'content' parameter"))?;
+        let section = req.params.get("section")
+            .and_then(|v| v.as_str());
+        let git_revision = req.params.get("git_revision")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let document_id_opt = req.params.get("document_id")
+            .and_then(|v| v.as_i64());
+
+        let runtime = self.runtime_for(req)?;
+
+        // Validate domain exists in the standard.
+        let std_def = runtime.standard_registry.get_by_domain(domain_key)
+            .ok_or_else(|| anyhow::anyhow!("Unknown domain '{}'", domain_key))?;
+
+        if std_def.content_kind == "code" {
+            anyhow::bail!(
+                "Domain '{}' is a code domain — store_generated_content is not used. \
+                 Write files directly after scaffold.",
+                domain_key
+            );
+        }
+
+        // If section is provided, validate it exists in section_catalog.
+        if let Some(sec_type) = section {
+            let sec_exists = std_def.required_sections.iter()
+                .any(|s| s.semantic_type == sec_type);
+            if !sec_exists {
+                anyhow::bail!(
+                    "Section '{}' not found in domain '{}' section_catalog",
+                    sec_type, domain_key
+                );
+            }
+        }
+
+        // Check section dependencies (§5.1 of proposal): reject if any
+        // dependency hasn't been generated yet — using explicit
+        // section_dependencies edges, not sort_order position.
+        if let Some(sec_type) = section {
+            // Build mapping from section_catalog_id → semantic_type
+            let catalog_id_to_type: std::collections::HashMap<i64, String> = std_def.required_sections.iter()
+                .filter_map(|s| s.section_catalog_id.map(|id| (id, s.semantic_type.clone())))
+                .collect();
+            let type_to_catalog_id: std::collections::HashMap<String, i64> = std_def.required_sections.iter()
+                .filter_map(|s| s.section_catalog_id.map(|id| (s.semantic_type.clone(), id)))
+                .collect();
+
+            // Get the set of already-generated sections for this domain.
+            let generated: std::collections::HashSet<String> = {
+                let mut set = std::collections::HashSet::new();
+                if let Ok(Some(doc)) = runtime.registry.get_document_by_path(
+                    &format!(".samgraha/generated/{}", domain_key)
+                ) {
+                    if let Ok(sections) = runtime.registry.get_all_sections_for_document(doc.id) {
+                        for sec in sections {
+                            set.insert(sec.semantic_type);
+                        }
+                    }
+                }
+                set
+            };
+
+            // Find this section's dependencies via section_dependencies table.
+            let missing: Vec<String> = if let Some(&sec_cat_id) = type_to_catalog_id.get(sec_type) {
+                std_def.section_dependencies.iter()
+                    .filter(|&&(sec_id, _)| sec_id == sec_cat_id)
+                    .filter_map(|&(_, dep_id)| catalog_id_to_type.get(&dep_id))
+                    .filter(|dep_type| !generated.contains(*dep_type))
+                    .cloned()
+                    .collect()
+            } else {
+                Vec::new() // no catalog ID — builtin standard, skip check
+            };
+
+            if !missing.is_empty() {
+                return Ok(serde_json::json!({
+                    "error": "dependency_unmet",
+                    "missing_sections": missing,
+                    "message": format!(
+                        "Section '{}' depends on sections that haven't been generated yet: {:?}",
+                        sec_type, missing
+                    ),
+                }));
+            }
+        }
+
+        // Determine or create the document for this domain.
+        let doc_path = format!(".samgraha/generated/{}", domain_key);
+        let doc_id = if let Some(id) = document_id_opt {
+            id
+        } else if let Ok(Some(doc)) = runtime.registry.get_document_by_path(&doc_path) {
+            doc.id
+        } else {
+            // Create a new document.
+            let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
+            let doc = schemas::document::Document {
+                id: 0, // auto-increment
+                path: schemas::document::DocumentPath(std::path::PathBuf::from(&doc_path)),
+                hash: String::new(),
+                standard: domain_key.to_string(),
+                title: format!("Generated: {}", domain_key),
+                body: schemas::document::DocumentBody::Generic {
+                    raw: String::new(),
+                    sections: Vec::new(),
+                },
+                metadata: schemas::document::DocumentMetadata {
+                    title: format!("Generated: {}", domain_key),
+                    purpose: "Auto-generated by content generation pipeline".to_string(),
+                    document_type: Some("generated".to_string()),
+                    status: Some("generating".to_string()),
+                    ownership: None,
+                    tags: vec!["generated".to_string()],
+                    extra: std::collections::HashMap::new(),
+                },
+                provenance: None,
+                quality: Default::default(),
+                created_at: now.clone(),
+                updated_at: now,
+            };
+            let body_json = serde_json::to_string(&doc.body)?;
+            let meta_json = serde_json::to_string(&doc.metadata)?;
+            let qual_json = serde_json::to_string(&doc.quality)?;
+            runtime.registry.conn.execute(
+                "INSERT INTO documents (path, hash, standard, title, body, metadata, quality, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                rusqlite::params![
+                    doc.path.as_str(),
+                    doc.hash,
+                    doc.standard,
+                    doc.title,
+                    body_json,
+                    meta_json,
+                    qual_json,
+                    doc.created_at,
+                    doc.updated_at,
+                ],
+            )?;
+            runtime.registry.conn.last_insert_rowid()
+        };
+
+        // Write the section content.
+        let semantic_type = section.unwrap_or("full_document");
+        let canonical_name = if let Some(sec_type) = section {
+            std_def.required_sections.iter()
+                .find(|s| s.semantic_type == sec_type)
+                .map(|s| s.canonical_name.clone())
+                .unwrap_or_else(|| sec_type.to_string())
+        } else {
+            domain_key.to_string()
+        };
+
+        let section_obj = schemas::document::DocumentSection {
+            heading: canonical_name.clone(),
+            semantic_type: semantic_type.to_string(),
+            level: 1,
+            body: content.to_string(),
+            required: true,
+            source_span: None,
+            subsections: Vec::new(),
+            hash: String::new(),
+        };
+
+        // Concurrent-write protection (§5.1 of proposal): if a section with
+        // the same semantic_type already exists and was generated by a
+        // different git_revision, reject — the caller must re-generate
+        // against the now-updated upstream context.
+        //
+        // Atomic: savepoint wraps check + delete + insert so concurrent
+        // callers cannot both pass the check before either writes.
+        // Uses raw SQL savepoint commands (&self, no &mut needed).
+        let sp_name = format!("gen_store_{}_{}", doc_id, semantic_type.replace('/', "_"));
+        {
+            runtime.registry.conn.execute(
+                &format!("SAVEPOINT {}", sp_name), [],
+            )?;
+
+            // Conflict check inside the savepoint.
+            let mut conflict = false;
+            if let Ok(Some(existing)) = runtime.registry.get_document_by_path(&doc_path) {
+                if let Ok(existing_sections) = runtime.registry.get_all_sections_for_document(existing.id) {
+                    for existing_sec in &existing_sections {
+                        if existing_sec.semantic_type == semantic_type {
+                            if !git_revision.is_empty() && existing_sec.content != content {
+                                conflict = true;
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if conflict {
+                runtime.registry.conn.execute(
+                    &format!("ROLLBACK TO SAVEPOINT {}", sp_name), [],
+                )?;
+                return Ok(serde_json::json!({
+                    "error": "conflict",
+                    "message": format!(
+                        "Section '{}' already exists with different content. \
+                         A concurrent generation session has written to this section. \
+                         Re-generate against the updated upstream context and retry.",
+                        semantic_type
+                    ),
+                    "document_id": doc_id,
+                    "section": semantic_type,
+                }));
+            }
+
+            // Delete + insert inside the same savepoint.
+            runtime.registry.conn.execute(
+                "DELETE FROM document_sections WHERE document_id = ?1 AND semantic_type = ?2",
+                rusqlite::params![doc_id, semantic_type],
+            )?;
+            runtime.registry.insert_document_sections(doc_id, &[section_obj])?;
+
+            runtime.registry.conn.execute(
+                &format!("RELEASE SAVEPOINT {}", sp_name), [],
+            )?;
+        }
+
+        Ok(serde_json::json!({
+            "status": "stored",
+            "document_id": doc_id,
+            "domain": domain_key,
+            "section": semantic_type,
+            "git_revision": git_revision,
+        }))
     }
 
     fn handle_store_section_report(&self, req: &McpRequest) -> Result<serde_json::Value> {
@@ -2589,7 +2959,7 @@ mod repository_matrix_tests {
     fn setup_mock_global_store(dir: &Path, system_name: &str, version: &str) {
         let conn = rusqlite::Connection::open(dir.join("standards.db")).unwrap();
         conn.execute_batch(&format!(
-            "PRAGMA user_version = 2;
+            "PRAGMA user_version = 3;
              CREATE TABLE IF NOT EXISTS systems (
                  id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE,
                  description TEXT, is_default INTEGER NOT NULL DEFAULT 1
@@ -2597,6 +2967,7 @@ mod repository_matrix_tests {
              CREATE TABLE IF NOT EXISTS standards (
                  id INTEGER PRIMARY KEY, system_id INTEGER NOT NULL,
                  name TEXT NOT NULL, version TEXT NOT NULL, description TEXT,
+                 generation_granularity TEXT NOT NULL DEFAULT 'section',
                  UNIQUE(system_id, name, version)
              );
              DELETE FROM systems;

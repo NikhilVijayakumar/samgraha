@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 /// Must match `SCHEMA_VERSION` in `schema/knowledge-hub/knowledge-hub-loader.py`.
 /// Bump both together whenever a table is added/removed/changes shape.
-pub const EXPECTED_SCHEMA_VERSION: i64 = 2;
+pub const EXPECTED_SCHEMA_VERSION: i64 = 3;
 
 /// Reject a standards.db whose `PRAGMA user_version` doesn't match what this
 /// build of samgraha understands — a version mismatch means the DB was
@@ -284,11 +284,11 @@ pub fn from_standards_db(conn: &Connection, system_name: Option<&str>) -> Result
 
     // Load all domains for this standard.
     let mut stmt_domains = conn.prepare(
-        "SELECT id, key, name, description, tier FROM domains
+        "SELECT id, key, name, description, tier, content_kind FROM domains
          WHERE standard_id = ? ORDER BY sort_order",
     )?;
 
-    let domains: Vec<(i64, String, String, String, i64)> = stmt_domains
+    let domains: Vec<(i64, String, String, String, i64, String)> = stmt_domains
         .query_map([standard_id], |row| {
             Ok((
                 row.get(0)?,
@@ -297,30 +297,44 @@ pub fn from_standards_db(conn: &Connection, system_name: Option<&str>) -> Result
                 row.get::<_, Option<String>>(3)?
                     .unwrap_or_default(),
                 row.get(4)?,
+                row.get::<_, Option<String>>(5)?
+                    .unwrap_or_else(|| "documentation".to_string()),
             ))
         })?
         .collect::<Result<Vec<_>, _>>()
         .context("Failed to query domains")?;
+
+    // Load generation_granularity from the standards table.
+    let generation_granularity: String = conn
+        .query_row(
+            "SELECT generation_granularity FROM standards WHERE id = ?",
+            [standard_id],
+            |row| row.get::<_, Option<String>>(0),
+        )
+        .ok()
+        .flatten()
+        .unwrap_or_else(|| "section".to_string());
 
     // Pre-load all section_catalog rows, grouped by domain_id.
     let mut sections_by_domain: std::collections::HashMap<i64, Vec<SectionDefinition>> =
         std::collections::HashMap::new();
     {
         let mut stmt = conn.prepare(
-            "SELECT domain_id, name, semantic_type, aliases, mandatory
+            "SELECT domain_id, id, name, semantic_type, aliases, mandatory
              FROM section_catalog WHERE domain_id IN (SELECT id FROM domains WHERE standard_id = ?)
              ORDER BY sort_order",
         )?;
         let rows = stmt.query_map([standard_id], |row| {
             let domain_id: i64 = row.get(0)?;
-            let name: String = row.get(1)?;
-            let semantic_type: String = row.get(2)?;
-            let aliases_raw: Option<String> = row.get(3)?;
-            let mandatory: bool = row.get(4)?;
-            Ok((domain_id, name, semantic_type, aliases_raw, mandatory))
+            let catalog_id: i64 = row.get(1)?;
+            let name: String = row.get(2)?;
+            let semantic_type: String = row.get(3)?;
+            let aliases_raw: Option<String> = row.get(4)?;
+            let mandatory: bool = row.get(5)?;
+            Ok((domain_id, catalog_id, name, semantic_type, aliases_raw, mandatory))
         })?;
         for row in rows {
-            let (domain_id, name, semantic_type, aliases_raw, mandatory) = row?;
+            let (domain_id, catalog_id, name, semantic_type, aliases_raw, mandatory) = row?;
             let aliases = aliases_raw
                 .map(|a| {
                     a.split(',')
@@ -336,8 +350,29 @@ pub fn from_standards_db(conn: &Connection, system_name: Option<&str>) -> Result
                     aliases,
                     required: mandatory,
                     description: String::new(), // no description column in section_catalog
+                    section_catalog_id: Some(catalog_id),
                 },
             );
+        }
+    }
+
+    // Pre-load section_dependencies, grouped by domain_id.
+    let mut deps_by_domain: std::collections::HashMap<i64, Vec<(i64, i64)>> =
+        std::collections::HashMap::new();
+    {
+        let mut stmt = conn.prepare(
+            "SELECT domain_id, section_catalog_id, depends_on_section_id
+             FROM section_dependencies WHERE standard_id = ?",
+        )?;
+        let rows = stmt.query_map([standard_id], |row| {
+            let domain_id: i64 = row.get(0)?;
+            let section_id: i64 = row.get(1)?;
+            let depends_on_id: i64 = row.get(2)?;
+            Ok((domain_id, section_id, depends_on_id))
+        })?;
+        for row in rows {
+            let (domain_id, section_id, depends_on_id) = row?;
+            deps_by_domain.entry(domain_id).or_default().push((section_id, depends_on_id));
         }
     }
 
@@ -489,13 +524,14 @@ pub fn from_standards_db(conn: &Connection, system_name: Option<&str>) -> Result
     }
 
     // Assemble one StandardDefinition per domain.
-    for (domain_id, domain_key, domain_name, domain_desc, domain_tier) in &domains {
+    for (domain_id, domain_key, domain_name, domain_desc, domain_tier, content_kind) in &domains {
         let required_sections = sections_by_domain
             .remove(domain_id)
             .unwrap_or_default();
         let audit_rules = rules_by_domain.remove(domain_id).unwrap_or_default();
         let semantic_rules = semantic_rules_by_domain.remove(domain_id).unwrap_or_default();
         let relationships = rels_by_domain.remove(domain_id).unwrap_or_default();
+        let section_dependencies = deps_by_domain.remove(domain_id).unwrap_or_default();
 
         let std = StandardDefinition {
             id: domain_key.clone(),
@@ -510,6 +546,9 @@ pub fn from_standards_db(conn: &Connection, system_name: Option<&str>) -> Result
             semantic_rules,
             profiles: Vec::new(), // not in knowledge-hub schema
             tier: Some(*domain_tier as i32),
+            content_kind: content_kind.clone(),
+            generation_granularity: generation_granularity.clone(),
+            section_dependencies,
         };
         registry.register(std);
     }
@@ -594,12 +633,14 @@ mod tests {
             CREATE TABLE standards (
                 id INTEGER PRIMARY KEY, system_id INTEGER NOT NULL,
                 name TEXT NOT NULL, version TEXT NOT NULL, description TEXT,
+                generation_granularity TEXT NOT NULL DEFAULT 'section',
                 UNIQUE(system_id, name, version)
             );
             CREATE TABLE domains (
                 id INTEGER PRIMARY KEY, standard_id INTEGER NOT NULL,
                 key TEXT NOT NULL, name TEXT NOT NULL, tier INTEGER NOT NULL,
                 sort_order INTEGER NOT NULL DEFAULT 0, description TEXT,
+                content_kind TEXT NOT NULL DEFAULT 'documentation',
                 UNIQUE(standard_id, key)
             );
             CREATE TABLE relationship_types (
@@ -642,6 +683,18 @@ mod tests {
                 param_value TEXT NOT NULL,
                 sort_order INTEGER NOT NULL DEFAULT 0
             );",
+        )
+        .unwrap();
+        conn.execute(
+            "CREATE TABLE section_dependencies (
+                id INTEGER PRIMARY KEY,
+                standard_id INTEGER NOT NULL,
+                domain_id INTEGER NOT NULL,
+                section_catalog_id INTEGER NOT NULL,
+                depends_on_section_id INTEGER NOT NULL,
+                UNIQUE(standard_id, section_catalog_id, depends_on_section_id)
+            );",
+            [],
         )
         .unwrap();
 
@@ -830,12 +883,14 @@ mod tests {
             CREATE TABLE standards (
                 id INTEGER PRIMARY KEY, system_id INTEGER NOT NULL,
                 name TEXT NOT NULL, version TEXT NOT NULL, description TEXT,
+                generation_granularity TEXT NOT NULL DEFAULT 'section',
                 UNIQUE(system_id, name, version)
             );
             CREATE TABLE domains (
                 id INTEGER PRIMARY KEY, standard_id INTEGER NOT NULL,
                 key TEXT NOT NULL, name TEXT NOT NULL, tier INTEGER NOT NULL,
                 sort_order INTEGER NOT NULL DEFAULT 0, description TEXT,
+                content_kind TEXT NOT NULL DEFAULT 'documentation',
                 UNIQUE(standard_id, key)
             );
             CREATE TABLE section_catalog (
@@ -860,6 +915,14 @@ mod tests {
                 section_catalog_key INTEGER GENERATED ALWAYS AS (COALESCE(section_catalog_id, 0)) VIRTUAL,
                 audit_bucket_key TEXT GENERATED ALWAYS AS (COALESCE(audit_bucket, '')) VIRTUAL,
                 UNIQUE(standard_id, domain_id, section_catalog_key, kind, audit_bucket_key, scope)
+            );
+            CREATE TABLE section_dependencies (
+                id INTEGER PRIMARY KEY,
+                standard_id INTEGER NOT NULL,
+                domain_id INTEGER NOT NULL,
+                section_catalog_id INTEGER NOT NULL,
+                depends_on_section_id INTEGER NOT NULL,
+                UNIQUE(standard_id, section_catalog_id, depends_on_section_id)
             );",
         )
         .unwrap();

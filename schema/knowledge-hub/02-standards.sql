@@ -9,5 +9,6 @@ CREATE TABLE standards (
     name        TEXT NOT NULL,
     version     TEXT NOT NULL,
     description TEXT,
+    generation_granularity TEXT NOT NULL DEFAULT 'section',
     UNIQUE(system_id, name, version)
 );

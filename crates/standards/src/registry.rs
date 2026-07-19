@@ -60,6 +60,9 @@ impl StandardRegistry {
             semantic_rules: Vec::new(),
             profiles: Vec::new(),
             tier: None,
+            content_kind: "documentation".to_string(),
+            generation_granularity: "section".to_string(),
+            section_dependencies: Vec::new(),
         });
         registry.register(StandardDefinition {
             id: "standards".to_string(),
@@ -74,6 +77,9 @@ impl StandardRegistry {
             semantic_rules: Vec::new(),
             profiles: Vec::new(),
             tier: None,
+            content_kind: "documentation".to_string(),
+            generation_granularity: "section".to_string(),
+            section_dependencies: Vec::new(),
         });
         registry
     }

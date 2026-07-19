@@ -28,6 +28,26 @@ pub struct StandardDefinition {
     /// builtin non-DB standards (`help`, `standards`), which have no tiers.
     #[serde(default)]
     pub tier: Option<i32>,
+    /// Per-domain content kind: `"documentation"` (full generate→store→assemble
+    /// pipeline, content persisted for reuse in later audit/fix passes) or
+    /// `"code"` (the calling agent generates and writes the target file directly;
+    /// `store_generated_content` is never called, `assemble` never runs, nothing
+    /// persists to DB). From `domains.content_kind`.
+    #[serde(default = "default_content_kind")]
+    pub content_kind: String,
+    /// Per-standard generation granularity: `"document"` (one task, full
+    /// upstream context), `"section"` (one task per section, respecting
+    /// dependencies), or `"hybrid"` (section tasks first, then a whole-document
+    /// coherence pass). From `standards.generation_granularity`.
+    #[serde(default = "default_generation_granularity")]
+    pub generation_granularity: String,
+    /// Section-level dependency edges for this domain. Each entry is
+    /// `(section_catalog_id, depends_on_section_id)` — used by `generate`
+    /// to order section-level generation tasks and by `store_generated_content`
+    /// to reject writes for sections whose dependencies haven't been stored yet.
+    /// From `section_dependencies` table.
+    #[serde(default)]
+    pub section_dependencies: Vec<(i64, i64)>,
 }
 
 /// A semantic section definition within a Documentation Standard.
@@ -41,6 +61,11 @@ pub struct SectionDefinition {
     pub aliases: Vec<String>,
     pub required: bool,
     pub description: String,
+    /// Database row ID from `section_catalog.id` — bridges `section_dependencies`
+    /// (which uses catalog IDs) to the semantic_type strings handlers work with.
+    /// `None` for builtin standards that don't have a knowledge-hub DB.
+    #[serde(default)]
+    pub section_catalog_id: Option<i64>,
 }
 
 /// Retained for backward compatibility — alias for SectionDefinition.
@@ -117,6 +142,14 @@ pub fn profile_def(name: &str, description: &str, sections: &[&str]) -> ProfileD
         description: description.into(),
         include_sections: sections.iter().map(|s| s.to_string()).collect(),
     }
+}
+
+fn default_content_kind() -> String {
+    "documentation".to_string()
+}
+
+fn default_generation_granularity() -> String {
+    "section".to_string()
 }
 
 impl StandardDefinition {
