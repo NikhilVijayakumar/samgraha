@@ -12,7 +12,7 @@ These four stages are a classification used to store and gate findings at differ
 
 #### Stage: Deterministic
 
-Produced by `samgraha audit`. In the new architecture, this stage dispatches to system-provided `validate` scripts via capability dispatch. For domains with a working system script, the script performs the checks. For domains without a system script, the built-in deterministic checks serve as a fallback. Findings land in the `audit_results` table, one row per document, keyed off each standard's `audit_rules`.
+Produced by `samgraha audit`. In the new architecture, this stage dispatches to system-provided `validate` scripts via capability dispatch. For domains with a working system script, the script performs the checks. A domain with no working `validate` script fails clearly — there is no built-in fallback. Findings land in the `audit_results` table, one row per document, keyed off each standard's `audit_rules`.
 
 #### Stages: Section / Document / Cross-Domain
 

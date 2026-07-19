@@ -23,7 +23,7 @@ Workflow
 
 | Phase Type | What It Does | System Script |
 |---|---|---|
-| `generate` | Compile documentation | `init` or built-in |
+| `generate` | Compile documentation | `compile()` (built-in) |
 | `audit` | Run validation checks | `validate` |
 | `fix` | Apply fixes to findings | `validate` (re-audit) |
 | `verify` | Re-run checks, compare thresholds | `validate` |
