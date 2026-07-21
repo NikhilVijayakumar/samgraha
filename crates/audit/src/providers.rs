@@ -367,8 +367,15 @@ impl DeterministicAuditProvider {
                             return None;
                         }
                         crate::check_runner::probe_script(&root.join(".samgraha").join("scripts"), script_name)
-                            // System-default scripts shipped next to the binary — same
-                            // mcp_dir() source standards.db/help.db sync uses.
+                            // Namespaced global store: mcp_dir()/systems/<name>/scripts/
+                            .or_else(|| {
+                                let sys_name = config.and_then(|c| c.repository.documentation.standard_system.as_deref())?;
+                                crate::check_runner::probe_script(
+                                    &common::env::mcp_dir().join("systems").join(sys_name).join("scripts"),
+                                    script_name,
+                                )
+                            })
+                            // Legacy flat global store fallback
                             .or_else(|| crate::check_runner::probe_script(&common::env::mcp_dir().join("scripts"), script_name))
                     });
                 let Some(script_path) = resolved else {

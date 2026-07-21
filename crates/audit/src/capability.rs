@@ -153,6 +153,12 @@ pub fn resolve_capability(
     }
 
     // Tier 4: system-default scripts shipped next to the binary
+    if let Some(sys_name) = config.and_then(|c| c.repository.documentation.standard_system.as_deref()) {
+        let namespaced = common::env::mcp_dir().join("systems").join(sys_name).join("scripts");
+        if let Some(p) = check_runner::probe_script(&namespaced, name) {
+            return Some(CapabilitySource::GlobalScript { script_path: p });
+        }
+    }
     if let Some(p) =
         check_runner::probe_script(&common::env::mcp_dir().join("scripts"), name)
     {

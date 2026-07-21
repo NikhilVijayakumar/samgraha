@@ -94,22 +94,32 @@ fn resolve_standard_id(conn: &rusqlite::Connection, system_name: Option<&str>) -
     }
 }
 
-/// Copy every file directly under `source_dir` (a standard's own `script/`
-/// directory) into `dest_dir`, so `resolve_check`'s existing
-/// `.samgraha/scripts/`/`mcp_dir()/scripts/` tiers can find them — same
-/// flat, non-recursive shape `sync`'s `mcp_dir/scripts` -> `.samgraha/scripts`
-/// copy already uses (`services::init`). Returns the number of files copied.
-fn copy_standard_scripts(source_dir: &Path, dest_dir: &Path) -> Result<usize> {
-    std::fs::create_dir_all(dest_dir)?;
-    let mut count = 0;
-    for entry in std::fs::read_dir(source_dir)? {
-        let entry = entry?;
-        if entry.file_type()?.is_file() {
-            std::fs::copy(entry.path(), dest_dir.join(entry.file_name()))?;
-            count += 1;
-        }
-    }
-    Ok(count)
+/// Deserialized `assets:` block from a standard's `system.yaml`.
+/// Controls which directories under the standard root are shipped as
+/// syncable assets and what to exclude.
+#[derive(Debug, Clone, serde::Deserialize, Default)]
+struct StandardAssets {
+    /// Directory name for scripts (default: "script").
+    #[serde(default = "default_assets_scripts")]
+    pub scripts: String,
+    /// Directory name for templates (default: "templates").
+    #[serde(default = "default_assets_templates")]
+    pub templates: String,
+    /// Glob patterns to exclude from both scripts and templates.
+    #[serde(default)]
+    pub exclude: Vec<String>,
+}
+
+fn default_assets_scripts() -> String { "script".to_string() }
+fn default_assets_templates() -> String { "templates".to_string() }
+
+/// Resolve the effective exclusion list: caller-supplied patterns merged
+/// with the unconditional defaults (`__pycache__`, `.pyc`).
+fn effective_excludes(extra: &[String]) -> Vec<String> {
+    let mut v: Vec<String> = common::fs_sync::DEFAULT_EXCLUDES
+        .iter().map(|s| s.to_string()).collect();
+    v.extend(extra.iter().cloned());
+    v
 }
 
 pub struct McpAdapter {
@@ -2068,24 +2078,78 @@ impl McpAdapter {
             &loader, &local_db, &path, system, layout, dry_run,
         )?;
 
-        // A standard's own script/ directory (e.g. python_hackathon's
-        // audit_testing.py, leaderboard.py) was never in any of
-        // resolve_check's discovery tiers — the loader ingests rules that
-        // *reference* those scripts (rule_evidence_params' "script" param)
-        // but nothing ever copied the scripts themselves anywhere run_check
-        // looks. Mirrors the existing local_db/global_db dual-write below:
-        // local .samgraha/scripts/ for immediate use in this repo, global
-        // mcp_dir()/scripts/ so a future `sync` in another repo picks them
-        // up the same way it already does for samgraha's own scripts.
+        // A standard's own script/ and templates/ directories — recursively
+        // copied into local .samgraha/ for immediate use and into the
+        // namespaced global store (mcp_dir()/systems/<name>/) so a future
+        // sync in another repo picks them up.
         let mut scripts_copied = 0usize;
+        let mut templates_copied = 0usize;
         if !dry_run {
-            let source_scripts = path.join("script");
+            // Parse system.yaml for asset paths and exclusion patterns.
+            let system_yaml = path.join("system.yaml");
+            let assets = if system_yaml.is_file() {
+                std::fs::read_to_string(&system_yaml)
+                    .ok()
+                    .and_then(|c| serde_yaml::from_str::<StandardAssets>(&c).ok())
+                    .unwrap_or_default()
+            } else {
+                StandardAssets::default()
+            };
+            let excludes = effective_excludes(&assets.exclude);
+            let exclude_refs: Vec<&str> = excludes.iter().map(|s| s.as_str()).collect();
+
+            // Resolve the system name for the namespaced global path.
+            // Prefer the explicit `system` parameter; fall back to
+            // system.yaml's `name` field.
+            let sys_name = system
+                .map(|s| s.to_string())
+                .or_else(|| {
+                    if system_yaml.is_file() {
+                        std::fs::read_to_string(&system_yaml)
+                            .ok()
+                            .and_then(|c| serde_yaml::from_str::<serde_yaml::Value>(&c).ok())
+                            .and_then(|v| v.get("name")?.as_str()?.to_string().into())
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or_else(|| "unknown".to_string());
+
+            // --- Scripts ---
+            let source_scripts = path.join(&assets.scripts);
             if source_scripts.is_dir() {
-                let local_scripts = self.runtime.context.repository_root.join(".samgraha").join("scripts");
-                scripts_copied += copy_standard_scripts(&source_scripts, &local_scripts)?;
+                // Local: .samgraha/scripts/
+                let local_scripts = self.runtime.context.repository_root
+                    .join(".samgraha").join("scripts");
+                scripts_copied += common::fs_sync::copy_dir_recursive(
+                    &source_scripts, &local_scripts, &exclude_refs,
+                )?;
+                // Global: mcp_dir()/systems/<name>/scripts/
                 if !no_push {
-                    let global_scripts = common::env::mcp_dir().join("scripts");
-                    copy_standard_scripts(&source_scripts, &global_scripts)?;
+                    let global_scripts = common::env::mcp_dir()
+                        .join("systems").join(&sys_name).join("scripts");
+                    common::fs_sync::copy_dir_recursive(
+                        &source_scripts, &global_scripts, &exclude_refs,
+                    )?;
+                }
+            }
+
+            // --- Templates ---
+            let source_templates = path.join(&assets.templates);
+            if source_templates.is_dir() {
+                // Local: .samgraha/templates/
+                let local_templates = self.runtime.context.repository_root
+                    .join(".samgraha").join("templates");
+                templates_copied = common::fs_sync::copy_dir_recursive(
+                    &source_templates, &local_templates, &exclude_refs,
+                )?;
+                // Global: mcp_dir()/systems/<name>/templates/
+                if !no_push {
+                    let global_templates = common::env::mcp_dir()
+                        .join("systems").join(&sys_name).join("templates");
+                    common::fs_sync::copy_dir_recursive(
+                        &source_templates, &global_templates, &exclude_refs,
+                    )?;
                 }
             }
         }
@@ -2115,6 +2179,7 @@ impl McpAdapter {
             "db_path": local_db.display().to_string(),
             "pushed": !dry_run && !no_push,
             "scripts_copied": scripts_copied,
+            "templates_copied": templates_copied,
             "loader_output": loader_output,
             "message": if dry_run {
                 "Dry run complete — nothing written."
@@ -2798,52 +2863,6 @@ impl McpAdapter {
             })),
             None => Ok(serde_json::json!({ "input": null })),
         }
-    }
-}
-
-#[cfg(test)]
-mod copy_standard_scripts_tests {
-    use super::*;
-    use std::path::PathBuf;
-
-    fn scratch_dir(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("samgraha-test-adapter-{}-{}", name, std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        dir
-    }
-
-    #[test]
-    fn copies_flat_files_not_subdirectories() {
-        let root = scratch_dir("copy-scripts");
-        let source = root.join("source");
-        let dest = root.join("dest");
-        std::fs::create_dir_all(source.join("nested")).unwrap();
-        std::fs::write(source.join("leaderboard.py"), "").unwrap();
-        std::fs::write(source.join("audit_testing.py"), "").unwrap();
-        std::fs::write(source.join("nested").join("helper.py"), "").unwrap();
-
-        let count = copy_standard_scripts(&source, &dest).unwrap();
-
-        assert_eq!(count, 2, "only the 2 flat files, not the nested one");
-        assert!(dest.join("leaderboard.py").exists());
-        assert!(dest.join("audit_testing.py").exists());
-        assert!(!dest.join("nested").exists());
-        std::fs::remove_dir_all(&root).ok();
-    }
-
-    #[test]
-    fn creates_dest_dir_if_missing() {
-        let root = scratch_dir("copy-scripts-create-dest");
-        let source = root.join("source");
-        std::fs::create_dir_all(&source).unwrap();
-        std::fs::write(source.join("script.py"), "").unwrap();
-        let dest = root.join("does").join("not").join("exist");
-
-        let count = copy_standard_scripts(&source, &dest).unwrap();
-        assert_eq!(count, 1);
-        assert!(dest.join("script.py").exists());
-        std::fs::remove_dir_all(&root).ok();
     }
 }
 

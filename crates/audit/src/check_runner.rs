@@ -73,10 +73,16 @@ pub fn resolve_check(
         return Some(CheckSource::LocalScript { script_path: p });
     }
 
-    // Tier 4: system-default scripts shipped next to the binary — same
-    // mcp_dir() source `standards.db`/`help.db` sync uses, kept binary-adjacent
-    // instead of home_dir()-based so one sync step covers standards + help +
-    // scripts together (see crate::builtin, standards `sync`/`sync_standards`).
+    // Tier 4: system-default scripts shipped next to the binary —
+    // mcp_dir()/systems/<name>/scripts/ (namespaced, §3.1 of asset sync
+    // proposal) for standards that registered with the new layout, falling
+    // back to the legacy flat mcp_dir()/scripts/ for backward compat.
+    if let Some(sys_name) = config.and_then(|c| c.repository.documentation.standard_system.as_deref()) {
+        let namespaced = common::env::mcp_dir().join("systems").join(sys_name).join("scripts");
+        if let Some(p) = probe_script(&namespaced, name) {
+            return Some(CheckSource::GlobalScript { script_path: p });
+        }
+    }
     if let Some(p) = probe_script(&common::env::mcp_dir().join("scripts"), name) {
         return Some(CheckSource::GlobalScript { script_path: p });
     }

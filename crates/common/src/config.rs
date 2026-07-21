@@ -435,6 +435,11 @@ pub struct DocumentationConfig {
     /// Effective domains = `domain` minus `domain_exclusion`.
     #[serde(default)]
     pub domain_exclusion: Vec<String>,
+    /// Per-repo asset sync control — which standard asset kinds to pull
+    /// and optional path narrowing. Absent means "pull everything the
+    /// standard ships" (full default behavior).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub asset_sync: Option<AssetSyncConfig>,
 }
 
 fn default_docs_root_dir() -> String {
@@ -450,9 +455,35 @@ impl Default for DocumentationConfig {
             check_overrides: std::collections::HashMap::new(),
             domain: Vec::new(),
             domain_exclusion: Vec::new(),
+            asset_sync: None,
         }
     }
 }
+
+/// Per-repo control over which standard assets are synced into
+/// `.samgraha/`. Maps to `[repository.documentation.asset_sync]` in
+/// `samgraha.toml`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct AssetSyncConfig {
+    /// Sync scripts from the standard. Default: true.
+    #[serde(default = "default_true")]
+    pub scripts: bool,
+    /// Sync templates from the standard. Default: true.
+    #[serde(default = "default_true")]
+    pub templates: bool,
+    /// Only pull these subpaths from the standard's scripts directory.
+    /// Each entry is a path relative to the scripts root; naming a
+    /// directory pulls its whole subtree, naming a file pulls just that
+    /// file. Omit to take the full scripts set.
+    #[serde(default)]
+    pub script_include: Vec<String>,
+    /// Only pull these subpaths from the standard's templates directory.
+    /// Same semantics as `script_include`.
+    #[serde(default)]
+    pub template_include: Vec<String>,
+}
+
+fn default_true() -> bool { true }
 
 /// Options controlling `init_repository()` behavior.
 /// All fields have safe defaults — zeroing `InitOptions` preserves

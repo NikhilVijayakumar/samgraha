@@ -14,8 +14,10 @@ pub struct SyncResult {
     pub standards_synced: bool,
     /// Number of help documents synced into `knowledge.db`.
     pub help_documents_synced: usize,
-    /// Number of scripts copied from global `scripts/`.
+    /// Number of scripts copied from the global namespaced store.
     pub scripts_synced: usize,
+    /// Number of template files copied from the global namespaced store.
+    pub templates_synced: usize,
 }
 
 /// Metadata written after a successful sync for staleness tracking.
@@ -213,19 +215,115 @@ pub fn sync_knowledge_system(root: &Path) -> Result<SyncResult> {
     // 2. Sync help docs into knowledge.db
     let help_documents_synced = crate::builtin::sync_help_into_local(root)?;
 
-    // 3. Sync scripts/
-    let source_scripts = mcp_dir.join("scripts");
+    // 3. Sync scripts/ and templates/ from the namespaced global store
+    //    (mcp_dir()/systems/<name>/) into local .samgraha/. Reads the
+    //    standard_system name and optional asset_sync config from
+    //    samgraha.toml to resolve the correct source path and apply any
+    //    per-repo filtering.
+    let config_path = root.join("samgraha.toml");
+    let (sys_name, asset_sync_cfg) = if config_path.exists() {
+        let cfg_str = std::fs::read_to_string(&config_path)
+            .unwrap_or_default();
+        let cfg: common::config::SamgrahaConfig = toml::from_str(&cfg_str)
+            .unwrap_or_default();
+        let name = cfg.repository.documentation.standard_system
+            .clone()
+            .unwrap_or_default();
+        (name, cfg.repository.documentation.asset_sync.clone())
+    } else {
+        (String::new(), None)
+    };
+
+    let systems_dir = mcp_dir.join("systems");
+    let sys_dir = if sys_name.is_empty() {
+        systems_dir
+    } else {
+        systems_dir.join(&sys_name)
+    };
+
     let mut scripts_synced = 0usize;
-    if source_scripts.exists() {
-        let local_scripts = root.join(".samgraha").join("scripts");
-        std::fs::create_dir_all(&local_scripts)?;
-        for entry in std::fs::read_dir(&source_scripts)? {
-            let entry = entry?;
-            if !entry.file_type()?.is_file() {
-                continue;
+    let mut templates_synced = 0usize;
+
+    // --- Scripts ---
+    let should_sync_scripts = asset_sync_cfg.as_ref()
+        .map(|c| c.scripts)
+        .unwrap_or(true);
+    if should_sync_scripts {
+        let source_scripts = sys_dir.join("scripts");
+        if source_scripts.exists() {
+            let local_scripts = root.join(".samgraha").join("scripts");
+            // Build exclude list + optional include narrowing.
+            let excludes: Vec<String> = common::fs_sync::DEFAULT_EXCLUDES
+                .iter().map(|s| s.to_string()).collect();
+            let exclude_refs: Vec<&str> = excludes.iter().map(|s| s.as_str()).collect();
+
+            if let Some(ref cfg) = asset_sync_cfg {
+                if cfg.script_include.is_empty() {
+                    // Full copy
+                    scripts_synced = common::fs_sync::copy_dir_recursive(
+                        &source_scripts, &local_scripts, &exclude_refs,
+                    )?;
+                } else {
+                    // Filtered copy: only named subpaths
+                    for entry in &cfg.script_include {
+                        let src = source_scripts.join(entry);
+                        if src.is_dir() {
+                            let dst = local_scripts.join(entry);
+                            scripts_synced += common::fs_sync::copy_dir_recursive(
+                                &src, &dst, &exclude_refs,
+                            )?;
+                        } else if src.is_file() {
+                            std::fs::create_dir_all(&local_scripts)?;
+                            std::fs::copy(&src, local_scripts.join(entry))?;
+                            scripts_synced += 1;
+                        }
+                    }
+                }
+            } else {
+                scripts_synced = common::fs_sync::copy_dir_recursive(
+                    &source_scripts, &local_scripts, &exclude_refs,
+                )?;
             }
-            std::fs::copy(entry.path(), local_scripts.join(entry.file_name()))?;
-            scripts_synced += 1;
+        }
+    }
+
+    // --- Templates ---
+    let should_sync_templates = asset_sync_cfg.as_ref()
+        .map(|c| c.templates)
+        .unwrap_or(true);
+    if should_sync_templates {
+        let source_templates = sys_dir.join("templates");
+        if source_templates.exists() {
+            let local_templates = root.join(".samgraha").join("templates");
+            let excludes: Vec<String> = common::fs_sync::DEFAULT_EXCLUDES
+                .iter().map(|s| s.to_string()).collect();
+            let exclude_refs: Vec<&str> = excludes.iter().map(|s| s.as_str()).collect();
+
+            if let Some(ref cfg) = asset_sync_cfg {
+                if cfg.template_include.is_empty() {
+                    templates_synced = common::fs_sync::copy_dir_recursive(
+                        &source_templates, &local_templates, &exclude_refs,
+                    )?;
+                } else {
+                    for entry in &cfg.template_include {
+                        let src = source_templates.join(entry);
+                        if src.is_dir() {
+                            let dst = local_templates.join(entry);
+                            templates_synced += common::fs_sync::copy_dir_recursive(
+                                &src, &dst, &exclude_refs,
+                            )?;
+                        } else if src.is_file() {
+                            std::fs::create_dir_all(&local_templates)?;
+                            std::fs::copy(&src, local_templates.join(entry))?;
+                            templates_synced += 1;
+                        }
+                    }
+                }
+            } else {
+                templates_synced = common::fs_sync::copy_dir_recursive(
+                    &source_templates, &local_templates, &exclude_refs,
+                )?;
+            }
         }
     }
 
@@ -249,6 +347,7 @@ pub fn sync_knowledge_system(root: &Path) -> Result<SyncResult> {
         standards_synced,
         help_documents_synced,
         scripts_synced,
+        templates_synced,
     })
 }
 
