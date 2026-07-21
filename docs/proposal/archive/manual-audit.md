@@ -853,7 +853,7 @@ ls "docs/reports/feature/" 2>/dev/null
 
 ## Phase 4 — AI Integration
 
-Moved to [MCP Configuration](mcp-configuration.md).
+Moved to [MCP Configuration](../../mcp-configuration.md).
 
 
 ---

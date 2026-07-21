@@ -33,4 +33,4 @@ Verifies Build Documentation quality and that Build Configuration and produced a
 - [Audit Concept](audit.md)
 - [Security Audit](security-audit.md)
 - [Pipeline Contracts](pipeline-contracts.md)
-- [Build Audit Spec](../../../knowledge-system-author-guide.md)
+- [Build Audit Spec](../../../proposal/archive/knowledge-system-author-guide.md)

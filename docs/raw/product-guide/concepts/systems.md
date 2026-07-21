@@ -71,4 +71,4 @@ script, not from anything written in `system.yaml` — see
 - [Capability Scripts](scripts.md)
 - [System Inheritance](inheritance.md)
 - [Workflows](workflows.md)
-- [Knowledge System Author Guide](../../../knowledge-system-author-guide.md)
+- [Knowledge System Author Guide](../../../proposal/archive/knowledge-system-author-guide.md)

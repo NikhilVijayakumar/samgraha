@@ -34,4 +34,4 @@ Verifies Security Documentation quality and that security configuration and runt
 
 - [Audit Concept](audit.md)
 - [Build Audit](build-audit.md)
-- [Security Audit Spec](../../../knowledge-system-author-guide.md)
+- [Security Audit Spec](../../../proposal/archive/knowledge-system-author-guide.md)

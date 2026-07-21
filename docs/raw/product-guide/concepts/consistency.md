@@ -31,4 +31,4 @@ Contradictions against Vision or Architecture → fix code. Contradictions betwe
 
 - [Audit Concept](audit.md)
 - [Coverage Audit](coverage.md)
-- [Consistency Audit Spec](../../../knowledge-system-author-guide.md)
+- [Consistency Audit Spec](../../../proposal/archive/knowledge-system-author-guide.md)

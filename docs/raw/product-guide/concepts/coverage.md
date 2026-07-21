@@ -45,4 +45,4 @@ Reverse (code→doc) — orphans:
 
 - [Audit Concept](audit.md)
 - [Consistency Audit](consistency.md)
-- [Coverage Audit Spec](../../../knowledge-system-author-guide.md)
+- [Coverage Audit Spec](../../../proposal/archive/knowledge-system-author-guide.md)

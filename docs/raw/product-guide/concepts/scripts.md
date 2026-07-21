@@ -81,7 +81,7 @@ capability.
 
 ## Writing a Script
 
-See the [Knowledge System Author Guide](../../../knowledge-system-author-guide.md) for complete guidance on writing scripts in any language.
+See the [Knowledge System Author Guide](../../../proposal/archive/knowledge-system-author-guide.md) for complete guidance on writing scripts in any language.
 
 ## Related
 

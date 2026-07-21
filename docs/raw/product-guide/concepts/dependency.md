@@ -27,4 +27,4 @@ Governance framework ensuring every dependency is justified, documented, correct
 
 - [Audit Concept](audit.md)
 - [Coverage Audit](coverage.md)
-- [Dependency Governance Spec](../../../knowledge-system-author-guide.md)
+- [Dependency Governance Spec](../../../proposal/archive/knowledge-system-author-guide.md)

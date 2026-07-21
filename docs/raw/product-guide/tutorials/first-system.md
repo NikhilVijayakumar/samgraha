@@ -175,10 +175,10 @@ cat /tmp/test-output.json
 - Add more capabilities (`calculate`, `scaffold`, `plan-generation`)
 - Define documentation standards for your domains
 - Write an `init` script (`scripts/init.py`) that returns your system's phase-wise plan — see [Workflows](../concepts/workflows.md)
-- See the [Knowledge System Author Guide](../../../knowledge-system-author-guide.md) for complete reference
+- See the [Knowledge System Author Guide](../../../proposal/archive/knowledge-system-author-guide.md) for complete reference
 
 ## Related
 
 - [Knowledge Systems](../concepts/systems.md)
 - [Capability Scripts](../concepts/scripts.md)
-- [Knowledge System Author Guide](../../../knowledge-system-author-guide.md)
+- [Knowledge System Author Guide](../../../proposal/archive/knowledge-system-author-guide.md)

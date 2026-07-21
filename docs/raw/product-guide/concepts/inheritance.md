@@ -80,4 +80,4 @@ samgraha/system/
 
 - [Knowledge Systems](systems.md)
 - [Capability Scripts](scripts.md)
-- [Knowledge System Author Guide](../../../knowledge-system-author-guide.md)
+- [Knowledge System Author Guide](../../../proposal/archive/knowledge-system-author-guide.md)
