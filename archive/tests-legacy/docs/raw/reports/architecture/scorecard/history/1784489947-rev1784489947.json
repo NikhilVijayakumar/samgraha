@@ -1,0 +1,26 @@
+{
+  "report": {
+    "id": "audit-1784410261",
+    "domain": "architecture",
+    "timestamp": "1784410261",
+    "provider": "deterministic",
+    "score": {
+      "overall": 100.0,
+      "categories": {},
+      "documents_checked": 1,
+      "documents_passed": 1,
+      "findings_count": 0,
+      "rating": "Unknown",
+      "bucket_scores": {}
+    },
+    "findings": [],
+    "readiness": "Production",
+    "metadata": {},
+    "semantic_review": {
+      "instruction": "",
+      "rubrics": {},
+      "tasks": []
+    }
+  },
+  "semantic_results": []
+}

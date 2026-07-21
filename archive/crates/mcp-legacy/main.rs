@@ -1,0 +1,1292 @@
+use anyhow::Result;
+use common::config::SamgrahaConfig;
+use mcp::adapter::McpAdapter;
+use mcp::protocol::{McpMessage, McpRequest};
+use services::registry_client::FileRegistryClient;
+use services::KnowledgeRuntime;
+use std::io::{self, BufRead, Write};
+use std::path::Path;
+use std::sync::Arc;
+
+#[derive(serde::Deserialize)]
+struct JsonRpcRequest {
+    id: Option<serde_json::Value>,
+    method: String,
+    #[serde(default)]
+    params: serde_json::Value,
+}
+
+#[derive(serde::Serialize)]
+struct JsonRpcResponse {
+    jsonrpc: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    id: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    result: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<JsonRpcError>,
+}
+
+#[derive(serde::Serialize)]
+struct JsonRpcError {
+    code: i32,
+    message: String,
+}
+
+fn main() -> Result<()> {
+    common::load_dotenv();
+    let _ = tracing_subscriber::fmt()
+        .with_writer(std::io::stderr)
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::from_default_env()
+                .add_directive("samgraha=info".parse().unwrap()),
+        )
+        .with_target(false)
+        .try_init();
+
+    check_expiry();
+
+    let root = discover_root()?;
+    let config = load_config(&root)?;
+    let runtime = Arc::new(KnowledgeRuntime::new(&root, config)?);
+    let registry = Arc::new(FileRegistryClient::new(&root));
+    let adapter = McpAdapter::new(runtime, registry);
+
+    let stdin = io::stdin();
+    let mut stdout = io::stdout().lock();
+
+    for line in stdin.lock().lines() {
+        let line = match line {
+            Ok(l) => l,
+            Err(_) => break,
+        };
+        // PowerShell always prepends a UTF-8 BOM when piping a string literal to a
+        // native process's stdin — strip it so the first request from a plain
+        // `'...' | mcp.exe` pipe on Windows doesn't fail to parse.
+        let line = line.strip_prefix('\u{feff}').unwrap_or(&line).to_string();
+        if line.trim().is_empty() {
+            continue;
+        }
+
+        let req: JsonRpcRequest = match serde_json::from_str(&line) {
+            Ok(r) => r,
+            Err(e) => {
+                let err = JsonRpcResponse {
+                    jsonrpc: "2.0".to_string(),
+                    id: Some(serde_json::Value::Null),
+                    result: None,
+                    error: Some(JsonRpcError {
+                        code: -32700,
+                        message: format!("Parse error: {}", e),
+                    }),
+                };
+                let _ = writeln!(stdout, "{}", serde_json::to_string(&err).unwrap());
+                let _ = stdout.flush();
+                continue;
+            }
+        };
+
+        // JSON-RPC 2.0 notifications have no id — server must not respond.
+        if req.id.is_none() {
+            continue;
+        }
+
+        let response = handle(&adapter, &req);
+        let _ = writeln!(stdout, "{}", serde_json::to_string(&response).unwrap());
+        let _ = stdout.flush();
+    }
+
+    adapter.notify_disconnect();
+    Ok(())
+}
+
+fn handle(adapter: &McpAdapter, req: &JsonRpcRequest) -> JsonRpcResponse {
+    match req.method.as_str() {
+        "initialize" => {
+            adapter.notify_connect();
+            JsonRpcResponse {
+                jsonrpc: "2.0".to_string(),
+                id: req.id.clone(),
+                result: Some(serde_json::json!({
+                    "protocolVersion": "2025-03-26",
+                    "capabilities": { "tools": {} },
+                    "serverInfo": {
+                        "name": "samgraha-mcp",
+                        "version": env!("CARGO_PKG_VERSION")
+                    }
+                })),
+                error: None,
+            }
+        }
+        "notifications/initialized" => {
+            // Handled upstream — loop skips when id.is_none().
+            unreachable!()
+        }
+        "tools/list" => JsonRpcResponse {
+            jsonrpc: "2.0".to_string(),
+            id: req.id.clone(),
+            result: Some(serde_json::json!({ "tools": tool_definitions() })),
+            error: None,
+        },
+        "tools/call" => {
+            let name = match req.params.get("name").and_then(|v| v.as_str()) {
+                Some(n) => n,
+                None => {
+                    return JsonRpcResponse {
+                        jsonrpc: "2.0".to_string(),
+                        id: req.id.clone(),
+                        result: None,
+                        error: Some(JsonRpcError {
+                            code: -32602,
+                            message: "Missing 'name' in tool call".to_string(),
+                        }),
+                    };
+                }
+            };
+
+            let arguments = req
+                .params
+                .get("arguments")
+                .cloned()
+                .unwrap_or(serde_json::json!({}));
+
+            let params = arguments
+                .as_object()
+                .map(|obj| {
+                    obj.iter()
+                        .map(|(k, v)| (k.clone(), v.clone()))
+                        .collect::<std::collections::HashMap<_, _>>()
+                })
+                .unwrap_or_default();
+
+            let mcp_req = McpRequest {
+                id: req
+                    .id
+                    .as_ref()
+                    .map(|v| v.to_string())
+                    .unwrap_or_default(),
+                method: name.to_string(),
+                params,
+                repo: None,
+            };
+
+            match adapter.handle_message(McpMessage::Request(mcp_req)) {
+                McpMessage::Response(resp) => JsonRpcResponse {
+                    jsonrpc: "2.0".to_string(),
+                    id: req.id.clone(),
+                    result: Some(tool_result(&resp.result, false)),
+                    error: None,
+                },
+                McpMessage::Error(err) => JsonRpcResponse {
+                    jsonrpc: "2.0".to_string(),
+                    id: req.id.clone(),
+                    result: Some(tool_result(&serde_json::json!({ "error": err.message }), true)),
+                    error: None,
+                },
+                _ => JsonRpcResponse {
+                    jsonrpc: "2.0".to_string(),
+                    id: req.id.clone(),
+                    result: Some(tool_result(&serde_json::json!({ "error": "Internal error" }), true)),
+                    error: None,
+                },
+            }
+        }
+        _ => JsonRpcResponse {
+            jsonrpc: "2.0".to_string(),
+            id: req.id.clone(),
+            result: None,
+            error: Some(JsonRpcError {
+                code: -32601,
+                message: format!("Method not found: {}", req.method),
+            }),
+        },
+    }
+}
+
+/// Wrap a handler's raw JSON payload into the MCP `tools/call` result shape
+/// (`content` text blocks + `isError`), which is what MCP clients (Claude Code,
+/// opencode, etc.) actually read. Returning bare JSON-RPC `result` without this
+/// wrapper renders as empty output in every client, regardless of what the
+/// handler produced.
+fn tool_result(payload: &serde_json::Value, is_error: bool) -> serde_json::Value {
+    let text = serde_json::to_string_pretty(payload).unwrap_or_else(|_| payload.to_string());
+    serde_json::json!({
+        "content": [{ "type": "text", "text": text }],
+        "structuredContent": payload,
+        "isError": is_error,
+    })
+}
+
+fn tool_definitions() -> Vec<serde_json::Value> {
+    vec![
+        serde_json::json!({
+            "name": "init",
+            "description": "Initialize samgraha.toml and .samgraha/ for a repository. Optionally select a document standard system, auto-detect directories, and sync the Knowledge System from global — all in one pass. Backfills missing keys if samgraha.toml already exists.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "force": { "type": "boolean", "description": "Overwrite existing samgraha.toml with a fresh template instead of backfilling missing keys" },
+                    "repo_path": { "type": "string", "description": "Absolute path to the repository to initialize" },
+                    "standard_system": { "type": "string", "description": "Document standard system name (e.g. 'samgraha-documentation')" },
+                    "script_overrides": { "type": "object", "description": "Map of rule_id -> script path for [repository.documentation.script_overrides]" },
+                    "check_overrides": { "type": "object", "description": "Map of check_name -> script path for [repository.documentation.check_overrides]" },
+                    "auto_detect": { "type": "boolean", "description": "Probe repo for docs/, src|crates/, tests/, scripts/ and set literal paths if found" },
+                    "sync": { "type": "boolean", "description": "Sync Knowledge System from global store into .samgraha/ after init" }
+                }
+            }
+        }),
+        serde_json::json!({
+            "name": "compile",
+            "description": "Compile documentation into knowledge database. Omit 'path' to compile Samgraha itself; provide 'path' to compile an external repository into its own knowledge.db.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "force": { "type": "boolean", "description": "Force recompile all" },
+                    "domains": { "type": "array", "items": { "type": "string" }, "description": "Domains to compile" },
+                    "path": { "type": "string", "description": "Absolute path to an external repository to compile into its own .samgraha/knowledge.db" }
+                }
+            }
+        }),
+        serde_json::json!({
+            "name": "sync",
+            "description": "Read a compiled repository's manifest.json, register it in the local registry, and write a .meta file so the Planner can resolve it offline. Run after compile when integrating an external repo.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "path": { "type": "string", "description": "Absolute path to the repository root (must contain .samgraha/manifest.json)" }
+                },
+                "required": ["path"]
+            }
+        }),
+        serde_json::json!({
+            "name": "get_plan",
+            "description": "Return the current Knowledge Plan — shows which repositories are loaded, their priority, status (loaded/stale/missing/unresolved/required_missing), and revision.",
+            "inputSchema": { "type": "object", "properties": {} }
+        }),
+        serde_json::json!({
+            "name": "switch_context",
+            "description": "Switch the active knowledge context to an already-loaded named context (see list_contexts)",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "name": { "type": "string", "description": "Context name to activate" }
+                },
+                "required": ["name"]
+            }
+        }),
+        serde_json::json!({
+            "name": "list_contexts",
+            "description": "List loaded knowledge contexts and which one is active",
+            "inputSchema": { "type": "object", "properties": {} }
+        }),
+        serde_json::json!({
+            "name": "search",
+            "description": "Search compiled knowledge. Pass 'repo_path' to search a different local repository instead of the one this MCP session is anchored to.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "query": { "type": "string", "description": "Search query" },
+                    "level": { "type": "string", "enum": ["metadata", "summary", "section", "full"], "description": "Retrieval level" },
+                    "domain": { "type": "string", "description": "Filter by domain" },
+                    "limit": { "type": "integer", "description": "Max results" },
+                    "offset": { "type": "integer", "description": "Result offset" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to search" }
+                },
+                "required": ["query"]
+            }
+        }),
+        serde_json::json!({
+            "name": "get_sections",
+            "description": "Get document sections by semantic type. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "semantic_type": { "type": "string", "description": "Semantic type filter" },
+                    "domain": { "type": "string", "description": "Filter by domain" },
+                    "limit": { "type": "integer" },
+                    "offset": { "type": "integer" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["semantic_type"]
+            }
+        }),
+        serde_json::json!({
+            "name": "audit",
+            "description": "Run audit checks on documentation. For a domain audit (no 'pipeline', or pipeline: 'doc'), the response's semantic_review.tasks bundles per-section LLM review work (section content + rubric) that the calling agent should judge and report via store_section_report — see semantic_review.instruction for the exact next step. Pass 'pipeline' to run a structural pipeline instead (e.g. 'architecture', 'documentation-structure', 'build', 'security', 'consistency', 'coverage', 'dependency', or any domain name) — those return a PipelineReport directly, no semantic_review. Pass 'standard' to run YAML-defined audit rules from a registered standard; 'domain' then selects which of that standard's pipelines to run (required if it defines more than one), and the run is archived — see audit_runs. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "domain": { "type": "string", "description": "Documentation Audit: domain to audit (ignored if 'pipeline' is set). With 'standard': selects which of the standard's pipelines to run." },
+                    "providers": { "type": "array", "items": { "type": "string" }, "description": "Audit providers, e.g. [\"deterministic\"] or [\"deterministic\", \"semantic\"]" },
+                    "pipeline": { "type": "string", "description": "Run a custom pipeline instead of the Documentation Audit: doc, architecture, build, security, consistency, coverage, dependency, documentation-structure, vision, design, readme, prototype, external-context, engineering, feature, feature-technical, feature-design, deterministic-runtime, external-context-ownership, implementation, help" },
+                    "standard": { "type": "string", "description": "Run YAML-defined audit rules from a registered standard (e.g. 'python_hackathon'). Looks for .samgraha/standards/{standard}/audit/pipelines/*.yaml." },
+                    "model": { "type": "string", "description": "Standard audits only: self-reported identifier of the model/agent driving this call (e.g. 'claude-sonnet-5'). Archived with the run, retrievable via audit_runs. Optional — samgraha has no other way to learn it." },
+                    "scope": { "type": "string", "enum": ["document", "session", "both"], "description": "Audit scope: document (per-doc), session (cross-doc), or both. Default: document" },
+                    "inspect_artifact": { "type": "boolean", "description": "build pipeline only: verify the declared binary artifact exists" },
+                    "runtime": { "type": "boolean", "description": "security pipeline only: connect to the running app and verify auth/TLS/rate-limiting" },
+                    "execute": { "type": "boolean", "description": "build pipeline only: actually run the declared build command" },
+                    "dry_run": { "type": "boolean", "description": "build pipeline only: dry-run the declared build command" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                }
+            }
+        }),
+        serde_json::json!({
+            "name": "audit_runs",
+            "description": "List archived standard-driven audit runs (most recent first): standard, domain, self-reported model (if any), score, and the full report JSON. Raw facts only — no ranking/aggregation opinion. A standard that wants a leaderboard or cross-model comparison defines that itself as a script (see list_script_checks/run_check) and reads these runs as its input; samgraha doesn't compute one for you.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "standard": { "type": "string", "description": "Standard name (e.g. 'python_hackathon')" },
+                    "domain": { "type": "string", "description": "Narrow to one of the standard's pipelines/domains" },
+                    "limit": { "type": "integer", "description": "Max rows to return. Default: 20" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["standard"]
+            }
+        }),
+        serde_json::json!({
+            "name": "info",
+            "description": "Get runtime information. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                }
+            }
+        }),
+        serde_json::json!({
+            "name": "get_document",
+            "description": "Get document metadata and section table of contents. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "id": { "type": "integer", "description": "Document ID" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "get_document_section",
+            "description": "Get paginated content of a specific section. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "id": { "type": "integer", "description": "Document ID" },
+                    "section": { "description": "Section index (integer) or heading (string)" },
+                    "limit": { "type": "integer" },
+                    "offset": { "type": "integer" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["id", "section"]
+            }
+        }),
+        serde_json::json!({
+            "name": "list_domains",
+            "description": "List available documentation domains. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                }
+            }
+        }),
+        serde_json::json!({
+            "name": "list_repositories",
+            "description": "List registered repositories. Pass 'repo_path' to read a different local repository's registry.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "limit": { "type": "integer" },
+                    "offset": { "type": "integer" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository whose registry to read" }
+                }
+            }
+        }),
+        serde_json::json!({
+            "name": "register_repository",
+            "description": "Register a repository from its manifest JSON. Pass 'repo_path' to register into a different local repository's registry instead of the one this MCP session is anchored to.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "manifest": { "type": "string", "description": "RepositoryManifest as JSON string" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository whose registry to register into" }
+                },
+                "required": ["manifest"]
+            }
+        }),
+        serde_json::json!({
+            "name": "unregister_repository",
+            "description": "Unregister a repository by UUID. Pass 'repo_path' to target a different local repository's registry.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "uuid": { "type": "string", "description": "Repository UUID" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository whose registry to target" }
+                },
+                "required": ["uuid"]
+            }
+        }),
+        serde_json::json!({
+            "name": "synchronize_repository",
+            "description": "Synchronize dependency metadata from their manifests. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                }
+            }
+        }),
+        serde_json::json!({
+            "name": "resolve_dependencies",
+            "description": "Resolve dependency graph for all registered repositories. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                }
+            }
+        }),
+        serde_json::json!({
+            "name": "repository_status",
+            "description": "Get computed status of all registered repositories. Pass 'repo_path' to read a different local repository's registry.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "limit": { "type": "integer" },
+                    "offset": { "type": "integer" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository whose registry to read" }
+                }
+            }
+        }),
+        serde_json::json!({
+            "name": "workspace_status",
+            "description": "Get workspace-level status across all registered repositories. Pass 'repo_path' to read a different local repository's registry.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "limit": { "type": "integer" },
+                    "offset": { "type": "integer" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository whose registry to read" }
+                }
+            }
+        }),
+        serde_json::json!({
+            "name": "get_product_knowledge_context",
+            "description": "Get a repository's compiled Product Knowledge context (repository_metadata: source/test/scripts dirs, dependencies, pipeline commands, repo identity) — empty until compile has run at least once. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                }
+            }
+        }),
+        // ── Semantic Audit Tools ─────────────────────────────────────────────
+        serde_json::json!({
+            "name": "get_documents_by_domain",
+            "description": "List compiled documents in a domain. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "domain": { "type": "string", "description": "Domain/standard name" },
+                    "limit": { "type": "integer" },
+                    "offset": { "type": "integer" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["domain"]
+            }
+        }),
+        serde_json::json!({
+            "name": "get_section",
+            "description": "Get a single section by database primary key. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "section_id": { "type": "integer", "description": "Section primary key" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["section_id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "get_audit_knowledge",
+            "description": "Serve audit knowledge file content for a domain section type. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "domain": { "type": "string", "description": "Domain name" },
+                    "section_type": { "type": "string", "description": "Section semantic type" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["domain", "section_type"]
+            }
+        }),
+        serde_json::json!({
+            "name": "get_audit_report",
+            "description": "Get the latest audit report for a scope. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "domain": { "type": "string", "description": "Domain name" },
+                    "document_id": { "type": "integer", "description": "Optional document ID" },
+                    "section_id": { "type": "integer", "description": "Optional section ID" },
+                    "stage": { "type": "string", "enum": ["deterministic", "section", "document", "cross_domain"], "description": "Audit stage" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["domain", "stage"]
+            }
+        }),
+        serde_json::json!({
+            "name": "get_section_changed",
+            "description": "Check if a section changed since last audit (incremental skip). Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "section_id": { "type": "integer", "description": "Section primary key" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["section_id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "check_gate",
+            "description": "Check if a stage gate is clear before proceeding. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "stage": { "type": "string", "enum": ["deterministic", "section", "document", "cross_domain"], "description": "Audit stage to check" },
+                    "document_id": { "type": "integer", "description": "Optional document ID for scoped check" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["stage"]
+            }
+        }),
+        serde_json::json!({
+            "name": "store_section_report",
+            "description": "Agent writes section audit findings; validates schema before persist. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "report_json": { "type": "object", "description": "SemanticReport as JSON object" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["report_json"]
+            }
+        }),
+        serde_json::json!({
+            "name": "store_document_report",
+            "description": "Agent writes document-level audit findings; validates schema. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "report_json": { "type": "object", "description": "SemanticReport as JSON object" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["report_json"]
+            }
+        }),
+        serde_json::json!({
+            "name": "store_cross_domain_report",
+            "description": "Agent writes cross-domain audit findings; validates schema. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "report_json": { "type": "object", "description": "SemanticReport as JSON object" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["report_json"]
+            }
+        }),
+        serde_json::json!({
+            "name": "store_pipeline_check_report",
+            "description": "Agent writes a Spec-layer judgment for one pipeline checklist item (e.g. architecture's A1) from audit(pipeline: ..., providers: [\"semantic\"])'s semantic_review.tasks; validates schema before persist. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "report_json": { "type": "object", "description": "PipelineCheckReport as JSON object (report_id, pipeline, check_id, score, findings, git_revision, created_at)" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["report_json"]
+            }
+        }),
+        serde_json::json!({
+            "name": "get_pipeline_check_report",
+            "description": "Get the latest stored Spec-layer judgment for one pipeline checklist item. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "pipeline": { "type": "string", "description": "Pipeline name, e.g. 'architecture'" },
+                    "check_id": { "type": "string", "description": "Checklist item id, e.g. 'A1'" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["pipeline", "check_id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "check_pipeline_gate",
+            "description": "Check whether a pipeline's Spec-layer checks have all converged (no stored check scored below 100) before proceeding. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "pipeline": { "type": "string", "description": "Pipeline name, e.g. 'architecture'" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["pipeline"]
+            }
+        }),
+        serde_json::json!({
+            "name": "get_summary_report",
+            "description": "Rolls up whichever of the three audit layers (deterministic, standard/rubric, spec/checklist) are available for a target into one score + readiness verdict. Recomputes the deterministic (and, for pipelines, spec) layer live rather than reading a cache — it's cheap to recompute and this avoids serving a stale score. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "target_type": { "type": "string", "enum": ["domain", "pipeline"], "description": "Whether target_name is a domain (e.g. 'vision') or a pipeline (e.g. 'architecture')" },
+                    "target_name": { "type": "string", "description": "Domain or pipeline name" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["target_type", "target_name"]
+            }
+        }),
+        serde_json::json!({
+            "name": "update_finding_status",
+            "description": "Mark a semantic-stage finding (from store_section_report/store_document_report/store_cross_domain_report) as Fixed / Accepted / Ignored / False Positive. 'report_id' must be the numeric id of a stored SemanticReport — this does NOT apply to plain domain-audit findings or pipeline (architecture/documentation-structure/build/security/consistency/coverage/help) findings; use audit_fix_accept/audit_fix_reject for those instead. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "report_id": { "type": "integer", "description": "Numeric id of a stored SemanticReport (Section/Document/CrossDomain stage)" },
+                    "criterion_id": { "type": "string", "description": "Finding criterion ID to update" },
+                    "status": { "type": "string", "enum": ["open", "fixed", "accepted", "ignored", "false_positive"], "description": "New finding status" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["report_id", "criterion_id", "status"]
+            }
+        }),
+        // ── Fix Plan Tools ──────────────────────────────────────────────────
+        // Work for a finding from ANY audit source (domain audit, pipeline,
+        // or semantic stage) — 'report_id'/'report_type' here are bookkeeping
+        // tags on the fix session, not a foreign key, so any string/number
+        // identifying where the finding came from is valid (e.g. the domain
+        // name and 0 for a plain `audit` call, or a stored pipeline report_id).
+        serde_json::json!({
+            "name": "audit_fix_plan",
+            "description": "Generate a fix plan for one finding, for human review — does not modify files. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "finding": { "type": "object", "description": "AuditFinding JSON object, e.g. one entry from an audit response's findings[] array" },
+                    "domain": { "type": "string", "description": "Domain the finding belongs to" },
+                    "report_id": { "type": "integer", "description": "Bookkeeping id for the source report (not validated against a table)" },
+                    "report_type": { "type": "string", "description": "Bookkeeping label for the source report, e.g. 'doc', 'architecture', 'documentation-structure', 'section'" },
+                    "target_path": { "type": "string", "description": "File the fix should target" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["finding", "domain", "report_id", "report_type", "target_path"]
+            }
+        }),
+        serde_json::json!({
+            "name": "audit_fix_apply",
+            "description": "Run the full fix pipeline for one finding: plan, execute, verify, retry up to the configured max attempts. Modifies files. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "finding": { "type": "object", "description": "AuditFinding JSON object, e.g. one entry from an audit response's findings[] array" },
+                    "domain": { "type": "string", "description": "Domain the finding belongs to" },
+                    "report_id": { "type": "integer", "description": "Bookkeeping id for the source report (not validated against a table)" },
+                    "report_type": { "type": "string", "description": "Bookkeeping label for the source report, e.g. 'doc', 'architecture', 'documentation-structure', 'section'" },
+                    "target_path": { "type": "string", "description": "File the fix should target" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["finding", "domain", "report_id", "report_type", "target_path"]
+            }
+        }),
+        serde_json::json!({
+            "name": "audit_fix_accept",
+            "description": "Shorthand for update_finding_status(status: 'fixed') — same report_id constraint applies (must be a stored SemanticReport id, not a pipeline/domain-audit report_id). Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "report_id": { "type": "integer", "description": "Report database ID (must be a stored SemanticReport id)" },
+                    "criterion_id": { "type": "string", "description": "Finding criterion ID to mark fixed" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["report_id", "criterion_id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "audit_fix_reject",
+            "description": "Shorthand for update_finding_status(status: 'accepted') — same report_id constraint as audit_fix_accept. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "report_id": { "type": "integer", "description": "Report database ID (must be a stored SemanticReport id)" },
+                    "criterion_id": { "type": "string", "description": "Finding criterion ID to mark accepted" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["report_id", "criterion_id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "audit_fix_status",
+            "description": "Get a fix session's status and its attempt history. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "session_id": { "type": "integer", "description": "Fix session id, returned by audit_fix_apply" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["session_id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "audit_fix_list",
+            "description": "List fix sessions, paginated. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "limit": { "type": "integer", "description": "Page size, default 20" },
+                    "offset": { "type": "integer", "description": "Page offset" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                }
+            }
+        }),
+        serde_json::json!({
+            "name": "audit_fix_plan_list",
+            "description": "List fix plans generated within a fix session. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "session_id": { "type": "integer", "description": "Fix session id" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["session_id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "audit_fix_plan_get",
+            "description": "Get a single fix plan and its steps. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "plan_id": { "type": "integer", "description": "Fix plan id" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["plan_id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "audit_fix_plan_render",
+            "description": "Render a fix plan as markdown using a fix-plan-templates template. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "plan_id": { "type": "integer", "description": "Fix plan id" },
+                    "template": { "type": "string", "description": "Template name under docs/raw/fix-plan-templates, default 'documentation'" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["plan_id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "audit_fix_templates",
+            "description": "List available fix-plan-templates. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                }
+            }
+        }),
+        serde_json::json!({
+            "name": "update_report_finding_status",
+            "description": "Mark a stored pipeline-report finding (architecture/documentation-structure/build/security/consistency/coverage/help — the report_findings table) as fixed/accepted/ignored/false_positive by its row id. Note: no MCP tool currently returns that row id from a live audit call; it must be read from the registry directly (report_findings.id) until a query tool is added. Pass 'repo_path' to target a different local repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "finding_id": { "type": "integer", "description": "report_findings.id — the stored finding's row id" },
+                    "status": { "type": "string", "enum": ["open", "fixed", "accepted", "ignored", "false_positive"], "description": "New finding status" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["finding_id", "status"]
+            }
+        }),
+        // ── Project Planner Tools ─────────────────────────────────────────
+        serde_json::json!({
+            "name": "project_plan",
+            "description": "Create a new project plan for a given use case. Generates a phasewise plan with dependency-aware phase ordering.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "case": { "type": "string", "enum": ["new_project", "docs_audit", "impl_test_audit", "build_audit"], "description": "Project goal" },
+                    "title": { "type": "string", "description": "Optional plan title (defaults to case name)" }
+                },
+                "required": ["case"]
+            }
+        }),
+        serde_json::json!({
+            "name": "project_plan_get",
+            "description": "Get a project plan with all its phases and statuses.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "plan_id": { "type": "string", "description": "Plan ID" }
+                },
+                "required": ["plan_id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "project_plan_list",
+            "description": "List all project plans with their status.",
+            "inputSchema": { "type": "object", "properties": {} }
+        }),
+        serde_json::json!({
+            "name": "project_plan_execute",
+            "description": "Execute a phase within a project plan. Omitting phase_number executes the next pending phase.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "plan_id": { "type": "string", "description": "Plan ID" },
+                    "phase_number": { "type": "integer", "description": "Optional phase number to execute (default: next pending)" }
+                },
+                "required": ["plan_id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "project_plan_status",
+            "description": "Get progress summary for a project plan.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "plan_id": { "type": "string", "description": "Plan ID" }
+                },
+                "required": ["plan_id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "project_plan_abort",
+            "description": "Abort a project plan (mark as failed).",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "plan_id": { "type": "string", "description": "Plan ID" },
+                    "reason": { "type": "string", "description": "Reason for abort" }
+                },
+                "required": ["plan_id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "list_standards",
+            "description": "List all registered documentation standards with their domains, rules, and sections.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                }
+            }
+        }),
+        serde_json::json!({
+            "name": "get_standard",
+            "description": "Get a single documentation standard by domain and version.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "domain": { "type": "string", "description": "Domain/standard name (e.g. 'architecture')" },
+                    "version": { "type": "string", "description": "Standard version (default '1.0.0')" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["domain"]
+            }
+        }),
+        serde_json::json!({
+            "name": "get_standard_doc",
+            "description": "Get the human-readable documentation-standards spec content for a domain — the prose a domain's rules/sections/templates are derived from, as opposed to get_standard's structural metadata.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "domain": { "type": "string", "description": "Domain name (e.g. 'architecture')" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["domain"]
+            }
+        }),
+        serde_json::json!({
+            "name": "register_standard",
+            "description": "Register a new documentation-standard system by running the knowledge-hub loader on a directory of documentation files. Writes into the shared standards.db shipped next to the MCP binary by default, so every repo's sync_standards can pull it — pass local: true to write straight into this repo's own standards.db instead (self-hosting/bootstrap only).",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "path": { "type": "string", "description": "Path to the knowledge-hub directory to load" },
+                    "system": { "type": "string", "description": "System name to register/update (default: samgraha-documentation)" },
+                    "layout": { "type": "string", "description": "Path to a JSON file overriding directory-name keys for a differently-laid-out knowledge-hub directory" },
+                    "local": { "type": "boolean", "description": "Write to this repo's local .samgraha/standards.db instead of the shared mcp-adjacent one" },
+                    "dry_run": { "type": "boolean", "description": "Parse and validate the knowledge-hub directory without writing to the DB" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["path"]
+            }
+        }),
+        serde_json::json!({
+            "name": "set_default_standard",
+            "description": "Switch which registered system is the default in the shared standards.db — used by repos whose samgraha.toml doesn't set [repository.documentation] standard_system.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "system": { "type": "string", "description": "System name to make default" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["system"]
+            }
+        }),
+        serde_json::json!({
+            "name": "sync_standards",
+            "description": "Pull the Knowledge System from global store into this repo's local .samgraha/. Checks staleness by default; pass force=true to re-sync unconditionally.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "force": { "type": "boolean", "description": "Force re-sync even if local copy appears current" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                }
+            }
+        }),
+        serde_json::json!({
+            "name": "check_knowledge_staleness",
+            "description": "Check whether this repo's local Knowledge System is up-to-date vs the global store. Returns staleness status without syncing.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                }
+            }
+        }),
+        serde_json::json!({
+            "name": "get_plan_settings",
+            "description": "Get the plan settings (threshold ratings, iteration limits, fallback strategies) defined by the documentation standard.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                }
+            }
+        }),
+        serde_json::json!({
+            "name": "get_plan_scenarios",
+            "description": "Get the plan scenarios (repo state/doc state/tier combinations with step content) from the documentation standard.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "tier": { "type": "string", "description": "Optional tier filter (e.g. 'gold', 'silver')" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                }
+            }
+        }),
+        serde_json::json!({
+            "name": "list_script_checks",
+            "description": "List registered script-based audit checks with their metadata (timeout, network requirements, result schema).",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "domain": { "type": "string", "description": "Optional domain filter (e.g. 'architecture')" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                }
+            }
+        }),
+        // ── Capability dispatch tools ────────────────────────────────────
+        serde_json::json!({
+            "name": "run_system_script",
+            "description": "Run any system capability script by name (validate|calculate|report|scaffold|plan-generation|init). Resolves through the 4-tier discovery chain: check_overrides → repo scripts/ → .samgraha/scripts/ → mcp global scripts/. Writes JSON result to a temp file and returns the envelope. Pass phase_id to enable prerequisite gating (§8.6); a blocked response is returned instead of running the script.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "capability": { "type": "string", "description": "Capability name: validate, calculate, report, scaffold, plan-generation, init, or assemble" },
+                    "system_name": { "type": "string", "description": "Which registered system's standard to attribute this run to (for phase gating and run-tracking). Defaults to whichever system is is_default." },
+                    "repo_root":  { "type": "string", "description": "Repository root (defaults to session root)" },
+                    "input_json": { "type": "string", "description": "Path to an input JSON file to pass via --in (e.g. a section JSON). Omit for no input." },
+                    "phase_id":   { "type": "string", "description": "Phase id from the system's init plan (§8.4). When provided, samgraha checks depends_on prerequisites before executing (§8.6), and a successful run is recorded under this key for future gating." },
+                    "timeout_secs": { "type": "integer", "description": "Seconds before the script is killed (default: no timeout)" },
+                    "repo_path":  { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["capability"]
+            }
+        }),
+        serde_json::json!({
+            "name": "run_system_validate",
+            "description": "Shorthand for run_system_script with capability='validate'. Runs the system's validation script against a section/document/domain and returns pass/fail status.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "system_name": { "type": "string", "description": "Which registered system's standard to attribute this run to. Defaults to whichever system is is_default." },
+                    "repo_root":  { "type": "string", "description": "Repository root (defaults to session root)" },
+                    "input_json": { "type": "string", "description": "Path to an input JSON file to pass via --in" },
+                    "phase_id":   { "type": "string", "description": "Phase id from the system's init plan (§8.4), for prerequisite gating (§8.6)" },
+                    "timeout_secs": { "type": "integer", "description": "Seconds before the script is killed" },
+                    "repo_path":  { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": []
+            }
+        }),
+        serde_json::json!({
+            "name": "run_system_calculate",
+            "description": "Shorthand for run_system_script with capability='calculate'. Runs the system's calculation script and returns the computed result in output_json (final_score, band, breakdown — per §8.1).",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "system_name": { "type": "string", "description": "Which registered system's standard to attribute this run to. Defaults to whichever system is is_default." },
+                    "repo_root":  { "type": "string", "description": "Repository root (defaults to session root)" },
+                    "input_json": { "type": "string", "description": "Path to an input JSON file to pass via --in" },
+                    "phase_id":   { "type": "string", "description": "Phase id from the system's init plan (§8.4), for prerequisite gating (§8.6)" },
+                    "timeout_secs": { "type": "integer", "description": "Seconds before the script is killed" },
+                    "repo_path":  { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": []
+            }
+        }),
+        serde_json::json!({
+            "name": "run_system_report",
+            "description": "Shorthand for run_system_script with capability='report'. Runs the system's report-generation script and returns a status envelope naming the file(s) it wrote (per §8.2's `written` field) — the rendered document itself goes to the path the script's own `--target` arg names, not into the MCP response.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "system_name": { "type": "string", "description": "Which registered system's standard to attribute this run to. Defaults to whichever system is is_default." },
+                    "repo_root":  { "type": "string", "description": "Repository root (defaults to session root)" },
+                    "input_json": { "type": "string", "description": "Path to an input JSON file to pass via --in" },
+                    "target":     { "type": "string", "description": "Render target: 'document' (default), 'checklist', 'spec'" },
+                    "phase_id":   { "type": "string", "description": "Phase id from the system's init plan (§8.4), for prerequisite gating (§8.6)" },
+                    "timeout_secs": { "type": "integer", "description": "Seconds before the script is killed" },
+                    "repo_path":  { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": []
+            }
+        }),
+        serde_json::json!({
+            "name": "run_system_scaffold",
+            "description": "Shorthand for run_system_script with capability='scaffold'. Runs the system's section-scaffolding script and returns a status envelope listing files created vs. already-present-and-skipped (per §8.1).",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "system_name": { "type": "string", "description": "Which registered system's standard to attribute this run to. Defaults to whichever system is is_default." },
+                    "repo_root":  { "type": "string", "description": "Repository root (defaults to session root)" },
+                    "input_json": { "type": "string", "description": "Path to an input JSON file to pass via --in" },
+                    "phase_id":   { "type": "string", "description": "Phase id from the system's init plan (§8.4), for prerequisite gating (§8.6)" },
+                    "timeout_secs": { "type": "integer", "description": "Seconds before the script is killed" },
+                    "repo_path":  { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": []
+            }
+        }),
+        serde_json::json!({
+            "name": "run_system_plan_generation",
+            "description": "Shorthand for run_system_script with capability='plan-generation'. Runs the system's plan-rendering script (§7.2 stage 2 only — stage 1's semantic determination is an MCP-mediated LLM step, not a script) and returns the same status envelope as `report` (§8.2). If phase_id is passed and its prerequisites aren't met, a `{\"blocked\": true, ...}` response (§8.6) is returned instead of running the script — that's the only 'blocked' shape this tool produces, not a field in the script's own output.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "system_name": { "type": "string", "description": "Which registered system's standard to attribute this run to. Defaults to whichever system is is_default." },
+                    "repo_root":  { "type": "string", "description": "Repository root (defaults to session root)" },
+                    "input_json": { "type": "string", "description": "Path to an input JSON file to pass via --in" },
+                    "phase_id":   { "type": "string", "description": "Phase id from the system's init plan (§8.4). Recommended for this capability specifically, since plan-generation phases are the primary use of §8.6 gating." },
+                    "timeout_secs": { "type": "integer", "description": "Seconds before the script is killed" },
+                    "repo_path":  { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": []
+            }
+        }),
+        // ── System plan storage (§8.4) ──────────────────────────────────
+        serde_json::json!({
+            "name": "store_system_plan",
+            "description": "Store a system's init plan output (§8.4). Upserts by standard+repo+system. The plan JSON follows the §8.4 shape: {system, use_cases[{id, label, phases[{id, kind, depends_on, script, expiry}]}]}.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "system_name": { "type": "string", "description": "System name (e.g. 'rust_dev')" },
+                    "plan_json":   { "type": "string", "description": "Full init plan JSON string (§8.4 shape)" },
+                    "repo_root":   { "type": "string", "description": "Repository root (defaults to session root)" },
+                    "repo_path":   { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["system_name", "plan_json"]
+            }
+        }),
+        serde_json::json!({
+            "name": "get_system_plan",
+            "description": "Retrieve a stored init plan for a system+repo. Returns the full §8.4 plan JSON, or null if no plan has been stored yet.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "system_name": { "type": "string", "description": "System name (e.g. 'rust_dev')" },
+                    "repo_root":   { "type": "string", "description": "Repository root (defaults to session root)" },
+                    "repo_path":   { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["system_name"]
+            }
+        }),
+        // ── Plan generation input storage (§8.3) ─────────────────────────
+        serde_json::json!({
+            "name": "store_plan_generation_input",
+            "description": "Store a plan-generation semantic determination input (§8.3). Upserts by standard+repo+workflow+domain+instance. On re-run, the current input shifts into previous_input_json.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "system_name": { "type": "string", "description": "System name (e.g. 'rust_dev')" },
+                    "workflow_id": { "type": "string", "description": "Workflow ID from the init plan (§8.4)" },
+                    "domain_key":  { "type": "string", "description": "Domain key (NULL = plan-level, not domain-specific)" },
+                    "instance_key": { "type": "string", "description": "Instance key (NULL unless domain is multi-instance)" },
+                    "input_json":  { "type": "string", "description": "The semantic determination's own output, opaque to samgraha" },
+                    "repo_root":   { "type": "string", "description": "Repository root (defaults to session root)" },
+                    "repo_path":   { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["system_name", "workflow_id", "input_json"]
+            }
+        }),
+        serde_json::json!({
+            "name": "get_plan_generation_input",
+            "description": "Retrieve a stored plan-generation semantic determination input (§8.3). Returns {input_json, previous_input_json} or {input: null} if not found.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "system_name": { "type": "string", "description": "System name (e.g. 'rust_dev')" },
+                    "workflow_id": { "type": "string", "description": "Workflow ID from the init plan (§8.4)" },
+                    "domain_key":  { "type": "string", "description": "Domain key (NULL = plan-level)" },
+                    "instance_key": { "type": "string", "description": "Instance key (NULL unless multi-instance)" },
+                    "repo_root":   { "type": "string", "description": "Repository root (defaults to session root)" },
+                    "repo_path":   { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["system_name", "workflow_id"]
+            }
+        }),
+        // ── Content generation tools ───────────────────────────────────
+        serde_json::json!({
+            "name": "generate",
+            "description": "Build a content-generation task list for a domain. Mode is resolved from the standard's generation_granularity (document|section|hybrid), never caller-supplied. Returns generation_review.tasks[] with target, template_content, upstream_context, and instruction for each section to generate. Sections already generated are skipped. Code domains return an empty task list with instructions to use scaffold instead.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "standard": { "type": "string", "description": "Domain key to generate content for (e.g. 'vision', 'architecture')" },
+                    "repo_root": { "type": "string", "description": "Repository root (defaults to session root)" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["standard"]
+            }
+        }),
+        serde_json::json!({
+            "name": "store_generated_content",
+            "description": "Accept generated content and persist it to knowledge.db's documents/document_sections. Mirrors store_section_report's pattern for audit findings. Validates section against section_catalog, checks section dependencies (rejects with dependency_unmet if upstream sections aren't generated yet), and writes to the generated document. For document mode, omit section to store full-document content.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "domain": { "type": "string", "description": "Domain key (e.g. 'vision')" },
+                    "section": { "type": "string", "description": "Section semantic_type to store (omit for full-document mode)" },
+                    "content": { "type": "string", "description": "The generated content to store" },
+                    "document_id": { "type": "integer", "description": "Existing document ID to append to (omit to create new or use domain's generated doc)" },
+                    "git_revision": { "type": "string", "description": "Git revision at time of generation (for provenance)" },
+                    "repo_root": { "type": "string", "description": "Repository root (defaults to session root)" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": ["domain", "content"]
+            }
+        }),
+        serde_json::json!({
+            "name": "run_system_assemble",
+            "description": "Shorthand for run_system_script with capability='assemble'. Runs the system's assembly script to join document_sections from knowledge.db into a final file. Reads sections ordered by section_order plus the document template's structural shell, writes the assembled output.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "system_name": { "type": "string", "description": "Which registered system's standard to attribute this run to. Defaults to whichever system is is_default." },
+                    "repo_root": { "type": "string", "description": "Repository root (defaults to session root)" },
+                    "input_json": { "type": "string", "description": "Path to an input JSON file to pass via --in" },
+                    "phase_id": { "type": "string", "description": "Phase id from the system's init plan (§8.4), for prerequisite gating (§8.6)" },
+                    "timeout_secs": { "type": "integer", "description": "Seconds before the script is killed" },
+                    "repo_path": { "type": "string", "description": "Absolute path to a different local repository to target" }
+                },
+                "required": []
+            }
+        }),
+    ]
+}
+
+fn check_expiry() {
+    let expiry_str = option_env!("SAMGRAHA_EXPIRY");
+    let Some(expiry) = expiry_str else { return };
+    let now = chrono::Utc::now();
+    // Try full datetime first, then date-only fallback
+    if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(expiry) {
+        if now > dt {
+            eprintln!("ERROR: This binary expired at {expiry} UTC. Build a new one.");
+            std::process::exit(1);
+        }
+        return;
+    }
+    if let Ok(d) = chrono::NaiveDate::parse_from_str(expiry, "%Y-%m-%d") {
+        let expiry_date = d.and_hms_opt(23, 59, 59).unwrap();
+        if now.naive_utc() > expiry_date {
+            eprintln!("ERROR: This binary expired on {expiry}. Build a new one.");
+            std::process::exit(1);
+        }
+        return;
+    }
+    eprintln!("Warning: SAMGRAHA_EXPIRY='{expiry}' not YYYY-MM-DD or RFC3339, ignored");
+}
+
+/// Walk up from `start` looking for an existing `.samgraha/` or `samgraha.toml`.
+/// If none is found in any ancestor, `start` itself is returned uninitialized —
+/// the server still boots so the `init` tool is reachable to bootstrap it;
+/// every other tool that needs a compiled repo will fail with its own error.
+fn discover_root() -> Result<std::path::PathBuf> {
+    let start = match std::env::var_os("SAMGRAHA_REPO") {
+        Some(p) => std::path::PathBuf::from(p),
+        None => std::env::current_dir()?,
+    };
+    let mut current = Some(start.as_path());
+    while let Some(dir) = current {
+        if dir.join(".samgraha").is_dir() || dir.join("samgraha.toml").exists() {
+            return Ok(dir.to_path_buf());
+        }
+        current = dir.parent();
+    }
+    Ok(start)
+}
+
+fn load_config(root: &Path) -> Result<SamgrahaConfig> {
+    let config_path = root.join("samgraha.toml");
+    if config_path.exists() {
+        let content = std::fs::read_to_string(&config_path)?;
+        let config: SamgrahaConfig = toml::from_str(&content)?;
+        return Ok(config);
+    }
+    Ok(SamgrahaConfig::default())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tool_result_wraps_payload_as_text_content() {
+        let payload = serde_json::json!({ "domains": ["architecture"], "count": 1 });
+        let wrapped = tool_result(&payload, false);
+        assert_eq!(wrapped["isError"], false);
+        let text = wrapped["content"][0]["text"].as_str().unwrap();
+        assert!(text.contains("architecture"));
+        assert_eq!(wrapped["structuredContent"], payload);
+    }
+
+    #[test]
+    fn tool_result_marks_errors() {
+        let wrapped = tool_result(&serde_json::json!({ "error": "boom" }), true);
+        assert_eq!(wrapped["isError"], true);
+        assert!(wrapped["content"][0]["text"].as_str().unwrap().contains("boom"));
+    }
+
+    #[test]
+    fn discover_root_honors_samgraha_repo_env_override() {
+        let dir = std::env::temp_dir().join(format!(
+            "samgraha-mcp-test-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(dir.join(".samgraha")).unwrap();
+
+        // SAFETY: test-only, single-threaded access to this env var.
+        unsafe { std::env::set_var("SAMGRAHA_REPO", &dir) };
+        let result = discover_root();
+        unsafe { std::env::remove_var("SAMGRAHA_REPO") };
+
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert_eq!(result.unwrap(), dir);
+    }
+}

@@ -3,15 +3,10 @@ resolver = "2"
 members = [
     "crates/common",
     "crates/schemas",
-    "crates/standards",
     "crates/services",
-    "crates/compiler",
     "crates/registry",
-    "crates/audit",
-    "crates/providers",
     "crates/cli",
     "crates/mcp",
-    "tests",
 ]
 
 [workspace.package]
@@ -45,12 +40,8 @@ tera = "2"
 
 common = { path = "crates/common" }
 schemas = { path = "crates/schemas" }
-standards = { path = "crates/standards" }
 services = { path = "crates/services" }
-compiler = { path = "crates/compiler" }
 registry = { path = "crates/registry" }
-audit = { path = "crates/audit" }
-providers = { path = "crates/providers" }
 
 [profile.release]
 opt-level = "z"

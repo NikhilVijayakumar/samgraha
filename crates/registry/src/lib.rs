@@ -1,7 +1,6 @@
-pub mod integrity;
+pub mod core_schema;
 pub mod migration;
 pub mod registry_db;
-pub mod store;
 
+pub use core_schema::*;
 pub use migration::*;
-pub use store::*;

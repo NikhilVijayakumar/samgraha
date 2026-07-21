@@ -5,26 +5,14 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-audit.workspace = true
 common.workspace = true
-compiler.workspace = true
-schemas.workspace = true
 services.workspace = true
-providers.workspace = true
-standards.workspace = true
 clap.workspace = true
-tracing.workspace = true
 tracing-subscriber.workspace = true
-thiserror.workspace = true
 anyhow.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-uuid.workspace = true
-chrono.workspace = true
 toml.workspace = true
-toml_edit.workspace = true
-notify = { version = "6", features = ["macos_kqueue"] }
-rusqlite.workspace = true
 
 [dev-dependencies]
 tempfile = "3.27.0"

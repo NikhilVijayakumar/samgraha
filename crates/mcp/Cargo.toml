@@ -5,20 +5,12 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-audit.workspace = true
 common.workspace = true
-registry.workspace = true
 schemas.workspace = true
 services.workspace = true
-standards.workspace = true
 tracing.workspace = true
-thiserror.workspace = true
 anyhow.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-serde_yaml.workspace = true
 uuid.workspace = true
 tracing-subscriber.workspace = true
-toml.workspace = true
-chrono.workspace = true
-rusqlite.workspace = true

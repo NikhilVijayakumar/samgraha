@@ -15,5 +15,5 @@ fn main() -> Result<()> {
         .try_init();
 
     let exit_code = cli.execute()?;
-    std::process::exit(exit_code.code());
+    std::process::exit(exit_code);
 }

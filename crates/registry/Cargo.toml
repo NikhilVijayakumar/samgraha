@@ -7,7 +7,6 @@ license.workspace = true
 [dependencies]
 common.workspace = true
 schemas.workspace = true
-compiler.workspace = true
 uuid.workspace = true
 chrono.workspace = true
 tracing.workspace = true
