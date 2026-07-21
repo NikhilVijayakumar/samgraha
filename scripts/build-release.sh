@@ -59,7 +59,7 @@ cargo build --release --bin mcp --bin cli --manifest-path "$ROOT_DIR/Cargo.toml"
 # Package directory
 PKG_DIR="$OUTPUT_DIR/samgraha"
 rm -rf "$PKG_DIR"
-mkdir -p "$PKG_DIR/bin" "$PKG_DIR/docs/raw" "$PKG_DIR/.samgraha"
+mkdir -p "$PKG_DIR/bin" "$PKG_DIR/.samgraha"
 
 # Copy binaries
 cp "$ROOT_DIR/target/release/mcp" "$PKG_DIR/bin/"
@@ -70,70 +70,17 @@ if command -v strip &>/dev/null; then
     strip "$PKG_DIR/bin/mcp" "$PKG_DIR/bin/cli"
 fi
 
-# Copy config + universal standards only (samgraha-specific docs stay in the source repo)
+# Copy config
 cp "$ROOT_DIR/samgraha.toml" "$PKG_DIR/"
-for dir in documentation-standards audit audit-standards; do
-    if [[ -d "$ROOT_DIR/docs/raw/$dir" ]]; then
-        cp -r "$ROOT_DIR/docs/raw/$dir" "$PKG_DIR/docs/raw/"
-    fi
-done
 
-# === Built-in Knowledge Sources ===
-# load_builtin_stores() (crates/services/src/builtin.rs) looks next to the running
-# binary (current_exe().parent()), i.e. bin/ — not the package root.
-# Only help.db is compiled from source; knowledge.db ships as an empty schema
-# that gets populated when a user registers their Knowledge System.
-declare -A BUILTIN_SOURCES=(
-    [help]="docs/raw/product-guide"
-)
-for name in "${!BUILTIN_SOURCES[@]}"; do
-    raw_path="$ROOT_DIR/${BUILTIN_SOURCES[$name]}"
-    if [[ ! -d "$raw_path" ]]; then
-        echo "WARNING: $name source not found at $raw_path -- skipping" >&2
-        continue
-    fi
-    echo "==> Compiling $name documentation..."
-    "$PKG_DIR/bin/cli" compile --config "$ROOT_DIR/samgraha.toml" "$raw_path" --domain "$name" --force
-    db_source="$raw_path/.samgraha/knowledge.db"
-    db_target="$PKG_DIR/bin/$name.db"
-    if [[ -f "$db_source" ]]; then
-        cp "$db_source" "$db_target"
-        echo "  -> $db_target"
-    else
-        echo "ERROR: $name compile produced no knowledge.db at $db_source" >&2
-        exit 1
-    fi
-done
-
-# === Empty Knowledge DB (schema only) ===
-# knowledge.db ships with the schema skeleton but no system rows.
-# Users populate it by running `standards register` with their Knowledge System.
-SCHEMA_DIR="$ROOT_DIR/schema/knowledge-hub"
-KNOWLEDGE_DB="$PKG_DIR/bin/knowledge.db"
-if [[ -f "$SCHEMA_DIR/knowledge-hub-loader.py" ]]; then
-    echo "==> Creating empty knowledge.db (schema only)..."
-    python3 -c "
-import sqlite3, glob, os
-conn = sqlite3.connect('$KNOWLEDGE_DB')
-conn.execute('PRAGMA foreign_keys = ON')
-for f in sorted(glob.glob('$SCHEMA_DIR/[0-9]*.sql')):
-    with open(f) as fh:
-        conn.executescript(fh.read())
-conn.execute('PRAGMA user_version = 1')
-conn.close()
-print('  -> $KNOWLEDGE_DB (empty schema)')
-"
-fi
-
-# Ship schema + loader (+ its helper modules, e.g. system_merger.py for
-# inheritance/system.yaml merging) for Knowledge System registration.
-# *.py, not just knowledge-hub-loader.py by name -- a loader import
-# (ModuleNotFoundError) is otherwise silent here and only surfaces later,
-# at register_standard time, in a packaged release.
-mkdir -p "$PKG_DIR/schema/knowledge-hub"
-cp "$SCHEMA_DIR"/*.sql "$PKG_DIR/schema/knowledge-hub/"
-cp "$SCHEMA_DIR"/*.py "$PKG_DIR/schema/knowledge-hub/"
-echo "  -> schema/knowledge-hub/ (loader + helper modules + schema files)"
+# Ship reference schema — not read at runtime (register_standard/step
+# execution create + migrate .samgraha/knowledge.db on demand via the
+# inline Rust migrations in core_schema.rs), just documentation for
+# anyone integrating with the raw DB directly.
+mkdir -p "$PKG_DIR/schema/registration" "$PKG_DIR/schema/knowledge"
+cp "$ROOT_DIR/schema/registration"/*.sql "$PKG_DIR/schema/registration/"
+cp "$ROOT_DIR/schema/knowledge"/*.sql "$PKG_DIR/schema/knowledge/"
+echo "  -> schema/registration/, schema/knowledge/ (reference schema)"
 
 # Launcher scripts (Linux build: binaries have no .exe)
 cat > "$PKG_DIR/run-mcp.sh" <<SHEOF

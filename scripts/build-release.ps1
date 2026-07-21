@@ -56,7 +56,7 @@ if ($LASTEXITCODE -ne 0) { throw "Build failed" }
 # Package directory
 $pkgDir = Join-Path $outputDir "samgraha"
 if (Test-Path $pkgDir) { Remove-Item -Recurse -Force $pkgDir }
-foreach ($d in @("$pkgDir\bin", "$pkgDir\docs\raw", "$pkgDir\.samgraha")) {
+foreach ($d in @("$pkgDir\bin", "$pkgDir\.samgraha")) {
     New-Item -ItemType Directory -Force $d | Out-Null
 }
 
@@ -64,74 +64,18 @@ foreach ($d in @("$pkgDir\bin", "$pkgDir\docs\raw", "$pkgDir\.samgraha")) {
 Copy-Item "$root\target\release\mcp.exe" "$pkgDir\bin\"
 Copy-Item "$root\target\release\cli.exe" "$pkgDir\bin\"
 
-# Copy config + universal standards only (samgraha-specific docs stay in the source repo)
+# Copy config
 Copy-Item "$root\samgraha.toml" "$pkgDir\"
-foreach ($dir in @("documentation-standards", "audit", "audit-standards")) {
-    if (Test-Path "$root\docs\raw\$dir") {
-        Copy-Item -Recurse "$root\docs\raw\$dir" "$pkgDir\docs\raw\" -Force
-    }
-}
 
-# === Built-in Knowledge Sources ===
-# Only help.db is compiled from source; knowledge.db ships as an empty schema
-# that gets populated when a user registers their Knowledge System.
-$builtinSources = @(
-    @{ name = "help"; path = "docs/raw/product-guide" }
-)
-
-foreach ($src in $builtinSources) {
-    $rawPath = Join-Path $root $src.path
-    if (-not (Test-Path $rawPath)) {
-        Write-Warning "$($src.name) source not found at $rawPath -- skipping"
-        continue
-    }
-    Write-Host "==> Compiling $($src.name) documentation..." -ForegroundColor Yellow
-    & "$pkgDir\bin\cli.exe" compile --config "$root\samgraha.toml" $rawPath --domain $($src.name) --force
-    if ($LASTEXITCODE -ne 0) {
-        throw "$($src.name) compile failed (exit $LASTEXITCODE)"
-    }
-    $dbSource = Join-Path $rawPath ".samgraha\knowledge.db"
-    # load_builtin_stores() (crates/services/src/builtin.rs) looks next to the running
-    # binary (current_exe().parent()), i.e. bin/ — not the package root.
-    $dbTarget = Join-Path "$pkgDir\bin" "$($src.name).db"
-    if (Test-Path $dbSource) {
-        Copy-Item $dbSource $dbTarget -Force
-        Write-Host "  -> $dbTarget" -ForegroundColor Cyan
-    } else {
-        throw "$($src.name) compile produced no knowledge.db at $dbSource"
-    }
-}
-
-# === Empty Knowledge DB (schema only) ===
-# knowledge.db ships with the schema skeleton but no system rows.
-# Users populate it by running `standards register` with their Knowledge System.
-$schemaDir = Join-Path $root "schema\knowledge-hub"
-$knowledgeDb = Join-Path "$pkgDir\bin" "knowledge.db"
-if (Test-Path "$schemaDir\knowledge-hub-loader.py") {
-    Write-Host "==> Creating empty knowledge.db (schema only)..." -ForegroundColor Yellow
-    $sqlFiles = Get-ChildItem "$schemaDir\*.sql" | Sort-Object Name
-    & python -c @"
-import sqlite3, glob, os
-conn = sqlite3.connect(r'$knowledgeDb')
-conn.execute('PRAGMA foreign_keys = ON')
-for f in sorted(glob.glob(r'$schemaDir\*.sql')):
-    with open(f) as fh:
-        conn.executescript(fh.read())
-conn.execute('PRAGMA user_version = 1')
-conn.close()
-print(r'  -> $knowledgeDb (empty schema)')
-"@
-}
-
-# Ship schema + loader (+ its helper modules, e.g. system_merger.py for
-# inheritance/system.yaml merging) for Knowledge System registration.
-# *.py, not just knowledge-hub-loader.py by name -- a loader import
-# (ModuleNotFoundError) is otherwise silent here and only surfaces later,
-# at register_standard time, in a packaged release.
-New-Item -ItemType Directory -Force "$pkgDir\schema\knowledge-hub" | Out-Null
-Copy-Item "$schemaDir\*.sql" "$pkgDir\schema\knowledge-hub\" -Force
-Copy-Item "$schemaDir\*.py" "$pkgDir\schema\knowledge-hub\" -Force
-Write-Host "  -> schema/knowledge-hub/ (loader + helper modules + schema files)" -ForegroundColor Cyan
+# Ship reference schema -- not read at runtime (register_standard/step
+# execution create + migrate .samgraha/knowledge.db on demand via the
+# inline Rust migrations in core_schema.rs), just documentation for
+# anyone integrating with the raw DB directly.
+New-Item -ItemType Directory -Force "$pkgDir\schema\registration" | Out-Null
+New-Item -ItemType Directory -Force "$pkgDir\schema\knowledge" | Out-Null
+Copy-Item "$root\schema\registration\*.sql" "$pkgDir\schema\registration\" -Force
+Copy-Item "$root\schema\knowledge\*.sql" "$pkgDir\schema\knowledge\" -Force
+Write-Host "  -> schema/registration/, schema/knowledge/ (reference schema)" -ForegroundColor Cyan
 
 # Launcher scripts
 $runCmdLines = @(
