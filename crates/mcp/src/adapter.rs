@@ -174,6 +174,23 @@ impl McpAdapter {
         let db_path = self.knowledge_db_path(req);
         let timeout = req.params.get("timeout_secs").and_then(|v| v.as_u64());
 
+        // If a different standard is already active, clean up its local
+        // copy directory and DB rows before activating the new one.
+        let registry_db = registry::registry_db::RegistryDb::open(&root)?;
+        if let Ok(Some(old)) = registry_db.get_active_standard() {
+            if old.name != standard_name {
+                let old_dir = samgraha_dir.join(&old.name);
+                if old_dir.exists() {
+                    let _ = std::fs::remove_dir_all(&old_dir);
+                }
+                if db_path.exists() {
+                    if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+                        let _ = services::register_standard::delete_existing(&conn, &old.name);
+                    }
+                }
+            }
+        }
+
         services::register_standard::activate_standard(
             &standard_name,
             &global.source_path,
@@ -187,7 +204,6 @@ impl McpAdapter {
         // relocated) — one standard per repo at a time, tracked in
         // registry.db, not duplicated inside knowledge.db. Sourced from
         // `global` (already fetched above) — no local YAML re-parse.
-        let registry_db = registry::registry_db::RegistryDb::open(&root)?;
         registry_db.set_active_standard(&registry::registry_db::ActiveStandard {
             name: standard_name.clone(),
             category: global.category.clone(),
@@ -197,6 +213,9 @@ impl McpAdapter {
             metadata_json: global.metadata_json.clone(),
             activated_at: String::new(),
         })?;
+
+        // Keep samgraha.toml's standard_system in sync with the active standard.
+        services::update_standard_system(&root, &standard_name)?;
 
         Ok(serde_json::json!({
             "success": true,

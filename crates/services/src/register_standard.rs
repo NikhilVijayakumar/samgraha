@@ -463,6 +463,11 @@ pub fn activate_standard(
 ) -> Result<()> {
     use rusqlite::Connection;
 
+    // Ensure .samgraha/ exists — knowledge.db lives here and
+    // RegistryDb::open() (called after us) also expects it.
+    std::fs::create_dir_all(samgraha_dir)
+        .context(format!("Failed to create {}", samgraha_dir.display()))?;
+
     let local_copy = samgraha_dir.join(standard_name);
 
     // §3.9 step 2 — atomic copy from global registry into local tree
