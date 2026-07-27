@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://samgraha.dev/metadata/standard.metadata.schema.json",
+  "title": "Standard Metadata",
+  "description": "Declares a standard's custom tables, templates, and proposal shape. Validated at global registration time and checked again at activation.",
+  "type": "object",
+  "properties": {
+    "custom_tables": {
+      "type": "array",
+      "description": "Tables this standard creates in knowledge.db via its seeder",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Table name — must not collide with RESERVED_TABLE_NAMES"
+          },
+          "purpose": {
+            "type": "string",
+            "description": "Why this table exists"
+          },
+          "required_columns": {
+            "type": "array",
+            "description": "Columns the seeder must CREATE — enforced against sqlite_master at activation",
+            "items": { "type": "string", "minLength": 1 },
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        },
+        "required": ["name"],
+        "additionalProperties": false
+      },
+      "uniqueItems": true
+    },
+    "templates": {
+      "type": "array",
+      "description": "Templates this standard ships. Exactly one may declare role='proposal'.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["report", "proposal", "output"],
+            "description": "What this template is used for. 'proposal' means it renders phase-wise proposals."
+          }
+        },
+        "required": ["name", "role"],
+        "additionalProperties": false
+      },
+      "uniqueItems": true
+    },
+    "proposal_template": {
+      "type": "string",
+      "description": "Names the template with role='proposal'. Required if the standard emits proposals."
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": { "proposal_template": { "type": "string" } }
+      },
+      "then": {
+        "properties": {
+          "proposal_template": {
+            "description": "Must match a templates[] entry whose role is 'proposal'"
+          }
+        }
+      }
+    }
+  ]
+}

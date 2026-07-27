@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://samgraha.dev/metadata/proposal.schema.json",
+  "title": "Proposal Envelope",
+  "description": "Schema for the 'proposal' key in a script's result envelope. Validated before INSERT INTO proposal when the standard declares a proposal_template.",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Proposal title"
+    },
+    "location": {
+      "type": "string",
+      "description": "File path where the proposal content lives"
+    },
+    "phases": {
+      "type": "array",
+      "description": "Phase-wise breakdown of the proposal. Must be non-empty.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "domain": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Domain key this phase covers — must exist in domain table for this standard"
+          },
+          "phase_number": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Sequence number within this domain"
+          },
+          "usecases": {
+            "type": "array",
+            "description": "Usecase names in this phase — must belong to the declared domain",
+            "items": { "type": "string", "minLength": 1 },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "steps": {
+            "type": "array",
+            "description": "Step IDs in this phase — must belong to one of the phase's usecases",
+            "items": { "type": "integer", "minimum": 1 },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "rationale": {
+            "type": "string",
+            "description": "Why this phase boundary was chosen"
+          },
+          "git": {
+            "type": "object",
+            "description": "Git state at time of generation — cross-checked against capture_git_state result",
+            "properties": {
+              "commit_sha": {
+                "type": "string",
+                "description": "Full commit SHA — must exist in repo and be ancestor of HEAD"
+              },
+              "branch": {
+                "type": "string"
+              },
+              "dirty": {
+                "type": "boolean"
+              }
+            },
+            "required": ["commit_sha", "branch", "dirty"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["domain", "phase_number", "usecases", "steps", "rationale"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["title", "phases"],
+  "additionalProperties": false
+}

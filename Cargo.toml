@@ -37,6 +37,7 @@ regex = "1"
 uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 tera = "2"
+jsonschema = "0.47"
 
 common = { path = "crates/common" }
 schemas = { path = "crates/schemas" }

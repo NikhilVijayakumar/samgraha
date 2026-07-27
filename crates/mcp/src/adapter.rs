@@ -66,6 +66,7 @@ impl McpAdapter {
             "get_standard_assets" => self.handle_get_standard_assets(&req),
             "seed_standard" => self.handle_seed_standard(&req),
             "check_usecase_complete" => self.handle_check_usecase_complete(&req),
+            "validate_standard_metadata" => self.handle_validate_standard_metadata(&req),
             other => Err(anyhow::anyhow!("Unknown method: {other}")),
         };
 
@@ -301,6 +302,52 @@ impl McpAdapter {
                 "verify_status": "failed",
                 "error": "structural verify-gate (smoke_test) failed against the copied standard",
             }));
+        }
+
+        // Standard metadata contract — validate standard.metadata.json
+        // against metadata/standard.metadata.schema.json if the standard
+        // ships one (optional: a standard with no custom tables,
+        // templates, or proposal generation doesn't need it). Same
+        // cleanup-on-failure discipline as the smoke_test gate above.
+        let metadata_path = registry_dir.join("standard.metadata.json");
+        if metadata_path.exists() {
+            let metadata = match services::metadata_validate::load_and_validate_metadata(&metadata_path) {
+                Ok(m) => m,
+                Err(e) => {
+                    let _ = std::fs::remove_dir_all(&registry_dir);
+                    self.standards_db.log_operation(
+                        if is_update { "update_standard" } else { "register_globally" },
+                        &name,
+                        None,
+                        "global",
+                        "failed",
+                        &serde_json::json!({"path": path_str, "reason": format!("standard.metadata.json invalid: {e}")}).to_string(),
+                    )?;
+                    return Ok(serde_json::json!({
+                        "success": false,
+                        "standard": name,
+                        "error": format!("standard.metadata.json failed validation: {e}"),
+                    }));
+                }
+            };
+            // Also validate proposal_template consistency: if set, it must
+            // name a template with role='proposal'.
+            if let Err(e) = services::metadata_validate::validate_proposal_template_consistency(&metadata) {
+                let _ = std::fs::remove_dir_all(&registry_dir);
+                self.standards_db.log_operation(
+                    if is_update { "update_standard" } else { "register_globally" },
+                    &name,
+                    None,
+                    "global",
+                    "failed",
+                    &serde_json::json!({"path": path_str, "reason": format!("proposal_template inconsistency: {e}")}).to_string(),
+                )?;
+                return Ok(serde_json::json!({
+                    "success": false,
+                    "standard": name,
+                    "error": format!("proposal_template inconsistency: {e}"),
+                }));
+            }
         }
 
         // §8.4 — catch-all metadata: diff raw keys against KNOWN_FIELDS
@@ -597,6 +644,94 @@ impl McpAdapter {
             "exit_code": status.code(),
         }))
     }
+
+    fn handle_validate_standard_metadata(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let standard_name = req.params.get("standard")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'standard' parameter"))?;
+        let root = self.target_root(req);
+        let samgraha_dir = load_samgraha_dir(&root);
+        let local_copy = samgraha_dir.join(standard_name);
+        let metadata_path = local_copy.join("standard.metadata.json");
+
+        let mut result = serde_json::json!({
+            "standard": standard_name,
+            "layer_a": null,
+            "layer_b": null,
+        });
+
+        // Layer B — JSON Schema validation (if metadata file exists)
+        if metadata_path.exists() {
+            match services::metadata_validate::load_and_validate_metadata(&metadata_path) {
+                Ok(metadata) => {
+                    // Also check proposal_template consistency
+                    let consistency = services::metadata_validate::validate_proposal_template_consistency(&metadata);
+                    result["layer_b"] = serde_json::json!({
+                        "valid": consistency.is_ok(),
+                        "schema_validation": "passed",
+                        "proposal_template_consistency": if consistency.is_ok() { "passed" } else { "failed" },
+                        "error": consistency.err().map(|e| e.to_string()),
+                    });
+                }
+                Err(e) => {
+                    result["layer_b"] = serde_json::json!({
+                        "valid": false,
+                        "schema_validation": "failed",
+                        "error": e.to_string(),
+                    });
+                }
+            }
+        } else {
+            result["layer_b"] = serde_json::json!({
+                "valid": true,
+                "schema_validation": "skipped — no standard.metadata.json",
+            });
+        }
+
+        // Layer A — structural completeness audit (if knowledge.db has rows for this standard)
+        let db_path = self.knowledge_db_path(req);
+        if db_path.exists() {
+            let conn = rusqlite::Connection::open(&db_path)?;
+            conn.execute_batch("PRAGMA foreign_keys = ON;")?;
+            let has_data: bool = conn.query_row(
+                "SELECT COUNT(*) FROM usecase WHERE standard = ?1",
+                rusqlite::params![standard_name],
+                |r| r.get::<_, i64>(0),
+            ).unwrap_or(0) > 0;
+
+            if has_data {
+                match services::layer_a_audit::run_layer_a_audit(&conn, standard_name) {
+                    Ok(()) => {
+                        result["layer_a"] = serde_json::json!({
+                            "valid": true,
+                        });
+                    }
+                    Err(e) => {
+                        result["layer_a"] = serde_json::json!({
+                            "valid": false,
+                            "error": e.to_string(),
+                        });
+                    }
+                }
+            } else {
+                result["layer_a"] = serde_json::json!({
+                    "valid": true,
+                    "note": "no usecase rows for this standard — audit skipped",
+                });
+            }
+        } else {
+            result["layer_a"] = serde_json::json!({
+                "valid": true,
+                "note": "knowledge.db does not exist — standard not activated",
+            });
+        }
+
+        let both_valid = result["layer_a"]["valid"].as_bool().unwrap_or(true)
+            && result["layer_b"]["valid"].as_bool().unwrap_or(true);
+        result["valid"] = serde_json::json!(both_valid);
+
+        Ok(result)
+    }
 }
 
 /// Load `samgraha_dir` from `root/samgraha.toml`. Falls back to the default
@@ -610,4 +745,72 @@ fn load_samgraha_dir(root: &std::path::Path) -> PathBuf {
         }
     }
     SamgrahaConfig::default().repository.resolve_samgraha_dir(root)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use services::registry_client::FileRegistryClient;
+
+    /// `SAMGRAHA_MCP_DIR` (read by `common::env::mcp_dir()`) is a
+    /// process-wide env var — this test owns it exclusively (no other
+    /// test in this codebase sets it) and does both the success and
+    /// failure cases sequentially in one function, rather than two
+    /// separate `#[test]`s, to avoid a race if cargo ever runs tests in
+    /// this binary concurrently against different tempdirs.
+    #[test]
+    fn handle_register_standard_globally_validates_metadata() {
+        let tmp = tempfile::tempdir().unwrap();
+        let mcp_home = tmp.path().join("mcp-home");
+        std::fs::create_dir_all(&mcp_home).unwrap();
+        std::env::set_var("SAMGRAHA_MCP_DIR", &mcp_home);
+
+        let registry: Arc<dyn RegistryClient> = Arc::new(FileRegistryClient::new(tmp.path()));
+        let standards_db = Arc::new(StandardsDb::open_in_memory().unwrap());
+        let adapter = McpAdapter::new(tmp.path().to_path_buf(), registry, standards_db);
+
+        // Valid standard.metadata.json → registration succeeds, standard
+        // upserted into standards.db.
+        let good_dir = tmp.path().join("good-std");
+        std::fs::create_dir_all(&good_dir).unwrap();
+        std::fs::write(good_dir.join("standard.yaml"), "name: good-std\n").unwrap();
+        std::fs::write(
+            good_dir.join("standard.metadata.json"),
+            r#"{"custom_tables":[{"name":"t1","purpose":"p"}]}"#,
+        ).unwrap();
+        let req = McpRequest {
+            id: "1".into(),
+            method: "register_standard_globally".into(),
+            params: [("path".to_string(), serde_json::json!(good_dir.display().to_string()))].into_iter().collect(),
+            repo: None,
+        };
+        let result = adapter.handle_register_standard_globally(&req).unwrap();
+        assert_eq!(result["success"], serde_json::json!(true), "got: {result}");
+        assert!(adapter.standards_db.get_standard("good-std").unwrap().is_some());
+
+        // Invalid standard.metadata.json (schema violation: unknown field,
+        // additionalProperties:false) → rejected, nothing upserted, the
+        // directory register_standard_globally copied is cleaned up.
+        // This is exactly the embedded-schema fix's real integration
+        // point — no fixture faking a file at the wrong path this time.
+        let bad_dir = tmp.path().join("bad-std");
+        std::fs::create_dir_all(&bad_dir).unwrap();
+        std::fs::write(bad_dir.join("standard.yaml"), "name: bad-std\n").unwrap();
+        std::fs::write(bad_dir.join("standard.metadata.json"), r#"{"not_a_real_field": true}"#).unwrap();
+        let req = McpRequest {
+            id: "2".into(),
+            method: "register_standard_globally".into(),
+            params: [("path".to_string(), serde_json::json!(bad_dir.display().to_string()))].into_iter().collect(),
+            repo: None,
+        };
+        let result = adapter.handle_register_standard_globally(&req).unwrap();
+        assert_eq!(result["success"], serde_json::json!(false), "got: {result}");
+        assert!(adapter.standards_db.get_standard("bad-std").unwrap().is_none());
+        assert!(
+            !mcp_home.join("registry").join("bad-std").exists(),
+            "cleanup-on-failure should remove the copied registry directory"
+        );
+
+        std::env::remove_var("SAMGRAHA_MCP_DIR");
+    }
 }

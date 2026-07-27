@@ -416,6 +416,18 @@ fn tool_definitions() -> Vec<serde_json::Value> {
                 "required": ["usecase", "standard"]
             }
         }),
+        serde_json::json!({
+            "name": "validate_standard_metadata",
+            "description": "Validate a standard's metadata.json against the schema. Runs both structural (Layer A) and shape (Layer B) validation. Requires the standard to be activated in the target repo.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "standard": { "type": "string", "description": "Standard name" },
+                    "repo_path": { "type": "string" }
+                },
+                "required": ["standard"]
+            }
+        }),
     ]
 }
 

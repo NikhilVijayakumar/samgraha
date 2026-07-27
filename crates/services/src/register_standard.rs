@@ -519,7 +519,115 @@ pub fn activate_standard(
             e
         })?;
 
+    // Standard metadata contract — custom-table handling (closes §1.1 gap).
+    // Read standard.metadata.json from the local copy, run RESERVED_TABLE_NAMES
+    // collision check, and insert custom_data_tables rows (shape_json populated
+    // via sqlite_master introspection).
+    let metadata_path = local_copy.join("standard.metadata.json");
+    if metadata_path.exists() {
+        let metadata = crate::metadata_validate::load_and_validate_metadata(&metadata_path)
+            .inspect_err(|_| {
+                let _ = delete_existing(&conn, standard_name);
+                let _ = std::fs::remove_dir_all(&local_copy);
+            })?;
+
+        if let Some(tables) = metadata.get("custom_tables").and_then(|v| v.as_array()) {
+            for ct in tables {
+                let table_name = ct.get("name").and_then(|v| v.as_str()).unwrap_or("");
+                if table_name.trim().is_empty() {
+                    let _ = delete_existing(&conn, standard_name);
+                    let _ = std::fs::remove_dir_all(&local_copy);
+                    bail!("custom_tables entry has an empty name in standard.metadata.json");
+                }
+                if RESERVED_TABLE_NAMES.contains(&table_name) {
+                    let _ = delete_existing(&conn, standard_name);
+                    let _ = std::fs::remove_dir_all(&local_copy);
+                    bail!(
+                        "custom table name '{}' collides with a samgraha-reserved table name",
+                        table_name
+                    );
+                }
+                let purpose = ct.get("purpose").and_then(|v| v.as_str()).unwrap_or("");
+
+                // Introspect shape_json via PRAGMA table_info
+                let shape_json = introspect_table_shape(&conn, table_name);
+
+                conn.execute(
+                    "INSERT OR IGNORE INTO custom_data_tables (standard, table_name, purpose, shape_json) \
+                     VALUES (?1, ?2, ?3, ?4)",
+                    rusqlite::params![standard_name, table_name, purpose, shape_json],
+                )?;
+
+                // Enforce required_columns if declared
+                if let Some(required_cols) = ct.get("required_columns").and_then(|v| v.as_array()) {
+                    for col in required_cols {
+                        let col_name = col.as_str().unwrap_or("");
+                        if !column_exists_in_table(&conn, table_name, col_name) {
+                            let _ = delete_existing(&conn, standard_name);
+                            let _ = std::fs::remove_dir_all(&local_copy);
+                            bail!(
+                                "required column '{}' does not exist in table '{}'",
+                                col_name, table_name
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Layer A structural completeness audit — mandatory final step.
+    crate::layer_a_audit::run_layer_a_audit(&conn, standard_name)
+        .map_err(|e| {
+            let _ = delete_existing(&conn, standard_name);
+            let _ = std::fs::remove_dir_all(&local_copy);
+            e
+        })?;
+
     Ok(())
+}
+
+/// Introspect a table's columns via `PRAGMA table_info` and return the
+/// result as a JSON string. Returns None if the table doesn't exist.
+fn introspect_table_shape(conn: &Connection, table_name: &str) -> Option<String> {
+    let query = format!("PRAGMA table_info(\"{table_name}\")");
+    let mut stmt = conn.prepare(&query).ok()?;
+    let rows: Vec<serde_json::Value> = stmt
+        .query_map([], |row| {
+            Ok(serde_json::json!({
+                "cid": row.get::<_, i64>(0)?,
+                "name": row.get::<_, String>(1)?,
+                "type": row.get::<_, String>(2)?,
+                "notnull": row.get::<_, bool>(3)?,
+                "dflt_value": row.get::<_, Option<String>>(4)?,
+                "pk": row.get::<_, bool>(5)?,
+            }))
+        })
+        .ok()?
+        .filter_map(|r| r.ok())
+        .collect();
+    if rows.is_empty() {
+        None
+    } else {
+        serde_json::to_string(&rows).ok()
+    }
+}
+
+/// Check if a column exists in a table via `PRAGMA table_info`.
+fn column_exists_in_table(conn: &Connection, table_name: &str, column_name: &str) -> bool {
+    let query = format!("PRAGMA table_info(\"{table_name}\")");
+    let mut stmt = match conn.prepare(&query) {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+    stmt.query_map([], |row| {
+        row.get::<_, String>(1) // column name is at index 1
+    })
+    .map(|rows| {
+        rows.filter_map(|r| r.ok())
+            .any(|name| name == column_name)
+    })
+    .unwrap_or(false)
 }
 
 #[cfg(test)]
@@ -822,5 +930,173 @@ usecases:
             .unwrap();
         let expected = std::fs::canonicalize(root.join("script").join("my_script.py")).unwrap();
         assert_eq!(std::path::PathBuf::from(location), expected);
+    }
+
+    #[test]
+    fn introspect_table_shape_returns_columns() {
+        let conn = Connection::open_in_memory().unwrap();
+        registry::core_schema::run_core_migrations(&conn).unwrap();
+        let shape = introspect_table_shape(&conn, "usecase").unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&shape).unwrap();
+        let cols = parsed.as_array().unwrap();
+        assert!(cols.iter().any(|c| c["name"] == "name"), "expected 'name' column");
+        assert!(cols.iter().any(|c| c["name"] == "standard"), "expected 'standard' column");
+    }
+
+    #[test]
+    fn introspect_table_shape_returns_none_for_missing_table() {
+        let conn = Connection::open_in_memory().unwrap();
+        registry::core_schema::run_core_migrations(&conn).unwrap();
+        assert!(introspect_table_shape(&conn, "nonexistent_table").is_none());
+    }
+
+    #[test]
+    fn column_exists_in_table_true() {
+        let conn = Connection::open_in_memory().unwrap();
+        registry::core_schema::run_core_migrations(&conn).unwrap();
+        assert!(column_exists_in_table(&conn, "usecase", "name"));
+        assert!(column_exists_in_table(&conn, "usecase", "standard"));
+    }
+
+    #[test]
+    fn column_exists_in_table_false() {
+        let conn = Connection::open_in_memory().unwrap();
+        registry::core_schema::run_core_migrations(&conn).unwrap();
+        assert!(!column_exists_in_table(&conn, "usecase", "nonexistent_column"));
+        assert!(!column_exists_in_table(&conn, "nonexistent_table", "name"));
+    }
+
+    /// A minimal real seeder: reads `_knowledge_db` from the `--in`
+    /// envelope, inserts one domain/usecase/step/script/step_script row
+    /// directly via `sqlite3` (stdlib, no dependency), creates the custom
+    /// table `standard.metadata.json` declares, and reports `{"status":"ok"}`.
+    /// Requires a `python`/`python3` interpreter on PATH — same baseline
+    /// assumption `run_capability_script`'s whole dispatch model already
+    /// makes for every deterministic step, not a new one introduced here.
+    const FIXTURE_SEEDER_PY: &str = r#"
+import argparse, json, sqlite3
+
+p = argparse.ArgumentParser()
+p.add_argument("--repo-root")
+p.add_argument("--in", dest="in_path")
+p.add_argument("--out")
+args = p.parse_args()
+
+with open(args.in_path) as f:
+    envelope = json.load(f)
+
+conn = sqlite3.connect(envelope["_knowledge_db"])
+conn.execute("PRAGMA foreign_keys = ON")
+standard = "fixture-std"
+
+conn.execute("INSERT INTO domain (standard, key, description) VALUES (?, 'main', 'Main domain')", (standard,))
+domain_id = conn.execute("SELECT id FROM domain WHERE standard=? AND key='main'", (standard,)).fetchone()[0]
+
+conn.execute("INSERT INTO usecase (standard, name, domain_id) VALUES (?, 'uc1', ?)", (standard, domain_id))
+uc_id = conn.execute("SELECT id FROM usecase WHERE standard=? AND name='uc1'", (standard,)).fetchone()[0]
+
+conn.execute("INSERT INTO script (standard, name, location, purpose) VALUES (?, 's1', 'seed.py', '')", (standard,))
+script_id = conn.execute("SELECT id FROM script WHERE standard=? AND name='s1'", (standard,)).fetchone()[0]
+
+conn.execute("INSERT INTO step (usecase_id, step_order, kind, description) VALUES (?, 1, 'deterministic', 'run')", (uc_id,))
+step_id = conn.execute("SELECT id FROM step WHERE usecase_id=? AND step_order=1", (uc_id,)).fetchone()[0]
+
+conn.execute("INSERT INTO step_script (step_id, script_id) VALUES (?, ?)", (step_id, script_id))
+conn.execute("CREATE TABLE IF NOT EXISTS fixture_scores (team_id TEXT, score INTEGER)")
+conn.commit()
+conn.close()
+
+with open(args.out, "w") as f:
+    json.dump({"status": "ok"}, f)
+"#;
+
+    fn write_fixture_source(source_dir: &Path) {
+        std::fs::create_dir_all(source_dir).unwrap();
+        std::fs::write(source_dir.join("standard.yaml"), "name: fixture-std\nseeder_script: seed.py\n").unwrap();
+        std::fs::write(source_dir.join("seed.py"), FIXTURE_SEEDER_PY).unwrap();
+        std::fs::write(
+            source_dir.join("standard.metadata.json"),
+            r#"{"custom_tables":[{"name":"fixture_scores","purpose":"test scores","required_columns":["team_id","score"]}]}"#,
+        ).unwrap();
+    }
+
+    #[test]
+    fn activate_standard_end_to_end_seeder_metadata_and_audit() {
+        let tmp = tempfile::tempdir().unwrap();
+        let source_dir = tmp.path().join("source-std");
+        write_fixture_source(&source_dir);
+
+        let repo_root = tmp.path().join("repo");
+        let samgraha_dir = repo_root.join(".samgraha");
+        let knowledge_db_path = samgraha_dir.join("knowledge.db");
+
+        activate_standard(
+            "fixture-std",
+            &source_dir.display().to_string(),
+            &knowledge_db_path,
+            &repo_root,
+            &samgraha_dir,
+            Some(30),
+        ).unwrap();
+
+        // Local copy landed under samgraha_dir/<standard>/, not just the
+        // global source — proves the copy step ran, not just the seeder.
+        assert!(samgraha_dir.join("fixture-std").join("seed.py").exists());
+
+        let conn = Connection::open(&knowledge_db_path).unwrap();
+        let uc_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM usecase WHERE standard = 'fixture-std'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(uc_count, 1, "seeder should have inserted exactly one usecase");
+
+        // Custom-table handling (§1.1's restored gap): declared, created,
+        // and catalogued with its actual columns.
+        let (table_name, shape_json): (String, Option<String>) = conn
+            .query_row(
+                "SELECT table_name, shape_json FROM custom_data_tables WHERE standard = 'fixture-std'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(table_name, "fixture_scores");
+        assert!(shape_json.unwrap().contains("team_id"), "shape_json should reflect the real table's columns");
+
+        // Layer A audit ran and passed (activate_standard would have
+        // errored otherwise) — script is referenced, usecase has a step,
+        // deterministic step has a script mapping.
+        let script_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM script sc JOIN step_script ss ON ss.script_id = sc.id WHERE sc.standard = 'fixture-std'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(script_count, 1);
+    }
+
+    #[test]
+    fn activate_standard_rejects_undeclared_custom_table() {
+        // Seeder creates fixture_scores via CREATE TABLE, but metadata
+        // never declares it — bidirectional Layer A check must reject,
+        // and cleanup must remove the local copy it made.
+        let tmp = tempfile::tempdir().unwrap();
+        let source_dir = tmp.path().join("source-std");
+        write_fixture_source(&source_dir);
+        std::fs::write(source_dir.join("standard.metadata.json"), "{}").unwrap();
+
+        let repo_root = tmp.path().join("repo");
+        let samgraha_dir = repo_root.join(".samgraha");
+        let knowledge_db_path = samgraha_dir.join("knowledge.db");
+
+        let err = activate_standard(
+            "fixture-std",
+            &source_dir.display().to_string(),
+            &knowledge_db_path,
+            &repo_root,
+            &samgraha_dir,
+            Some(30),
+        ).unwrap_err();
+        assert!(err.to_string().contains("fixture_scores"), "expected undeclared-table error, got: {err}");
+        assert!(!samgraha_dir.join("fixture-std").exists(), "cleanup-on-failure should remove the local copy");
     }
 }
