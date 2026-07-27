@@ -11,7 +11,8 @@
 //! scripts and whichever model is driving the calling MCP client.
 
 use crate::protocol::{McpMessage, McpRequest, McpResponse, McpError};
-use anyhow::Result;
+use anyhow::{Context, Result};
+use registry::standards_db::StandardsDb;
 use schemas::manifest::RepositoryManifest;
 use services::registry_client::RegistryClient;
 use std::path::PathBuf;
@@ -20,11 +21,12 @@ use std::sync::Arc;
 pub struct McpAdapter {
     repository_root: PathBuf,
     registry: Arc<dyn RegistryClient>,
+    standards_db: Arc<StandardsDb>,
 }
 
 impl McpAdapter {
-    pub fn new(repository_root: PathBuf, registry: Arc<dyn RegistryClient>) -> Self {
-        Self { repository_root, registry }
+    pub fn new(repository_root: PathBuf, registry: Arc<dyn RegistryClient>, standards_db: Arc<StandardsDb>) -> Self {
+        Self { repository_root, registry, standards_db }
     }
 
     pub fn notify_connect(&self) {
@@ -54,6 +56,15 @@ impl McpAdapter {
             "run_script_step" => self.handle_run_script_step(&req),
             "prepare_semantic_step" => self.handle_prepare_semantic_step(&req),
             "complete_semantic_step" => self.handle_complete_semantic_step(&req),
+            "register_standard_globally" => self.handle_register_standard_globally(&req),
+            "list_standards" => self.handle_list_standards(&req),
+            "get_standard_info" => self.handle_get_standard_info(&req),
+            "get_standard_usecases" => self.handle_get_standard_usecases(&req),
+            "get_standard_scripts" => self.handle_get_standard_scripts(&req),
+            "get_standard_prompts" => self.handle_get_standard_prompts(&req),
+            "get_standard_assets" => self.handle_get_standard_assets(&req),
+            "seed_standard" => self.handle_seed_standard(&req),
+            "check_usecase_complete" => self.handle_check_usecase_complete(&req),
             other => Err(anyhow::anyhow!("Unknown method: {other}")),
         };
 
@@ -139,7 +150,7 @@ impl McpAdapter {
             return Err(anyhow::anyhow!("Path does not exist: {}", path.display()));
         }
         let db_path = self.knowledge_db_path(req);
-        let result = services::register_standard::register_standard(&path, &db_path)?;
+        let result = services::register_standard::register_standard(&path, &db_path, None)?;
         Ok(serde_json::to_value(result)?)
     }
 
@@ -172,5 +183,335 @@ impl McpAdapter {
         let db_path = self.knowledge_db_path(req);
         services::step_execution::complete_semantic_step(&db_path, step_id, &root, status)?;
         Ok(serde_json::json!({ "recorded": true, "step_id": step_id, "status": status }))
+    }
+
+    fn handle_register_standard_globally(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let path_str = req.params.get("path")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'path' parameter"))?;
+        let path = PathBuf::from(path_str);
+        if !path.exists() {
+            return Err(anyhow::anyhow!("Path does not exist: {}", path.display()));
+        }
+        let manifest_path = services::register_standard::resolve_manifest_path(&path)?;
+        let manifest_dir = manifest_path.parent().unwrap_or(&path);
+        let manifest_content = std::fs::read_to_string(&manifest_path)?;
+
+        // Parse as raw YAML mapping to extract all fields (§8.4)
+        let raw: serde_yaml::Mapping = serde_yaml::from_str(&manifest_content)?;
+        let get_str = |key: &str| -> Option<String> {
+            raw.get(&serde_yaml::Value::String(key.to_string()))
+                .and_then(|v| v.as_str().map(String::from))
+        };
+
+        let name = get_str("name").ok_or_else(|| anyhow::anyhow!("Manifest missing 'name' field"))?;
+        let category = get_str("category").unwrap_or_default();
+        let subcategory = get_str("subcategory");
+        let extends = get_str("extends");
+        let version = get_str("version").unwrap_or_else(|| "0.0.0".to_string());
+        let description = get_str("description").unwrap_or_default();
+        let source_path = path.display().to_string();
+
+        // §2.4.1 — structural verify-gate (smoke_test)
+        let verify_status = if let Some(smoke_test) = get_str("smoke_test") {
+            let smoke_path = services::register_standard::resolve_location(manifest_dir, &smoke_test)?;
+            let status = std::process::Command::new(&smoke_path)
+                .arg("--repo-root")
+                .arg(&path)
+                .status();
+            match status {
+                Ok(s) if s.success() => "passed",
+                Ok(_) => "failed",
+                Err(_) => "failed",
+            }
+        } else {
+            "unverified"
+        };
+
+        // §8.4 — catch-all metadata: diff raw keys against KNOWN_FIELDS
+        const KNOWN_FIELDS: &[&str] = &[
+            "name", "category", "subcategory", "extends", "smoke_test",
+            "scripts", "prompts", "usecases", "custom_tables", "domains", "assets", "templates",
+        ];
+        let extra: serde_json::Map<String, serde_json::Value> = raw.iter()
+            .filter_map(|(k, v)| {
+                let key = k.as_str()?.to_string();
+                if KNOWN_FIELDS.contains(&key.as_str()) { return None; }
+                let json_v = serde_json::to_value(v).ok()?;
+                Some((key, json_v))
+            })
+            .collect();
+        let metadata_json = serde_json::Value::Object(extra).to_string();
+
+        self.standards_db.upsert_standard(
+            &name,
+            &category,
+            subcategory.as_deref(),
+            &source_path,
+            false,
+            extends.as_deref(),
+            &version,
+            &description,
+            &metadata_json,
+            verify_status,
+        )?;
+
+        self.standards_db.log_operation(
+            "register_globally",
+            &name,
+            None,
+            "global",
+            "ok",
+            &serde_json::json!({"path": path_str, "verify_status": verify_status}).to_string(),
+        )?;
+
+        Ok(serde_json::json!({
+            "success": true,
+            "standard": name,
+            "verify_status": verify_status,
+        }))
+    }
+
+    fn handle_list_standards(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let category = req.params.get("category").and_then(|v| v.as_str());
+        let subcategory = req.params.get("subcategory").and_then(|v| v.as_str());
+        let standards = self.standards_db.list_standards(category, subcategory)?;
+        Ok(serde_json::json!({
+            "standards": standards.iter().map(|s| serde_json::json!({
+                "name": s.name,
+                "category": s.category,
+                "subcategory": s.subcategory,
+                "version": s.version,
+                "verify_status": s.verify_status,
+            })).collect::<Vec<_>>(),
+            "count": standards.len(),
+        }))
+    }
+
+    fn handle_get_standard_info(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let name = req.params.get("name")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'name' parameter"))?;
+        let row = self.standards_db.get_standard(name)?
+            .ok_or_else(|| anyhow::anyhow!("Standard '{}' not found in global registry", name))?;
+        Ok(serde_json::json!({
+            "name": row.name,
+            "category": row.category,
+            "subcategory": row.subcategory,
+            "source_path": row.source_path,
+            "is_abstract": row.is_abstract,
+            "extends": row.extends,
+            "version": row.version,
+            "description": row.description,
+            "metadata_json": row.metadata_json,
+            "verify_status": row.verify_status,
+            "verified_at": row.verified_at,
+            "registered_at": row.registered_at,
+            "updated_at": row.updated_at,
+        }))
+    }
+
+    fn handle_get_standard_usecases(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let name = req.params.get("name")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'name' parameter"))?;
+        let db_path = self.knowledge_db_path(req);
+        let conn = rusqlite::Connection::open(&db_path)?;
+        let mut stmt = conn.prepare(
+            "SELECT u.id, u.name, u.description, u.data, u.domain_id,
+                    d.key as domain_key
+             FROM usecase u
+             LEFT JOIN domain d ON d.id = u.domain_id
+             WHERE u.standard = ?1
+             ORDER BY u.id",
+        )?;
+        let rows = stmt.query_map(rusqlite::params![name], |row| {
+            let data_str: String = row.get(3)?;
+            let data: serde_json::Value = serde_json::from_str(&data_str).unwrap_or(serde_json::json!({}));
+            Ok(serde_json::json!({
+                "id": row.get::<_, i64>(0)?,
+                "name": row.get::<_, String>(1)?,
+                "description": row.get::<_, String>(2)?,
+                "data": data,
+                "domain": row.get::<_, Option<String>>(5)?,
+            }))
+        })?;
+        let mut usecases = Vec::new();
+        for row in rows {
+            usecases.push(row?);
+        }
+        Ok(serde_json::json!({
+            "standard": name,
+            "usecases": usecases,
+            "count": usecases.len(),
+        }))
+    }
+
+    fn handle_get_standard_scripts(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let name = req.params.get("name")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'name' parameter"))?;
+        let db_path = self.knowledge_db_path(req);
+        let conn = rusqlite::Connection::open(&db_path)?;
+        let mut stmt = conn.prepare(
+            "SELECT id, name, location, purpose FROM script WHERE standard = ?1 ORDER BY name",
+        )?;
+        let rows = stmt.query_map(rusqlite::params![name], |row| {
+            Ok(serde_json::json!({
+                "id": row.get::<_, i64>(0)?,
+                "name": row.get::<_, String>(1)?,
+                "location": row.get::<_, String>(2)?,
+                "purpose": row.get::<_, String>(3)?,
+            }))
+        })?;
+        let mut scripts = Vec::new();
+        for row in rows {
+            scripts.push(row?);
+        }
+        Ok(serde_json::json!({
+            "standard": name,
+            "scripts": scripts,
+            "count": scripts.len(),
+        }))
+    }
+
+    fn handle_get_standard_prompts(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let name = req.params.get("name")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'name' parameter"))?;
+        let db_path = self.knowledge_db_path(req);
+        let conn = rusqlite::Connection::open(&db_path)?;
+        let mut stmt = conn.prepare(
+            "SELECT id, name, purpose FROM prompt WHERE standard = ?1 ORDER BY name",
+        )?;
+        let rows = stmt.query_map(rusqlite::params![name], |row| {
+            Ok(serde_json::json!({
+                "id": row.get::<_, i64>(0)?,
+                "name": row.get::<_, String>(1)?,
+                "purpose": row.get::<_, String>(2)?,
+            }))
+        })?;
+        let mut prompts = Vec::new();
+        for row in rows {
+            prompts.push(row?);
+        }
+        Ok(serde_json::json!({
+            "standard": name,
+            "prompts": prompts,
+            "count": prompts.len(),
+        }))
+    }
+
+    fn handle_get_standard_assets(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let name = req.params.get("name")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'name' parameter"))?;
+        let kind_filter = req.params.get("kind").and_then(|v| v.as_str());
+        let db_path = self.knowledge_db_path(req);
+        let conn = rusqlite::Connection::open(&db_path)?;
+        let (sql, params): (&str, Vec<Box<dyn rusqlite::types::ToSql>>) = match kind_filter {
+            Some(k) => (
+                "SELECT id, kind, name, location, purpose FROM standard_asset WHERE standard = ?1 AND kind = ?2 ORDER BY kind, name",
+                vec![Box::new(name.to_string()), Box::new(k.to_string())],
+            ),
+            None => (
+                "SELECT id, kind, name, location, purpose FROM standard_asset WHERE standard = ?1 ORDER BY kind, name",
+                vec![Box::new(name.to_string())],
+            ),
+        };
+        let mut stmt = conn.prepare(sql)?;
+        let params_ref: Vec<&dyn rusqlite::types::ToSql> = params.iter().map(|p| p.as_ref()).collect();
+        let rows = stmt.query_map(params_ref.as_slice(), |row| {
+            Ok(serde_json::json!({
+                "id": row.get::<_, i64>(0)?,
+                "kind": row.get::<_, String>(1)?,
+                "name": row.get::<_, String>(2)?,
+                "location": row.get::<_, String>(3)?,
+                "purpose": row.get::<_, String>(4)?,
+            }))
+        })?;
+        let mut assets = Vec::new();
+        for row in rows {
+            assets.push(row?);
+        }
+        Ok(serde_json::json!({
+            "standard": name,
+            "assets": assets,
+            "count": assets.len(),
+        }))
+    }
+
+    fn handle_seed_standard(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let name = req.params.get("standard")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'standard' parameter"))?;
+        let root = self.target_root(req);
+        let db_path = self.knowledge_db_path(req);
+        let usecase_filter = req.params.get("usecase").and_then(|v| v.as_str());
+
+        let result = services::seed_standard::seed_standard(&db_path, name, &root, usecase_filter)?;
+
+        self.standards_db.log_operation(
+            "seed",
+            name,
+            Some(&root.display().to_string()),
+            "repo",
+            "ok",
+            &serde_json::json!({"executed": result.executed.len()}).to_string(),
+        )?;
+
+        Ok(serde_json::to_value(result)?)
+    }
+
+    fn handle_check_usecase_complete(&self, req: &McpRequest) -> Result<serde_json::Value> {
+        let usecase_name = req.params.get("usecase")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'usecase' parameter"))?;
+        let standard_name = req.params.get("standard")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'standard' parameter — required to disambiguate usecase name"))?;
+        let root = self.target_root(req);
+        let db_path = self.knowledge_db_path(req);
+        let extra_args: Vec<String> = req.params.get("extra_args")
+            .and_then(|v| v.as_array())
+            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .unwrap_or_default();
+
+        // Look up the standard's source_path from the global registry
+        let registry_row = self.standards_db.get_standard(standard_name)?
+            .ok_or_else(|| anyhow::anyhow!("Standard '{}' not found in global registry", standard_name))?;
+        let standard_source = PathBuf::from(&registry_row.source_path);
+
+        let conn = rusqlite::Connection::open(&db_path)?;
+        conn.execute_batch("PRAGMA foreign_keys = ON;")?;
+        // §8.5 — find the usecase with standard filter (usecase names are only unique per standard)
+        let data_str: String = conn.query_row(
+            "SELECT data FROM usecase WHERE standard = ?1 AND name = ?2",
+            rusqlite::params![standard_name, usecase_name],
+            |row| row.get(0),
+        ).context(format!("No usecase '{}' in standard '{}'", usecase_name, standard_name))?;
+        let data: serde_json::Value = serde_json::from_str(&data_str).unwrap_or(serde_json::json!({}));
+        let verify_script = data.get("verify_script")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Usecase '{}' has no verify_script declared", usecase_name))?;
+
+        // §2.4.2 — resolve verify_script against the standard's own source directory,
+        // not the target consuming repo
+        let script_path = services::register_standard::resolve_location(&standard_source, verify_script)?;
+        let script_path = std::path::PathBuf::from(&script_path);
+        if !script_path.exists() {
+            return Ok(serde_json::json!({"complete": false, "error": format!("Verify script not found: {}", script_path.display())}));
+        }
+
+        let mut cmd = std::process::Command::new(&script_path);
+        cmd.arg("--repo-root").arg(&root);
+        for arg in &extra_args {
+            cmd.arg(arg);
+        }
+        let status = cmd.status()?;
+        Ok(serde_json::json!({
+            "complete": status.success(),
+            "exit_code": status.code(),
+        }))
     }
 }

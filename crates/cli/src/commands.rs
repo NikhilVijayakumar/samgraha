@@ -70,7 +70,7 @@ impl Cli {
                     Some(p) => p.clone(),
                     None => discover_repository_root()?.join(".samgraha").join("knowledge.db"),
                 };
-                let result = services::register_standard::register_standard(path, &db_path)?;
+                let result = services::register_standard::register_standard(path, &db_path, None)?;
                 println!("{}", format_output(&result, &format));
                 Ok(0)
             }

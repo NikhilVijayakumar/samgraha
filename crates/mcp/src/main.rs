@@ -43,7 +43,8 @@ fn main() -> Result<()> {
 
     let root = discover_root()?;
     let registry = Arc::new(FileRegistryClient::new(&root));
-    let adapter = McpAdapter::new(root, registry);
+    let standards_db = Arc::new(registry::standards_db::StandardsDb::open()?);
+    let adapter = McpAdapter::new(root, registry, standards_db);
 
     let stdin = io::stdin();
     let mut stdout = io::stdout().lock();
@@ -304,6 +305,115 @@ fn tool_definitions() -> Vec<serde_json::Value> {
                 "required": ["step_id"]
             }
         }),
+        serde_json::json!({
+            "name": "register_standard_globally",
+            "description": "Register a knowledge standard into the global registry (standards.db). Parses the manifest, runs the optional smoke_test verify-gate, upserts the standard_registry row. Does not register the standard's scripts/prompts/usecases into any repo's knowledge.db — use register_standard for that.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "path": { "type": "string", "description": "Absolute path to the standard's source root (containing standard.yaml)" }
+                },
+                "required": ["path"]
+            }
+        }),
+        serde_json::json!({
+            "name": "list_standards",
+            "description": "List standards from the global registry, optionally filtered by category and/or subcategory.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "category": { "type": "string" },
+                    "subcategory": { "type": "string" }
+                }
+            }
+        }),
+        serde_json::json!({
+            "name": "get_standard_info",
+            "description": "Get detailed metadata for a single standard from the global registry.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "name": { "type": "string", "description": "Standard name" }
+                },
+                "required": ["name"]
+            }
+        }),
+        serde_json::json!({
+            "name": "get_standard_usecases",
+            "description": "List usecases registered in a repo's knowledge.db for a given standard, including driver, depends_on, and resolved domain.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "name": { "type": "string", "description": "Standard name" },
+                    "repo_path": { "type": "string" }
+                },
+                "required": ["name"]
+            }
+        }),
+        serde_json::json!({
+            "name": "get_standard_scripts",
+            "description": "List scripts registered in a repo's knowledge.db for a given standard.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "name": { "type": "string", "description": "Standard name" },
+                    "repo_path": { "type": "string" }
+                },
+                "required": ["name"]
+            }
+        }),
+        serde_json::json!({
+            "name": "get_standard_prompts",
+            "description": "List prompts registered in a repo's knowledge.db for a given standard.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "name": { "type": "string", "description": "Standard name" },
+                    "repo_path": { "type": "string" }
+                },
+                "required": ["name"]
+            }
+        }),
+        serde_json::json!({
+            "name": "get_standard_assets",
+            "description": "List standard-shipped assets (plan/guide/config) from a repo's knowledge.db, optionally filtered by kind.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "name": { "type": "string", "description": "Standard name" },
+                    "kind": { "type": "string", "description": "Filter by asset kind (e.g. 'plan', 'guide', 'config')" },
+                    "repo_path": { "type": "string" }
+                },
+                "required": ["name"]
+            }
+        }),
+        serde_json::json!({
+            "name": "seed_standard",
+            "description": "Execute all driver=samgraha steps for a standard's usecases in a target repo. Walks dependencies and runs each deterministic step via run_script_step.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "standard": { "type": "string", "description": "Standard name" },
+                    "repo_path": { "type": "string" },
+                    "usecase": { "type": "string", "description": "Optional: run only this usecase (and its dependencies)" }
+                },
+                "required": ["standard"]
+            }
+        }),
+        serde_json::json!({
+            "name": "check_usecase_complete",
+            "description": "Check if a usecase is complete by running its declared verify_script. Returns {complete: bool, exit_code: int}. This is a query, not a gate — nothing blocks on its result.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "usecase": { "type": "string", "description": "Usecase name" },
+                    "standard": { "type": "string", "description": "Standard name (required to disambiguate and resolve verify_script path)" },
+                    "repo_path": { "type": "string" },
+                    "extra_args": { "type": "array", "items": { "type": "string" }, "description": "Extra arguments passed verbatim to the verify script" }
+                },
+                "required": ["usecase", "standard"]
+            }
+        }),
     ]
 }
 
@@ -345,6 +455,9 @@ mod tests {
             "init", "register_repository", "unregister_repository",
             "list_repositories", "repository_status", "register_standard",
             "run_script_step", "prepare_semantic_step", "complete_semantic_step",
+            "register_standard_globally", "list_standards", "get_standard_info",
+            "get_standard_usecases", "get_standard_scripts", "get_standard_prompts",
+            "get_standard_assets", "seed_standard", "check_usecase_complete",
         ] {
             assert!(names.contains(&expected.to_string()), "missing tool def for {expected}");
         }

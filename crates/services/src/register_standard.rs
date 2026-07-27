@@ -10,11 +10,21 @@ use registry::migration::RESERVED_TABLE_NAMES;
 use rusqlite::Connection;
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct StandardManifest {
     pub name: String,
+    #[serde(default)]
+    pub category: Option<String>,
+    #[serde(default)]
+    pub subcategory: Option<String>,
+    #[serde(default)]
+    pub extends: Option<String>,
+    #[serde(default)]
+    pub version: Option<String>,
+    #[serde(default)]
+    pub smoke_test: Option<String>,
     #[serde(default)]
     pub scripts: Vec<ScriptDecl>,
     #[serde(default)]
@@ -23,6 +33,12 @@ pub struct StandardManifest {
     pub usecases: Vec<UsecaseDecl>,
     #[serde(default)]
     pub custom_tables: Vec<CustomTableDecl>,
+    #[serde(default)]
+    pub domains: Vec<DomainDecl>,
+    #[serde(default)]
+    pub assets: Vec<AssetDecl>,
+    #[serde(default)]
+    pub templates: Vec<TemplateDecl>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -46,6 +62,14 @@ pub struct UsecaseDecl {
     pub name: String,
     #[serde(default)]
     pub description: String,
+    #[serde(default)]
+    pub driver: Option<String>,
+    #[serde(default)]
+    pub depends_on: Vec<String>,
+    #[serde(default)]
+    pub domain: Option<String>,
+    #[serde(default)]
+    pub verify_script: Option<String>,
     pub steps: Vec<StepDecl>,
 }
 
@@ -70,6 +94,34 @@ pub struct CustomTableDecl {
     pub owner_script: Option<String>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct DomainDecl {
+    pub key: String,
+    #[serde(default)]
+    pub sort_order: i64,
+    #[serde(default)]
+    pub description: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct AssetDecl {
+    pub name: String,
+    pub kind: String,
+    pub location: String,
+    #[serde(default)]
+    pub purpose: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct TemplateDecl {
+    pub name: String,
+    #[serde(rename = "type")]
+    pub template_type: String,
+    pub location: String,
+    #[serde(default)]
+    pub purpose: String,
+}
+
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct RegisterStandardResult {
     pub standard: String,
@@ -78,6 +130,9 @@ pub struct RegisterStandardResult {
     pub usecases_registered: usize,
     pub steps_registered: usize,
     pub custom_tables_cataloged: usize,
+    pub domains_registered: usize,
+    pub assets_registered: usize,
+    pub templates_registered: usize,
 }
 
 /// Register a standard's `standard.yaml` manifest into `knowledge.db`.
@@ -86,11 +141,9 @@ pub struct RegisterStandardResult {
 /// resolve relative to it and are stored as absolute paths, so no
 /// per-repo asset copy is needed: a deterministic step just runs whatever
 /// is at that path on this machine.
-pub fn register_standard(standard_path: &Path, knowledge_db_path: &Path) -> Result<RegisterStandardResult> {
-    let manifest_path = standard_path.join("standard.yaml");
-    if !manifest_path.is_file() {
-        bail!("No standard.yaml at {}", manifest_path.display());
-    }
+pub fn register_standard(standard_path: &Path, knowledge_db_path: &Path, metadata_json: Option<&str>) -> Result<RegisterStandardResult> {
+    let manifest_path = resolve_manifest_path(standard_path)?;
+    let manifest_dir = manifest_path.parent().unwrap_or(standard_path);
     let manifest_content = std::fs::read_to_string(&manifest_path)
         .context(format!("Failed to read {}", manifest_path.display()))?;
     let manifest: StandardManifest = serde_yaml::from_str(&manifest_content)
@@ -116,9 +169,8 @@ pub fn register_standard(standard_path: &Path, knowledge_db_path: &Path) -> Resu
     }
     let conn = Connection::open(knowledge_db_path)
         .context(format!("Failed to open {}", knowledge_db_path.display()))?;
-    for m in registry::core_schema::CORE_MIGRATIONS {
-        conn.execute_batch(m)?;
-    }
+    conn.execute_batch("PRAGMA foreign_keys = ON;")?;
+    registry::core_schema::run_core_migrations(&conn)?;
 
     // Re-registering a standard replaces its rows entirely — same
     // discipline the old store_system_plan used (delete then insert),
@@ -128,7 +180,7 @@ pub fn register_standard(standard_path: &Path, knowledge_db_path: &Path) -> Resu
 
     let mut script_ids: HashMap<String, i64> = HashMap::new();
     for s in &manifest.scripts {
-        let abs_location = resolve_location(standard_path, &s.location)?;
+        let abs_location = resolve_location(manifest_dir, &s.location)?;
         conn.execute(
             "INSERT INTO script (standard, name, location, purpose) VALUES (?1, ?2, ?3, ?4)",
             rusqlite::params![manifest.name, s.name, abs_location, s.purpose],
@@ -138,7 +190,7 @@ pub fn register_standard(standard_path: &Path, knowledge_db_path: &Path) -> Resu
 
     let mut prompt_ids: HashMap<String, i64> = HashMap::new();
     for p in &manifest.prompts {
-        let abs_location = resolve_location(standard_path, &p.location)?;
+        let abs_location = resolve_location(manifest_dir, &p.location)?;
         let content = std::fs::read_to_string(&abs_location)
             .context(format!("Failed to read prompt file {}", abs_location))?;
         conn.execute(
@@ -149,10 +201,77 @@ pub fn register_standard(standard_path: &Path, knowledge_db_path: &Path) -> Resu
     }
 
     let mut steps_registered = 0usize;
-    for uc in &manifest.usecases {
+
+    // §2.11 — domains: insert into domain table, build key→id map
+    let mut domain_ids: HashMap<String, i64> = HashMap::new();
+    for d in &manifest.domains {
         conn.execute(
-            "INSERT INTO usecase (standard, name, description) VALUES (?1, ?2, ?3)",
-            rusqlite::params![manifest.name, uc.name, uc.description],
+            "INSERT INTO domain (standard, key, sort_order, description) VALUES (?1, ?2, ?3, ?4)",
+            rusqlite::params![manifest.name, d.key, d.sort_order, d.description],
+        )?;
+        domain_ids.insert(d.key.clone(), conn.last_insert_rowid());
+    }
+
+    // §2.9 — assets: insert into standard_asset table
+    for a in &manifest.assets {
+        let abs_location = resolve_location(manifest_dir, &a.location)?;
+        conn.execute(
+            "INSERT INTO standard_asset (standard, kind, name, location, purpose) VALUES (?1, ?2, ?3, ?4, ?5)",
+            rusqlite::params![manifest.name, a.kind, a.name, abs_location, a.purpose],
+        )?;
+    }
+
+    // §2.7 — templates: insert into template table (content read from file)
+    for t in &manifest.templates {
+        let abs_location = resolve_location(manifest_dir, &t.location)?;
+        let content = std::fs::read_to_string(&abs_location)
+            .context(format!("Failed to read template file {}", abs_location))?;
+        conn.execute(
+            "INSERT INTO template (standard, name, type, content, purpose) VALUES (?1, ?2, ?3, ?4, ?5)",
+            rusqlite::params![manifest.name, t.name, t.template_type, content, t.purpose],
+        )?;
+    }
+
+    // §2.13 — local standard row
+    let category = manifest.category.as_deref().unwrap_or("");
+    let metadata_json = metadata_json.unwrap_or("{}");
+    conn.execute(
+        "INSERT OR REPLACE INTO standard (name, category, subcategory, extends, version, metadata_json) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        rusqlite::params![
+            manifest.name,
+            category,
+            manifest.subcategory,
+            manifest.extends,
+            manifest.version.as_deref().unwrap_or("0.0.0"),
+            metadata_json,
+        ],
+    )?;
+
+    // §8.5 — validate depends_on references (all usecase names must be known)
+    let all_uc_names: Vec<String> = manifest.usecases.iter().map(|uc| uc.name.clone()).collect();
+    for uc in &manifest.usecases {
+        for dep in &uc.depends_on {
+            if !all_uc_names.contains(dep) {
+                bail!(
+                    "usecase '{}' depends_on unknown usecase '{}'",
+                    uc.name, dep
+                );
+            }
+        }
+    }
+
+    for uc in &manifest.usecases {
+        // §2.11 — resolve domain_id from domain key
+        let domain_id = uc.domain.as_ref().and_then(|key| domain_ids.get(key).copied());
+        // §2.5 — store driver and depends_on as JSON in usecase.data
+        let data = serde_json::json!({
+            "driver": uc.driver.as_deref().unwrap_or("samgraha"),
+            "depends_on": uc.depends_on,
+            "verify_script": uc.verify_script,
+        });
+        conn.execute(
+            "INSERT INTO usecase (standard, name, description, domain_id, data) VALUES (?1, ?2, ?3, ?4, ?5)",
+            rusqlite::params![manifest.name, uc.name, uc.description, domain_id, data.to_string()],
         )?;
         let usecase_id = conn.last_insert_rowid();
 
@@ -230,6 +349,9 @@ pub fn register_standard(standard_path: &Path, knowledge_db_path: &Path) -> Resu
         usecases_registered: manifest.usecases.len(),
         steps_registered,
         custom_tables_cataloged: manifest.custom_tables.len(),
+        domains_registered: manifest.domains.len(),
+        assets_registered: manifest.assets.len(),
+        templates_registered: manifest.templates.len(),
     })
 }
 
@@ -258,19 +380,42 @@ fn delete_existing(conn: &Connection, standard: &str) -> Result<()> {
     conn.execute("DELETE FROM custom_data_tables WHERE standard = ?1", rusqlite::params![standard])?;
     conn.execute("DELETE FROM prompt WHERE standard = ?1", rusqlite::params![standard])?;
     conn.execute("DELETE FROM script WHERE standard = ?1", rusqlite::params![standard])?;
+    conn.execute("DELETE FROM domain WHERE standard = ?1", rusqlite::params![standard])?;
+    conn.execute("DELETE FROM standard_asset WHERE standard = ?1", rusqlite::params![standard])?;
+    conn.execute("DELETE FROM template WHERE standard = ?1", rusqlite::params![standard])?;
+    conn.execute("DELETE FROM standard WHERE name = ?1", rusqlite::params![standard])?;
     Ok(())
 }
 
-fn resolve_location(standard_path: &Path, location: &str) -> Result<String> {
+/// §2.14 — two-location manifest check: tries `<path>/standard.yaml` first,
+/// then `<path>/script/schema/standard.yaml` (for standards like pcems_2026
+/// whose manifest lives one level below root).
+pub fn resolve_manifest_path(standard_path: &Path) -> Result<PathBuf> {
+    let primary = standard_path.join("standard.yaml");
+    if primary.is_file() {
+        return Ok(primary);
+    }
+    let alt = standard_path.join("script/schema/standard.yaml");
+    if alt.is_file() {
+        return Ok(alt);
+    }
+    bail!(
+        "No standard.yaml at {} or {}",
+        primary.display(),
+        alt.display()
+    );
+}
+
+pub fn resolve_location(manifest_dir: &Path, location: &str) -> Result<String> {
     let candidate = Path::new(location);
     let resolved = if candidate.is_absolute() {
         candidate.to_path_buf()
     } else {
-        standard_path.join(candidate)
+        manifest_dir.join(candidate)
     };
-    if !resolved.exists() {
-        bail!("declared location does not exist: {}", resolved.display());
-    }
+    // Canonicalize to resolve `..` segments (e.g. `script/schema/../my_script.py` → `script/my_script.py`)
+    let resolved = std::fs::canonicalize(&resolved)
+        .with_context(|| format!("declared location does not exist: {}", resolved.display()))?;
     Ok(resolved.display().to_string())
 }
 
@@ -319,7 +464,7 @@ custom_tables:
 "#);
 
         let db_path = tmp.path().join("knowledge.db");
-        let result = register_standard(&standard_dir, &db_path).unwrap();
+        let result = register_standard(&standard_dir, &db_path, None).unwrap();
         assert_eq!(result.scripts_registered, 1);
         assert_eq!(result.prompts_registered, 1);
         assert_eq!(result.usecases_registered, 1);
@@ -354,7 +499,7 @@ custom_tables:
     purpose: "Collides with samgraha's own table"
 "#);
         let db_path = tmp.path().join("knowledge.db");
-        let err = register_standard(&standard_dir, &db_path).unwrap_err();
+        let err = register_standard(&standard_dir, &db_path, None).unwrap_err();
         assert!(err.to_string().contains("reserved"), "expected collision error, got: {err}");
     }
 
@@ -373,7 +518,7 @@ usecases:
         script: does-not-exist
 "#);
         let db_path = tmp.path().join("knowledge.db");
-        let err = register_standard(&standard_dir, &db_path).unwrap_err();
+        let err = register_standard(&standard_dir, &db_path, None).unwrap_err();
         assert!(err.to_string().contains("unknown script"), "expected unknown-script error, got: {err}");
     }
 
@@ -391,7 +536,7 @@ scripts:
     location: a.py
 "#);
         let db_path = tmp.path().join("knowledge.db");
-        register_standard(&standard_dir, &db_path).unwrap();
+        register_standard(&standard_dir, &db_path, None).unwrap();
 
         // Re-register with a different script name — old row should be gone.
         std::fs::write(standard_dir.join("b.py"), "").unwrap();
@@ -401,7 +546,7 @@ scripts:
   - name: script-b
     location: b.py
 "#);
-        register_standard(&standard_dir, &db_path).unwrap();
+        register_standard(&standard_dir, &db_path, None).unwrap();
 
         let conn = Connection::open(&db_path).unwrap();
         let count: i64 = conn
@@ -412,5 +557,77 @@ scripts:
             .query_row("SELECT name FROM script WHERE standard = 'reg-test'", [], |r| r.get(0))
             .unwrap();
         assert_eq!(name, "script-b");
+    }
+
+    #[test]
+    fn resolve_manifest_path_finds_root_standard_yaml() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().join("my-standard");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("standard.yaml"), "name: root-manifest\n").unwrap();
+        let found = resolve_manifest_path(&dir).unwrap();
+        assert_eq!(found, dir.join("standard.yaml"));
+    }
+
+    #[test]
+    fn resolve_manifest_path_finds_nested_standard_yaml() {
+        let tmp = tempfile::tempdir().unwrap();
+        // pcems_2026 layout: root/script/schema/standard.yaml
+        let dir = tmp.path().join("pcems-style");
+        let nested = dir.join("script/schema");
+        std::fs::create_dir_all(&nested).unwrap();
+        std::fs::write(nested.join("standard.yaml"), "name: nested-manifest\n").unwrap();
+        let found = resolve_manifest_path(&dir).unwrap();
+        assert_eq!(found, nested.join("standard.yaml"));
+    }
+
+    #[test]
+    fn resolve_manifest_path_fails_when_neither_exists() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().join("empty-standard");
+        std::fs::create_dir_all(&dir).unwrap();
+        let err = resolve_manifest_path(&dir).unwrap_err();
+        assert!(err.to_string().contains("No standard.yaml"), "expected manifest-not-found error, got: {err}");
+    }
+
+    #[test]
+    fn register_standard_resolves_nested_manifest_paths() {
+        let tmp = tempfile::tempdir().unwrap();
+        // Simulate pcems_2026 layout: manifest at script/schema/standard.yaml,
+        // scripts relative to that dir.
+        let root = tmp.path().join("nested-std");
+        let schema_dir = root.join("script/schema");
+        std::fs::create_dir_all(&schema_dir).unwrap();
+        std::fs::write(root.join("script/my_script.py"), "print('ok')").unwrap();
+
+        // Manifest at script/schema/standard.yaml, script location relative to it
+        std::fs::write(
+            schema_dir.join("standard.yaml"),
+            r#"
+name: nested-test
+scripts:
+  - name: my-script
+    location: ../my_script.py
+    purpose: "Test"
+usecases:
+  - name: uc1
+    steps:
+      - order: 1
+        kind: deterministic
+        script: my-script
+"#,
+        ).unwrap();
+
+        let db_path = tmp.path().join("knowledge.db");
+        let result = register_standard(&root, &db_path, None).unwrap();
+        assert_eq!(result.scripts_registered, 1);
+
+        // Verify the script location resolved correctly (relative to script/schema/, not root)
+        let conn = Connection::open(&db_path).unwrap();
+        let location: String = conn
+            .query_row("SELECT location FROM script WHERE name = 'my-script'", [], |r| r.get(0))
+            .unwrap();
+        let expected = root.join("script/my_script.py");
+        assert_eq!(location, expected.display().to_string());
     }
 }

@@ -268,6 +268,11 @@ pub struct KnowledgeConfig {
     /// Always loaded, lower priority (adjacent repos to consult).
     #[serde(default)]
     pub interests: Vec<String>,
+    /// §2.15 — knowledge standards this repo registers (names matched against
+    /// the global standard_registry in standards.db). Empty = no standards
+    /// registered (normal consuming repo).
+    #[serde(default)]
+    pub standards: Vec<String>,
 }
 
 fn default_knowledge_root() -> String {
@@ -280,6 +285,7 @@ impl Default for KnowledgeConfig {
             root: default_knowledge_root(),
             dependencies: Vec::new(),
             interests: Vec::new(),
+            standards: Vec::new(),
         }
     }
 }

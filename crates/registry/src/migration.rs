@@ -21,6 +21,13 @@ pub const RESERVED_TABLE_NAMES: &[&str] = &[
     "step_prompt",
     "execution",
     "custom_data_tables",
+    "git_detail",
+    "domain",
+    "standard",
+    "standard_asset",
+    "template",
+    "proposal",
+    "artifact",
 ];
 
 pub const REGISTRY_MIGRATIONS: &[&str] = &[REG_V1, REG_V2];
@@ -83,6 +90,8 @@ mod tests {
         for expected in [
             "usecase", "script", "prompt", "step", "step_script",
             "step_prompt", "execution", "custom_data_tables",
+            "git_detail", "domain", "standard", "standard_asset",
+            "template", "proposal", "artifact",
         ] {
             assert!(
                 RESERVED_TABLE_NAMES.contains(&expected),

@@ -4,9 +4,42 @@
 //! own scripts add to the same file — `custom_data_tables` only catalogs
 //! that they exist.
 
+use anyhow::Result;
+use rusqlite::Connection;
+
 /// Applied in order, same discipline as `REGISTRY_MIGRATIONS`/the old
 /// `KNOWLEDGE_MIGRATIONS`: never edit a past entry, only add the next one.
-pub const CORE_MIGRATIONS: &[&str] = &[CORE_V1];
+pub const CORE_MIGRATIONS: &[&str] = &[CORE_V1, CORE_V2];
+
+/// Version-gated migration runner for `knowledge.db`. Reads the current
+/// version from `_schema_version` (created by `CORE_V1`) and applies only
+/// migrations past that version. Safe to call on every `register_standard`
+/// / `run_script_step` invocation — `CREATE TABLE IF NOT EXISTS` statements
+/// are idempotent by construction, and `ALTER TABLE ADD COLUMN` statements
+/// in later versions are gated by the version check, so a second call
+/// against an already-migrated database never crashes on "duplicate column".
+pub fn run_core_migrations(conn: &Connection) -> Result<()> {
+    conn.execute_batch(CORE_V1)?; // V1 is all IF NOT EXISTS — always safe
+    let current_version: i64 = conn
+        .query_row(
+            "SELECT COALESCE(MAX(version), 0) FROM _schema_version",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+    // Apply migrations past V1 (V1 already applied above, idempotent)
+    for (i, migration) in CORE_MIGRATIONS.iter().enumerate().skip(1) {
+        let version = i as i64 + 1;
+        if version > current_version {
+            conn.execute_batch(migration)?;
+            conn.execute(
+                "INSERT INTO _schema_version (version, applied_at) VALUES (?1, datetime('now'))",
+                rusqlite::params![version],
+            )?;
+        }
+    }
+    Ok(())
+}
 
 const CORE_V1: &str = "
 CREATE TABLE IF NOT EXISTS _schema_version (
@@ -82,15 +115,104 @@ CREATE TABLE IF NOT EXISTS custom_data_tables (
 );
 ";
 
+/// CORE_V2 — additive schema for knowledge standard management. Adds
+/// `git_detail`, `domain`, `standard`, `standard_asset`, `template`,
+/// `proposal`, `artifact` tables plus `execution.git_detail_id` and
+/// `usecase.domain_id` columns. All `CREATE TABLE IF NOT EXISTS` except
+/// the two `ALTER TABLE ADD COLUMN` statements, which are version-gated
+/// by `run_core_migrations`.
+const CORE_V2: &str = "
+-- §2.10 — git provenance
+CREATE TABLE IF NOT EXISTS git_detail (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    repo_root   TEXT    NOT NULL,
+    commit_sha  TEXT    NOT NULL,
+    branch      TEXT    NOT NULL DEFAULT '',
+    dirty       INTEGER NOT NULL DEFAULT 0,
+    captured_at TEXT    NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(repo_root, commit_sha, dirty)
+);
+ALTER TABLE execution ADD COLUMN git_detail_id INTEGER REFERENCES git_detail(id);
+
+-- §2.11 — discovery-only domain mirror
+CREATE TABLE IF NOT EXISTS domain (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    standard    TEXT    NOT NULL,
+    key         TEXT    NOT NULL,
+    sort_order  INTEGER NOT NULL DEFAULT 0,
+    description TEXT    NOT NULL DEFAULT '',
+    UNIQUE(standard, key)
+);
+ALTER TABLE usecase ADD COLUMN domain_id INTEGER REFERENCES domain(id);
+
+-- §2.13 — per-repo standard metadata
+CREATE TABLE IF NOT EXISTS standard (
+    name          TEXT PRIMARY KEY,
+    category      TEXT    NOT NULL DEFAULT '',
+    subcategory   TEXT,
+    extends       TEXT,
+    version       TEXT    NOT NULL DEFAULT '0.0.0',
+    metadata_json TEXT    NOT NULL DEFAULT '{}',
+    registered_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+-- §2.9 — standard-shipped content catalog (plan/guide/config)
+CREATE TABLE IF NOT EXISTS standard_asset (
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    standard TEXT    NOT NULL,
+    kind     TEXT    NOT NULL,
+    name     TEXT    NOT NULL,
+    location TEXT    NOT NULL,
+    purpose  TEXT    NOT NULL DEFAULT '',
+    UNIQUE(standard, kind, name)
+);
+
+-- §2.7 — generic rendering template catalog (opt-in, per standard)
+CREATE TABLE IF NOT EXISTS template (
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    standard TEXT    NOT NULL,
+    name     TEXT    NOT NULL,
+    type     TEXT    NOT NULL,
+    content  TEXT    NOT NULL,
+    purpose  TEXT    NOT NULL DEFAULT '',
+    UNIQUE(standard, name)
+);
+
+-- §2.8 — generic proposal tracking (opt-in, per standard)
+CREATE TABLE IF NOT EXISTS proposal (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    standard     TEXT    NOT NULL,
+    usecase_id   INTEGER NOT NULL REFERENCES usecase(id) ON DELETE CASCADE,
+    template_id  INTEGER REFERENCES template(id) ON DELETE SET NULL,
+    execution_id INTEGER REFERENCES execution(id) ON DELETE SET NULL,
+    title        TEXT    NOT NULL,
+    status       TEXT    NOT NULL DEFAULT 'draft'
+                 CHECK (status IN ('draft','final','archived')),
+    location     TEXT,
+    created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+-- §2.9 — produced output tracking (opt-in, per standard)
+CREATE TABLE IF NOT EXISTS artifact (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    standard     TEXT    NOT NULL,
+    execution_id INTEGER REFERENCES execution(id) ON DELETE SET NULL,
+    name         TEXT    NOT NULL,
+    type         TEXT    NOT NULL,
+    location     TEXT    NOT NULL,
+    purpose      TEXT    NOT NULL DEFAULT '',
+    created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_artifact_execution ON artifact(execution_id);
+";
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use rusqlite::Connection;
 
     fn run_migrations(conn: &Connection) {
-        for m in CORE_MIGRATIONS {
-            conn.execute_batch(m).unwrap();
-        }
+        run_core_migrations(conn).unwrap();
     }
 
     #[test]
@@ -107,6 +229,8 @@ mod tests {
         for expected in [
             "usecase", "script", "prompt", "step", "step_script",
             "step_prompt", "execution", "custom_data_tables",
+            "git_detail", "domain", "standard", "standard_asset",
+            "template", "proposal", "artifact",
         ] {
             assert!(tables.contains(&expected.to_string()), "missing table {expected}");
         }
@@ -176,5 +300,18 @@ mod tests {
             )
             .unwrap();
         assert!(owner.is_none(), "owner_script_id should be nulled, not block delete");
+    }
+
+    #[test]
+    fn run_core_migrations_idempotent() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_core_migrations(&conn).unwrap();
+        // Second call must not crash (ALTER TABLE ADD COLUMN gated by version check)
+        run_core_migrations(&conn).unwrap();
+        // Version should be 2 (both V1 and V2 applied once)
+        let version: i64 = conn
+            .query_row("SELECT MAX(version) FROM _schema_version", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(version, 2);
     }
 }
