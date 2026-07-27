@@ -10,10 +10,11 @@
 -- assumed — the rest of the table is exactly as specified.
 
 CREATE TABLE IF NOT EXISTS execution (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    step_id    INTEGER NOT NULL REFERENCES step(id) ON DELETE CASCADE,
-    repo_root  TEXT    NOT NULL,
-    status     TEXT    NOT NULL DEFAULT 'ok',
-    timestamp  TEXT    NOT NULL DEFAULT (datetime('now'))
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    step_id        INTEGER NOT NULL REFERENCES step(id) ON DELETE CASCADE,
+    repo_root      TEXT    NOT NULL,
+    status         TEXT    NOT NULL DEFAULT 'ok',
+    timestamp      TEXT    NOT NULL DEFAULT (datetime('now')),
+    git_detail_id  INTEGER REFERENCES git_detail(id)
 );
 CREATE INDEX IF NOT EXISTS idx_execution_step_repo ON execution(step_id, repo_root);

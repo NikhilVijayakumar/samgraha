@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use crate::config::discover_repository_root;
 use crate::output::{format_output, OutputFormat};
-use common::config::InitOptions;
+use common::config::{InitOptions, SamgrahaConfig};
 
 #[derive(Parser)]
 #[command(
@@ -68,7 +68,11 @@ impl Cli {
             Commands::RegisterStandard { path, knowledge_db } => {
                 let db_path = match knowledge_db {
                     Some(p) => p.clone(),
-                    None => discover_repository_root()?.join(".samgraha").join("knowledge.db"),
+                    None => {
+                        let root = discover_repository_root()?;
+                        let config = load_config_or_default(&root);
+                        config.repository.resolve_samgraha_dir(&root).join("knowledge.db")
+                    }
                 };
                 let result = services::register_standard::register_standard(path, &db_path, None)?;
                 println!("{}", format_output(&result, &format));
@@ -76,4 +80,15 @@ impl Cli {
             }
         }
     }
+}
+
+/// Load `samgraha.toml` from `root`, or return the default config. Used by
+/// CLI commands that need to resolve `samgraha_dir` without failing on a
+/// missing config.
+fn load_config_or_default(root: &std::path::Path) -> SamgrahaConfig {
+    let config_path = root.join("samgraha.toml");
+    std::fs::read_to_string(&config_path)
+        .ok()
+        .and_then(|c| toml::from_str(&c).ok())
+        .unwrap_or_default()
 }

@@ -33,6 +33,7 @@ pub fn seed_standard(
     usecase_filter: Option<&str>,
 ) -> Result<SeedResult> {
     let conn = Connection::open(knowledge_db_path)?;
+    registry::core_schema::ensure_current_schema(&conn)?;
 
     // Load all usecases for this standard
     let mut stmt = conn.prepare(
@@ -185,6 +186,7 @@ fn topological_sort(
 mod tests {
     use super::*;
     use rusqlite::Connection;
+    #[cfg(unix)]
     use std::fs;
 
     fn setup_db() -> (tempfile::TempDir, std::path::PathBuf) {
@@ -196,13 +198,7 @@ mod tests {
         (tmp, db)
     }
 
-    fn insert_standard(conn: &Connection, standard: &str) {
-        conn.execute(
-            "INSERT INTO standard (name, category, version) VALUES (?1, 'test', '1.0')",
-            rusqlite::params![standard],
-        ).unwrap();
-    }
-
+    #[cfg(unix)]
     fn insert_usecase(conn: &Connection, standard: &str, name: &str, driver: &str, depends_on: &[&str]) {
         let deps_json = serde_json::json!(depends_on);
         let data = serde_json::json!({"driver": driver, "depends_on": deps_json});
@@ -283,12 +279,12 @@ mod tests {
         assert!(result.unwrap_err().to_string().contains("No usecases found"));
     }
 
+    #[cfg(unix)]
     #[test]
     fn seed_standard_executes_usecases_in_order() {
         let (_tmp, db) = setup_db();
         let conn = Connection::open(&db).unwrap();
         conn.execute_batch("PRAGMA foreign_keys = ON;").unwrap();
-        insert_standard(&conn, "test_std");
         insert_usecase(&conn, "test_std", "init", "samgraha", &[]);
         insert_usecase(&conn, "test_std", "deploy", "samgraha", &["init"]);
 

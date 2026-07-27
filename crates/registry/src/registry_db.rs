@@ -283,6 +283,71 @@ impl RegistryDb {
         conn.execute("DELETE FROM repository_cache WHERE id = ?1", params![id])?;
         Ok(())
     }
+
+    /// Write (upsert) the single `active_standard` row for this repo
+    /// (§3.9/REG_V3 — one standard active per repo at a time).
+    pub fn set_active_standard(&self, standard: &ActiveStandard) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO active_standard (id, name, category, subcategory, extends, version, metadata_json, activated_at)
+             VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6, datetime('now'))
+             ON CONFLICT(id) DO UPDATE SET
+                name = excluded.name,
+                category = excluded.category,
+                subcategory = excluded.subcategory,
+                extends = excluded.extends,
+                version = excluded.version,
+                metadata_json = excluded.metadata_json,
+                activated_at = excluded.activated_at",
+            params![
+                standard.name,
+                standard.category,
+                standard.subcategory,
+                standard.extends,
+                standard.version,
+                standard.metadata_json,
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Read this repo's currently active standard, if any.
+    pub fn get_active_standard(&self) -> Result<Option<ActiveStandard>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT name, category, subcategory, extends, version, metadata_json, activated_at
+             FROM active_standard WHERE id = 1",
+        )?;
+        let mut rows = stmt.query_map([], |row| {
+            Ok(ActiveStandard {
+                name: row.get(0)?,
+                category: row.get(1)?,
+                subcategory: row.get(2)?,
+                extends: row.get(3)?,
+                version: row.get(4)?,
+                metadata_json: row.get(5)?,
+                activated_at: row.get(6)?,
+            })
+        })?;
+        match rows.next() {
+            Some(Ok(row)) => Ok(Some(row)),
+            _ => Ok(None),
+        }
+    }
+}
+
+/// The knowledge standard currently active in a repo's `.samgraha/`
+/// (registry.db's `active_standard` table, REG_V3). Replaces
+/// `knowledge.db`'s old per-repo `standard` table.
+#[derive(Debug, Clone)]
+pub struct ActiveStandard {
+    pub name: String,
+    pub category: String,
+    pub subcategory: Option<String>,
+    pub extends: Option<String>,
+    pub version: String,
+    pub metadata_json: String,
+    pub activated_at: String,
 }
 
 #[cfg(test)]
@@ -359,5 +424,52 @@ mod tests {
         db.cache_write(&sample_meta("remove-me")).unwrap();
         db.cache_remove("remove-me").unwrap();
         assert!(db.cache_read("remove-me").unwrap().is_none());
+    }
+
+    #[test]
+    fn active_standard_round_trip() {
+        let db = test_db();
+        assert!(db.get_active_standard().unwrap().is_none());
+        db.set_active_standard(&ActiveStandard {
+            name: "pcems_2026".to_string(),
+            category: "academic".to_string(),
+            subcategory: None,
+            extends: None,
+            version: "1.0.0".to_string(),
+            metadata_json: "{}".to_string(),
+            activated_at: String::new(),
+        }).unwrap();
+        let loaded = db.get_active_standard().unwrap().unwrap();
+        assert_eq!(loaded.name, "pcems_2026");
+        assert_eq!(loaded.version, "1.0.0");
+    }
+
+    #[test]
+    fn active_standard_is_a_singleton() {
+        let db = test_db();
+        db.set_active_standard(&ActiveStandard {
+            name: "std-a".to_string(),
+            category: "dev".to_string(),
+            subcategory: None,
+            extends: None,
+            version: "1.0.0".to_string(),
+            metadata_json: "{}".to_string(),
+            activated_at: String::new(),
+        }).unwrap();
+        // Switching standards overwrites the one row, never accumulates.
+        db.set_active_standard(&ActiveStandard {
+            name: "std-b".to_string(),
+            category: "dev".to_string(),
+            subcategory: None,
+            extends: None,
+            version: "2.0.0".to_string(),
+            metadata_json: "{}".to_string(),
+            activated_at: String::new(),
+        }).unwrap();
+        let loaded = db.get_active_standard().unwrap().unwrap();
+        assert_eq!(loaded.name, "std-b");
+        let conn = db.conn.lock().unwrap();
+        let count: i64 = conn.query_row("SELECT COUNT(*) FROM active_standard", [], |r| r.get(0)).unwrap();
+        assert_eq!(count, 1);
     }
 }

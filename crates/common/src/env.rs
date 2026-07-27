@@ -394,6 +394,11 @@ fn run_with_optional_timeout(
 /// { "status": "ok"|"error", "message": "...", "written": [...] }
 /// ```
 ///
+/// When `out_dir` is `Some`, an additional `--out-dir` (`-OutDir` for
+/// PowerShell) argument is passed pointing at the output directory (e.g.
+/// `<samgraha_dir>/output/`). Seeders pass `None` here; per-step
+/// execution passes `Some`.
+///
 /// Returns the parsed JSON envelope on success. If the script fails to
 /// write the output file (e.g. non-zero exit), returns a descriptive
 /// error with stderr content.
@@ -401,6 +406,7 @@ pub fn run_capability_script(
     script_path: &Path,
     repo_root: &Path,
     input_json_path: &Path,
+    out_dir: Option<&Path>,
     timeout_secs: Option<u64>,
 ) -> anyhow::Result<serde_json::Value> {
     let out_file = std::env::temp_dir().join(format!("samgraha-cap-{}.json", uuid::Uuid::new_v4()));
@@ -409,7 +415,7 @@ pub fn run_capability_script(
     let out_str = out_file.display().to_string();
 
     let is_ps1 = script_path.extension().and_then(|e| e.to_str()) == Some("ps1");
-    let args: Vec<String> = if is_ps1 {
+    let mut args: Vec<String> = if is_ps1 {
         vec![
             "-RepoRoot".into(), repo_root_str,
             "-In".into(), in_str,
@@ -422,6 +428,16 @@ pub fn run_capability_script(
             "--out".into(), out_str.clone(),
         ]
     };
+    if let Some(dir) = out_dir {
+        let dir_str = dir.display().to_string();
+        if is_ps1 {
+            args.push("-OutDir".into());
+            args.push(dir_str);
+        } else {
+            args.push("--out-dir".into());
+            args.push(dir_str);
+        }
+    }
     let arg_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
 
     let mut cmd = script_command(script_path, &arg_refs);

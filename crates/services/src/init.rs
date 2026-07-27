@@ -37,10 +37,27 @@ pub struct DetectedDirs {
 /// registration time; there's nothing to copy into a fresh repo anymore.
 pub fn init_repository(root: &Path, options: &InitOptions) -> Result<InitResult> {
     let config_path = root.join("samgraha.toml");
-    let samgraha_dir = root.join(".samgraha");
+
+    // Resolve samgraha_dir from existing config, or fall back to the default
+    // (<root>/.samgraha). This ensures a non-default `samgraha_dir` declared
+    // in an existing samgraha.toml is respected even at init time.
+    let samgraha_dir = if config_path.exists() {
+        let existing = std::fs::read_to_string(&config_path)
+            .context(format!("Failed to read {}", config_path.display()))?;
+        let existing_config: SamgrahaConfig = toml::from_str(&existing)
+            .context(format!("Failed to parse {}", config_path.display()))?;
+        existing_config.repository.resolve_samgraha_dir(root)
+    } else {
+        SamgrahaConfig::default().repository.resolve_samgraha_dir(root)
+    };
 
     std::fs::create_dir_all(&samgraha_dir)
         .context(format!("Failed to create {}", samgraha_dir.display()))?;
+
+    // §3.12 — create the output directory for script artifacts
+    let output_dir = samgraha_dir.join("output");
+    std::fs::create_dir_all(&output_dir)
+        .context(format!("Failed to create {}", output_dir.display()))?;
 
     // ── Phase 1: Configuration ──────────────────────────────
     let mut template = SamgrahaConfig::default();

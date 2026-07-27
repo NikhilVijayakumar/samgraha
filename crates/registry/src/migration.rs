@@ -23,14 +23,31 @@ pub const RESERVED_TABLE_NAMES: &[&str] = &[
     "custom_data_tables",
     "git_detail",
     "domain",
-    "standard",
+    "asset_kind",
     "standard_asset",
+    "template_type",
     "template",
     "proposal",
+    "artifact_type",
     "artifact",
 ];
 
-pub const REGISTRY_MIGRATIONS: &[&str] = &[REG_V1, REG_V2];
+pub const REGISTRY_MIGRATIONS: &[&str] = &[REG_V1, REG_V2, REG_V3];
+
+/// Full wipe of `registry.db`: drops all tables and re-runs migrations.
+/// The cache is disposable — fully rebuildable from dependency manifests.
+pub fn reset_registry_db(conn: &rusqlite::Connection) -> anyhow::Result<()> {
+    conn.execute_batch("PRAGMA foreign_keys = OFF;")?;
+    conn.execute_batch("DROP TABLE IF EXISTS repository_cache;")?;
+    conn.execute_batch("DROP TABLE IF EXISTS active_standard;")?;
+    conn.execute_batch("DROP TABLE IF EXISTS _schema_version;")?;
+    conn.execute_batch("DROP INDEX IF EXISTS idx_repo_cache_uuid;")?;
+    conn.execute_batch("PRAGMA foreign_keys = ON;")?;
+    for m in REGISTRY_MIGRATIONS {
+        conn.execute_batch(m)?;
+    }
+    Ok(())
+}
 
 /// REG_V1 — repository registry tables for `.samgraha/registry.db`.
 /// Stores cached dependency metadata in a single `repository_cache` table,
@@ -64,6 +81,28 @@ const REG_V2: &str = "
 ALTER TABLE repository_cache ADD COLUMN dependencies TEXT NOT NULL DEFAULT '[]';
 ";
 
+/// REG_V3 — `active_standard`: which knowledge standard (and version) is
+/// currently activated in this repo's `.samgraha/`. One standard is active
+/// per repo at a time — switching standards means deleting `.samgraha/`
+/// and re-registering, so a single-row (`id = 1`) table is enough, same
+/// singleton pattern `knowledge.db`'s own `_core_schema_epoch` table uses.
+/// Replaces `knowledge.db`'s old per-repo `standard` table (removed in
+/// `core_schema.rs`'s `CORE_SCHEMA_EPOCH` bump to 2) — this fact belongs
+/// with repo registration bookkeeping, not inside the workflow-data schema
+/// a standard's own seeder writes into.
+const REG_V3: &str = "
+CREATE TABLE IF NOT EXISTS active_standard (
+    id            INTEGER PRIMARY KEY CHECK (id = 1),
+    name          TEXT    NOT NULL,
+    category      TEXT    NOT NULL DEFAULT '',
+    subcategory   TEXT,
+    extends       TEXT,
+    version       TEXT    NOT NULL DEFAULT '0.0.0',
+    metadata_json TEXT    NOT NULL DEFAULT '{}',
+    activated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+";
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -90,8 +129,9 @@ mod tests {
         for expected in [
             "usecase", "script", "prompt", "step", "step_script",
             "step_prompt", "execution", "custom_data_tables",
-            "git_detail", "domain", "standard", "standard_asset",
-            "template", "proposal", "artifact",
+            "git_detail", "domain", "asset_kind", "standard_asset",
+            "template_type", "template", "proposal",
+            "artifact_type", "artifact",
         ] {
             assert!(
                 RESERVED_TABLE_NAMES.contains(&expected),

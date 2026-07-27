@@ -2,6 +2,7 @@ pub mod init;
 pub mod metadata_cache;
 pub mod register_standard;
 pub mod registry_client;
+pub mod seeder;
 pub mod seed_standard;
 pub mod step_execution;
 

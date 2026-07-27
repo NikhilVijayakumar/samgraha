@@ -10,5 +10,6 @@ CREATE TABLE IF NOT EXISTS usecase (
     name        TEXT    NOT NULL,
     description TEXT    NOT NULL DEFAULT '',
     data        TEXT    NOT NULL DEFAULT '{}',  -- additional data, opaque to samgraha
+    domain_id   INTEGER REFERENCES domain(id),
     UNIQUE(standard, name)
 );

@@ -46,6 +46,70 @@ responsibility, not a 4-line pass-through (§3.8). §3.14 (new) answers the
 staleness-visibility gap by comparison, not a new stored flag. §7 (new)
 is the full disposition of every point the review raised.
 
+**Revision 4 note**: a review of rev. 3 raised three gaps, all resolved
+below rather than left open. New §3.15 separates "MCP release version"
+from "schema epoch" — they are not the same trigger, and nothing in rev. 3
+said so; decided outright that only the epoch drives a wipe, never a plain
+version bump, and that the epoch check is automatic (runs on every
+`knowledge.db` open, the same call site `run_core_migrations` already
+occupies today — verified against `register_standard.rs`), not an operator
+step. §7's row 5 disposition is corrected: it previously justified
+"no auto-propagation" by claiming samgraha would need new tracking
+infrastructure to know which repos have a standard active; verified this
+round that `registry.db`'s `repository_cache` table and the existing
+`list_repositories` MCP tool already provide exactly that enumeration — the
+no-auto-propagation stance is unchanged, but it is now stated correctly as
+a deliberate deferral, not a missing-infrastructure blocker.
+
+**Revision 5 note**: five implementation-time hazards flagged against
+rev. 4 (all read as "not blocking, worth closing before implementation
+starts" — accepted on that basis), now closed: §3.7/§3.9 both switch
+their file copy from `copy_dir_recursive` to `copy_dir_atomic` (§1.6) and
+add an explicit "delete everything this step just wrote if a later step
+fails" rule, so neither the mcp-registry copy nor the per-repo copy can
+survive as an orphan with no matching database row; §3.9 gains a new step
+3 (`delete_existing`-style row cleanup, reusing `register_standard.rs:179`'s
+existing pattern) that runs *before* the seeder, not just tracked as a
+side-effect of the epoch reset, which also closes the seeder
+double-absolutization question from §3.11's own reasoning (a seeder can
+never read back its own prior run's rows if they're deleted first); §3.10
+gets one clarifying paragraph confirming `resolve_configured_dir`'s
+existing set-but-relative behavior already covers `samgraha_dir`, no new
+case; §3.12 gets one paragraph stating outright that a seeder never uses
+`--out-dir`, closing the Phase-3-before-Phase-5 ordering question without
+reordering the phase graph. §7 rows 11-15 record the disposition of each.
+
+**Revision 6 note**: implemented, then corrected in the same pass on
+review of §3.9's own reasoning — "one standard active per repo at a time,
+switch by deleting `.samgraha/` and re-registering" makes the local
+`standard` table (§2.13, knowledge.db) redundant: it's per-repo catalog
+metadata (category/subcategory/extends/version) duplicating what
+`standards.db`'s global `standard_registry` already tracks, just at repo
+scope. Removed from `knowledge.db` entirely (`CORE_SCHEMA_EPOCH` 1→2);
+replaced by a new singleton table, `registry.db`'s `active_standard`
+(`schema/registration/01-active_standard.sql`, `REG_V3`) — one row
+(`CHECK(id = 1)`, same pattern `_core_schema_epoch` already uses),
+written by the per-repo activation call directly from the already-fetched
+global `standard_registry` row, no local YAML re-parse needed for those
+fields at all. §3.9 step 6 and §3.14 are rewritten below to match; §7
+rows 16-17 record the disposition.
+
+**Revision 7 note**: `standard_asset.kind`, `template.type`, and
+`artifact.type` were free `TEXT` columns — samgraha stored whatever
+string a standard wrote, no relational integrity. Corrected per direction
+this round: each gets its own per-standard lookup table (`asset_kind`,
+`template_type`, `artifact_type`), same shape and `UNIQUE(standard, name)`
+pattern the existing `domain`/`usecase.domain_id` relation already uses,
+with a `*_id` foreign key replacing the free-text column
+(`CORE_SCHEMA_EPOCH` 2→3). `asset_kind`/`template_type` are declared by a
+standard's own seeder before it references them (same discipline as
+`domain`). `artifact_type` is different — artifact rows come from a
+script's *runtime* output, whose vocabulary can't be predicted at
+registration time, so samgraha itself find-or-creates the type row
+(`get_or_create_lookup`) rather than requiring a seeder to pre-declare
+every possible output type. New §3.16 below; §7 rows 18-20 record the
+disposition.
+
 ---
 
 ## 1. Verified Current State
@@ -146,8 +210,20 @@ separate, easy-to-forget operations.
 1. Copy `path` (the standard's source directory, wherever the operator
    points it — still typically inside `Kriti`) into
    `mcp_dir()/registry/<standard-name>/`, via the existing
-   `copy_dir_recursive` (§1.6) — full tree: scripts, prompts, templates,
+   `copy_dir_atomic` (§1.6) — full tree: scripts, prompts, templates,
    the manifest, and the seeder/verify/smoke-test scripts §3.8 introduces.
+   **`copy_dir_atomic`, not `copy_dir_recursive`**: this call site can
+   target a directory that already holds a *previous* copy of the same
+   standard (§3.13's update path re-runs step 1), and `copy_dir_recursive`
+   only overwrites — it never deletes a file present in the old copy but
+   absent from the new `path`, so a file removed from a standard's source
+   between versions would otherwise survive indefinitely as an orphan
+   under `mcp_dir()/registry/<standard-name>/`. `copy_dir_atomic` (§1.6,
+   `fs_sync.rs:91-128`) copies into a sibling temp dir first, then
+   `remove_dir_all`s the old target and `rename`s the temp dir over it —
+   the old tree is *fully replaced*, never merged, and a failure during
+   the copy itself leaves the previous target untouched (verified against
+   `fs_sync.rs`'s own `atomic_copy_leaves_old_tree_on_failure` test).
 2. Run the structural verify-gate (`smoke_test`, unchanged from the
    earlier proposal's §2.4.1) against **this copy**, not the original path
    — proves the copy is what actually gets used from here on, catching a
@@ -155,6 +231,25 @@ separate, easy-to-forget operations.
 3. Upsert `standard_registry` with `source_path` now pointing at
    `mcp_dir()/registry/<standard-name>/` — the **local** copy. The
    original `path` argument is used once, for the copy, and never stored.
+
+**Cleanup on failure after step 1**: `copy_dir_atomic` only guarantees
+step 1 itself is all-or-nothing — it says nothing about steps 2 or 3
+failing *after* a good copy lands. If the verify-gate (step 2) fails, or
+the upsert (step 3) fails for any reason, `mcp_dir()/registry/<standard-name>/`
+now holds a fully-copied tree with no matching `standard_registry` row —
+a live directory samgraha itself created but has no record of, invisible
+to `list_standards` yet still occupying disk under a path this proposal
+otherwise treats as fully samgraha-owned. **Decided**: any failure at
+step 2 or step 3 removes the directory `copy_dir_atomic` just wrote
+(`remove_dir_all(mcp_dir()/registry/<standard-name>/)`) before returning
+the error — a failed `register_standard_globally` call leaves exactly the
+state it found (nothing, or the previous version's copy if this was a
+§3.13 update), never a half-registered directory. Same "fail fast, no
+partial state" discipline `register_standard.rs` already applies before
+writing any row (its reserved-table-name collision check runs before any
+`INSERT`, lines 155-165) — this extends that discipline across a step
+boundary that writes to the filesystem, not just across statements in one
+transaction.
 
 This is what "we do not need a db for standard as it stores nothing"
 means concretely: `standard_registry` still holds a database row, but
@@ -229,7 +324,13 @@ not in any standard's current file layout:**
    rows **must** be relative to `_samgraha_dir` and **must not** contain a
    `..` segment — §3.11's absolutize pass enforces this by rejecting, not
    resolving, any path that violates it (a stricter rule than this
-   proposal's own previous draft left open, closed below).
+   proposal's own previous draft left open, closed below). **Rev. 7**: if
+   it writes any `standard_asset` or `template` row, it must first
+   declare that row's `kind`/`type` into `asset_kind`/`template_type`
+   (§3.16) — `kind_id`/`type_id` are foreign keys now, not free text, and
+   there is no other writer of those two catalog tables. It never inserts
+   into `artifact_type` — that one is samgraha's own responsibility
+   (§3.16), not the seeder's.
 4. **Output** — same JSON-envelope-out convention as every other script
    (`{"status": "ok" | anything-else}`); a seeder is only ever run once per
    registration (bootstrap, not per-step), so its own output is logged to
@@ -279,25 +380,77 @@ already-globally-registered standard here") becomes:
 1. Look up `standard_registry` (global) by name → get `source_path`
    (the mcp-registry copy, §3.7).
 2. Copy `source_path` into `repo_root/.samgraha/<standard-name>/` via
-   `copy_dir_recursive` (§1.6) — same function, same exclude list, second
-   use.
-3. Call `run_seeder(repo_root, <local-copy>/<seeder_script>, samgraha_dir,
+   `copy_dir_atomic` (§1.6) — same reasoning as §3.7 step 1: a repo
+   re-registering after a standard update (§3.13) already has a local
+   copy of the *previous* version under this path, and only a full
+   replace-not-merge prunes files the new version dropped.
+3. **Delete this standard's existing rows first**: run the same
+   `WHERE standard = ?1` cleanup `register_standard.rs`'s existing
+   `delete_existing` already performs (before any `INSERT`) —
+   across `usecase`/`step`/`step_script`/`step_prompt`/`script`/`prompt`/
+   `domain`/`asset_kind`/`standard_asset`/`template_type`/`template`/
+   `custom_data_tables` (children before the parent they reference — Rev.
+   7's `asset_kind`/`template_type` deleted *after* the `standard_asset`/
+   `template` rows that FK into them). **Not** `artifact`/`artifact_type`
+   — those are a historical output record, deliberately left out of this
+   cleanup (§3.16) so re-registering a standard doesn't erase what it
+   already generated.
+   **Why this step is new, not implied**: a seeder is arbitrary code that
+   can, in principle, read the very rows it's about to write (nothing
+   stops it querying `knowledge_db` first). Deleting this standard's rows
+   *before* the seeder runs means there is nothing left for it to read
+   back — it always starts from a standard-scoped-clean database, so a
+   re-registration's seeder run can never observe its own prior run's
+   already-absolutized `location` values and echo them back as-if-fresh.
+   This closes the ambiguity §3.11 otherwise leaves about a seeder's
+   *own* consistency across re-runs (the `NOT LIKE '/%'` guard still
+   protects against double-prefixing regardless, but this step means it
+   is never exercised by a standard's own re-registration in the first
+   place — only ever by a seeder that hardcodes an absolute path on
+   purpose, its own stated design choice).
+4. Call `run_seeder(repo_root, <local-copy>/<seeder_script>, samgraha_dir,
    knowledge_db, timeout)` (§3.8) — `samgraha_dir`/`knowledge_db` resolved
    from `RepositoryConfig.samgraha_dir` (§3.10), not assumed.
-4. Run §3.11's absolutize pass — rejects (fails the whole registration,
+5. Run §3.11's absolutize pass — rejects (fails the whole registration,
    no partial state) if any `location` the seeder wrote contains a `..`
    segment.
-5. Write the local `standard` row (unchanged from the earlier proposal's
-   §2.13) — `category`/`subcategory`/`extends`/`version` now read from the
-   global `standard_registry` row (already parsed once, at §3.7's global
-   registration time) rather than re-parsing a manifest here — the local
-   `register_standard` call no longer touches YAML at all.
+6. **Rev. 6, rewritten**: no local `standard` row is written into
+   `knowledge.db` at all anymore (§3.14 below explains why the table is
+   gone). Instead, once steps 2-5 succeed, the caller (not
+   `activate_standard` itself — it doesn't hold a `registry.db` handle)
+   writes one row into `registry.db`'s `active_standard` (singleton,
+   `REG_V3`) — `name`/`category`/`subcategory`/`extends`/`version`/
+   `metadata_json` sourced straight from the global `standard_registry`
+   row already fetched at the top of this call, no manifest re-read.
+   `activate_standard` itself reads the local manifest copy for exactly
+   one field now: `seeder_script` — the path to the script it has to run.
+   Category/version/etc. never touch YAML on the per-repo path at all.
+
+**Cleanup on failure after step 2**: steps 3-5 write to a database that
+step 3 already emptied for this standard — if step 4's seeder exits
+non-`ok`, or step 5's absolutize pass rejects a `..`-containing path,
+whatever rows the seeder *did* manage to insert before failing (step 4 is
+not one transaction — the seeder is an external process making its own
+`INSERT`s) are still sitting in `knowledge.db`, and
+`repo_root/.samgraha/<standard-name>/` (step 2) still holds the copied
+files. **Decided**: any failure at step 3, 4, or 5 re-runs step 3's
+`delete_existing`-style cleanup and removes
+`repo_root/.samgraha/<standard-name>/` before returning the error — the
+same "leave exactly the state you found" guarantee §3.7 now states for
+the global side, applied here to the per-repo side. Because step 6 (the
+`registry.db` write) only ever runs *after* steps 2-5 have already
+succeeded, there is no step-6 failure mode to clean up after — the
+repo's `active_standard` row simply never gets touched if anything
+upstream failed, which is a stronger guarantee than the old local
+`standard`-row design had (that row lived in the same transactionless
+sequence as everything else it could fail alongside).
 
 `RESERVED_TABLE_NAMES`'s reset (§3.2, rev. 1) already handles the "re-run
 this and get a clean slate" case (all these tables get dropped and
-recreated on an epoch bump); step 2's per-repo file copy is idempotent by
-construction (`copy_dir_recursive` overwrites) so re-running steps 1-4
-after a reset is exactly "re-register," no special case needed.
+recreated on an epoch bump); step 2's per-repo file copy and step 3's
+per-standard row cleanup are both idempotent by construction, so
+re-running steps 1-6 after either kind of reset is exactly "re-register,"
+no special case needed.
 
 ### 3.10 `samgraha.toml` — explicit, absolute `.samgraha` location
 
@@ -318,6 +471,16 @@ using the one that exists. `init.rs:40` and `adapter.rs:85`'s two hardcoded
 `resolve_configured_dir(&config.repository.samgraha_dir, root)`-equivalent
 lookups instead of a literal join — small, mechanical, contained to two
 call sites (§1.7 already confirmed there are only two).
+
+**`SAMGRAHA_DIR` set but relative — already handled, not a new case to
+design**: verified against `resolve_configured_dir`'s existing body
+(`config.rs:242-256`) — if the variable is set, its value is joined onto
+`root` when not itself absolute (`config.rs:248-252`, `if p.is_absolute() { p } else { root.join(p) }`),
+exactly the same rule already applied to every other `${VAR}`-style field
+in `samgraha.toml` today. `samgraha_dir` gets no special case: set-and-
+absolute is used as-is, set-and-relative resolves under `root`, unset
+falls back to `root.join(".samgraha")` — one function, three inputs,
+already written.
 
 ### 3.11 Absolutize pass — the seeder writes relative, the DB stores absolute; `..` is rejected, never resolved
 
@@ -376,6 +539,22 @@ its own path, and `.samgraha/output/` becomes the one place an operator
 looks for "what did this repo's standards actually generate," across every
 standard registered in it.
 
+**Rev. 7**: `artifact.type` (the string a script's `artifacts[]` envelope
+entry reports, e.g. `image`/`diagram`/`dataset`/`model`) is now a
+foreign key into `artifact_type`, not free text — see §3.16 for why this
+one is samgraha-populated rather than seeder-declared.
+
+**A seeder never needs `--out-dir`, so Phase 3 landing before Phase 5
+(§4) is not a bootstrap-ordering problem the way §1.9 was**: `run_seeder`
+(§3.8) writes rows directly into `knowledge.db` — it has no `artifacts[]`
+envelope field to act on and §3.8 point 4 already scopes a seeder's
+output to `operation_log`, never `execution`/`artifact`. `--out-dir` is
+part of `run_script_step`'s per-usecase-step contract (§3.12, this
+section), which Phase 5 adds; `run_seeder` calls the same underlying
+`run_capability_script` (§3.8 point 1) but never passes or expects an
+out-dir argument, so extending that function's contract in Phase 5 has
+nothing to retrofit on the Phase-3-landed seeder path.
+
 ### 3.13 Standard update — same reset principle, applied to one standard instead of an epoch
 
 Extends §3.2/§3.3 (rev. 1) with a second, narrower trigger. Re-running
@@ -405,13 +584,16 @@ Extends §3.2/§3.3 (rev. 1) with a second, narrower trigger. Re-running
 ### 3.14 "Is this repo stale?" — answered by comparison, not a stored flag
 
 No new column, no `reseed_required` flag to remember to set and clear.
-The local `standard` table (earlier proposal §2.13) already stores the
-`version` it last seeded at; the global `standard_registry` (§2.1) already
-stores the current one. `get_standard_info`/`repository_status` (existing
-tools) compute staleness live, at read time:
+**Rev. 6**: the local side of this comparison moved — `registry.db`'s
+`active_standard` (singleton, §3.9 step 6) now stores the `version` this
+repo last activated, replacing the knowledge.db `standard` table the
+original design used for the same purpose (removed, §3.9/§3.14 both
+rewritten this round). The global `standard_registry` (§2.1) still stores
+the current one, unchanged. `get_standard_info`/`repository_status`
+(existing tools) compute staleness live, at read time:
 
 ```rust
-let stale = local_standard.version != global_registry_row.version;
+let stale = active_standard.version != global_registry_row.version;
 ```
 
 Same reasoning as the earlier proposal's git-provenance design (§2.10's
@@ -424,6 +606,112 @@ wrong repo). This needs the global lookup to be reachable at query time
 reports "unknown" rather than "stale" or "current") — named as the one
 limitation of not storing the flag locally, accepted because it only
 affects a read-time nicety, never registration or seeding correctness.
+
+### 3.15 MCP release version vs. schema epoch — two different triggers, not one
+
+**Decided**: a plain MCP release (a `Cargo.toml` version bump with no
+`RESERVED_TABLE_NAMES`-shape change) does **not** wipe anything.
+`CORE_SCHEMA_EPOCH` (§3.3, rev. 1) is the *only* trigger for a
+`knowledge.db` reset — bumped by hand, in code, exactly when the reserved
+tables' shape actually changes. Most releases won't touch that shape, and
+wiping every repo's standard-catalog data on every release for no schema
+reason would force needless reseeding across every consuming repo with no
+corresponding benefit — rejected outright, not an oversight left for later.
+No new "MCP version" field is added to `standards.db` or `registry.db` for
+this purpose; there is exactly one stored version concept per axis this
+proposal cares about: `CORE_SCHEMA_EPOCH` for "has samgraha's own table
+shape changed" (§3.3), and `standard_registry.version` / `registry.db`'s
+`active_standard.version` for "has this standard's content changed"
+(§3.14, Rev. 6) — a
+third, release-level version tracked independently of both would be a
+value that could drift out of sync with the thing it's meant to gate,
+the same failure mode §3.14 already rejected a stored staleness flag for.
+
+**Decided**: the epoch check is automatic, not an operator step. It runs
+inside the same call site `run_core_migrations` already occupies today —
+verified this round: `register_standard.rs`'s `register_standard` opens
+`knowledge_db_path` and calls `registry::core_schema::run_core_migrations(&conn)`
+before touching any row. Phase 2's `ensure_current_schema` takes over that
+exact call site: on every `knowledge.db` open, it compares the file's
+recorded epoch to `CORE_SCHEMA_EPOCH`, and on mismatch wipes and recreates
+`RESERVED_TABLE_NAMES` tables before anything else runs — the same
+lazy-on-open shape `run_core_migrations` already has, not a separate
+`reinit` tool call an operator has to remember to invoke. This is the one
+structural difference from §3.13's standard-update trigger, which stays
+manual by design (it targets one named standard, not samgraha's own global
+schema, so there's no "next open" to hook — an operator, or a future
+automated caller per §7 row 5's corrected disposition, has to actually
+invoke `register_standard_globally`/`register_standard` again).
+
+### 3.16 Relational asset/template/artifact types — not free text
+
+**Rev. 7.** `standard_asset.kind`, `template.type`, and `artifact.type`
+were plain `TEXT` columns in every revision through rev. 6 — samgraha
+stored whatever string a standard wrote and never checked it against
+anything. Corrected: each gets its own per-standard lookup table, same
+shape and `UNIQUE(standard, name)` constraint `domain` already uses for
+`usecase.domain_id` — `(id, standard, name, description)` — and the
+column each was on becomes a foreign key (`kind_id`/`type_id`) into it.
+`CORE_SCHEMA_EPOCH` 2→3 for this (a column type/name change, same
+full-wipe treatment §3.15's rev. 6 bump got, not an in-place `ALTER`).
+
+**Three tables, two different population rules — because the two
+concepts aren't symmetric:**
+
+- **`asset_kind`, `template_type`** — declared by the standard's own
+  seeder, *before* it inserts the `standard_asset`/`template` row that
+  references it. This is safe because it's the same script, one run,
+  declaring then referencing in whatever order it writes its own SQL —
+  no ordering hazard, same responsibility §3.8 already gives the seeder
+  for `domain`. A seeder that references a `kind`/`type` it never
+  declared gets a plain FK-violation error (`NOT NULL REFERENCES`,
+  `PRAGMA foreign_keys = ON` already set on every `knowledge.db`
+  connection) — loud, not silently accepted as free text used to be.
+- **`artifact_type`** — *not* seeder-declared. Artifact rows come from a
+  script's runtime output — `run_script_step`'s `result.artifacts[]`
+  envelope, read long after registration, on every deterministic step
+  run. A script's own output vocabulary can't be enumerated up front the
+  way a seeder's declared assets/templates can (a script might report a
+  type nobody thought to pre-declare), and failing a whole step's
+  execution over a missing catalog row would be a worse failure mode
+  than growing the catalog on demand. So samgraha itself find-or-creates
+  the `artifact_type` row at insert time:
+
+  ```rust
+  /// Find-or-create a row in a per-standard lookup table (`asset_kind`,
+  /// `template_type`, `artifact_type` — all three share the shape
+  /// `(id, standard, name, description)` with `UNIQUE(standard, name)`)
+  /// and return its id.
+  pub fn get_or_create_lookup(conn: &Connection, table: &str, standard: &str, name: &str) -> Result<i64> {
+      conn.execute(
+          &format!("INSERT INTO {table} (standard, name) VALUES (?1, ?2) ON CONFLICT(standard, name) DO NOTHING"),
+          rusqlite::params![standard, name],
+      )?;
+      let id: i64 = conn.query_row(
+          &format!("SELECT id FROM {table} WHERE standard = ?1 AND name = ?2"),
+          rusqlite::params![standard, name],
+          |r| r.get(0),
+      )?;
+      Ok(id)
+  }
+  ```
+
+  Used from both the seeder-adjacent path (the old manifest-parsing
+  `register_standard()`, still reachable via the CLI, calls it for
+  `asset_kind`/`template_type` too, since that function constructs the
+  `INSERT`s itself rather than delegating to a seeder script) and from
+  `run_script_step`'s artifact-envelope reader, for `artifact_type`.
+
+**Lifecycle on re-registration, not symmetric either** — extends §3.9
+step 3's cleanup: `asset_kind`/`template_type` are deleted alongside
+`standard_asset`/`template` (children first, since the FK points from
+`standard_asset`/`template` at them) — they're declared content, replaced
+fresh every reseed, same as everything else `delete_existing` scopes.
+`artifact`/`artifact_type` are **not** deleted — artifacts are a
+historical output record (what did a run of this standard actually
+produce), and erasing them just because the standard re-registered would
+throw away exactly the record §3.12's `.samgraha/output/` convention
+exists to keep.
 
 ---
 
@@ -503,6 +791,41 @@ Phase 1 ──→ Phase 2 ──→ Phase 3 ──→ Phase 4 ──→ Phase 6
   real seeder script — global register, per-repo register, confirm
   `.samgraha/<standard>/` exists in the target repo with absolutized
   `script.location` values that actually resolve to real, executable files.
+- Unit: §3.7/§3.9 failure cleanup — force step 2 (verify-gate / seeder) to
+  fail on a fixture standard; assert the directory step 1 copied
+  (`mcp_dir()/registry/<name>/` or `repo_root/.samgraha/<name>/`) no
+  longer exists afterward, and (per-repo case) no row for that standard
+  remains in any `RESERVED_TABLE_NAMES` table.
+- Unit: `copy_dir_atomic` prunes stale files — register a fixture standard
+  version with files `{a, b}`, then re-register (§3.13) a version with
+  files `{a, c}`; assert `b` is gone from the copied tree, not merged
+  alongside `c`.
+- Unit: §3.9 step 3 — seed a standard, re-register it with a seeder
+  fixture that (deliberately, to probe the ordering) queries `script`/
+  `standard_asset` for its own standard's rows before inserting; assert
+  the query returns zero rows at seeder-start time on the second run,
+  proving step 3's cleanup runs before step 4's seeder invocation.
+- Unit (Rev. 6): per-repo activation writes `registry.db`'s
+  `active_standard` singleton from the already-fetched global row —
+  assert `category`/`version`/etc. match `standard_registry` exactly
+  without ever reading the local manifest copy for those fields, and
+  that activating a second standard overwrites the one row rather than
+  accumulating a second.
+- Unit (Rev. 7): `get_or_create_lookup` — same `(standard, name)` called
+  twice returns the same id, not a duplicate row; the same `name` under a
+  different `standard` returns a distinct id (proves per-standard
+  scoping, not a shared global vocabulary).
+- Unit (Rev. 7): register a standard with an asset/template through the
+  real per-repo path — assert `standard_asset.kind_id`/`template.type_id`
+  resolve, via join, to the exact `name` the manifest/seeder declared.
+- Unit (Rev. 7): re-register a standard whose seeder no longer declares a
+  `kind`/`type` it used to — assert the old `asset_kind`/`template_type`
+  row is gone (§3.9 step 3's extended cleanup), not orphaned.
+- Unit (Rev. 7): run two `run_script_step` calls reporting artifacts of
+  the same `type` string — assert both artifact rows resolve to the same
+  `artifact_type.id` (find-or-create dedupes), and that re-registering
+  the standard in between does *not* delete either the `artifact` rows
+  or the `artifact_type` row they reference.
 
 ---
 
@@ -543,7 +866,19 @@ Phase 1 ──→ Phase 2 ──→ Phase 3 ──→ Phase 4 ──→ Phase 6
 | 2 | §3.8's "`pcems_2026`/`base_academic` already ship a seeder" overstated — neither inserts `usecase`/`script`/`prompt`/`step` rows | **Fixed, and scope-corrected further per this round's own direction**: §3.8 rewritten to define the contract from samgraha's own mechanisms only, explicitly *not* claiming any standard already implements it. |
 | 3 | §3.8's `run_seeder` doesn't say how it discovers `samgraha_dir`; conflicts with §3.10's configurable path | **Fixed, decided** — `_samgraha_dir`/`_knowledge_db` injected into the `--in` envelope (same mechanism as the earlier proposal's `_git` injection), not a new flag, not a config-parsing dependency added to standard scripts. |
 | 4 | §3.11's absolutize pass mishandles `..`-containing relative paths (fragile, works by accident on Unix) | **Fixed, closed rather than left open** — a `..` segment in a seeder-written location is now a rejected contract violation (registration fails loudly), never silently walked/resolved. |
-| 5 | §3.13 — no auto-propagation of global standard updates to consuming repos is an operational burden at scale | **Accepted as designed**, unchanged from rev. 2's stance — consistent with rev. 1 §3.5's "no auto-rediscovery" position; building propagation would require samgraha to track which repos have which standard active, which the whole design deliberately avoids doing. |
+| 5 | §3.13 — no auto-propagation of global standard updates to consuming repos is an operational burden at scale | **Accepted as designed, rationale corrected this round** — unchanged from rev. 2's stance (consistent with rev. 1 §3.5's "no auto-rediscovery" position), but the *reason* given previously was wrong: it claimed propagation would require new tracking of which repos have which standard active. Verified this round it wouldn't — `registry.db`'s `repository_cache` table and the existing `list_repositories` MCP tool already enumerate every registered repo's root and `knowledge_db` path; §3.14's version-comparison logic, run per repo in that loop, is all "auto-heal" would need. The design still defers this deliberately (cost of opening every repo's `knowledge_db` per check; an offline repo never gets checked at all) — but as a choice, not because the infrastructure is missing. |
 | 6 | `run_seeder` was a 4-line pass-through — question whether it should exist as a named function at all | **Fixed by giving it real work**: envelope construction (`_samgraha_dir`/`_knowledge_db`) and status validation both moved into the function itself, out of the caller — it now does something a bare `run_capability_script` call doesn't. |
-| 7 | No state machine / visibility for "this repo hasn't re-seeded since the standard updated" | **Fixed, by comparison rather than a stored flag** (§3.14) — local `standard.version` vs. global `standard_registry.version`, computed live by existing tools, no new column to keep in sync. |
+| 7 | No state machine / visibility for "this repo hasn't re-seeded since the standard updated" | **Fixed, by comparison rather than a stored flag** (§3.14) — `registry.db`'s `active_standard.version` (Rev. 6; was knowledge.db's local `standard.version` through rev. 5) vs. global `standard_registry.version`, computed live by existing tools, no new column to keep in sync. |
 | 8 | (This round's own direction) Define the standard spec from samgraha's side; stop grounding requirements in what `Kriti/` currently contains | **Applied throughout §3.8** — the seeder contract is now stated as samgraha's own requirement, verified only against `env.rs`'s real `run_capability_script` signature, with an explicit note that zero standards on disk implement it yet and that authoring one is separate, later work. |
+| 9 | §3.3's epoch trigger and an MCP release version were never distinguished — could be read as the same thing | **Fixed, decided** (§3.15) — only `CORE_SCHEMA_EPOCH` triggers a wipe; a plain release version bump never does; no third stored version is added. |
+| 10 | Rev. 3 never states whether the epoch check runs automatically or needs an explicit operator step | **Fixed, decided** (§3.15) — automatic, on every `knowledge.db` open, same call site `run_core_migrations` already occupies (verified against `register_standard.rs`). |
+| 11 | §3.7/§3.9 — copy→verify→upsert (and copy→seed→absolutize→write) isn't atomic; a failure after the copy leaves an orphaned directory with no matching database row | **Fixed** — both sections now state explicitly: any failure after the copy step deletes the directory that step just wrote before returning the error. A failed call leaves exactly the state it found. |
+| 12 | §3.9 step 2 — `copy_dir_recursive` overwrites but never prunes a file present in an old version and absent from the new one; re-registration can leave orphaned files from a prior standard version | **Fixed** — §3.7 step 1 and §3.9 step 2 both switch to `copy_dir_atomic` (§1.6), which replaces the target directory wholesale (temp-copy, then `remove_dir_all` + `rename`), never merges. |
+| 13 | §3.8 — `run_seeder`'s temp `--in` file is written to `std::env::temp_dir()`; if `run_capability_script` errors, does cleanup get skipped? | **Checked, not a bug** — the code in §3.8 already calls `std::fs::remove_file(&in_path)` *before* propagating the result via `?` (the cleanup line sits ahead of the `result?` line), so cleanup runs on both the success and error path. No change needed. |
+| 14 | §3.10 — `${SAMGRAHA_DIR}` syntax implies env-var interpolation, but does an operator setting it to a *relative* path get silently mishandled? | **Fixed, clarified** — verified against `resolve_configured_dir` (`config.rs:242-256`): a set-but-relative value is already joined onto `root`, the same rule every other `${VAR}` field in `samgraha.toml` follows today. §3.10 now states this outright rather than leaving it to be inferred. |
+| 15 | §4 dependency graph — Phase 5 (`--out-dir`) lands after Phase 3 (the seeder, which already calls `run_capability_script`); does the seeder need `--out-dir` before Phase 5 ships it? | **Fixed, clarified** — §3.12 now states outright that a seeder never uses `--out-dir`: it writes rows directly to `knowledge.db`, not artifacts, and its output is scoped to `operation_log` (§3.8 point 4), never the `artifact` table `--out-dir` exists for. Nothing on the Phase-3 path needs retrofitting when Phase 5 lands. |
+| 16 | (Post-Phase-6 implementation review) Local `standard` table (§2.13) duplicates what `standard_registry` already tracks globally, now that one standard is active per repo at a time | **Fixed, relocated** (Rev. 6, §3.9 step 6, §3.14) — removed from `knowledge.db` (`CORE_SCHEMA_EPOCH` 1→2); replaced by `registry.db`'s singleton `active_standard` table (`REG_V3`), written from the already-fetched global row, no local YAML re-parse. |
+| 17 | §3.9's `activate_standard`, as first implemented, still read `category`/`subcategory`/`extends`/`version` from the local manifest copy — contradicting this document's own "no YAML touching" claim for the per-repo path | **Fixed** — those fields are no longer read by `activate_standard` at all; the caller sources them from the global `standard_registry` row it already has. Only `seeder_script` is still read from the local manifest copy. |
+| 18 | `standard_asset.kind`, `template.type`, `artifact.type` stored as free `TEXT` — no relational integrity, any string accepted | **Fixed** (Rev. 7, §3.16) — `asset_kind`/`template_type`/`artifact_type` lookup tables added, same shape as `domain`; `kind_id`/`type_id` foreign keys replace the free-text columns. `CORE_SCHEMA_EPOCH` 2→3. |
+| 19 | If lookup rows are required, does a seeder have to pre-declare every possible artifact output type before it can ever run a step? | **Resolved by design split** (§3.16) — `asset_kind`/`template_type` are seeder-declared (safe, one script controls both the declare and the reference); `artifact_type` is samgraha-populated via find-or-create (`get_or_create_lookup`) at artifact-insert time, so a script's output vocabulary is never a pre-registration requirement. |
+| 20 | Does re-registering a standard wipe its historical `artifact` output along with its declared `standard_asset`/`template` rows? | **No, by design** — `delete_existing`'s cleanup (§3.9 step 3, extended for Rev. 7) deletes `asset_kind`/`standard_asset`/`template_type`/`template` (declared content, replaced fresh every reseed) but deliberately excludes `artifact`/`artifact_type` (historical output record, survives re-registration — §3.16). |

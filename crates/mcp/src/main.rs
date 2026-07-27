@@ -257,14 +257,16 @@ fn tool_definitions() -> Vec<serde_json::Value> {
         }),
         serde_json::json!({
             "name": "register_standard",
-            "description": "Register a knowledge standard's standard.yaml (usecases, steps, scripts, prompts, custom tables) into a repository's knowledge.db. Re-registering replaces the standard's prior rows entirely. Samgraha never interprets what a script computes or what a prompt means — it only catalogs names, paths, and content so they can be dispatched by name.",
+            "description": "Activate an already-globally-registered standard in a repository. Copies the standard from the global registry into the repo's .samgraha/<name>/, runs the seeder, absolutizes paths, and writes local rows into knowledge.db. Call register_standard_globally first if the standard isn't yet in the global registry.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "path": { "type": "string", "description": "Absolute path to the standard's source root (containing standard.yaml)" },
-                    "repo_path": { "type": "string", "description": "Target repository whose .samgraha/knowledge.db should receive this standard (default: current repo)" }
+                    "standard_name": { "type": "string", "description": "Name of the globally-registered standard to activate" },
+                    "path": { "type": "string", "description": "(Legacy) Absolute path to standard source — name extracted from manifest. Prefer standard_name." },
+                    "repo_path": { "type": "string", "description": "Target repository (default: current repo)" },
+                    "timeout_secs": { "type": "integer", "description": "Timeout for the seeder script" }
                 },
-                "required": ["path"]
+                "required": []
             }
         }),
         serde_json::json!({

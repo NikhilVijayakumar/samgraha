@@ -340,6 +340,11 @@ pub struct RepositoryConfig {
     /// source (e.g. `["vendor", "target"]`). Relative to `implementation.dir`.
     #[serde(default)]
     pub source_exclude: Vec<String>,
+    /// Explicit `.samgraha` directory location — absolute path resolved from
+    /// env via [`resolve_configured_dir`], or unset (default) which falls back
+    /// to `<repo-root>/.samgraha` (today's only behavior, unchanged default).
+    #[serde(default = "default_samgraha_dir")]
+    pub samgraha_dir: String,
 }
 
 /// Where this repository's source/implementation lives, relative to the
@@ -394,6 +399,20 @@ pub fn parse_ttl_duration(s: &str) -> Option<i64> {
     }
 }
 
+fn default_samgraha_dir() -> String {
+    "${SAMGRAHA_DIR}".to_string()
+}
+
+/// Configuration for the `[repository]` section of `samgraha.toml`.
+impl RepositoryConfig {
+    /// Resolve the `.samgraha` directory for this repository. Uses
+    /// `samgraha_dir` from config (resolved via [`resolve_configured_dir`]),
+    /// falling back to `<root>/.samgraha` when unset.
+    pub fn resolve_samgraha_dir(&self, root: &Path) -> PathBuf {
+        resolve_configured_dir(&self.samgraha_dir, root, ".samgraha")
+    }
+}
+
 impl Default for RepositoryConfig {
     fn default() -> Self {
         Self {
@@ -410,6 +429,7 @@ impl Default for RepositoryConfig {
             scripts: None,
             tests: None,
             source_exclude: Vec::new(),
+            samgraha_dir: default_samgraha_dir(),
         }
     }
 }

@@ -12,6 +12,7 @@
 
 use crate::protocol::{McpMessage, McpRequest, McpResponse, McpError};
 use anyhow::{Context, Result};
+use common::config::SamgrahaConfig;
 use registry::standards_db::StandardsDb;
 use schemas::manifest::RepositoryManifest;
 use services::registry_client::RegistryClient;
@@ -82,7 +83,9 @@ impl McpAdapter {
     }
 
     fn knowledge_db_path(&self, req: &McpRequest) -> PathBuf {
-        self.target_root(req).join(".samgraha").join("knowledge.db")
+        let target = self.target_root(req);
+        let samgraha_dir = load_samgraha_dir(&target);
+        samgraha_dir.join("knowledge.db")
     }
 
     fn handle_init(&self, req: &McpRequest) -> Result<serde_json::Value> {
@@ -142,16 +145,63 @@ impl McpAdapter {
     }
 
     fn handle_register_standard(&self, req: &McpRequest) -> Result<serde_json::Value> {
-        let path_str = req.params.get("path")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| anyhow::anyhow!("Missing 'path' parameter"))?;
-        let path = PathBuf::from(path_str);
-        if !path.exists() {
-            return Err(anyhow::anyhow!("Path does not exist: {}", path.display()));
-        }
+        // §3.9 — per-repo activation: standard must already be globally registered.
+        // Accept `standard_name` (new) or `path` (legacy — resolve name from manifest).
+        let standard_name = if let Some(name) = req.params.get("standard_name").and_then(|v| v.as_str()) {
+            name.to_string()
+        } else if let Some(path_str) = req.params.get("path").and_then(|v| v.as_str()) {
+            let path = PathBuf::from(path_str);
+            if !path.exists() {
+                return Err(anyhow::anyhow!("Path does not exist: {}", path.display()));
+            }
+            let manifest_path = services::register_standard::resolve_manifest_path(&path)?;
+            let manifest_content = std::fs::read_to_string(&manifest_path)?;
+            let raw: serde_yaml::Mapping = serde_yaml::from_str(&manifest_content)?;
+            raw.get(&serde_yaml::Value::String("name".to_string()))
+                .and_then(|v| v.as_str().map(String::from))
+                .ok_or_else(|| anyhow::anyhow!("Manifest missing 'name' field"))?
+        } else {
+            return Err(anyhow::anyhow!("Missing 'standard_name' or 'path' parameter"));
+        };
+
+        // Look up global registry to get source_path
+        let global = self.standards_db.get_standard(&standard_name)?
+            .ok_or_else(|| anyhow::anyhow!("Standard '{}' is not globally registered — call register_standard_globally first", standard_name))?;
+
+        let root = self.target_root(req);
+        let samgraha_dir = load_samgraha_dir(&root);
         let db_path = self.knowledge_db_path(req);
-        let result = services::register_standard::register_standard(&path, &db_path, None)?;
-        Ok(serde_json::to_value(result)?)
+        let timeout = req.params.get("timeout_secs").and_then(|v| v.as_u64());
+
+        services::register_standard::activate_standard(
+            &standard_name,
+            &global.source_path,
+            &db_path,
+            &root,
+            &samgraha_dir,
+            timeout,
+        )?;
+
+        // Record which standard is now active for this repo (§3.9 step 6,
+        // relocated) — one standard per repo at a time, tracked in
+        // registry.db, not duplicated inside knowledge.db. Sourced from
+        // `global` (already fetched above) — no local YAML re-parse.
+        let registry_db = registry::registry_db::RegistryDb::open(&root)?;
+        registry_db.set_active_standard(&registry::registry_db::ActiveStandard {
+            name: standard_name.clone(),
+            category: global.category.clone(),
+            subcategory: global.subcategory.clone(),
+            extends: global.extends.clone(),
+            version: global.version.clone(),
+            metadata_json: global.metadata_json.clone(),
+            activated_at: String::new(),
+        })?;
+
+        Ok(serde_json::json!({
+            "success": true,
+            "standard": standard_name,
+            "samgraha_dir": samgraha_dir.display().to_string(),
+        }))
     }
 
     fn handle_run_script_step(&self, req: &McpRequest) -> Result<serde_json::Value> {
@@ -193,31 +243,36 @@ impl McpAdapter {
         if !path.exists() {
             return Err(anyhow::anyhow!("Path does not exist: {}", path.display()));
         }
-        let manifest_path = services::register_standard::resolve_manifest_path(&path)?;
-        let manifest_dir = manifest_path.parent().unwrap_or(&path);
-        let manifest_content = std::fs::read_to_string(&manifest_path)?;
 
-        // Parse as raw YAML mapping to extract all fields (§8.4)
+        // §3.7 step 1 — copy into mcp_dir()/registry/<name>/ atomically
+        let manifest_path = services::register_standard::resolve_manifest_path(&path)?;
+        let manifest_content = std::fs::read_to_string(&manifest_path)?;
         let raw: serde_yaml::Mapping = serde_yaml::from_str(&manifest_content)?;
         let get_str = |key: &str| -> Option<String> {
             raw.get(&serde_yaml::Value::String(key.to_string()))
                 .and_then(|v| v.as_str().map(String::from))
         };
-
         let name = get_str("name").ok_or_else(|| anyhow::anyhow!("Manifest missing 'name' field"))?;
         let category = get_str("category").unwrap_or_default();
         let subcategory = get_str("subcategory");
         let extends = get_str("extends");
         let version = get_str("version").unwrap_or_else(|| "0.0.0".to_string());
         let description = get_str("description").unwrap_or_default();
-        let source_path = path.display().to_string();
 
-        // §2.4.1 — structural verify-gate (smoke_test)
+        // §3.13 — detect re-registration for operation_log distinction
+        let is_update = self.standards_db.get_standard(&name)?.is_some();
+
+        let registry_dir = common::env::mcp_dir().join("registry").join(&name);
+        // Atomic copy: temp dir → remove old → rename. On failure, old
+        // target stays untouched (§3.7, §1.6).
+        common::fs_sync::copy_dir_atomic(&path, &registry_dir, &common::fs_sync::DEFAULT_EXCLUDES)?;
+
+        // §3.7 step 2 — run verify-gate against the copy, not the original
         let verify_status = if let Some(smoke_test) = get_str("smoke_test") {
-            let smoke_path = services::register_standard::resolve_location(manifest_dir, &smoke_test)?;
+            let smoke_path = services::register_standard::resolve_location(&registry_dir, &smoke_test)?;
             let status = std::process::Command::new(&smoke_path)
                 .arg("--repo-root")
-                .arg(&path)
+                .arg(&registry_dir)
                 .status();
             match status {
                 Ok(s) if s.success() => "passed",
@@ -228,9 +283,29 @@ impl McpAdapter {
             "unverified"
         };
 
+        // §3.7 cleanup-on-failure: if verify or upsert fails, remove the
+        // directory we just wrote — leave exactly the state we found.
+        if verify_status == "failed" {
+            let _ = std::fs::remove_dir_all(&registry_dir);
+            self.standards_db.log_operation(
+                if is_update { "update_standard" } else { "register_globally" },
+                &name,
+                None,
+                "global",
+                "failed",
+                &serde_json::json!({"path": path_str, "verify_status": "failed", "reason": "smoke_test failed"}).to_string(),
+            )?;
+            return Ok(serde_json::json!({
+                "success": false,
+                "standard": name,
+                "verify_status": "failed",
+                "error": "structural verify-gate (smoke_test) failed against the copied standard",
+            }));
+        }
+
         // §8.4 — catch-all metadata: diff raw keys against KNOWN_FIELDS
         const KNOWN_FIELDS: &[&str] = &[
-            "name", "category", "subcategory", "extends", "smoke_test",
+            "name", "category", "subcategory", "extends", "smoke_test", "seeder_script",
             "scripts", "prompts", "usecases", "custom_tables", "domains", "assets", "templates",
         ];
         let extra: serde_json::Map<String, serde_json::Value> = raw.iter()
@@ -243,7 +318,9 @@ impl McpAdapter {
             .collect();
         let metadata_json = serde_json::Value::Object(extra).to_string();
 
-        self.standards_db.upsert_standard(
+        // §3.7 step 3 — upsert with source_path pointing at the local copy
+        let source_path = registry_dir.display().to_string();
+        let upsert_result = self.standards_db.upsert_standard(
             &name,
             &category,
             subcategory.as_deref(),
@@ -254,21 +331,27 @@ impl McpAdapter {
             &description,
             &metadata_json,
             verify_status,
-        )?;
+        );
+
+        if let Err(e) = upsert_result {
+            let _ = std::fs::remove_dir_all(&registry_dir);
+            return Err(e);
+        }
 
         self.standards_db.log_operation(
-            "register_globally",
+            if is_update { "update_standard" } else { "register_globally" },
             &name,
             None,
             "global",
             "ok",
-            &serde_json::json!({"path": path_str, "verify_status": verify_status}).to_string(),
+            &serde_json::json!({"path": path_str, "source_path": source_path, "verify_status": verify_status}).to_string(),
         )?;
 
         Ok(serde_json::json!({
             "success": true,
             "standard": name,
             "verify_status": verify_status,
+            "source_path": source_path,
         }))
     }
 
@@ -514,4 +597,17 @@ impl McpAdapter {
             "exit_code": status.code(),
         }))
     }
+}
+
+/// Load `samgraha_dir` from `root/samgraha.toml`. Falls back to the default
+/// (`<root>/.samgraha`) if the config is absent or unparseable — the adapter
+/// must never fail to locate `knowledge.db` because of a missing config key.
+fn load_samgraha_dir(root: &std::path::Path) -> PathBuf {
+    let config_path = root.join("samgraha.toml");
+    if let Ok(content) = std::fs::read_to_string(&config_path) {
+        if let Ok(config) = toml::from_str::<SamgrahaConfig>(&content) {
+            return config.repository.resolve_samgraha_dir(root);
+        }
+    }
+    SamgrahaConfig::default().repository.resolve_samgraha_dir(root)
 }

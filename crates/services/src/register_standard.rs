@@ -25,6 +25,10 @@ pub struct StandardManifest {
     pub version: Option<String>,
     #[serde(default)]
     pub smoke_test: Option<String>,
+    /// Path to the seeder script (relative to manifest dir). When present,
+    /// the seeder is invoked instead of parsing YAML workflow declarations.
+    #[serde(default)]
+    pub seeder_script: Option<String>,
     #[serde(default)]
     pub scripts: Vec<ScriptDecl>,
     #[serde(default)]
@@ -170,7 +174,7 @@ pub fn register_standard(standard_path: &Path, knowledge_db_path: &Path, metadat
     let conn = Connection::open(knowledge_db_path)
         .context(format!("Failed to open {}", knowledge_db_path.display()))?;
     conn.execute_batch("PRAGMA foreign_keys = ON;")?;
-    registry::core_schema::run_core_migrations(&conn)?;
+    registry::core_schema::ensure_current_schema(&conn)?;
 
     // Re-registering a standard replaces its rows entirely — same
     // discipline the old store_system_plan used (delete then insert),
@@ -212,40 +216,37 @@ pub fn register_standard(standard_path: &Path, knowledge_db_path: &Path, metadat
         domain_ids.insert(d.key.clone(), conn.last_insert_rowid());
     }
 
-    // §2.9 — assets: insert into standard_asset table
+    // §2.9 — assets: insert into standard_asset table. `kind` is now a
+    // relation (asset_kind), not free text — find-or-create the kind row
+    // the manifest names, then reference it by id.
     for a in &manifest.assets {
         let abs_location = resolve_location(manifest_dir, &a.location)?;
+        let kind_id = get_or_create_lookup(&conn, "asset_kind", &manifest.name, &a.kind)?;
         conn.execute(
-            "INSERT INTO standard_asset (standard, kind, name, location, purpose) VALUES (?1, ?2, ?3, ?4, ?5)",
-            rusqlite::params![manifest.name, a.kind, a.name, abs_location, a.purpose],
+            "INSERT INTO standard_asset (standard, kind_id, name, location, purpose) VALUES (?1, ?2, ?3, ?4, ?5)",
+            rusqlite::params![manifest.name, kind_id, a.name, abs_location, a.purpose],
         )?;
     }
 
-    // §2.7 — templates: insert into template table (content read from file)
+    // §2.7 — templates: insert into template table (content read from
+    // file). `type` is now a relation (template_type), not free text.
     for t in &manifest.templates {
         let abs_location = resolve_location(manifest_dir, &t.location)?;
         let content = std::fs::read_to_string(&abs_location)
             .context(format!("Failed to read template file {}", abs_location))?;
+        let type_id = get_or_create_lookup(&conn, "template_type", &manifest.name, &t.template_type)?;
         conn.execute(
-            "INSERT INTO template (standard, name, type, content, purpose) VALUES (?1, ?2, ?3, ?4, ?5)",
-            rusqlite::params![manifest.name, t.name, t.template_type, content, t.purpose],
+            "INSERT INTO template (standard, name, type_id, content, purpose) VALUES (?1, ?2, ?3, ?4, ?5)",
+            rusqlite::params![manifest.name, t.name, type_id, content, t.purpose],
         )?;
     }
 
-    // §2.13 — local standard row
-    let category = manifest.category.as_deref().unwrap_or("");
-    let metadata_json = metadata_json.unwrap_or("{}");
-    conn.execute(
-        "INSERT OR REPLACE INTO standard (name, category, subcategory, extends, version, metadata_json) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-        rusqlite::params![
-            manifest.name,
-            category,
-            manifest.subcategory,
-            manifest.extends,
-            manifest.version.as_deref().unwrap_or("0.0.0"),
-            metadata_json,
-        ],
-    )?;
+    // Per-repo catalog metadata (category/subcategory/extends/version) is no
+    // longer stored in knowledge.db — it lives in registry.db's
+    // `active_standard` table instead (one standard per repo at a time),
+    // written by the caller after this function returns. `metadata_json`
+    // is accepted for call-site compatibility but unused here now.
+    let _ = metadata_json;
 
     // §8.5 — validate depends_on references (all usecase names must be known)
     let all_uc_names: Vec<String> = manifest.usecases.iter().map(|uc| uc.name.clone()).collect();
@@ -355,7 +356,7 @@ pub fn register_standard(standard_path: &Path, knowledge_db_path: &Path, metadat
     })
 }
 
-fn delete_existing(conn: &Connection, standard: &str) -> Result<()> {
+pub fn delete_existing(conn: &Connection, standard: &str) -> Result<()> {
     conn.execute(
         "DELETE FROM step_script WHERE step_id IN (
             SELECT step.id FROM step
@@ -381,10 +382,33 @@ fn delete_existing(conn: &Connection, standard: &str) -> Result<()> {
     conn.execute("DELETE FROM prompt WHERE standard = ?1", rusqlite::params![standard])?;
     conn.execute("DELETE FROM script WHERE standard = ?1", rusqlite::params![standard])?;
     conn.execute("DELETE FROM domain WHERE standard = ?1", rusqlite::params![standard])?;
+    // Children before parents — asset_kind/template_type are referenced
+    // by standard_asset.kind_id/template.type_id.
     conn.execute("DELETE FROM standard_asset WHERE standard = ?1", rusqlite::params![standard])?;
+    conn.execute("DELETE FROM asset_kind WHERE standard = ?1", rusqlite::params![standard])?;
     conn.execute("DELETE FROM template WHERE standard = ?1", rusqlite::params![standard])?;
-    conn.execute("DELETE FROM standard WHERE name = ?1", rusqlite::params![standard])?;
+    conn.execute("DELETE FROM template_type WHERE standard = ?1", rusqlite::params![standard])?;
+    // artifact/artifact_type are NOT deleted here — historical output
+    // record, survives a standard re-registering (core_schema.rs).
     Ok(())
+}
+
+/// Find-or-create a row in a per-standard lookup table (`asset_kind`,
+/// `template_type`, `artifact_type` — all three share the shape
+/// `(id, standard, name, description)` with `UNIQUE(standard, name)`) and
+/// return its id. `table` is always one of those three fixed literals
+/// from call sites in this crate, never external input.
+pub fn get_or_create_lookup(conn: &Connection, table: &str, standard: &str, name: &str) -> Result<i64> {
+    conn.execute(
+        &format!("INSERT INTO {table} (standard, name) VALUES (?1, ?2) ON CONFLICT(standard, name) DO NOTHING"),
+        rusqlite::params![standard, name],
+    )?;
+    let id: i64 = conn.query_row(
+        &format!("SELECT id FROM {table} WHERE standard = ?1 AND name = ?2"),
+        rusqlite::params![standard, name],
+        |r| r.get(0),
+    )?;
+    Ok(id)
 }
 
 /// §2.14 — two-location manifest check: tries `<path>/standard.yaml` first,
@@ -417,6 +441,85 @@ pub fn resolve_location(manifest_dir: &Path, location: &str) -> Result<String> {
     let resolved = std::fs::canonicalize(&resolved)
         .with_context(|| format!("declared location does not exist: {}", resolved.display()))?;
     Ok(resolved.display().to_string())
+}
+
+/// §3.9 — Activate an already-globally-registered standard in a specific
+/// repository. Copies the standard from the global mcp-registry into
+/// `<samgraha_dir>/<standard_name>/`, runs the seeder, and absolutizes
+/// paths. This replaces the old per-repo `register_standard` which parsed
+/// manifests directly. Catalog metadata (category/subcategory/extends/
+/// version) is the caller's job to persist — one standard is active per
+/// repo at a time, so that fact lives in registry.db's `active_standard`
+/// table (`RegistryDb::set_active_standard`), not in this function or in
+/// `knowledge.db`.
+pub fn activate_standard(
+    standard_name: &str,
+    source_path: &str,
+    knowledge_db_path: &Path,
+    repo_root: &Path,
+    samgraha_dir: &Path,
+    timeout_secs: Option<u64>,
+) -> Result<()> {
+    use rusqlite::Connection;
+
+    let local_copy = samgraha_dir.join(standard_name);
+
+    // §3.9 step 2 — atomic copy from global registry into local tree
+    let source = std::path::Path::new(source_path);
+    if !source.exists() {
+        bail!("global registry source_path does not exist: {source_path}");
+    }
+    common::fs_sync::copy_dir_atomic(source, &local_copy, &common::fs_sync::DEFAULT_EXCLUDES)?;
+
+    let conn = Connection::open(knowledge_db_path)
+        .context(format!("Failed to open {}", knowledge_db_path.display()))?;
+    conn.execute_batch("PRAGMA foreign_keys = ON;")?;
+    registry::core_schema::ensure_current_schema(&conn)?;
+
+    // §3.9 step 3 — delete this standard's existing rows first
+    delete_existing(&conn, standard_name)?;
+
+    // §3.9 step 4 — find and run the seeder
+    let manifest_path = resolve_manifest_path(&local_copy)?;
+    let manifest_content = std::fs::read_to_string(&manifest_path)?;
+    let raw: serde_yaml::Mapping = serde_yaml::from_str(&manifest_content)?;
+    let get_str = |key: &str| -> Option<String> {
+        raw.get(&serde_yaml::Value::String(key.to_string()))
+            .and_then(|v| v.as_str().map(String::from))
+    };
+    let seeder_script = get_str("seeder_script");
+
+    if let Some(ref script_name) = seeder_script {
+        let script_location = resolve_location(&local_copy, script_name)?;
+        let script_path = std::path::Path::new(&script_location);
+        if !script_path.exists() {
+            // Cleanup: remove local copy and any rows the seeder may have written
+            let _ = delete_existing(&conn, standard_name);
+            let _ = std::fs::remove_dir_all(&local_copy);
+            bail!("seeder script location does not exist: {script_location}");
+        }
+        crate::seeder::run_seeder(
+            repo_root,
+            script_path,
+            samgraha_dir,
+            knowledge_db_path,
+            timeout_secs,
+        ).map_err(|e| {
+            let _ = delete_existing(&conn, standard_name);
+            let _ = std::fs::remove_dir_all(&local_copy);
+            e
+        })?;
+    }
+
+    // §3.9 step 5 — absolutize pass
+    crate::seeder::absolutize_paths(&conn, standard_name, samgraha_dir)
+        .map_err(|e| {
+            let _ = delete_existing(&conn, standard_name);
+            let _ = std::fs::remove_dir_all(&local_copy);
+            e
+        })?;
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -485,6 +588,71 @@ custom_tables:
             )
             .unwrap();
         assert!(owner > 0);
+    }
+
+    #[test]
+    fn register_standard_assets_and_templates_use_relational_kind_type() {
+        let tmp = tempfile::tempdir().unwrap();
+        let standard_dir = tmp.path().join("standard");
+        std::fs::create_dir_all(&standard_dir).unwrap();
+        std::fs::write(standard_dir.join("guide.md"), "# Guide").unwrap();
+        std::fs::write(standard_dir.join("report.md"), "# Report template").unwrap();
+
+        write_manifest(&standard_dir, r#"
+name: asset-template-standard
+assets:
+  - name: setup-guide
+    kind: guide
+    location: guide.md
+    purpose: "Onboarding"
+templates:
+  - name: final-report
+    type: markdown
+    location: report.md
+    purpose: "Output shape"
+"#);
+
+        let db_path = tmp.path().join("knowledge.db");
+        let result = register_standard(&standard_dir, &db_path, None).unwrap();
+        assert_eq!(result.assets_registered, 1);
+        assert_eq!(result.templates_registered, 1);
+
+        let conn = Connection::open(&db_path).unwrap();
+        let asset_kind_name: String = conn
+            .query_row(
+                "SELECT ak.name FROM standard_asset sa JOIN asset_kind ak ON ak.id = sa.kind_id WHERE sa.name = 'setup-guide'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(asset_kind_name, "guide");
+
+        let template_type_name: String = conn
+            .query_row(
+                "SELECT tt.name FROM template t JOIN template_type tt ON tt.id = t.type_id WHERE t.name = 'final-report'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(template_type_name, "markdown");
+    }
+
+    #[test]
+    fn get_or_create_lookup_dedupes_by_standard_and_name() {
+        let tmp = tempfile::tempdir().unwrap();
+        let db_path = tmp.path().join("knowledge.db");
+        let conn = Connection::open(&db_path).unwrap();
+        registry::core_schema::run_core_migrations(&conn).unwrap();
+
+        let id1 = get_or_create_lookup(&conn, "artifact_type", "std-a", "image").unwrap();
+        let id2 = get_or_create_lookup(&conn, "artifact_type", "std-a", "image").unwrap();
+        assert_eq!(id1, id2, "same standard+name must resolve to the same row, not duplicate");
+
+        let id3 = get_or_create_lookup(&conn, "artifact_type", "std-b", "image").unwrap();
+        assert_ne!(id1, id3, "same name under a different standard is a distinct row");
+
+        let count: i64 = conn.query_row("SELECT COUNT(*) FROM artifact_type", [], |r| r.get(0)).unwrap();
+        assert_eq!(count, 2);
     }
 
     #[test]
@@ -560,6 +728,31 @@ scripts:
     }
 
     #[test]
+    fn delete_existing_preserves_artifact_history() {
+        let tmp = tempfile::tempdir().unwrap();
+        let db_path = tmp.path().join("knowledge.db");
+        let conn = Connection::open(&db_path).unwrap();
+        registry::core_schema::run_core_migrations(&conn).unwrap();
+
+        let type_id = get_or_create_lookup(&conn, "artifact_type", "hist-std", "image").unwrap();
+        conn.execute(
+            "INSERT INTO artifact (standard, type_id, name, location) VALUES (?1, ?2, 'chart', '/out/chart.png')",
+            rusqlite::params!["hist-std", type_id],
+        ).unwrap();
+
+        delete_existing(&conn, "hist-std").unwrap();
+
+        let artifact_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM artifact WHERE standard = 'hist-std'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(artifact_count, 1, "artifact rows must survive delete_existing — historical output record");
+        let type_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM artifact_type WHERE standard = 'hist-std'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(type_count, 1, "artifact_type rows must survive too, or the surviving artifact row's FK would dangle");
+    }
+
+    #[test]
     fn resolve_manifest_path_finds_root_standard_yaml() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().join("my-standard");
@@ -627,7 +820,7 @@ usecases:
         let location: String = conn
             .query_row("SELECT location FROM script WHERE name = 'my-script'", [], |r| r.get(0))
             .unwrap();
-        let expected = root.join("script/my_script.py");
-        assert_eq!(location, expected.display().to_string());
+        let expected = std::fs::canonicalize(root.join("script").join("my_script.py")).unwrap();
+        assert_eq!(std::path::PathBuf::from(location), expected);
     }
 }

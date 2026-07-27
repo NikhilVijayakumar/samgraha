@@ -80,6 +80,7 @@ pub fn run_script_step(
 ) -> Result<serde_json::Value> {
     let conn = Connection::open(knowledge_db_path)?;
     conn.execute_batch("PRAGMA foreign_keys = ON;")?;
+    registry::core_schema::ensure_current_schema(&conn)?;
 
     let kind: String = conn
         .query_row("SELECT kind FROM step WHERE id = ?1", rusqlite::params![step_id], |r| r.get(0))
@@ -118,7 +119,10 @@ pub fn run_script_step(
     let in_path = std::env::temp_dir().join(format!("samgraha-step-in-{}.json", uuid::Uuid::new_v4()));
     std::fs::write(&in_path, serde_json::to_string(&enriched_input)?)?;
 
-    let result = common::env::run_capability_script(script_path, repo_root, &in_path, timeout_secs);
+    // §3.12 — resolve out_dir from config for artifact output
+    let out_dir = load_samgraha_dir(repo_root).join("output");
+
+    let result = common::env::run_capability_script(script_path, repo_root, &in_path, Some(&out_dir), timeout_secs);
     let _ = std::fs::remove_file(&in_path);
     let result = result?;
 
@@ -149,9 +153,15 @@ pub fn run_script_step(
             let art_type = art.get("type").and_then(|v| v.as_str()).unwrap_or("file");
             let location = art.get("location").and_then(|v| v.as_str()).unwrap_or("");
             let purpose = art.get("purpose").and_then(|v| v.as_str()).unwrap_or("");
+            // artifact.type is a relation (artifact_type), not free text —
+            // but unlike asset_kind/template_type, a script's output
+            // vocabulary can't be predicted at registration time, so
+            // samgraha find-or-creates the type row itself rather than
+            // requiring a seeder to pre-declare every possible type.
+            let type_id = crate::register_standard::get_or_create_lookup(&conn, "artifact_type", &standard_name, art_type)?;
             conn.execute(
-                "INSERT INTO artifact (standard, execution_id, name, type, location, purpose) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                rusqlite::params![standard_name, exec_id, name, art_type, location, purpose],
+                "INSERT INTO artifact (standard, execution_id, type_id, name, location, purpose) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                rusqlite::params![standard_name, exec_id, type_id, name, location, purpose],
             )?;
         }
     }
@@ -167,6 +177,7 @@ pub fn run_script_step(
 pub fn prepare_semantic_step(knowledge_db_path: &Path, step_id: i64) -> Result<SemanticStepPrep> {
     let conn = Connection::open(knowledge_db_path)?;
     conn.execute_batch("PRAGMA foreign_keys = ON;")?;
+    registry::core_schema::ensure_current_schema(&conn)?;
 
     let (kind, description): (String, String) = conn
         .query_row(
@@ -203,6 +214,7 @@ pub fn prepare_semantic_step(knowledge_db_path: &Path, step_id: i64) -> Result<S
 pub fn complete_semantic_step(knowledge_db_path: &Path, step_id: i64, repo_root: &Path, status: &str) -> Result<()> {
     let conn = Connection::open(knowledge_db_path)?;
     conn.execute_batch("PRAGMA foreign_keys = ON;")?;
+    registry::core_schema::ensure_current_schema(&conn)?;
     let kind: String = conn
         .query_row("SELECT kind FROM step WHERE id = ?1", rusqlite::params![step_id], |r| r.get(0))
         .context(format!("No step with id {step_id}"))?;
@@ -246,7 +258,7 @@ mod tests {
     fn setup_db(tmp: &Path) -> (i64, i64) {
         let db_path = tmp.join("knowledge.db");
         let conn = Connection::open(&db_path).unwrap();
-        registry::core_schema::run_core_migrations(&conn).unwrap();
+        registry::core_schema::ensure_current_schema(&conn).unwrap();
         conn.execute("INSERT INTO usecase (standard, name) VALUES ('t', 'uc')", []).unwrap();
         let uc_id = conn.last_insert_rowid();
 
@@ -338,4 +350,16 @@ mod tests {
         let status: String = conn.query_row("SELECT status FROM execution WHERE step_id = ?1", rusqlite::params![sem_step], |r| r.get(0)).unwrap();
         assert_eq!(status, "ok");
     }
+}
+
+/// Load `samgraha_dir` from `root/samgraha.toml`. Falls back to the default
+/// (`<root>/.samgraha`) if the config is absent or unparseable.
+fn load_samgraha_dir(root: &std::path::Path) -> std::path::PathBuf {
+    let config_path = root.join("samgraha.toml");
+    if let Ok(content) = std::fs::read_to_string(&config_path) {
+        if let Ok(config) = toml::from_str::<common::config::SamgrahaConfig>(&content) {
+            return config.repository.resolve_samgraha_dir(root);
+        }
+    }
+    common::config::SamgrahaConfig::default().repository.resolve_samgraha_dir(root)
 }

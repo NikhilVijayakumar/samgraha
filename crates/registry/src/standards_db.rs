@@ -242,6 +242,28 @@ impl StandardsDb {
         )?;
         Ok(())
     }
+
+    /// Full wipe of `standards.db`: drops all tables, re-runs migrations,
+    /// and deletes the `mcp_dir()/registry/` file tree (§3.1/§3.7).
+    /// Used by Phase 2's `ensure_current_schema` equivalent for
+    /// `standards.db` — a complete reset, no partial state.
+    pub fn reset(&self) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute_batch("PRAGMA foreign_keys = OFF;")?;
+        conn.execute_batch("DROP TABLE IF EXISTS operation_log;")?;
+        conn.execute_batch("DROP TABLE IF EXISTS standard_registry;")?;
+        conn.execute_batch("DROP TABLE IF EXISTS _schema_version;")?;
+        conn.execute_batch("PRAGMA foreign_keys = ON;")?;
+        drop(conn);
+        // Delete the mcp-registry file tree (§3.7)
+        let registry_dir = common::env::mcp_dir().join("registry");
+        if registry_dir.exists() {
+            std::fs::remove_dir_all(&registry_dir)?;
+        }
+        // Re-run migrations to recreate tables
+        self.run_migrations()?;
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone)]
