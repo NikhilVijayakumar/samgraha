@@ -73,9 +73,11 @@ Copy-Item "$root\samgraha.toml" "$pkgDir\"
 # anyone integrating with the raw DB directly.
 New-Item -ItemType Directory -Force "$pkgDir\schema\registration" | Out-Null
 New-Item -ItemType Directory -Force "$pkgDir\schema\knowledge" | Out-Null
+New-Item -ItemType Directory -Force "$pkgDir\schema\standards" | Out-Null
 Copy-Item "$root\schema\registration\*.sql" "$pkgDir\schema\registration\" -Force
 Copy-Item "$root\schema\knowledge\*.sql" "$pkgDir\schema\knowledge\" -Force
-Write-Host "  -> schema/registration/, schema/knowledge/ (reference schema)" -ForegroundColor Cyan
+Copy-Item "$root\schema\standards\*.sql" "$pkgDir\schema\standards\" -Force
+Write-Host "  -> schema/registration/, schema/knowledge/, schema/standards/ (reference schema)" -ForegroundColor Cyan
 
 # Launcher scripts
 $runCmdLines = @(

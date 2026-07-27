@@ -47,16 +47,27 @@ pub fn run_seeder(
 }
 
 /// Absolutize relative paths the seeder wrote into `script.location` and
-/// `standard_asset.location`. Every relative path (those not starting with
+/// `standard_asset.location` (the only two tables with a `location`
+/// column that can hold a seeder-written relative path — `template`/
+/// `prompt` store `content` inline, never a path, so there is nothing
+/// for them to absolutize). Every relative path (those not starting with
 /// `/`) is prefixed with `<samgraha_dir>/<standard>/`. Paths containing a
 /// `..` segment are rejected as contract violations — the seeder must use
 /// absolute paths for anything outside its own copied tree.
+///
+/// After prefixing, the resulting absolute path must actually exist on
+/// disk — a seeder that declares `location: "scripts/audit.py"` for a
+/// file it never wrote (typo, forgotten file, wrong relative path) is
+/// rejected here, at activation time, instead of surfacing as a confusing
+/// "file not found" only when the step finally runs, potentially long
+/// after the standard was believed to be working.
 pub fn absolutize_paths(
     conn: &rusqlite::Connection,
     standard: &str,
     samgraha_dir: &Path,
 ) -> Result<()> {
-    let prefix = samgraha_dir.join(standard).display().to_string();
+    let prefix_path = samgraha_dir.join(standard);
+    let prefix = prefix_path.display().to_string();
     for table in ["script", "standard_asset"] {
         let mut stmt = conn.prepare(&format!(
             "SELECT id, location FROM {table} WHERE standard = ?1 AND location NOT LIKE '/%'"
@@ -73,6 +84,15 @@ pub fn absolutize_paths(
                     "seeder for '{standard}' wrote a '..'-containing relative location \
                      ('{location}') in {table} — not allowed; use an absolute path for \
                      anything outside the standard's own copied tree"
+                );
+            }
+            let resolved = prefix_path.join(&location);
+            if !resolved.exists() {
+                bail!(
+                    "seeder for '{standard}' wrote a {table}.location ('{location}') that \
+                     doesn't exist on disk after absolutizing to '{}' — the file must exist \
+                     in the standard's own copied tree before activation succeeds",
+                    resolved.display()
                 );
             }
             conn.execute(
@@ -92,6 +112,11 @@ mod tests {
 
     #[test]
     fn absolutize_prepends_prefix() {
+        let tmp = tempfile::tempdir().unwrap();
+        let samgraha_dir = tmp.path();
+        std::fs::create_dir_all(samgraha_dir.join("my-std").join("scripts")).unwrap();
+        std::fs::write(samgraha_dir.join("my-std").join("scripts").join("audit.py"), "").unwrap();
+
         let conn = Connection::open_in_memory().unwrap();
         conn.execute_batch(
             "CREATE TABLE script (id INTEGER PRIMARY KEY, standard TEXT, location TEXT);
@@ -103,13 +128,35 @@ mod tests {
             [],
         )
         .unwrap();
-        let samgraha_dir = Path::new("/opt/repo/.samgraha");
         absolutize_paths(&conn, "my-std", samgraha_dir).unwrap();
         let loc: String = conn
             .query_row("SELECT location FROM script WHERE id = 1", [], |r| r.get(0))
             .unwrap();
         let expected = samgraha_dir.join("my-std").join("scripts").join("audit.py");
         assert_eq!(PathBuf::from(loc), expected);
+    }
+
+    #[test]
+    fn absolutize_rejects_location_that_does_not_exist_on_disk() {
+        let tmp = tempfile::tempdir().unwrap();
+        let samgraha_dir = tmp.path();
+        std::fs::create_dir_all(samgraha_dir.join("my-std")).unwrap();
+        // Deliberately never create scripts/audit.py — seeder declared a
+        // location it never actually wrote (typo, forgotten file, etc.)
+
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE script (id INTEGER PRIMARY KEY, standard TEXT, location TEXT);
+             CREATE TABLE standard_asset (id INTEGER PRIMARY KEY, standard TEXT, location TEXT);",
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO script (id, standard, location) VALUES (1, 'my-std', 'scripts/audit.py')",
+            [],
+        )
+        .unwrap();
+        let err = absolutize_paths(&conn, "my-std", samgraha_dir).unwrap_err();
+        assert!(err.to_string().contains("doesn't exist on disk"), "got: {err}");
     }
 
     #[test]

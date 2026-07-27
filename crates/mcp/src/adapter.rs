@@ -926,4 +926,77 @@ mod tests {
 
         std::env::remove_var("SAMGRAHA_MCP_DIR");
     }
+
+    #[test]
+    fn handle_get_standard_assets_joins_kind_name_and_reports_file_exists() {
+        // Regression test: standard_asset.kind was replaced by kind_id
+        // (FK into asset_kind) when free-text kind/type columns became
+        // relations — the handler's SQL still selected a `kind` column
+        // that no longer existed, which would fail at `conn.prepare()`
+        // time on every real call. No test exercised this handler at
+        // all before, so it went unnoticed.
+        let tmp = tempfile::tempdir().unwrap();
+        let repo_root = tmp.path().join("repo");
+        let samgraha_dir = repo_root.join(".samgraha");
+        std::fs::create_dir_all(&samgraha_dir).unwrap();
+        let db_path = samgraha_dir.join("knowledge.db");
+
+        let existing_file = samgraha_dir.join("guide.md");
+        std::fs::write(&existing_file, "# Guide").unwrap();
+
+        let conn = rusqlite::Connection::open(&db_path).unwrap();
+        registry::core_schema::ensure_current_schema(&conn).unwrap();
+        conn.execute(
+            "INSERT INTO asset_kind (standard, name) VALUES ('t', 'guide')",
+            [],
+        ).unwrap();
+        let kind_id = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO standard_asset (standard, kind_id, name, location, purpose) \
+             VALUES ('t', ?1, 'setup-guide', ?2, 'onboarding')",
+            rusqlite::params![kind_id, existing_file.display().to_string()],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO standard_asset (standard, kind_id, name, location, purpose) \
+             VALUES ('t', ?1, 'missing-guide', ?2, 'never written')",
+            rusqlite::params![kind_id, samgraha_dir.join("nope.md").display().to_string()],
+        ).unwrap();
+        drop(conn);
+
+        let registry: Arc<dyn RegistryClient> = Arc::new(FileRegistryClient::new(&repo_root));
+        let standards_db = Arc::new(StandardsDb::open_in_memory().unwrap());
+        let adapter = McpAdapter::new(repo_root.clone(), registry, standards_db);
+
+        let req = McpRequest {
+            id: "1".into(),
+            method: "get_standard_assets".into(),
+            params: [
+                ("name".to_string(), serde_json::json!("t")),
+                ("repo_path".to_string(), serde_json::json!(repo_root.display().to_string())),
+            ].into_iter().collect(),
+            repo: None,
+        };
+        let result = adapter.handle_get_standard_assets(&req).unwrap();
+        assert_eq!(result["count"], serde_json::json!(2), "got: {result}");
+        let assets = result["assets"].as_array().unwrap();
+        let setup = assets.iter().find(|a| a["name"] == "setup-guide").unwrap();
+        assert_eq!(setup["kind"], serde_json::json!("guide"));
+        assert_eq!(setup["file_exists"], serde_json::json!(true));
+        let missing = assets.iter().find(|a| a["name"] == "missing-guide").unwrap();
+        assert_eq!(missing["file_exists"], serde_json::json!(false));
+
+        // kind filter also goes through the asset_kind join, not a raw column.
+        let req_filtered = McpRequest {
+            id: "2".into(),
+            method: "get_standard_assets".into(),
+            params: [
+                ("name".to_string(), serde_json::json!("t")),
+                ("kind".to_string(), serde_json::json!("guide")),
+                ("repo_path".to_string(), serde_json::json!(repo_root.display().to_string())),
+            ].into_iter().collect(),
+            repo: None,
+        };
+        let filtered = adapter.handle_get_standard_assets(&req_filtered).unwrap();
+        assert_eq!(filtered["count"], serde_json::json!(2), "got: {filtered}");
+    }
 }

@@ -77,10 +77,11 @@ cp "$ROOT_DIR/samgraha.toml" "$PKG_DIR/"
 # execution create + migrate .samgraha/knowledge.db on demand via the
 # inline Rust migrations in core_schema.rs), just documentation for
 # anyone integrating with the raw DB directly.
-mkdir -p "$PKG_DIR/schema/registration" "$PKG_DIR/schema/knowledge"
+mkdir -p "$PKG_DIR/schema/registration" "$PKG_DIR/schema/knowledge" "$PKG_DIR/schema/standards"
 cp "$ROOT_DIR/schema/registration"/*.sql "$PKG_DIR/schema/registration/"
 cp "$ROOT_DIR/schema/knowledge"/*.sql "$PKG_DIR/schema/knowledge/"
-echo "  -> schema/registration/, schema/knowledge/ (reference schema)"
+cp "$ROOT_DIR/schema/standards"/*.sql "$PKG_DIR/schema/standards/"
+echo "  -> schema/registration/, schema/knowledge/, schema/standards/ (reference schema)"
 
 # Launcher scripts (Linux build: binaries have no .exe)
 cat > "$PKG_DIR/run-mcp.sh" <<SHEOF
