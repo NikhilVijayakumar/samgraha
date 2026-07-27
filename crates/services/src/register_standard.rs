@@ -11,6 +11,7 @@ use rusqlite::Connection;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use tracing;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct StandardManifest {
@@ -493,9 +494,7 @@ pub fn activate_standard(
         let script_location = resolve_location(&local_copy, script_name)?;
         let script_path = std::path::Path::new(&script_location);
         if !script_path.exists() {
-            // Cleanup: remove local copy and any rows the seeder may have written
-            let _ = delete_existing(&conn, standard_name);
-            let _ = std::fs::remove_dir_all(&local_copy);
+            cleanup_on_failure(&conn, standard_name, &local_copy);
             bail!("seeder script location does not exist: {script_location}");
         }
         crate::seeder::run_seeder(
@@ -504,19 +503,15 @@ pub fn activate_standard(
             samgraha_dir,
             knowledge_db_path,
             timeout_secs,
-        ).map_err(|e| {
-            let _ = delete_existing(&conn, standard_name);
-            let _ = std::fs::remove_dir_all(&local_copy);
-            e
+        ).inspect_err(|_| {
+            cleanup_on_failure(&conn, standard_name, &local_copy);
         })?;
     }
 
     // §3.9 step 5 — absolutize pass
     crate::seeder::absolutize_paths(&conn, standard_name, samgraha_dir)
-        .map_err(|e| {
-            let _ = delete_existing(&conn, standard_name);
-            let _ = std::fs::remove_dir_all(&local_copy);
-            e
+        .inspect_err(|_| {
+            cleanup_on_failure(&conn, standard_name, &local_copy);
         })?;
 
     // Standard metadata contract — custom-table handling (closes §1.1 gap).
@@ -527,21 +522,18 @@ pub fn activate_standard(
     if metadata_path.exists() {
         let metadata = crate::metadata_validate::load_and_validate_metadata(&metadata_path)
             .inspect_err(|_| {
-                let _ = delete_existing(&conn, standard_name);
-                let _ = std::fs::remove_dir_all(&local_copy);
+                cleanup_on_failure(&conn, standard_name, &local_copy);
             })?;
 
         if let Some(tables) = metadata.get("custom_tables").and_then(|v| v.as_array()) {
             for ct in tables {
                 let table_name = ct.get("name").and_then(|v| v.as_str()).unwrap_or("");
                 if table_name.trim().is_empty() {
-                    let _ = delete_existing(&conn, standard_name);
-                    let _ = std::fs::remove_dir_all(&local_copy);
+                    cleanup_on_failure(&conn, standard_name, &local_copy);
                     bail!("custom_tables entry has an empty name in standard.metadata.json");
                 }
                 if RESERVED_TABLE_NAMES.contains(&table_name) {
-                    let _ = delete_existing(&conn, standard_name);
-                    let _ = std::fs::remove_dir_all(&local_copy);
+                    cleanup_on_failure(&conn, standard_name, &local_copy);
                     bail!(
                         "custom table name '{}' collides with a samgraha-reserved table name",
                         table_name
@@ -563,8 +555,7 @@ pub fn activate_standard(
                     for col in required_cols {
                         let col_name = col.as_str().unwrap_or("");
                         if !column_exists_in_table(&conn, table_name, col_name) {
-                            let _ = delete_existing(&conn, standard_name);
-                            let _ = std::fs::remove_dir_all(&local_copy);
+                            cleanup_on_failure(&conn, standard_name, &local_copy);
                             bail!(
                                 "required column '{}' does not exist in table '{}'",
                                 col_name, table_name
@@ -578,13 +569,23 @@ pub fn activate_standard(
 
     // Layer A structural completeness audit — mandatory final step.
     crate::layer_a_audit::run_layer_a_audit(&conn, standard_name)
-        .map_err(|e| {
-            let _ = delete_existing(&conn, standard_name);
-            let _ = std::fs::remove_dir_all(&local_copy);
-            e
+        .inspect_err(|_| {
+            cleanup_on_failure(&conn, standard_name, &local_copy);
         })?;
 
     Ok(())
+}
+
+fn cleanup_on_failure(conn: &Connection, standard_name: &str, local_copy: &Path) {
+    if let Err(e) = delete_existing(conn, standard_name) {
+        tracing::warn!("cleanup: failed to delete DB rows for '{standard_name}': {e}");
+    }
+    if let Err(e) = std::fs::remove_dir_all(local_copy) {
+        tracing::warn!(
+            "cleanup: failed to remove local copy at {}: {e}",
+            local_copy.display()
+        );
+    }
 }
 
 /// Introspect a table's columns via `PRAGMA table_info` and return the

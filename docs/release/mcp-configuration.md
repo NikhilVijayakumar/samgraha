@@ -240,4 +240,13 @@ Configure MCP server in `~/.gemini/config/mcp_config.json`:
 
 ## 4. Codex CLI / future IDE integrations
 
-Test compatibility.
+Codex CLI supports MCP servers via `mcp` in `codex.toml`. Configuration pattern:
+
+```toml
+[mcp.samgraha]
+command = "<Location>/bin/mcp"
+```
+
+Replace `<Location>` with the actual path to the release or build directory.
+
+> **Status:** Untested. Codex CLI's MCP interface may differ from the above. Verify against the [Codex CLI documentation](https://github.com/openai/codex) before relying on this configuration.

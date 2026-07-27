@@ -245,7 +245,19 @@ impl McpAdapter {
             return Err(anyhow::anyhow!("Path does not exist: {}", path.display()));
         }
 
-        // §3.7 step 1 — copy into mcp_dir()/registry/<name>/ atomically
+        // §3.7 step 1 — copy into mcp_dir()/registry/<category>/<name>/
+        // atomically. Category nests the registry directory the same way
+        // the real standards corpus (Kriti/samgraha/system/<category>/<name>/)
+        // already does on disk — verified directly: no standard.yaml in
+        // that corpus declares a `category:` field at all, every one of
+        // them communicates category purely through where its directory
+        // sits. So `category:` in the manifest is an override if present,
+        // never the only source — the fallback infers it from `path`'s
+        // own parent directory name, matching what's actually on disk
+        // today. `subcategory` stays DB-only metadata (no folder for it
+        // anywhere in the real corpus either — e.g. dev/react_dev vs
+        // dev/fastapi_dev are distinguished by name, not a frontend/
+        // backend subfolder).
         let manifest_path = services::register_standard::resolve_manifest_path(&path)?;
         let manifest_content = std::fs::read_to_string(&manifest_path)?;
         let raw: serde_yaml::Mapping = serde_yaml::from_str(&manifest_content)?;
@@ -254,16 +266,27 @@ impl McpAdapter {
                 .and_then(|v| v.as_str().map(String::from))
         };
         let name = get_str("name").ok_or_else(|| anyhow::anyhow!("Manifest missing 'name' field"))?;
-        let category = get_str("category").unwrap_or_default();
+        let category = get_str("category").unwrap_or_else(|| {
+            path.parent()
+                .and_then(|p| p.file_name())
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default()
+        });
         let subcategory = get_str("subcategory");
         let extends = get_str("extends");
         let version = get_str("version").unwrap_or_else(|| "0.0.0".to_string());
         let description = get_str("description").unwrap_or_default();
 
-        // §3.13 — detect re-registration for operation_log distinction
-        let is_update = self.standards_db.get_standard(&name)?.is_some();
+        // §3.13 — detect re-registration; also capture the *previous*
+        // source_path so a category change (this name registering under
+        // a different category than last time) doesn't leave the old
+        // nested directory orphaned — cleaned up after the new
+        // registration succeeds, §ceanup-below.
+        let previous = self.standards_db.get_standard(&name)?;
+        let is_update = previous.is_some();
+        let previous_registry_dir = previous.map(|row| PathBuf::from(row.source_path));
 
-        let registry_dir = common::env::mcp_dir().join("registry").join(&name);
+        let registry_dir = common::env::mcp_dir().join("registry").join(&category).join(&name);
         // Atomic copy: temp dir → remove old → rename. On failure, old
         // target stays untouched (§3.7, §1.6).
         common::fs_sync::copy_dir_atomic(&path, &registry_dir, &common::fs_sync::DEFAULT_EXCLUDES)?;
@@ -287,7 +310,9 @@ impl McpAdapter {
         // §3.7 cleanup-on-failure: if verify or upsert fails, remove the
         // directory we just wrote — leave exactly the state we found.
         if verify_status == "failed" {
-            let _ = std::fs::remove_dir_all(&registry_dir);
+            if let Err(e) = std::fs::remove_dir_all(&registry_dir) {
+                tracing::warn!("cleanup: failed to remove registry dir at {}: {e}", registry_dir.display());
+            }
             self.standards_db.log_operation(
                 if is_update { "update_standard" } else { "register_globally" },
                 &name,
@@ -314,7 +339,9 @@ impl McpAdapter {
             let metadata = match services::metadata_validate::load_and_validate_metadata(&metadata_path) {
                 Ok(m) => m,
                 Err(e) => {
-                    let _ = std::fs::remove_dir_all(&registry_dir);
+                    if let Err(e2) = std::fs::remove_dir_all(&registry_dir) {
+                        tracing::warn!("cleanup: failed to remove registry dir at {}: {e2}", registry_dir.display());
+                    }
                     self.standards_db.log_operation(
                         if is_update { "update_standard" } else { "register_globally" },
                         &name,
@@ -333,7 +360,9 @@ impl McpAdapter {
             // Also validate proposal_template consistency: if set, it must
             // name a template with role='proposal'.
             if let Err(e) = services::metadata_validate::validate_proposal_template_consistency(&metadata) {
-                let _ = std::fs::remove_dir_all(&registry_dir);
+                if let Err(e2) = std::fs::remove_dir_all(&registry_dir) {
+                    tracing::warn!("cleanup: failed to remove registry dir at {}: {e2}", registry_dir.display());
+                }
                 self.standards_db.log_operation(
                     if is_update { "update_standard" } else { "register_globally" },
                     &name,
@@ -381,8 +410,23 @@ impl McpAdapter {
         );
 
         if let Err(e) = upsert_result {
-            let _ = std::fs::remove_dir_all(&registry_dir);
+            if let Err(e2) = std::fs::remove_dir_all(&registry_dir) {
+                tracing::warn!("cleanup: failed to remove registry dir at {}: {e2}", registry_dir.display());
+            }
             return Err(e);
+        }
+
+        // Category changed since the previous registration of this name
+        // — the old nested directory is now orphaned (a different path
+        // under registry/), remove it. Only after the new registration
+        // fully succeeded — a failure above leaves the previous
+        // registration, at its previous path, completely untouched.
+        if let Some(old_dir) = previous_registry_dir {
+            if old_dir != registry_dir {
+                if let Err(e) = std::fs::remove_dir_all(&old_dir) {
+                    tracing::warn!("cleanup: failed to remove old category dir at {}: {e}", old_dir.display());
+                }
+            }
         }
 
         self.standards_db.log_operation(
@@ -487,11 +531,13 @@ impl McpAdapter {
             "SELECT id, name, location, purpose FROM script WHERE standard = ?1 ORDER BY name",
         )?;
         let rows = stmt.query_map(rusqlite::params![name], |row| {
+            let location: String = row.get(2)?;
             Ok(serde_json::json!({
                 "id": row.get::<_, i64>(0)?,
                 "name": row.get::<_, String>(1)?,
-                "location": row.get::<_, String>(2)?,
+                "location": location,
                 "purpose": row.get::<_, String>(3)?,
+                "file_exists": std::path::Path::new(&location).exists(),
             }))
         })?;
         let mut scripts = Vec::new();
@@ -539,25 +585,36 @@ impl McpAdapter {
         let kind_filter = req.params.get("kind").and_then(|v| v.as_str());
         let db_path = self.knowledge_db_path(req);
         let conn = rusqlite::Connection::open(&db_path)?;
+        // `standard_asset.kind` was replaced by `kind_id` (FK into
+        // asset_kind) when the free-text kind/type columns became
+        // relations — this handler still needs the kind *name* for
+        // callers, so it joins back to asset_kind rather than exposing
+        // the raw id.
         let (sql, params): (&str, Vec<Box<dyn rusqlite::types::ToSql>>) = match kind_filter {
             Some(k) => (
-                "SELECT id, kind, name, location, purpose FROM standard_asset WHERE standard = ?1 AND kind = ?2 ORDER BY kind, name",
+                "SELECT sa.id, ak.name, sa.name, sa.location, sa.purpose \
+                 FROM standard_asset sa JOIN asset_kind ak ON ak.id = sa.kind_id \
+                 WHERE sa.standard = ?1 AND ak.name = ?2 ORDER BY ak.name, sa.name",
                 vec![Box::new(name.to_string()), Box::new(k.to_string())],
             ),
             None => (
-                "SELECT id, kind, name, location, purpose FROM standard_asset WHERE standard = ?1 ORDER BY kind, name",
+                "SELECT sa.id, ak.name, sa.name, sa.location, sa.purpose \
+                 FROM standard_asset sa JOIN asset_kind ak ON ak.id = sa.kind_id \
+                 WHERE sa.standard = ?1 ORDER BY ak.name, sa.name",
                 vec![Box::new(name.to_string())],
             ),
         };
         let mut stmt = conn.prepare(sql)?;
         let params_ref: Vec<&dyn rusqlite::types::ToSql> = params.iter().map(|p| p.as_ref()).collect();
         let rows = stmt.query_map(params_ref.as_slice(), |row| {
+            let location: String = row.get(3)?;
             Ok(serde_json::json!({
                 "id": row.get::<_, i64>(0)?,
                 "kind": row.get::<_, String>(1)?,
                 "name": row.get::<_, String>(2)?,
-                "location": row.get::<_, String>(3)?,
+                "location": location,
                 "purpose": row.get::<_, String>(4)?,
+                "file_exists": std::path::Path::new(&location).exists(),
             }))
         })?;
         let mut assets = Vec::new();
@@ -754,10 +811,13 @@ mod tests {
 
     /// `SAMGRAHA_MCP_DIR` (read by `common::env::mcp_dir()`) is a
     /// process-wide env var — this test owns it exclusively (no other
-    /// test in this codebase sets it) and does both the success and
-    /// failure cases sequentially in one function, rather than two
-    /// separate `#[test]`s, to avoid a race if cargo ever runs tests in
-    /// this binary concurrently against different tempdirs.
+    /// test in this codebase sets it) and runs every scenario that needs
+    /// it (metadata success, metadata rejection, category-change
+    /// cleanup) sequentially in this one function, rather than separate
+    /// `#[test]`s, to avoid a race if cargo runs tests in this binary
+    /// concurrently against different tempdirs — confirmed this isn't
+    /// theoretical: a second, separate test setting the same var failed
+    /// intermittently under the full suite.
     #[test]
     fn handle_register_standard_globally_validates_metadata() {
         let tmp = tempfile::tempdir().unwrap();
@@ -769,9 +829,11 @@ mod tests {
         let standards_db = Arc::new(StandardsDb::open_in_memory().unwrap());
         let adapter = McpAdapter::new(tmp.path().to_path_buf(), registry, standards_db);
 
-        // Valid standard.metadata.json → registration succeeds, standard
-        // upserted into standards.db.
-        let good_dir = tmp.path().join("good-std");
+        // Source laid out the same way the real standards corpus is —
+        // system/<category>/<name>/ — with no `category:` field in
+        // standard.yaml, so category must be inferred from the source
+        // path's own parent directory name.
+        let good_dir = tmp.path().join("system").join("dev").join("good-std");
         std::fs::create_dir_all(&good_dir).unwrap();
         std::fs::write(good_dir.join("standard.yaml"), "name: good-std\n").unwrap();
         std::fs::write(
@@ -786,14 +848,19 @@ mod tests {
         };
         let result = adapter.handle_register_standard_globally(&req).unwrap();
         assert_eq!(result["success"], serde_json::json!(true), "got: {result}");
-        assert!(adapter.standards_db.get_standard("good-std").unwrap().is_some());
+        let row = adapter.standards_db.get_standard("good-std").unwrap().unwrap();
+        assert_eq!(row.category, "dev", "category should be inferred from the source path's parent dir");
+        assert!(
+            mcp_home.join("registry").join("dev").join("good-std").join("standard.yaml").exists(),
+            "registry copy should be nested under registry/<category>/<name>/, matching the real standards corpus layout"
+        );
 
         // Invalid standard.metadata.json (schema violation: unknown field,
         // additionalProperties:false) → rejected, nothing upserted, the
         // directory register_standard_globally copied is cleaned up.
         // This is exactly the embedded-schema fix's real integration
         // point — no fixture faking a file at the wrong path this time.
-        let bad_dir = tmp.path().join("bad-std");
+        let bad_dir = tmp.path().join("system").join("hackathon").join("bad-std");
         std::fs::create_dir_all(&bad_dir).unwrap();
         std::fs::write(bad_dir.join("standard.yaml"), "name: bad-std\n").unwrap();
         std::fs::write(bad_dir.join("standard.metadata.json"), r#"{"not_a_real_field": true}"#).unwrap();
@@ -807,9 +874,55 @@ mod tests {
         assert_eq!(result["success"], serde_json::json!(false), "got: {result}");
         assert!(adapter.standards_db.get_standard("bad-std").unwrap().is_none());
         assert!(
-            !mcp_home.join("registry").join("bad-std").exists(),
+            !mcp_home.join("registry").join("hackathon").join("bad-std").exists(),
             "cleanup-on-failure should remove the copied registry directory"
         );
+
+        // Third phase, same adapter/tempdir — re-registering a name under
+        // a *different* category than it was previously registered
+        // under must move the registry directory, not leave the old one
+        // orphaned. Kept in this same test function (not a separate
+        // #[test]) because SAMGRAHA_MCP_DIR is a process-wide env var —
+        // a second test setting/unsetting it independently races this
+        // one if cargo runs them concurrently (confirmed: an earlier,
+        // separate version of this scenario failed intermittently under
+        // the full suite while passing every time in isolation).
+        let dev_dir = tmp.path().join("system").join("dev").join("movable-std");
+        std::fs::create_dir_all(&dev_dir).unwrap();
+        std::fs::write(dev_dir.join("standard.yaml"), "name: movable-std\n").unwrap();
+        let req = McpRequest {
+            id: "3".into(),
+            method: "register_standard_globally".into(),
+            params: [("path".to_string(), serde_json::json!(dev_dir.display().to_string()))].into_iter().collect(),
+            repo: None,
+        };
+        adapter.handle_register_standard_globally(&req).unwrap();
+        let old_dir = mcp_home.join("registry").join("dev").join("movable-std");
+        assert!(old_dir.exists());
+
+        // Re-register the same name from a source now living under a
+        // different category.
+        let hackathon_dir = tmp.path().join("system").join("hackathon").join("movable-std");
+        std::fs::create_dir_all(&hackathon_dir).unwrap();
+        std::fs::write(hackathon_dir.join("standard.yaml"), "name: movable-std\n").unwrap();
+        let req = McpRequest {
+            id: "4".into(),
+            method: "register_standard_globally".into(),
+            params: [("path".to_string(), serde_json::json!(hackathon_dir.display().to_string()))].into_iter().collect(),
+            repo: None,
+        };
+        let result = adapter.handle_register_standard_globally(&req).unwrap();
+        assert_eq!(result["success"], serde_json::json!(true), "got: {result}");
+
+        let new_dir = mcp_home.join("registry").join("hackathon").join("movable-std");
+        assert!(new_dir.join("standard.yaml").exists(), "new-category directory should exist");
+        assert!(
+            !old_dir.exists(),
+            "old-category directory should be removed, not left orphaned, after the category changed"
+        );
+        let row = adapter.standards_db.get_standard("movable-std").unwrap().unwrap();
+        assert_eq!(row.category, "hackathon");
+        assert_eq!(row.source_path, new_dir.display().to_string());
 
         std::env::remove_var("SAMGRAHA_MCP_DIR");
     }

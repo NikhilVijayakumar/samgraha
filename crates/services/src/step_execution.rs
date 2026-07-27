@@ -210,6 +210,10 @@ pub fn prepare_semantic_step(knowledge_db_path: &Path, step_id: i64) -> Result<S
         |r| Ok((r.get(0)?, r.get(1)?)),
     ).context(format!("No prompt mapped to semantic step {step_id}"))?;
 
+    if prompt_content.trim().is_empty() {
+        bail!("prompt '{prompt_name}' mapped to semantic step {step_id} has empty content");
+    }
+
     Ok(SemanticStepPrep {
         step_id,
         description,
@@ -539,6 +543,20 @@ mod tests {
         let db_path = tmp.path().join("knowledge.db");
         let err = prepare_semantic_step(&db_path, det_step).unwrap_err();
         assert!(err.to_string().contains("not 'semantic'"));
+    }
+
+    #[test]
+    fn prepare_semantic_step_rejects_whitespace_only_prompt_content() {
+        let tmp = tempfile::tempdir().unwrap();
+        let (_, sem_step) = setup_db(tmp.path());
+        let db_path = tmp.path().join("knowledge.db");
+        let conn = Connection::open(&db_path).unwrap();
+        conn.execute(
+            "UPDATE prompt SET content = '   \n  ' WHERE standard = 't' AND name = 'narrative-prompt'",
+            [],
+        ).unwrap();
+        let err = prepare_semantic_step(&db_path, sem_step).unwrap_err();
+        assert!(err.to_string().contains("empty content"), "got: {err}");
     }
 
     #[test]
