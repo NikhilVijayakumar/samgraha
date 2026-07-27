@@ -496,12 +496,13 @@ pub fn activate_standard(
     let seeder_script = get_str("seeder_script");
 
     if let Some(ref script_name) = seeder_script {
-        let script_location = resolve_location(&local_copy, script_name)?;
+        // resolve_location itself canonicalizes and requires the target
+        // to exist — it errors via `?` before any later check runs, so
+        // that error needs the same cleanup every other fallible step
+        // in this function already gets, not just the ones after it.
+        let script_location = resolve_location(&local_copy, script_name)
+            .inspect_err(|_| cleanup_on_failure(&conn, standard_name, &local_copy))?;
         let script_path = std::path::Path::new(&script_location);
-        if !script_path.exists() {
-            cleanup_on_failure(&conn, standard_name, &local_copy);
-            bail!("seeder script location does not exist: {script_location}");
-        }
         crate::seeder::run_seeder(
             repo_root,
             script_path,

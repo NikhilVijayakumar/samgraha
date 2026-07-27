@@ -273,39 +273,6 @@ pub fn write_env_example(root: &Path) -> Result<PathBuf> {
     Ok(path)
 }
 
-/// Update `repository.documentation.standard_system` in an existing
-/// `samgraha.toml`. Creates the key if missing, overwrites if present.
-/// No-op if the file doesn't exist (init hasn't been run yet).
-pub fn update_standard_system(root: &Path, standard_name: &str) -> Result<()> {
-    let config_path = root.join("samgraha.toml");
-    if !config_path.exists() {
-        return Ok(());
-    }
-    let existing = std::fs::read_to_string(&config_path)
-        .context(format!("Failed to read {}", config_path.display()))?;
-    let mut doc: toml_edit::DocumentMut = existing
-        .parse()
-        .context(format!("Failed to parse {}", config_path.display()))?;
-
-    // Ensure nested table path exists: [repository.documentation]
-    let repo = doc.entry("repository").or_insert_with(|| {
-        toml_edit::Item::Table(toml_edit::Table::new())
-    });
-    let repo_tbl = repo.as_table_mut()
-        .context("Expected 'repository' to be a table in samgraha.toml")?;
-    let docs = repo_tbl.entry("documentation").or_insert_with(|| {
-        toml_edit::Item::Table(toml_edit::Table::new())
-    });
-    let docs_tbl = docs.as_table_mut()
-        .context("Expected 'repository.documentation' to be a table in samgraha.toml")?;
-
-    docs_tbl.insert("standard_system", toml_edit::value(standard_name));
-
-    std::fs::write(&config_path, doc.to_string())
-        .context(format!("Failed to write {}", config_path.display()))?;
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

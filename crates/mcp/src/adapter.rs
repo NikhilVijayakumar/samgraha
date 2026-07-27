@@ -174,22 +174,18 @@ impl McpAdapter {
         let db_path = self.knowledge_db_path(req);
         let timeout = req.params.get("timeout_secs").and_then(|v| v.as_u64());
 
-        // If a different standard is already active, clean up its local
-        // copy directory and DB rows before activating the new one.
+        // Note the previously active standard (if any, and if different)
+        // *before* touching anything — its cleanup only happens after the
+        // new standard's activation has fully succeeded, below. Cleaning
+        // it up first would mean a failed activate_standard (seeder
+        // error, Layer A audit failure, etc.) leaves the repo with
+        // neither the old standard's data nor the new one's — worse than
+        // the state before this call started, and a direct violation of
+        // the "leave exactly the state you found on failure" discipline
+        // every other step in this flow already follows.
         let registry_db = registry::registry_db::RegistryDb::open(&root)?;
-        if let Ok(Some(old)) = registry_db.get_active_standard() {
-            if old.name != standard_name {
-                let old_dir = samgraha_dir.join(&old.name);
-                if old_dir.exists() {
-                    let _ = std::fs::remove_dir_all(&old_dir);
-                }
-                if db_path.exists() {
-                    if let Ok(conn) = rusqlite::Connection::open(&db_path) {
-                        let _ = services::register_standard::delete_existing(&conn, &old.name);
-                    }
-                }
-            }
-        }
+        let previous = registry_db.get_active_standard().ok().flatten()
+            .filter(|old| old.name != standard_name);
 
         services::register_standard::activate_standard(
             &standard_name,
@@ -204,6 +200,12 @@ impl McpAdapter {
         // relocated) — one standard per repo at a time, tracked in
         // registry.db, not duplicated inside knowledge.db. Sourced from
         // `global` (already fetched above) — no local YAML re-parse.
+        // registry.db's active_standard is the single source of truth for
+        // "which standard is active" — deliberately not mirrored into
+        // samgraha.toml (that file is committed policy an operator edits;
+        // this is runtime state an MCP call changes, and duplicating it
+        // would just reintroduce the drift-prone second-source problem
+        // this table exists to avoid).
         registry_db.set_active_standard(&registry::registry_db::ActiveStandard {
             name: standard_name.clone(),
             category: global.category.clone(),
@@ -214,8 +216,23 @@ impl McpAdapter {
             activated_at: String::new(),
         })?;
 
-        // Keep samgraha.toml's standard_system in sync with the active standard.
-        services::update_standard_system(&root, &standard_name)?;
+        // Now that the new standard is fully active, clean up whatever
+        // standard was active before it — its local copy directory and
+        // its DB rows (artifact/artifact_type excepted — historical
+        // output, never deleted, same as every other reseed).
+        if let Some(old) = previous {
+            let old_dir = samgraha_dir.join(&old.name);
+            if old_dir.exists() {
+                if let Err(e) = std::fs::remove_dir_all(&old_dir) {
+                    tracing::warn!("cleanup: failed to remove previous standard's local copy at {}: {e}", old_dir.display());
+                }
+            }
+            if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+                if let Err(e) = services::register_standard::delete_existing(&conn, &old.name) {
+                    tracing::warn!("cleanup: failed to delete previous standard '{}' rows: {e}", old.name);
+                }
+            }
+        }
 
         Ok(serde_json::json!({
             "success": true,
@@ -1017,5 +1034,69 @@ mod tests {
         };
         let filtered = adapter.handle_get_standard_assets(&req_filtered).unwrap();
         assert_eq!(filtered["count"], serde_json::json!(2), "got: {filtered}");
+    }
+
+    #[test]
+    fn handle_register_standard_leaves_old_standard_untouched_when_new_one_fails() {
+        // Regression test for the ordering bug fixed in this pass: the
+        // previously-active standard's cleanup must run only *after* the
+        // new standard's activation succeeds. If it ran first (as an
+        // earlier version of this code did) a failed activation of the
+        // new standard would leave the repo with neither standard's
+        // data — worse than the state before the call.
+        let tmp = tempfile::tempdir().unwrap();
+        let repo_root = tmp.path().to_path_buf();
+
+        let std_a_dir = tmp.path().join("std-a-source");
+        std::fs::create_dir_all(&std_a_dir).unwrap();
+        std::fs::write(std_a_dir.join("standard.yaml"), "name: std-a\n").unwrap();
+
+        let std_b_dir = tmp.path().join("std-b-source");
+        std::fs::create_dir_all(&std_b_dir).unwrap();
+        // Declares a seeder_script that doesn't exist — activate_standard
+        // fails cleanly at the "resolve seeder script" step.
+        std::fs::write(std_b_dir.join("standard.yaml"), "name: std-b\nseeder_script: missing.py\n").unwrap();
+
+        let registry: Arc<dyn RegistryClient> = Arc::new(FileRegistryClient::new(&repo_root));
+        let standards_db = Arc::new(StandardsDb::open_in_memory().unwrap());
+        standards_db.upsert_standard(
+            "std-a", "dev", None, &std_a_dir.display().to_string(),
+            false, None, "1.0.0", "", "{}", "unverified",
+        ).unwrap();
+        standards_db.upsert_standard(
+            "std-b", "dev", None, &std_b_dir.display().to_string(),
+            false, None, "1.0.0", "", "{}", "unverified",
+        ).unwrap();
+        let adapter = McpAdapter::new(repo_root.clone(), registry, standards_db);
+
+        let activate = |name: &str| McpRequest {
+            id: "1".into(),
+            method: "register_standard".into(),
+            params: [("standard_name".to_string(), serde_json::json!(name))].into_iter().collect(),
+            repo: None,
+        };
+
+        // Activate std-a — succeeds, becomes the active standard.
+        let result = adapter.handle_register_standard(&activate("std-a")).unwrap();
+        assert_eq!(result["success"], serde_json::json!(true), "got: {result}");
+        let samgraha_dir = load_samgraha_dir(&repo_root);
+        assert!(samgraha_dir.join("std-a").join("standard.yaml").exists());
+
+        // Attempt to switch to std-b — its activation fails.
+        let err = adapter.handle_register_standard(&activate("std-b")).unwrap_err();
+        assert!(err.to_string().contains("does not exist"), "got: {err}");
+
+        // std-a must still be fully intact — directory and active_standard row.
+        assert!(
+            samgraha_dir.join("std-a").join("standard.yaml").exists(),
+            "std-a's local copy must survive a failed std-b activation"
+        );
+        let registry_db = registry::registry_db::RegistryDb::open(&repo_root).unwrap();
+        let active = registry_db.get_active_standard().unwrap().unwrap();
+        assert_eq!(active.name, "std-a", "active_standard must still point at std-a, not be cleared or switched");
+        assert!(
+            !samgraha_dir.join("std-b").exists(),
+            "std-b's failed activation shouldn't leave a partial directory either"
+        );
     }
 }
