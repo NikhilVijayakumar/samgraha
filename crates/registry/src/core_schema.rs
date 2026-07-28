@@ -295,6 +295,7 @@ CREATE TABLE IF NOT EXISTS proposal (
     status       TEXT    NOT NULL DEFAULT 'draft'
                  CHECK (status IN ('draft','final','archived')),
     location     TEXT,
+    metadata_json TEXT,
     created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 

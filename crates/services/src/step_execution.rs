@@ -142,6 +142,7 @@ pub fn run_script_step(
     if let Some(proposal) = result.get("proposal") {
         let title = proposal.get("title").and_then(|v| v.as_str()).unwrap_or("untitled");
         let location = proposal.get("location").and_then(|v| v.as_str());
+        let metadata_json = proposal.get("metadata").map(|v| v.to_string());
 
         // Check if this standard declares a proposal_template — if so,
         // validate the envelope against proposal.schema.json + cross-checks.
@@ -155,8 +156,8 @@ pub fn run_script_step(
         }
 
         conn.execute(
-            "INSERT INTO proposal (standard, usecase_id, execution_id, title, location) VALUES (?1, ?2, ?3, ?4, ?5)",
-            rusqlite::params![standard_name, usecase_id, exec_id, title, location],
+            "INSERT INTO proposal (standard, usecase_id, execution_id, title, location, metadata_json) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            rusqlite::params![standard_name, usecase_id, exec_id, title, location, metadata_json],
         )?;
     }
     if let Some(artifacts) = result.get("artifacts").and_then(|v| v.as_array()) {

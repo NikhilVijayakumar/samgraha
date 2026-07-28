@@ -1,7 +1,8 @@
 -- knowledge.db — generic proposal tracking: opt-in, per standard. Links a
 -- usecase to a template and an execution; tracks status (draft/final/
--- archived) and an optional output location. Samgraha never interprets
--- proposal content — it only records the lifecycle.
+-- archived), an optional output location, and presentation metadata JSON
+-- (summary, content_md, computed_context for render_proposal.py).
+-- Samgraha never interprets proposal content — it only records the lifecycle.
 
 CREATE TABLE IF NOT EXISTS proposal (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -13,5 +14,6 @@ CREATE TABLE IF NOT EXISTS proposal (
     status       TEXT    NOT NULL DEFAULT 'draft'
                  CHECK (status IN ('draft','final','archived')),
     location     TEXT,
+    metadata_json TEXT,
     created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
 );

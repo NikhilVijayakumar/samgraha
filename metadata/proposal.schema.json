@@ -14,6 +14,10 @@
       "type": "string",
       "description": "File path where the proposal content lives"
     },
+    "metadata": {
+      "type": "object",
+      "description": "Presentation-layer metadata for rendering (summary, content_md, computed_context)"
+    },
     "phases": {
       "type": "array",
       "description": "Phase-wise breakdown of the proposal. Must be non-empty.",
