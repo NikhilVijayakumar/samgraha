@@ -500,7 +500,11 @@ pub fn activate_standard(
         // to exist — it errors via `?` before any later check runs, so
         // that error needs the same cleanup every other fallible step
         // in this function already gets, not just the ones after it.
-        let script_location = resolve_location(&local_copy, script_name)
+        // Resolve relative to manifest_dir (where standard.yaml lives),
+        // not local_copy (standard root) — paths are relative to
+        // standard.yaml's location (script/schema/).
+        let manifest_dir = manifest_path.parent().unwrap_or(&local_copy);
+        let script_location = resolve_location(manifest_dir, script_name)
             .inspect_err(|_| cleanup_on_failure(&conn, standard_name, &local_copy))?;
         let script_path = std::path::Path::new(&script_location);
         crate::seeder::run_seeder(
@@ -1079,6 +1083,57 @@ with open(args.out, "w") as f:
             )
             .unwrap();
         assert_eq!(script_count, 1);
+    }
+
+    #[test]
+    fn activate_standard_resolves_seeder_script_relative_to_nested_manifest() {
+        // Real standards corpus layout: standard.yaml lives at
+        // <standard>/script/schema/standard.yaml, not at the standard's
+        // root. seeder_script: (like every other manifest-relative path)
+        // must resolve relative to standard.yaml's own directory, not
+        // the standard's root — regression test for the uncommitted fix
+        // that corrected this (previously resolved against local_copy,
+        // the standard root, which is wrong for every real standard on
+        // disk today).
+        let tmp = tempfile::tempdir().unwrap();
+        let source_dir = tmp.path().join("source-std");
+        let schema_dir = source_dir.join("script").join("schema");
+        std::fs::create_dir_all(&schema_dir).unwrap();
+        std::fs::write(schema_dir.join("standard.yaml"), "name: nested-std\nseeder_script: seed.py\n").unwrap();
+        // seed.py's own script.location row must match where the file
+        // actually ends up after copy — script/schema/seed.py, not
+        // seed.py at the standard root — same nesting the manifest has.
+        let seeder_src = FIXTURE_SEEDER_PY
+            .replace("fixture-std", "nested-std")
+            .replace("'seed.py'", "'script/schema/seed.py'");
+        std::fs::write(schema_dir.join("seed.py"), seeder_src).unwrap();
+        // standard.metadata.json sits at the standard's root, sibling to
+        // script/prompt/templates/ — not manifest-relative like
+        // seeder_script/smoke_test, since activate_standard looks it up
+        // at local_copy.join("standard.metadata.json") unconditionally.
+        std::fs::write(
+            source_dir.join("standard.metadata.json"),
+            r#"{"custom_tables":[{"name":"fixture_scores","purpose":"test scores","required_columns":["team_id","score"]}]}"#,
+        ).unwrap();
+
+        let repo_root = tmp.path().join("repo");
+        let samgraha_dir = repo_root.join(".samgraha");
+        let knowledge_db_path = samgraha_dir.join("knowledge.db");
+
+        activate_standard(
+            "nested-std",
+            &source_dir.display().to_string(),
+            &knowledge_db_path,
+            &repo_root,
+            &samgraha_dir,
+            Some(30),
+        ).unwrap();
+
+        let conn = Connection::open(&knowledge_db_path).unwrap();
+        let uc_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM usecase WHERE standard = 'nested-std'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(uc_count, 1, "seeder at the nested manifest location should have run and seeded rows");
     }
 
     #[test]

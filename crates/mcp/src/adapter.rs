@@ -327,9 +327,18 @@ impl McpAdapter {
         // target stays untouched (§3.7, §1.6).
         common::fs_sync::copy_dir_atomic(&path, &registry_dir, &common::fs_sync::DEFAULT_EXCLUDES)?;
 
-        // §3.7 step 2 — run verify-gate against the copy, not the original
+        // §3.7 step 2 — run verify-gate against the copy, not the original.
+        // Resolve smoke_test relative to the registry copy of the manifest's
+        // parent directory, not registry_dir (standard root). Paths in
+        // standard.yaml are relative to where standard.yaml sits (script/schema/).
+        let manifest_dir_in_registry = {
+            let source_root = &path;
+            let manifest_parent = manifest_path.parent().unwrap_or(source_root);
+            let relative = manifest_parent.strip_prefix(source_root).unwrap_or(manifest_parent);
+            registry_dir.join(relative)
+        };
         let verify_status = if let Some(smoke_test) = get_str("smoke_test") {
-            let smoke_path = services::register_standard::resolve_location(&registry_dir, &smoke_test)?;
+            let smoke_path = services::register_standard::resolve_location(&manifest_dir_in_registry, &smoke_test)?;
             let status = std::process::Command::new(&smoke_path)
                 .arg("--repo-root")
                 .arg(&registry_dir)
@@ -959,6 +968,28 @@ mod tests {
         let row = adapter.standards_db.get_standard("movable-std").unwrap().unwrap();
         assert_eq!(row.category, "hackathon");
         assert_eq!(row.source_path, new_dir.display().to_string());
+
+        // Fourth phase — real corpus layout: standard.yaml nested at
+        // script/schema/standard.yaml, smoke_test declared relative to
+        // that same directory. Regression test for the uncommitted fix
+        // that resolves smoke_test against the manifest's own directory
+        // (script/schema/) instead of registry_dir (the standard root),
+        // which is wrong for every standard on disk today.
+        let smoke_dir = tmp.path().join("system").join("dev").join("smoke-std").join("script").join("schema");
+        std::fs::create_dir_all(&smoke_dir).unwrap();
+        std::fs::write(smoke_dir.join("standard.yaml"), "name: smoke-std\nsmoke_test: check.cmd\n").unwrap();
+        std::fs::write(smoke_dir.join("check.cmd"), "@echo off\r\nexit /b 0\r\n").unwrap();
+        let req = McpRequest {
+            id: "5".into(),
+            method: "register_standard_globally".into(),
+            params: [("path".to_string(), serde_json::json!(
+                tmp.path().join("system").join("dev").join("smoke-std").display().to_string()
+            ))].into_iter().collect(),
+            repo: None,
+        };
+        let result = adapter.handle_register_standard_globally(&req).unwrap();
+        assert_eq!(result["success"], serde_json::json!(true), "got: {result}");
+        assert_eq!(result["verify_status"], serde_json::json!("passed"), "got: {result}");
 
         std::env::remove_var("SAMGRAHA_MCP_DIR");
     }
